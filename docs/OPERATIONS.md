@@ -765,9 +765,26 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
   Servicegebühren“ je Währung (Teil des Bruttoumsatzes). Fiskalisierung: die Gebühren stehen als eigene
   Positionen auf dem Beleg des Verkäufers ihrer Ticketposition (Belegsumme = Bestellsumme); die Belegzeile je
   Ticketart (`wpcap_fiscal_document_items`) enthält ihre Beträge.
-- **Erstattung:** nach den bestehenden Regeln (`Refunds::calculate()`): ein erstattetes Ticket nimmt seine
-  Gebühr je Ticket mit, die Gebühr je Bestellung geht mit dem letzten Ticket zurück (Vollerstattung =
-  Bestellsumme). Wer die Gebühr einbehalten will, nutzt den Abzug der Erstattung (`deduct_minor`).
+- **Erstattung (Entscheidung vom 23.11.2026, `Refunds::calculate()`, `ServiceFee::refund_part()`):**
+  - **Absage durch den Veranstalter** (Termin oder Event abgesagt: `OccurrenceCancellation`, Eventabsage
+    `Orders::cancel_event()`, Workflow-Befehl `event.cancel`, Pass-Absagen) erstattet die Gebühr **immer**: die
+    Gebühr je Ticket mit jedem Ticket, die Gebühr je Bestellung mit dem letzten Ticket. Das gilt auch, wenn
+    die Tickets eines abgesagten Termins später vom Team erstattet werden (ohne automatische Erstattung):
+    Tickets eines abgesagten Termins/Events erkennt die Berechnung selbst. Erstattungsanträge nach einer
+    **Terminverschiebung** (`RescheduleRefunds`) gelten ebenfalls als vom Veranstalter verursacht (Gebühr
+    wird erstattet; bitte bestätigen).
+  - **Erstattung auf Käuferwunsch** (Stornierungsanfrage im Bestellportal bzw. deren Freigabe,
+    Selbststornierung, Erstattung durch das Team ohne Absage): Einstellung **„Servicegebühr bei Erstattung
+    auf Käuferwunsch“** – „einbehalten“ (Standard) oder „mit erstatten“. Das Bestellportal nennt eine
+    einbehaltene Gebühr vor der Anfrage. Im Erstattungsformular der Bestellung kann das Team je Erstattung
+    „automatisch“, „mit erstatten“ oder „einbehalten“ wählen (Option `service_fee` von `Refunds::request()`).
+  - Eine einbehaltene Gebühr wird nicht ausgezahlt; sie zählt wie ein Abzug (`deducted_minor`), wird von
+    späteren Erstattungen nie zurückgegeben und steht mit ihrer USt in `wpcap_refunds.fee_kept_minor` /
+    `fee_kept_tax_minor`. Die erstattete Gebühr steht in `fee_minor` / `fee_tax_minor` (Schema 3.18.4). Die
+    Vorschau im Admin zeigt „Wert“ inkl. Gebühr und „Abzug“ inkl. einbehaltener Gebühr. Die
+    Rechnungskorrektur enthält nur den erstatteten Teil (die Gebührenzeilen nehmen nur teil, wenn die
+    Gebühr erstattet wurde); USt der Erstattungen plus USt der einbehaltenen Gebühren = USt der Bestellung.
+  - Filter `wpcap_service_fee_refund_rule` entscheidet je Ticket („refund“/„retain“).
 - **Rechtlicher Hinweis:** Die Umsetzung folgt den Entscheidungen der Inhaberin vom 23.11.2026. Die rechtliche
   und steuerliche Einordnung (Preisangabe, Nebenleistung oder eigene Leistung, Erstattungspflicht,
   Zurechnung zum Betreiber) ist **keine Rechts- oder Steuerberatung** und sollte vor dem Einsatz von einer

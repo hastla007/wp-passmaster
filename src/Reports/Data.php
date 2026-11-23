@@ -269,7 +269,7 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . \PassCaptain\Refunds::fee_columns() . ",r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( array_chunk( $refunds, self::BLOCK ) as $refund_block ) {
 			$block_orders = array_values( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refund_block ) ) );

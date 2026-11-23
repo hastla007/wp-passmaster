@@ -652,7 +652,12 @@ final class PortalSelfService {
 		$html .= '<label>' . esc_html__( 'Grund (optional)', 'pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
 		/* translators: %d: hours */
 		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'pass-captain' ), $hours ) ) . ' ';
-		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'pass-captain' ) . '</small></p>';
+		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'pass-captain' );
+		// A425 (owner decision 23.11.2026): a kept service fee is named before the request.
+		if ( ServiceFee::of_order( $order ) && 'retain' === ServiceFee::buyer_refund_rule() ) {
+			$html .= ' ' . esc_html__( 'Die Servicegebühr wird bei einer Stornierung auf deinen Wunsch nicht erstattet.', 'pass-captain' );
+		}
+		$html .= '</small></p>';
 		$html .= '<button type="submit">' . esc_html__( 'Stornierung anfragen', 'pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></section>';
 		return $html;
 	}

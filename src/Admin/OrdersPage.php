@@ -303,6 +303,9 @@ final class OrdersPage {
 			if ( null === $minor ) { return Forms::error( 'wpcap_refund_amount', __( 'Abzug oder Höchstbetrag ist ungültig. Beispiel: 5,00', 'pass-captain' ) ); }
 			if ( $minor > 0 ) { $out[ $key ] = $minor; }
 		}
+		// A425: service fee of the refunded tickets – automatic (cancellation: refund; else the setting), or fixed.
+		$fee_rule = is_scalar( $in['service_fee'] ?? null ) ? sanitize_key( (string) $in['service_fee'] ) : '';
+		if ( in_array( $fee_rule, array( 'refund', 'retain' ), true ) ) { $out['service_fee'] = $fee_rule; }
 		return $out;
 	}
 
@@ -594,7 +597,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_refund_order_' . $order_id );
 		if ( Forms::flag( $in, 'preview' ) ) {
 			// "Betrag berechnen": back to the order with the selection; the page shows the preview.
-			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ) );
+			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ), 'service_fee' => Forms::text( $in, 'service_fee', 10 ) );
 			Forms::redirect( add_query_arg( array_filter( $args, static function ( $value ) { return '' !== (string) $value; } ), self::order_url( $order_id ) ) );
 		}
 		$result = self::refund( $in );
@@ -1154,6 +1157,7 @@ final class OrdersPage {
 				'ticket_ids' => array_filter( array_map( 'absint', explode( ',', (string) Forms::query_arg( 'tickets' ) ) ) ),
 				'deduct' => (string) Forms::query_arg( 'deduct' ),
 				'max_amount' => (string) Forms::query_arg( 'max_amount' ),
+				'service_fee' => (string) Forms::query_arg( 'service_fee' ),
 			);
 			$calc_preview = self::refund_preview( $preview_in );
 		}
@@ -1207,6 +1211,14 @@ final class OrdersPage {
 				<span class="description" id="wpcap-refund-all-help"><?php esc_html_e( 'Ersetzt die Einzelauswahl in der Tabelle; diese ist dann gesperrt.', 'pass-captain' ); ?></span><br>
 				<label><?php esc_html_e( 'Abzug (optional, z. B. Bearbeitungsgebühr)', 'pass-captain' ); ?> <input type="text" name="deduct" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['deduct'] ?? '' ) ); ?>"></label>
 				<label><?php esc_html_e( 'Höchstbetrag (optional, Kulanz)', 'pass-captain' ); ?> <input type="text" name="max_amount" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['max_amount'] ?? '' ) ); ?>"></label><br>
+				<?php if ( \PassCaptain\ServiceFee::of_order( $order ) ) : // A425: service fee of the refunded tickets. ?>
+					<?php $wpcap_fee_rule = sanitize_key( (string) ( $preview_in['service_fee'] ?? '' ) ); ?>
+					<label><?php esc_html_e( 'Servicegebühr', 'pass-captain' ); ?> <select name="service_fee">
+						<option value=""<?php selected( '', $wpcap_fee_rule ); ?>><?php echo esc_html( 'refund' === \PassCaptain\ServiceFee::buyer_refund_rule() ? __( 'automatisch (mit erstatten)', 'pass-captain' ) : __( 'automatisch (bei Absage erstatten, sonst einbehalten)', 'pass-captain' ) ); ?></option>
+						<option value="refund"<?php selected( 'refund', $wpcap_fee_rule ); ?>><?php esc_html_e( 'mit erstatten', 'pass-captain' ); ?></option>
+						<option value="retain"<?php selected( 'retain', $wpcap_fee_rule ); ?>><?php esc_html_e( 'einbehalten', 'pass-captain' ); ?></option>
+					</select></label><br>
+				<?php endif; ?>
 				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
 			<?php if ( is_array( $calc_preview ) ) : ?>

@@ -74,7 +74,8 @@ final class OccurrenceCancellation {
 	 * @return array|\WP_Error Refund row or error.
 	 */
 	public static function request_refund( array $job ) {
-		$args = array( 'system' => true, 'allow_used' => true );
+		// A425 (owner decision 23.11.2026): an organizer cancellation always refunds the service fee.
+		$args = array( 'system' => true, 'allow_used' => true, 'service_fee' => 'refund' );
 		if ( 'amount' === ( $job['mode'] ?? 'tickets' ) ) {
 			if ( isset( $job['tax_minor'] ) ) { $args['tax_minor'] = absint( $job['tax_minor'] ); }
 			return Refunds::request_amount( absint( $job['order_id'] ?? 0 ), absint( $job['amount_minor'] ?? 0 ), (string) ( $job['reason'] ?? '' ), (string) ( $job['key'] ?? '' ), $args );
@@ -335,7 +336,7 @@ final class OccurrenceCancellation {
 				$ticket_ids = array_values( array_diff( $ticket_ids, $checked_in ) );
 				if ( 'approval' === $policy ) {
 					// System flow (A354): no staff exception needed (A131), but always the second approval.
-					$pending = Refunds::request( (int) $row->order_id, $checked_in, __( 'Termin abgesagt (bereits eingecheckt)', 'pass-captain' ), $key . '-checked-in', array( 'system' => true, 'allow_used' => true, 'require_approval' => true ) );
+					$pending = Refunds::request( (int) $row->order_id, $checked_in, __( 'Termin abgesagt (bereits eingecheckt)', 'pass-captain' ), $key . '-checked-in', array( 'system' => true, 'allow_used' => true, 'require_approval' => true, 'service_fee' => 'refund' ) );
 					Audit::record( 'occurrence_refund_checked_in_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'tickets' => count( $checked_in ), 'status' => is_wp_error( $pending ) ? $pending->get_error_code() : (string) ( $pending['status'] ?? '' ) ) );
 				} else {
 					Audit::record( 'occurrence_refund_checked_in_skipped', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'tickets' => count( $checked_in ) ) );
@@ -343,7 +344,7 @@ final class OccurrenceCancellation {
 				if ( ! $ticket_ids ) { continue; }
 			}
 			// System flow like request_refund() (A354): checked-in tickets left here are allowed by the policy.
-			$result = Refunds::request( (int) $row->order_id, $ticket_ids, __( 'Termin abgesagt', 'pass-captain' ), $key, array( 'system' => true, 'allow_used' => true ) );
+			$result = Refunds::request( (int) $row->order_id, $ticket_ids, __( 'Termin abgesagt', 'pass-captain' ), $key, array( 'system' => true, 'allow_used' => true, 'service_fee' => 'refund' ) );
 			if ( is_wp_error( $result ) || 'completed' !== ( $result['status'] ?? '' ) ) {
 				++$counts['refund_errors'];
 				Audit::record( 'occurrence_auto_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );

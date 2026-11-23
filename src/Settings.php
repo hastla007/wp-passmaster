@@ -99,6 +99,9 @@ final class Settings {
 			'service_fee_tax'           => 'ticket',
 			'service_fee_tax_class'     => 'service',
 			'service_fee_tax_rate'      => '',
+			// Owner decision 23.11.2026: refunds the buyer asked for (not caused by a cancellation) keep the fee
+			// ('retain') or refund it ('refund'); organizer cancellations always refund it.
+			'service_fee_refund'        => 'retain',
 			// Postponed occurrence: buyers may request a refund in the order portal (with approval) until
 			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
 			'reschedule_refund_request' => 1,

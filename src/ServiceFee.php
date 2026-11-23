@@ -14,9 +14,10 @@
  * rate, reports and the accounting export include it without special cases. Campaign discounts never
  * reduce it. The amounts that applied are frozen in the order's price_snapshot ("service_fee").
  *
- * Refunds follow the existing rules (Refunds::calculate()): a refunded ticket takes its per-ticket fee
- * along; the per-order fee is part of what is left and goes back with the last ticket (a full refund
- * refunds the order total). Deductions (deduct_minor/deduct_bp) work as before.
+ * Owner decisions of 23.11.2026: shown prices include the per-ticket fee and name the per-order fee
+ * (shown(), shown_unit()); the fee is taxed like its ticket line or with an own tax profile (own_tax());
+ * an organizer cancellation always refunds it, a refund on the buyer's wish keeps it unless the setting
+ * says otherwise (refund_part(), Refunds::calculate()); the per-order fee goes with the last ticket.
  *
  * @package PassCaptain
  */
@@ -279,10 +280,17 @@ final class ServiceFee {
 	 *
 	 * @param object[] $items  Order lines in item order (with fee_kind/fee_unit_minor from columns()).
 	 * @param int[]    $counts Ticket type id => refunded tickets.
+	 * @param array|object|null $refund Refund row; with fee_minor/fee_kept_minor (schema 3.18.4) the weights
+	 *                                  follow what the refund gave back (nothing when the fee was kept).
 	 * @return array<int, array{0:int,1:int,2:int}> Line index => [tickets 0, gross, VAT].
 	 */
-	public static function refund_weights( array $items, array $counts ) {
+	public static function refund_weights( array $items, array $counts, $refund = null ) {
 		$out = array();
+		// Owner decision 23.11.2026: refunds record the fee they gave back (fee_minor) or kept (fee_kept_minor).
+		$refund = null === $refund ? null : (array) $refund;
+		$refunded = $refund && array_key_exists( 'fee_minor', $refund ) ? (int) $refund['fee_minor'] : null;
+		$kept = $refund && array_key_exists( 'fee_kept_minor', $refund ) ? (int) $refund['fee_kept_minor'] : 0;
+		if ( null !== $refunded && 0 === $refunded && $kept > 0 ) { return $out; } // Fee kept: no fee line takes part.
 		foreach ( $items as $i => $item ) {
 			if ( self::KIND_TICKET !== (string) ( $item->fee_kind ?? '' ) ) { continue; }
 			$n = (int) ( $counts[ (int) $item->ticket_type_id ] ?? 0 );
@@ -292,7 +300,98 @@ final class ServiceFee {
 			$share = min( $n, $covered );
 			$out[ $i ] = array( 0, intdiv( (int) $item->line_total_minor * $share, $covered ), intdiv( (int) $item->tax_minor * $share, $covered ) );
 		}
+		if ( null !== $refunded && $refunded > 0 ) {
+			// Only part of the fees went back (mixed decisions): scale the per-ticket weights to it; what is left
+			// is the per-order fee (with the last ticket).
+			$sum = array_sum( array_column( $out, 1 ) );
+			if ( $sum > $refunded ) {
+				foreach ( $out as $i => $w ) { $out[ $i ] = array( 0, intdiv( $w[1] * $refunded, $sum ), intdiv( $w[2] * $refunded, $sum ) ); }
+				$sum = array_sum( array_column( $out, 1 ) );
+			}
+			foreach ( $items as $i => $item ) {
+				if ( self::KIND_ORDER !== (string) ( $item->fee_kind ?? '' ) || $refunded - $sum <= 0 ) { continue; }
+				$part = min( (int) $item->line_total_minor, $refunded - $sum );
+				$out[ $i ] = array( 0, $part, (int) $item->line_total_minor > 0 ? intdiv( (int) $item->tax_minor * $part, (int) $item->line_total_minor ) : 0 );
+			}
+		}
 		return $out;
+	}
+
+	/** Refund rule for buyer-initiated refunds (setting service_fee_refund): 'retain' (default) or 'refund'. */
+	public static function buyer_refund_rule() {
+		return 'refund' === (string) Settings::get( 'service_fee_refund' ) ? 'refund' : 'retain';
+	}
+
+	/**
+	 * Service fee part of a ticket refund (owner decision 23.11.2026, Refunds::calculate()):
+	 *  - tickets of a cancelled occurrence or event (organizer cancellation) always take their per-ticket fee
+	 *    back, and the per-order fee goes back with the last ticket;
+	 *  - other refunds (buyer's wish: order portal request, staff refund without cancellation) follow the
+	 *    setting service_fee_refund (default: retain);
+	 *  - $rule 'refund' / 'retain' (refund option service_fee, e.g. from the admin refund form or a
+	 *    cancellation flow) decides for all tickets of the refund.
+	 * Filter `wpcap_service_fee_refund_rule` (string $rule, int $ticket_id, bool $cancelled, object $order).
+	 *
+	 * @param object $order      Order row.
+	 * @param int[]  $ticket_ids Refunded tickets.
+	 * @param bool   $last       Whether these are the last open tickets (the per-order fee is part of the rest).
+	 * @param string $rule       '' (automatic), 'refund' or 'retain'.
+	 * @return array{refund:int, refund_tax:int, kept:int, kept_tax:int} Gross and VAT of the fee refunded / kept.
+	 */
+	public static function refund_part( $order, array $ticket_ids, $last, $rule = '' ) {
+		global $wpdb;
+		$out = array( 'refund' => 0, 'refund_tax' => 0, 'kept' => 0, 'kept_tax' => 0 );
+		if ( ! self::ready() || ! is_object( $order ) || ! $ticket_ids ) { return $out; }
+		$p = $wpdb->prefix;
+		$lines = (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,fee_kind,unit_price_minor,line_total_minor,tax_minor FROM %i WHERE order_id=%d AND fee_kind<>'' ORDER BY item_id", $p . 'wpcap_order_items', (int) $order->order_id ) );
+		if ( ! $lines ) { return $out; }
+		$unit = array();
+		$order_fee = null;
+		foreach ( $lines as $line ) {
+			if ( self::KIND_ORDER === (string) $line->fee_kind ) { $order_fee = $line; continue; }
+			$n = self::covered( $line );
+			$unit[ (int) $line->ticket_type_id ] = array( (int) $line->line_total_minor / $n, (int) $line->tax_minor / $n );
+		}
+		$ids = array_values( array_map( 'absint', $ticket_ids ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.ticket_type_id,(o.status='cancelled' OR e.status='cancelled') AS cancelled FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( (int) $order->order_id ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+		$buyer = self::buyer_refund_rule();
+		$any_refund = false;
+		$refund = array( 0.0, 0.0 );
+		$kept = array( 0.0, 0.0 );
+		foreach ( $rows as $row ) {
+			$cancelled = (bool) (int) $row->cancelled;
+			$decision = in_array( $rule, array( 'refund', 'retain' ), true ) ? $rule : ( $cancelled ? 'refund' : $buyer );
+			/**
+			 * Whether the service fee of a refunded ticket goes back ('refund') or is kept ('retain').
+			 *
+			 * @param string $decision  Default decision (cancellation: refund; else the refund option or setting).
+			 * @param int    $ticket_id Ticket.
+			 * @param bool   $cancelled Whether its occurrence or event was cancelled.
+			 * @param object $order     Order row.
+			 */
+			$decision = 'retain' === apply_filters( 'wpcap_service_fee_refund_rule', $decision, (int) $row->ticket_id, $cancelled, $order ) ? 'retain' : 'refund';
+			if ( 'refund' === $decision ) { $any_refund = true; }
+			$fee = $unit[ (int) $row->ticket_type_id ] ?? null;
+			if ( ! $fee ) { continue; }
+			if ( 'refund' === $decision ) {
+				$refund[0] += $fee[0];
+				$refund[1] += $fee[1];
+			} else {
+				$kept[0] += $fee[0];
+				$kept[1] += $fee[1];
+			}
+		}
+		if ( $last && $order_fee ) {
+			// The per-order fee goes back with the last ticket when that refund gives fees back.
+			if ( $any_refund ) {
+				$refund[0] += (int) $order_fee->line_total_minor;
+				$refund[1] += (int) $order_fee->tax_minor;
+			} else {
+				$kept[0] += (int) $order_fee->line_total_minor;
+				$kept[1] += (int) $order_fee->tax_minor;
+			}
+		}
+		return array( 'refund' => (int) round( $refund[0] ), 'refund_tax' => (int) round( $refund[1] ), 'kept' => (int) round( $kept[0] ), 'kept_tax' => (int) round( $kept[1] ) );
 	}
 
 	/** Whether an order line (row with fee_kind) is a service fee line. */

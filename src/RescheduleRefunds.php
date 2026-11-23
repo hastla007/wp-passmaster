@@ -93,7 +93,7 @@ final class RescheduleRefunds {
 			return new \WP_Error( 'wpcap_reschedule_refund_unavailable', __( 'Für diese Bestellung kann derzeit keine Erstattung beantragt werden (keine verschobenen Termine oder die Frist ist abgelaufen).', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$ids = array_map( static function ( $row ) { return (int) $row->ticket_id; }, $tickets );
-		$result = Refunds::request( (int) $order->order_id, $ids, __( 'Erstattungsantrag nach Terminverschiebung (Bestellportal)', 'pass-captain' ), 'reschedule-' . implode( '-', $ids ), array( 'customer' => true ) );
+		$result = Refunds::request( (int) $order->order_id, $ids, __( 'Erstattungsantrag nach Terminverschiebung (Bestellportal)', 'pass-captain' ), 'reschedule-' . implode( '-', $ids ), array( 'customer' => true, 'service_fee' => 'refund' ) ); // A425: caused by the organizer's postponement.
 		if ( ! is_wp_error( $result ) ) {
 			Audit::record( 'reschedule_refund_requested', 'order', (int) $order->order_id, array( 'refund_id' => (int) ( $result['refund_id'] ?? 0 ), 'tickets' => count( $ids ) ) );
 		}

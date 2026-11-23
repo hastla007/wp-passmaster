@@ -222,7 +222,7 @@ final class Invoices {
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') GROUP BY ticket_type_id', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ticket_ids ) ) );
 			foreach ( $rows as $row ) { $counts[ (int) $row->ticket_type_id ] = (int) $row->n; }
 			// A425: per-ticket service fee lines of the refunded tickets weigh with their own rate.
-			$fee_weights = ServiceFee::refund_weights( $items, $counts );
+			$fee_weights = ServiceFee::refund_weights( $items, $counts, $refund );
 		}
 		$weights = array();
 		foreach ( $items as $index => $item ) {
@@ -415,7 +415,7 @@ final class Invoices {
 		if ( $order_id && $refund_id ) {
 			$earlier = null !== $history
 				? array_values( array_filter( array_map( static function ( $r ) { return (array) $r; }, (array) $history ), static function ( $r ) use ( $refund_id ) { return (int) $r['refund_id'] < $refund_id; } ) )
-				: (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A );
+				: (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids" . Refunds::fee_columns( '' ) . " FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			foreach ( $earlier as $previous ) {
 				$amounts = Integrations\Vouchers\Checkout::refund_amounts( $previous );
 				foreach ( self::line_parts( $previous, $items, $discount, (int) $amounts['amount_minor'], (int) $amounts['tax_minor'], $used_gross, $used_tax ) as $part ) {
@@ -440,7 +440,7 @@ final class Invoices {
 			$out += array_fill_keys( $chunk, array() );
 			// has_voucher and the ticket types of the refunded tickets come along, so refund_line_parts()
 			// needs no query per refund (PERF: reports over many refunds).
-			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND r.status='completed' ORDER BY r.refund_id", $chunk ), ARRAY_A );
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND r.status='completed' ORDER BY r.refund_id", $chunk ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			$ticket_ids = array();
 			foreach ( $rows as $row ) { $ticket_ids = array_merge( $ticket_ids, array_filter( array_map( 'absint', (array) json_decode( (string) $row['ticket_ids'], true ) ) ) ); }
 			$types = array();
@@ -503,7 +503,7 @@ final class Invoices {
 				}
 			}
 			// A425: the per-ticket service fee of the refunded tickets (own lines, possibly with an own tax rate).
-			foreach ( ServiceFee::refund_weights( $items, $counts ) as $i => $fee_weight ) { $weights[ $i ] = $fee_weight; }
+			foreach ( ServiceFee::refund_weights( $items, $counts, $refund ) as $i => $fee_weight ) { $weights[ $i ] = $fee_weight; }
 		}
 		if ( ! array_filter( array_column( $weights, 1 ) ) ) {
 			// Amount-only refund: weighted by what is left of each line (all paid lines when nothing is left).
@@ -1308,9 +1308,9 @@ final class Invoices {
 		}
 		$reversal_ready = Refunds::provider_status_ready();
 		// A refund reversed later (A348) stays on its booking day; its reversal follows on its own day below.
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",r.updated_at,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
 		if ( $reversal_ready ) {
-			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			$refunds = array_merge( $refunds, $reversed );
 		}
 		$refunds = array_values( array_filter( $refunds, static function ( $r ) use ( $comp ) { return ! in_array( (string) $r->payment_provider, $comp, true ); } ) );

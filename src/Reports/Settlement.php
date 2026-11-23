@@ -167,7 +167,7 @@ final class Settlement {
 			}
 			if ( ! $sale_orders ) { continue; }
 			$in = implode( ',', array_map( 'absint', $sale_orders ) );
-			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . \PassCaptain\Refunds::fee_columns() . ",ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list.; Refunds::fee_columns() is a fixed column list.
 			$history = $refunds ? \PassCaptain\Invoices::refund_history( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) : array();
 			foreach ( $refunds as $refund ) {
 				$lines = $block_lines[ (int) $refund->order_id ] ?? array();

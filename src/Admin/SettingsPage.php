@@ -237,8 +237,17 @@ final class SettingsPage {
 						'description' => __( 'Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition.', 'pass-captain' ),
 						'sanitize' => array( __CLASS__, 'sanitize_fee_tax_rate' ),
 					),
+					'service_fee_refund' => array(
+						'type' => 'choice',
+						'label' => __( 'Servicegebühr bei Erstattung auf Käuferwunsch', 'pass-captain' ),
+						'options' => array(
+							'retain' => __( 'einbehalten', 'pass-captain' ),
+							'refund' => __( 'mit erstatten', 'pass-captain' ),
+						),
+						'description' => __( 'Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet.', 'pass-captain' ),
+					),
 				),
-				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket. Bitte Preisangaben (Gesamtpreis inkl. Pflichtgebühren) und Steuersatz mit der Steuerberatung prüfen.', 'pass-captain' ),
+				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen.', 'pass-captain' ),
 			),
 			'vouchers' => array(
 				'title' => __( 'Gutscheine', 'pass-captain' ),

@@ -83,7 +83,7 @@ final class Refunds {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_overlap', __( 'Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
+		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'], $args );
 		// The reads above are plain reads: one that failed lost the connection (and the transaction),
 		// so its empty result proves nothing (A183).
 		if ( false === Orders::transaction_alive() ) { return self::busy(); }
@@ -157,6 +157,13 @@ final class Refunds {
 		);
 		// Only written when there is one, so refunds keep working while a deferred schema upgrade is pending.
 		if ( $calc['deducted_minor'] > 0 ) { $row['deducted_minor'] = $calc['deducted_minor']; }
+		// A425 (owner decision 23.11.2026): service fee given back / kept by this refund (schema 3.18.4).
+		if ( self::fee_ready() && ( $calc['fee_minor'] || $calc['fee_kept_minor'] ) ) {
+			$row['fee_minor'] = (int) $calc['fee_minor'];
+			$row['fee_tax_minor'] = (int) $calc['fee_tax_minor'];
+			$row['fee_kept_minor'] = (int) $calc['fee_kept_minor'];
+			$row['fee_kept_tax_minor'] = (int) $calc['fee_kept_tax_minor'];
+		}
 		$source = sanitize_key( (string) ( $args['source'] ?? '' ) );
 		if ( '' !== $source && self::source_ready() ) { $row['source'] = substr( $source, 0, 20 ); }
 		if ( false === Orders::transaction_alive() ) { return self::busy(); }
@@ -174,7 +181,7 @@ final class Refunds {
 		// that wpdb re-ran after a reconnect committed nothing (A183).
 		$saved = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM {$p}wpcap_refunds WHERE refund_id=%d AND idempotency_key=%s", $refund_id, $key_hash ) );
 		if ( (int) $saved !== $refund_id ) { return self::busy(); }
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'deducted_minor' => $calc['deducted_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin', 'checked_in_tickets' => count( $used ), 'checkin_policy' => $checkin_policy, 'self_service' => $self_service ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'deducted_minor' => $calc['deducted_minor'], 'service_fee_minor' => $calc['fee_minor'], 'service_fee_kept_minor' => $calc['fee_kept_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin', 'checked_in_tickets' => count( $used ), 'checkin_policy' => $checkin_policy, 'self_service' => $self_service ) );
 		if ( $needs_approval && 'portal' === $source ) {
 			\PassCaptain\Alerts::raise( 'refund_request_approval', __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
@@ -1507,6 +1514,31 @@ final class Refunds {
 	}
 
 	/** Whether wpcap_refunds.source exists (schema 3.9.4; not yet during a deferred upgrade). */
+	/** Whether wpcap_refunds has the service fee columns (schema 3.18.4; not yet during a deferred upgrade). */
+	public static function fee_ready() {
+		return Log::has_column( 'wpcap_refunds', 'fee_kept_tax_minor' );
+	}
+
+	/** Service fee columns of a refund row for SELECTs (',r.fee_minor,…'), '' before schema 3.18.4. */
+	public static function fee_columns( $alias = 'r' ) {
+		$a = '' !== $alias ? $alias . '.' : '';
+		return self::fee_ready() ? ",{$a}fee_minor,{$a}fee_tax_minor,{$a}fee_kept_minor,{$a}fee_kept_tax_minor" : '';
+	}
+
+	/** VAT of service fees kept by earlier or pending refunds of an order. */
+	private static function fee_kept_tax_total( $order_id ) {
+		global $wpdb;
+		if ( ! self::fee_ready() ) { return 0; }
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(fee_kept_tax_minor),0) FROM %i WHERE order_id=%d AND status IN ('completed','pending_approval','approved','processing')", $wpdb->prefix . 'wpcap_refunds', absint( $order_id ) ) );
+	}
+
+	/** VAT of an order not yet refunded or reserved by a running refund. */
+	private static function remaining_tax( $order ) {
+		global $wpdb;
+		$refunded_tax = (int) self::checked( $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(tax_minor),0) FROM %i WHERE order_id=%d AND status IN ('completed','processing','approved','pending_approval')", $wpdb->prefix . 'wpcap_refunds', (int) $order->order_id ) ) );
+		return max( 0, (int) $order->tax_minor - $refunded_tax );
+	}
+
 	public static function source_ready() {
 		static $ready = array();
 		global $wpdb;
@@ -1543,8 +1575,10 @@ final class Refunds {
 		$amount = max( 0, $value - $fee );
 		$max = absint( $options['max_minor'] ?? 0 );
 		if ( $max > 0 ) { $amount = min( $amount, $max ); }
-		$calc['value_minor'] = $value;
-		$calc['deducted_minor'] = $value - $amount;
+		// A425: a service fee kept by calculate() counts as kept as well (value = with the fee).
+		$kept_fee = (int) ( $calc['fee_kept_minor'] ?? 0 );
+		$calc['value_minor'] = $value + $kept_fee;
+		$calc['deducted_minor'] = $value - $amount + $kept_fee;
 		if ( $amount !== $value ) {
 			$calc['amount_minor'] = $amount;
 			$calc['tax_minor'] = $value > 0 ? (int) round( (int) $calc['tax_minor'] * $amount / $value ) : 0;
@@ -1578,7 +1612,7 @@ final class Refunds {
 		}
 		$open = self::open_refunds( (int) $order->order_id );
 		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
-		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
+		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'], $options );
 		if ( is_wp_error( $calc ) ) { return $calc; }
 		$calc = self::apply_deduction( $calc, $options ) + array( 'currency' => (string) $order->currency );
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
@@ -1590,8 +1624,17 @@ final class Refunds {
 	/**
 	 * Calculates the refund amount for tickets (not yet refunded) from the order item snapshots.
 	 * The last remaining tickets receive the rounding remainder so a full refund equals the order total.
+	 *
+	 * A425 (owner decision 23.11.2026): the service fee of the tickets goes back for tickets of a cancelled
+	 * occurrence/event, else per setting service_fee_refund (buyer's wish, default: kept); option
+	 * service_fee ('refund' | 'retain') decides for the whole refund (ServiceFee::refund_part()). A kept
+	 * fee is not refunded (amount and VAT without it) and is reported as fee_kept_minor (apply_deduction()
+	 * books it as kept, so later refunds never return it).
+	 *
+	 * @param array $options service_fee ('refund', 'retain', '' = automatic).
+	 * @return array|\WP_Error ticket_ids, amount_minor, tax_minor, fee_minor, fee_tax_minor, fee_kept_minor, fee_kept_tax_minor.
 	 */
-	public static function calculate( $order, array $ticket_ids, array $reserved_ids = array(), $reserved_minor = 0 ) {
+	public static function calculate( $order, array $ticket_ids, array $reserved_ids = array(), $reserved_minor = 0, array $options = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		// Orders::refundable_tickets() also covers tickets revoked by an occurrence/event cancellation.
@@ -1623,8 +1666,25 @@ final class Refunds {
 		} else {
 			$amount = min( $remaining_total, self::scaled_value( $order, $ticket_ids ) );
 		}
-		$tax = self::tax_for( $order, $full && ! $retained ? null : $ticket_ids, $amount );
-		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
+		$kept_tax_before = $full ? self::fee_kept_tax_total( (int) $order->order_id ) : 0;
+		$tax = $kept_tax_before > 0 && ! $retained && $amount >= $remaining_total
+			// The rest of the order after refunds that kept a fee: its VAT is what is left without the kept fees' VAT.
+			? min( $amount, max( 0, self::remaining_tax( $order ) - $kept_tax_before ) )
+			: self::tax_for( $order, $full && ! $retained ? null : $ticket_ids, $amount );
+		$fee = ServiceFee::refund_part( $order, $ticket_ids, $full, sanitize_key( (string) ( $options['service_fee'] ?? '' ) ) );
+		$kept = min( $amount, $fee['kept'] );
+		$kept_tax = min( $tax, $fee['kept_tax'] );
+		$amount -= $kept;
+		$tax = min( $amount, $tax - $kept_tax );
+		return array(
+			'ticket_ids' => $ticket_ids,
+			'amount_minor' => $amount,
+			'tax_minor' => $tax,
+			'fee_minor' => min( $amount, $fee['refund'] ),
+			'fee_tax_minor' => min( $tax, $fee['refund_tax'] ),
+			'fee_kept_minor' => $kept,
+			'fee_kept_tax_minor' => $kept_tax,
+		);
 	}
 
 	/** Refund rule for checked-in tickets: allow | approval | deny (setting refund_after_checkin). */
