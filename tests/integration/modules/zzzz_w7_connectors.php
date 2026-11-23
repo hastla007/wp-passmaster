@@ -88,7 +88,8 @@ $w7c_fake->received = array();
 $w7c_run();
 $events = $w7c_fake->events();
 sort( $events );
-check( 'check-in, refund, order refunded, reschedule, occurrence cancel and order cancel are delivered', array( 'occurrence_cancelled', 'occurrence_rescheduled', 'order_cancelled', 'order_refunded', 'refund_completed', 'ticket_checked_in' ) === $events );
+// Contract 1.1.0: the full refund revokes the remaining ticket(s), so ticket_revoked is delivered too.
+check( 'check-in, refund, order refunded, ticket revoked, reschedule, occurrence cancel and order cancel are delivered', array( 'occurrence_cancelled', 'occurrence_rescheduled', 'order_cancelled', 'order_refunded', 'refund_completed', 'ticket_checked_in', 'ticket_revoked' ) === array_values( array_unique( $events ) ) );
 $by_event = array_column( $w7c_fake->received, 'payload', 'event' );
 check( 'event payloads carry the right identifiers', $tids[0] === $by_event['ticket_checked_in']['data']['ticket_id'] && 3 === $by_event['ticket_checked_in']['data']['device_id'] && $oid === $by_event['refund_completed']['data']['order_id'] && 'refunded' === $by_event['order_refunded']['data']['status'] && '2030-01-02 18:00:00' === $by_event['occurrence_rescheduled']['data']['new_starts_at'] && 3 === $by_event['occurrence_cancelled']['data']['issued_tickets'] && (int) $pending['order_id'] === $by_event['order_cancelled']['data']['order_id'] );
 

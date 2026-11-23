@@ -287,7 +287,12 @@ Ereignisse: `wpcap_ticket_checked_in`, `wpcap_ticket_checked_out`.
 ## Connectoren
 
 Der Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface` (`key()`, `version()`,
-`capabilities()`, `deliver( $event_name, $payload, $idempotency_key )`) ist versioniert. Adapter werden über
+`capabilities()`, `deliver( $event_name, $payload, $idempotency_key )`) ist versioniert: Vertrag `connector`
+**1.1.0** (`PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION`, im Payload `contract_version`; Tabelle in
+[CONTRACTS.md](CONTRACTS.md)). 1.0.0 umfasste die acht Ereignisse bis 1.4.0; 1.1.0 (Plugin 1.5.0) ergänzt
+`voucher_redeemed`, `ticket_revoked`, den Grund als Code bei `order_cancelled`/`order_refunded` und das Feld
+`contract_version`. Eine Minor-Version fügt nur Ereignisse oder Felder hinzu; Connectoren ignorieren unbekannte
+Ereignisse und Felder. Adapter werden über
 `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option
 `wpcap_enabled_connectors` freigegeben wurde. Fehler meldet `wp_pass_captain_connector_error_v1`.
 
@@ -300,20 +305,38 @@ eingeplant.
 | Ereignis (`$event_name`) | Auslöser (Action) | `data` |
 |---|---|---|
 | `order_paid` | `wpcap_order_paid` | Bestellung: `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `currency`, `total_minor`, `refunded_minor`, `created_at` |
-| `order_refunded` | `wpcap_order_refunded` | Bestellung + `reason` |
-| `order_cancelled` | `wpcap_order_cancelled` | Bestellung |
+| `order_refunded` | `wpcap_order_refunded` | Bestellung + `reason` (Code) |
+| `order_cancelled` | `wpcap_order_cancelled` | Bestellung + `reason` (Code; `expired` beim Ablauf einer Reservierung) – seit 1.1.0 |
 | `refund_completed` | `wpcap_refund_completed` | `refund_id`, `order_id`, `amount_minor`, `tax_minor`, `currency`, `ticket_ids` |
 | `tickets_issued` | `wpcap_tickets_issued` | Bestellung + `issued_count`, `tickets` (`ticket_id`, `public_id`, `ticket_type_id`, `status`) |
+| `voucher_redeemed` | `wpcap_tickets_issued` einer Bestellung, die der Ticketdienst `wp_pass_captain_ticket_service_v1` für einen eingelösten Gutschein angelegt hat (`payment_provider` `voucher`) – seit 1.1.0 | Bestellung + `voucher_provider`, `voucher_id`, `voucher_purpose` (`single`/`multi`), `voucher_amount_minor`, `tickets`; einmal je Einlösung, auch wenn ein wiederholter Aufruf Lücken füllt. Kein Gutscheincode, keine Code-Endung, kein Einlöseschlüssel |
+| `ticket_revoked` | `wpcap_ticket_revoked` – seit 1.1.0 | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `status`, `reason` (Code) |
 | `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
 | `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | Termin (`occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`) + `old_starts_at`, `new_starts_at` |
 | `occurrence_cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
 
-`$payload` = `[ 'version' => 1, 'event', 'occurred_at' (ISO 8601), 'site', 'data' ]`. Payloads enthalten nur
-Kennungen und Zustände – keine Namen, E-Mail-Adressen oder Ticketcodes. `$idempotency_key` ist je Ereignis und
+`$payload` = `[ 'version' => 1, 'contract_version' => '1.1.0', 'event', 'occurred_at' (ISO 8601, UTC), 'site',
+'data' ]`; `version` bleibt für alle 1.x-Vertragsversionen 1. Payloads enthalten nur Kennungen und Zustände –
+keine Namen, E-Mail-Adressen, Ticket- oder Gutscheincodes. Ein Grund (`reason`) ist immer ein Code
+(`refund_12`, `order_cancelled`, `woocommerce_order_trash` …); Freitext eines Admins, Partners oder
+Gutscheinsystems wird zu `other` (siehe [HOOKS.md](HOOKS.md#suite-katalog-seit-welcher-version-zeitpunkt-grund)).
+Weitere Angaben lädt der Connector über die [Lesefassade](#lesefassade-für-zustände). Je Einlass entsteht ein
+Ereignis (Schlüssel aus dem Idempotenzschlüssel des Scans, sonst der Check-in-Zeile). `$idempotency_key` ist je Ereignis und
 Connector stabil (`sha256( Ereignisschlüssel . '|' . Connector-Schlüssel )`) und bleibt bei Wiederholungen
 gleich; der Connector dedupliziert damit. `deliver()` gilt als erfolgreich, wenn es weder `false` noch ein
 `WP_Error` zurückgibt und keine Exception wirft; sonst wird der Job wiederholt und
 `wp_pass_captain_connector_error_v1` ausgelöst.
+
+**Suite-Status (A705):** „Betrieb“ → Abschnitt „Captain-Suite“ listet unter „Connectoren“ jeden über
+`wp_pass_captain_connectors_v1` registrierten Connector mit Schlüssel, eigener `version()`, Freigabe (Opt-in) und
+`capabilities()`, die Vertragsversion des Kerns sowie offene und endgültig gescheiterte Zustellungen
+(`ConnectorEvents::registered()`, `ConnectorEvents::backlog()`). Einen Lizenzstatus zeigt der Kern nicht: Er prüft
+keine Lizenz; ein lizenzpflichtiger Connector zeigt seinen Zustand selbst. Beleg:
+`tests/integration/modules/zz_a705_a708.php` (Stub-Connector: Kauf, Gutschein → Ticket, Erstattung/Widerruf,
+Einlass, Opt-in, Idempotenz, Wiederholung, keine personenbezogenen Daten, Suite-Status ohne Lizenz).
+
+Der mitgelieferte HTTP/JSON-Connector bietet weiterhin die acht Ereignisse des Vertrags 1.0.0 zur Auswahl an;
+`voucher_redeemed` und `ticket_revoked` erreichen ihn nicht (er bestätigt nicht gewählte Ereignisse ohne Versand).
 
 ### Mitgelieferte Connectoren
 

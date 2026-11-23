@@ -106,6 +106,39 @@ final class SuiteStatus {
 		Forms::finish( $result, __( 'Mail-Übergabe gespeichert.', 'pass-captain' ), OperationsPage::url() . '#wpcap-suite' );
 	}
 
+	/**
+	 * Registered connectors (A705): key, own version, opt-in, capabilities and the connector contract version
+	 * of the core, plus the open and dead-letter deliveries. No licence state: a connector that needs a
+	 * licence checks and shows it itself.
+	 */
+	public static function render_connectors() {
+		$connectors = \PassCaptain\Integrations\ConnectorEvents::registered();
+		$backlog = \PassCaptain\Integrations\ConnectorEvents::backlog();
+		echo '<h3 id="wpcap-suite-connectors">' . esc_html__( 'Connectoren', 'pass-captain' ) . '</h3>';
+		/* translators: %s: version of the connector contract offered by the core */
+		echo '<p class="description">' . esc_html( sprintf( __( 'Connector-Vertrag %s (wp_pass_captain_connectors_v1). Ein Connector erhält Ereignisse nur, wenn er unter „Konnektoren“ bzw. in seinem Plugin freigegeben ist.', 'pass-captain' ), \PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION ) ) . '</p>';
+		if ( ! $connectors ) {
+			echo '<p>' . esc_html__( 'Kein Connector registriert.', 'pass-captain' ) . '</p>';
+		} else {
+			echo '<table class="widefat striped" style="max-width:60em"><thead><tr>';
+			foreach ( array( __( 'Connector', 'pass-captain' ), __( 'Version', 'pass-captain' ), __( 'Freigegeben', 'pass-captain' ), __( 'Fähigkeiten', 'pass-captain' ) ) as $head ) {
+				echo '<th scope="col">' . esc_html( $head ) . '</th>';
+			}
+			echo '</tr></thead><tbody>';
+			foreach ( $connectors as $c ) {
+				echo '<tr data-connector="' . esc_attr( $c['key'] ) . '" data-enabled="' . ( $c['enabled'] ? '1' : '0' ) . '">';
+				echo '<td><code>' . esc_html( $c['key'] ) . '</code></td>';
+				echo '<td>' . esc_html( '' !== $c['version'] ? $c['version'] : '—' ) . '</td>';
+				echo '<td>' . esc_html( $c['enabled'] ? __( 'Ja', 'pass-captain' ) : __( 'Nein', 'pass-captain' ) ) . '</td>';
+				echo '<td>' . esc_html( $c['capabilities'] ? implode( ', ', $c['capabilities'] ) : '—' ) . '</td>';
+				echo '</tr>';
+			}
+			echo '</tbody></table>';
+		}
+		/* translators: 1: open connector deliveries, 2: deliveries that failed for good (dead letter) */
+		echo '<p>' . esc_html( sprintf( __( 'Zustellungen offen: %1$d · endgültig gescheitert: %2$d', 'pass-captain' ), (int) $backlog['pending'], (int) $backlog['dead_letter'] ) ) . '</p>';
+	}
+
 	public static function render() {
 		$data = self::data();
 		echo '<h2 id="wpcap-suite">' . esc_html__( 'Captain-Suite: Verträge und Provider', 'pass-captain' ) . '</h2>';
@@ -127,6 +160,8 @@ final class SuiteStatus {
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
+
+		self::render_connectors();
 
 		$commands = self::commands();
 		if ( $commands ) {

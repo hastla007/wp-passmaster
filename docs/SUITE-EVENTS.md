@@ -12,7 +12,7 @@ Add-on aktiv oder lizenziert ist; ob ein Empfänger ein Ereignis verarbeiten dar
 | Weg | Für wen | Zustellung | Versionierung | Beschreibung |
 |---|---|---|---|---|
 | PHP-Actions (`wpcap_*`, `wp_pass_captain_*_v1`) | Code auf derselben Website | synchron im selben Request, ohne Wiederholung; eine Ausnahme im Callback trifft den auslösenden Ablauf | `_v1` im Namen bei den versionierten Hooks; `wpcap_*` gelten als stabil, Änderungen stehen im `CHANGELOG.md` | [HOOKS.md](HOOKS.md) |
-| Connector-Ereignisse (`PassCaptain\Integrations\ConnectorInterface`) | PHP-Adapter auf derselben Website, die der Betreiber freigeschaltet hat | über die Job-Queue, ein Job je Ereignis und Connector, Wiederholung mit Backoff, nach acht Versuchen `dead_letter`; stabiler Idempotenzschlüssel je Ereignis und Connector | Feld `version` im Payload (`ConnectorEvents::VERSION` = 1) | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
+| Connector-Ereignisse (`PassCaptain\Integrations\ConnectorInterface`) | PHP-Adapter auf derselben Website, die der Betreiber freigeschaltet hat | über die Job-Queue, ein Job je Ereignis und Connector, Wiederholung mit Backoff, nach acht Versuchen `dead_letter`; stabiler Idempotenzschlüssel je Ereignis und Connector | Vertrag `connector` 1.1.0 (Payload `contract_version`), Payload-Format `version` = 1 | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
 | Ausgehende Webhooks | externe Systeme über HTTPS | Tabelle `wpcap_webhook_deliveries`, Wiederholung mit Backoff bis acht Versuche, Signatur `X-WPCAP-Signature`; Reihenfolge nicht garantiert | `api_version` im Umschlag (`2026-11-01`) | [WEBHOOKS.md](WEBHOOKS.md) |
 
 Einen Eingang für Befehle anderer Plugins (Mail erneut senden, Ticket widerrufen, Termin absagen) gibt es
@@ -52,17 +52,20 @@ annehmen kann (auch Freitext), steht in [HOOKS.md](HOOKS.md#suite-katalog-seit-w
 Es gibt kein eigenes Ereignis „Teilnahme bestätigt“ oder „Erlebnis abgeschlossen“. Der nächstliegende Nachweis
 ist der Einlass (`wpcap_ticket_checked_in`); ein Ereignis zum Terminende sendet der Kern nicht.
 
-## Connector-Ereignisse (Payload-Version 1)
+## Connector-Ereignisse (Vertrag 1.1.0, Payload-Version 1)
 
 Quelle: `src/Integrations/ConnectorEvents.php`. Payloads tragen nur IDs und Zustände, keine Namen,
-E-Mail-Adressen oder Ticketcodes.
+E-Mail-Adressen, Ticket- oder Gutscheincodes; ein Grund ist immer ein Code (Freitext wird `other`).
 
 | Ereignis | Ausgelöst durch | Felder in `data` |
 |---|---|---|
-| `order_paid`, `order_cancelled` | `wpcap_order_paid`, `wpcap_order_cancelled` | `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `currency`, `total_minor`, `refunded_minor`, `created_at` |
-| `order_refunded` | `wpcap_order_refunded` | wie `order_paid`, zusätzlich `reason` |
+| `order_paid` | `wpcap_order_paid` | `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `currency`, `total_minor`, `refunded_minor`, `created_at` |
+| `order_cancelled` | `wpcap_order_cancelled` | wie `order_paid`, zusätzlich `reason` (Code, `expired` beim Reservierungsablauf) |
+| `order_refunded` | `wpcap_order_refunded` | wie `order_paid`, zusätzlich `reason` (Code) |
 | `refund_completed` | `wpcap_refund_completed` | `refund_id`, `order_id`, `amount_minor`, `tax_minor`, `currency`, `ticket_ids` (interne IDs) |
 | `tickets_issued` | `wpcap_tickets_issued` | wie `order_paid`, zusätzlich `issued_count`, `tickets[]` mit `ticket_id`, `public_id`, `ticket_type_id`, `status` |
+| `voucher_redeemed` | `wpcap_tickets_issued` einer Gutschein-Umwandlung (Ticketdienst v1) | wie `order_paid`, zusätzlich `voucher_provider`, `voucher_id`, `voucher_purpose`, `voucher_amount_minor`, `tickets[]` |
+| `ticket_revoked` | `wpcap_ticket_revoked` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `status`, `reason` (Code) |
 | `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
 | `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | `occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`, `old_starts_at`, `new_starts_at` |
 | `occurrence_cancelled` | `wpcap_occurrence_cancelled` | `occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`, `issued_tickets` |
