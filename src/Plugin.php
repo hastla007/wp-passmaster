@@ -137,6 +137,7 @@ final class Plugin {
 		Integrations\WooCommerce\CheckoutGate::register(); // Add-on gate (waiting room) for Woo cart, checkout and Store API.
 		Sales\CheckoutGate::register(); // Retry-After header for refused checkouts (wp_pass_captain_checkout_allowed_v1).
 		Brand::register(); // White label: product name in translated texts (wp_pass_captain_brand_name_v1).
+		Terms::register(); // A690: configurable terms ("Gäste" instead of "Teilnehmende") in front-end texts and mails.
 		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
 		Payments\Cases::register(); // Double payments / payments for closed orders / failed provider refunds.

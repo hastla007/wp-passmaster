@@ -1134,7 +1134,8 @@ final class PublicEvents {
 	 * (the plugin's own rendering, e.g. to wrap it) and replaces the default; otherwise the default is returned.
 	 * The template escapes its own output. Filter `wpcap_template_page` gets the result.
 	 *
-	 * Pages: ticket-page.php, order-portal.php, ticket-recovery.php, email-layout.php.
+	 * Pages: ticket-page.php, order-portal.php, ticket-recovery.php, email-layout.php; A690: calendar-list.php,
+	 * calendar-month.php, passes.php, service-booking.php.
 	 *
 	 * @param string $name         Template file name.
 	 * @param string $default_html Plugin rendering.

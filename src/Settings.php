@@ -44,6 +44,7 @@ final class Settings {
 	public static function flush() {
 		self::$defaults = null;
 		self::$all = null;
+		if ( class_exists( Terms::class, false ) ) { Terms::flush(); }
 	}
 
 	/** Invalidates the per-request cache when translations change. */
@@ -140,6 +141,9 @@ final class Settings {
 			// A327: support log also stores debug entries (ends 24 h after switching on; constant WPCAP_DEBUG overrides).
 			'debug_logging'             => 0,
 			'scanner_show_attendee'     => 0,
+			// A690: terms for the people a ticket is for ('' = Teilnehmende, guests, visitors, custom) and own lines "Alt = Neu".
+			'attendee_terms'            => '',
+			'term_replacements'         => '',
 			// Signed QR payloads (PC1.…) instead of the plain ticket code in new QR codes; scanners accept both.
 			'signed_qr'                 => 0,
 			'device_max_hours'          => 24,

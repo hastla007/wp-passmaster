@@ -81,6 +81,19 @@ final class SettingsPage {
 					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 				),
 			),
+			'terms' => array(
+				'title' => __( 'Begriffe', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'attendee_terms' => array(
+						'type' => 'choice',
+						'label' => __( 'Bezeichnung der Personen auf den Tickets', 'pass-captain' ),
+						'options' => \PassCaptain\Terms::preset_labels(),
+						'description' => __( 'Gilt für Eventseiten, Checkout, Bestellportal, Ticketseite und E-Mails (nicht für die Verwaltung). Die Vorgaben ersetzen die deutschen Wortformen; für andere Sprachen eigene Ersetzungen eintragen.', 'pass-captain' ),
+					),
+					'term_replacements' => array( 'type' => 'textarea', 'label' => __( 'Eigene Ersetzungen', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Terms::class, 'sanitize_lines' ), 'description' => __( 'Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen.', 'pass-captain' ) ),
+				),
+			),
 			'event_pages' => array(
 				'title' => __( 'Eventseiten', 'pass-captain' ),
 				'tab' => 'general',

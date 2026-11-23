@@ -214,14 +214,15 @@ final class Calendar {
 		// A499: in feeds and REST responses the month grid (navigation, table) becomes the list.
 		if ( \PassCaptain\PublicEvents::slim_output( 'calendar' ) ) { $view = 'list'; }
 		$wrapper = $block && function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-calendar wpcap-calendar-' . $view ) ) : '';
-		if ( 'list' === $view ) { return self::with_requested_date( self::render_list( $event_id, $limit, $wrapper ) ); }
+		// A690: theme override <theme>/pass-captain/calendar-list.php or calendar-month.php (PublicEvents::page()).
+		if ( 'list' === $view ) { return self::with_requested_date( \PassCaptain\PublicEvents::page( 'calendar-list.php', self::render_list( $event_id, $limit, $wrapper ), array( 'event_id' => (int) $event_id, 'limit' => (int) $limit, 'block' => (bool) $block ) ) ); }
 		// A452: every month calendar of the page has its own parameter (wpcap_month, wpcap_month_2, …),
 		// so two calendars page independently and keep each other's month.
 		$instance = ++self::$month_instances;
 		$param = self::month_param( $instance );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- navigation only.
 		$month = isset( $_GET[ $param ] ) && is_string( $_GET[ $param ] ) ? sanitize_text_field( wp_unslash( $_GET[ $param ] ) ) : '';
-		return self::with_requested_date( self::render_month( $month, $event_id, $wrapper, $instance ) );
+		return self::with_requested_date( \PassCaptain\PublicEvents::page( 'calendar-month.php', self::render_month( $month, $event_id, $wrapper, $instance ), array( 'event_id' => (int) $event_id, 'month' => $month, 'instance' => $instance, 'block' => (bool) $block ) ) );
 	}
 
 	/** @var bool The requested date's card was already put in front of a calendar in this request. */

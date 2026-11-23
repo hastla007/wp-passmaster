@@ -244,6 +244,25 @@ Stripe-Checkout-Session wird vorher beendet). Beide Aktionen sind über das Rüc
 berechtigt. Hinweis: Mollie-Zahlungen lassen sich nicht immer serverseitig abbrechen – kommt nach der Freigabe doch
 eine Zahlung an, greift der bestehende Ablauf für Zahlungen ohne Kontingent.
 
+### Begriffe und Theme-Vorlagen (A690)
+
+**Begriffe** (Einstellungen → Allgemein → Begriffe): Statt „Teilnehmende“ zeigen Eventseiten, Checkout, Bestellportal,
+Ticketseite und E-Mails „Gäste“ oder „Besucher:innen“ (Vorgabe) bzw. eigene Wörter. Die Vorgaben ersetzen die
+deutschen Wortformen der Plugin-Texte einschließlich der Fälle mit Artikel („den Teilnehmenden“ → „den Gästen“,
+„Name der Teilnehmer:in“ → „Name des Gastes“) und der zusammengesetzten Wörter („Teilnehmerdaten“ → „Gästedaten“).
+**Eigene Ersetzungen** („Alt = Neu“, eine je Zeile, höchstens 60) ergänzen die Vorgabe und haben Vorrang; mit
+„Nur eigene Ersetzungen“ gelten nur sie – so auch für andere Sprachen („attendee = guest“). Ersetzt werden ganze
+Wörter in den übersetzten Texten des Plugins, die längsten zuerst und in einem Durchgang. Nicht betroffen: die
+Verwaltung (Filter `wpcap_terms_in_admin`), Texte aus der Datenbank (Eventnamen, eigene Mailvorlagen, Feldnamen) und
+Theme-Vorlagen. Für Entwickler: Filter `wpcap_terms_map`.
+
+**Theme-Vorlagen:** Neben `event-card.php`, `event-single.php`, `ticket-page.php`, `order-portal.php`,
+`ticket-recovery.php` und `email-layout.php` lassen sich jetzt auch `calendar-list.php` und `calendar-month.php`
+(Kalender-Shortcode/-Block), `passes.php` (Pässe-Shortcode) und `service-booking.php` (Servicebuchung) im Ordner
+`<theme>/pass-captain/` überschreiben (Child-Theme vor Eltern-Theme). Die Vorlage erhält die Variablen aus
+`docs/HOOKS.md` (`wpcap_template_page`) und `$default_html` (die Ausgabe des Plugins, z. B. zum Umschließen) und
+escaped selbst.
+
 ## Bestellsuche im Admin
 
 Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestelltabelle (PERF-15):

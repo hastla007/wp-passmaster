@@ -182,6 +182,7 @@ final class Display {
 			if ( '' !== $url ) { $html .= '<p><a class="wp-element-button wpcap-pass-buy" href="' . esc_url( $url ) . '">' . esc_html( sprintf( __( '„%s“ kaufen', 'pass-captain' ), $type->name ) ) . '</a></p>'; }
 			$html .= '</article>';
 		}
-		return $html . '</div>';
+		// A690: theme override <theme>/pass-captain/passes.php ($passes, $default_html).
+		return \PassCaptain\PublicEvents::page( 'passes.php', $html . '</div>', array( 'passes' => $passes ) );
 	}
 }

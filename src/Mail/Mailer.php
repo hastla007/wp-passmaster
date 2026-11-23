@@ -99,7 +99,10 @@ final class Mailer {
 	public static function compose( $type, array $vars, $locale = '' ) {
 		if ( ! self::type( $type ) ) { return null; }
 		return self::with_locale( $locale, static function () use ( $type, $vars, $locale ) {
-			return self::render_template( $type, Templates::resolve( $type, $locale ), $vars, $locale );
+			// A690: configured terms ("Gäste" instead of "Teilnehmende") also in mails rendered in admin requests and jobs.
+			return \PassCaptain\Terms::in_mail( static function () use ( $type, $vars, $locale ) {
+				return self::render_template( $type, Templates::resolve( $type, $locale ), $vars, $locale );
+			} );
 		} );
 	}
 

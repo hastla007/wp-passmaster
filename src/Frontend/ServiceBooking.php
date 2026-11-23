@@ -328,13 +328,18 @@ final class ServiceBooking {
 
 	public static function render_shortcode( $atts = array() ) {
 		$atts = shortcode_atts( array( 'event' => 0, 'resource' => 0 ), is_array( $atts ) ? $atts : array(), self::SHORTCODE );
-		return self::render( absint( $atts['event'] ), absint( $atts['resource'] ) );
+		return self::themed( absint( $atts['event'] ), absint( $atts['resource'] ) );
+	}
+
+	/** A690: booking UI through the theme override <theme>/pass-captain/service-booking.php ($event_id, $resource_id, $default_html). */
+	private static function themed( $event_id, $resource_id, $wrapper = '' ) {
+		return \PassCaptain\PublicEvents::page( 'service-booking.php', self::render( $event_id, $resource_id, $wrapper ), array( 'event_id' => (int) $event_id, 'resource_id' => (int) $resource_id ) );
 	}
 
 	/** Block render callback (render.php): the block wrapper attributes go on the root element. */
 	public static function render_block( array $attributes ) {
 		$wrapper = function_exists( 'get_block_wrapper_attributes' ) ? get_block_wrapper_attributes( array( 'class' => 'wpcap-service-booking' ) ) : '';
-		return self::render( absint( $attributes['eventId'] ?? 0 ), absint( $attributes['resourceId'] ?? 0 ), $wrapper );
+		return self::themed( absint( $attributes['eventId'] ?? 0 ), absint( $attributes['resourceId'] ?? 0 ), $wrapper );
 	}
 
 	private static function notice( $text, $wrapper ) {
