@@ -18,6 +18,9 @@
 - Änderungsprotokoll: jede Änderung einer Einstellung wird mit Quelle (Einstellungsseite, Modulseite, WP-CLI, Import, Länderprofil, Zurücksetzen, REST-API, Programmcode) und alt/neu protokolliert; Geheimnisse nie, lange Texte als Prüfsumme.
 - Länderprofile DE, AT, CH, EU und OTHER als Vorschlag mit Vorher/Nachher und Auswahl je Wert; alle Profile sind als „Rechts- und Steuerprüfung vor dem Verkaufsstart“ bzw. „nicht geprüft“ gekennzeichnet. Filter `wp_pass_captain_country_presets_v1`.
 - Währung als Einstellung (SET-PC-08): „Standardwährung“ und „Angebotene Währungen“; neue Ticketarten, Kassen, Rabattcodes, Partnerpreise, Pässe und SMS-Kosten übernehmen die Standardwährung statt fest EUR. Der Filter `wp_pass_captain_currencies_v1` hat weiter Vorrang.
+- Anrede (SET-PC-09): Alle deutschen Texte nutzen „du“; neue Sprachdatei „Deutsch (Sie)“ (`de_DE_formal`) mit förmlicher Anrede, wählbar in der Käufer-Sprachauswahl. Der Datenschutz-Vorschlag ist jetzt ebenfalls in der Du-Form.
+- Impressum und Datenschutzerklärung (SET-PC-19): eigene Adressen in den Rechtstexten, Links im Checkout und in der E-Mail-Fußzeile, Platzhalter `{imprint_url}` und `{privacy_url}`.
+- Pro-Hinweiszeilen (SET-PC-06): Grundlage für graue, ausblendbare Textzeilen am Ende der Reiter; die Liste ist leer, bis eine Pro-Funktion verkauft wird.
 - WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)

@@ -425,7 +425,7 @@ final class Mailer {
 		$domain = strtolower( (string) substr( strrchr( $from, '@' ), 1 ) );
 		if ( '' !== $host && $domain !== $host && ! str_ends_with( $host, '.' . $domain ) && ! str_ends_with( $domain, '.' . $host ) ) {
 			/* translators: 1: sender domain, 2: site domain */
-			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. Ihren SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
+			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. deinen SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
 		}
 		return array();
 	}
@@ -451,6 +451,9 @@ final class Mailer {
 		return array(
 			'site_name' => Orders::site_name(),
 			'site_url' => self::link( home_url( '/' ) ),
+			// SET-PC-19: imprint and privacy policy ('' when not set).
+			'imprint_url' => '' !== \PassCaptain\Frontend\LegalNotice::imprint_url() ? self::link( \PassCaptain\Frontend\LegalNotice::imprint_url() ) : '',
+			'privacy_url' => '' !== \PassCaptain\Frontend\LegalNotice::privacy_url() ? self::link( \PassCaptain\Frontend\LegalNotice::privacy_url() ) : '',
 			// Legal texts in the recipient's language (fallback: default language), built only when used.
 			'terms_text' => $legal( 'terms_text' ),
 			'consumer_info_text' => $legal( 'consumer_info_text' ),

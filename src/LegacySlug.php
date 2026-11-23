@@ -353,7 +353,7 @@ final class LegacySlug {
 		echo esc_html(
 			sprintf(
 				/* translators: 1: theme template path(s) in the old folder, 2: new folder name */
-				__( 'Ihr Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschieben Sie sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version.', 'pass-captain' ),
+				__( 'Dein Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschiebe sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version.', 'pass-captain' ),
 				implode( ', ', $templates ),
 				'pass-captain/'
 			)

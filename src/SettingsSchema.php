@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SettingsSchema {
 	/** Entry types the register knows (form field types of Admin\SettingsPage plus group). */
-	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'currency', 'currencies', 'prefix', 'providers', 'modules', 'list', 'group' );
+	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'currency', 'currencies', 'url', 'prefix', 'providers', 'modules', 'list', 'group' );
 
 	/**
 	 * Settings whose value has legal weight (texts with paragraphs of law, invoice data, retention, tax):
@@ -253,6 +253,14 @@ final class SettingsSchema {
 					return new \WP_Error( 'wpcap_setting_bic', sprintf( __( '„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX).', 'pass-captain' ), $label ) );
 				}
 				return $bic;
+			case 'url':
+				$url = is_scalar( $value ) ? trim( (string) $value ) : '';
+				if ( '' === $url ) { return ''; }
+				if ( ! preg_match( '#^https?://[^\s]+$#i', $url ) || '' === esc_url_raw( $url ) ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_setting_url', sprintf( __( '„%s“ muss eine vollständige Adresse mit http:// oder https:// sein.', 'pass-captain' ), $label ) );
+				}
+				return esc_url_raw( $url );
 			case 'currency':
 				$code = strtoupper( trim( is_scalar( $value ) ? (string) $value : '' ) );
 				if ( ! preg_match( '/^[A-Z]{3}$/', $code ) ) {

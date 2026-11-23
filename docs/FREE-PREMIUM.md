@@ -52,6 +52,12 @@ dem Lizenzserver WP License Captain.
    `PassCaptain\Admin\Notices` gibt solche Hinweise als schlichten Text (`notice-info`) nur auf Pass-Captain-Seiten
    und nur für Administrator:innen aus, höchstens drei, jeder je Benutzer:in wegklickbar (A301, TODO A6).
    Eigene Hinweise des Kerns (Empfehlungen) folgen derselben Regel.
+   **Hinweiszeilen (SET-PC-06, Entscheidung E1 = (a), S1, E8/S5 vom 23.11.2026):** Erlaubt ist genau eine
+   statische Textliste in `src/Admin/ProHints.php` – je verkaufter Pro-Funktion eine graue Textzeile am Ende
+   eines Einstellungsreiters (Kennung, Reiter, Titel, Text, Link), ohne Feld, ohne Schalter, ohne Funktions-
+   und ohne Lizenzcode, je Person ausblendbar. Meldet das Add-on ein Feld mit derselben Kennung an, ersetzt
+   das Feld die Zeile. Die Liste bleibt leer, bis eine Funktion verkauft wird. Der Lizenz-Wächter bleibt
+   unverändert streng.
 5. **Inventar aktuell halten:** Jedes neue Modul unter `src/Modules/` und jeder neue Bereich unter `src/` wird
    hier eingetragen. `tests/consistency.php` schlägt fehl, wenn eine Modul-ID aus der Modulregistrierung
    (`PassCaptain\Modules::classes()`, Dateien `src/Modules/*.php`) oder ein Ordner unter `src/` fehlt.

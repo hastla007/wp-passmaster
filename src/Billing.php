@@ -359,7 +359,7 @@ final class Billing {
 	public static function detail_lines( array $data ) {
 		$lines = array();
 		if ( '' !== (string) ( $data['vat_id'] ?? '' ) ) { $lines[] = __( 'UID des Leistungsempfängers:', 'pass-captain' ) . ' ' . $data['vat_id']; }
-		if ( '' !== (string) ( $data['po_number'] ?? '' ) ) { $lines[] = __( 'Ihre Bestell-/Referenznummer:', 'pass-captain' ) . ' ' . $data['po_number']; }
+		if ( '' !== (string) ( $data['po_number'] ?? '' ) ) { $lines[] = __( 'Deine Bestell-/Referenznummer:', 'pass-captain' ) . ' ' . $data['po_number']; }
 		return $lines;
 	}
 }

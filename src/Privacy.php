@@ -530,7 +530,7 @@ final class Privacy {
 		}
 		if ( $upcoming ) {
 			/* translators: %d: number of tickets */
-			$messages[] = sprintf( _n( 'Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', (int) $upcoming, 'pass-captain' ), $upcoming );
+			$messages[] = sprintf( _n( 'Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', (int) $upcoming, 'pass-captain' ), $upcoming );
 		}
 		return array(
 			'items_removed' => $removed > 0,

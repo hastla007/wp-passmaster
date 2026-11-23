@@ -203,6 +203,9 @@ final class Settings {
 			// SET-PC-08: offered currencies ('' = built-in list) and the currency of new prices.
 			'currencies'                => '',
 			'default_currency'          => 'EUR',
+			// SET-PC-19: imprint and privacy page ('' privacy = WordPress privacy page, '' imprint = no link).
+			'imprint_url'               => '',
+			'privacy_url'               => '',
 		);
 	}
 

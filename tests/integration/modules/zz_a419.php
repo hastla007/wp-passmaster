@@ -35,7 +35,7 @@ $a419_audit = $wpdb->get_var( $wpdb->prepare( "SELECT details FROM {$p}wpcap_aud
 $a419_mail = end( $GLOBALS['wpcap_test_mails'] );
 check( 'A419: the won chargeback is recognised', 'chargeback_reversed' === $a419_won );
 check( 'A419: audit entry with amount and the booked chargeback', $a419_audit && false !== strpos( $a419_audit, '"amount_minor":2000' ) && false !== strpos( $a419_audit, '"chargeback_booked":true' ) );
-check( 'A419: the admin gets a mail asking for a decision', count( $GLOBALS['wpcap_test_mails'] ) === $a419_mails + 1 && false !== strpos( (string) $a419_mail['body'], 'zu Ihren Gunsten' ) && false !== strpos( (string) $a419_mail['body'], 'Tickets neu ausstellen' ) );
+check( 'A419: the admin gets a mail asking for a decision', count( $GLOBALS['wpcap_test_mails'] ) === $a419_mails + 1 && false !== strpos( (string) $a419_mail['body'], 'zu deinen Gunsten' ) && false !== strpos( (string) $a419_mail['body'], 'Tickets neu ausstellen' ) );
 check( 'A419: the order and its refund are not changed automatically', 'refunded' === Orders::get( $a419_o['order_id'] )->status && 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $a419_o['order_id'] ) ) );
 
 $a419_again = stripe_deliver( $a419_stripe, array( 'id' => 'evt_a419_dr_' . uniqid(), 'type' => 'charge.dispute.funds_reinstated', 'data' => array( 'object' => array_merge( $a419_dispute, array( 'id' => 'dp_a419_other' ) ) ) ) );

@@ -190,8 +190,8 @@ msgstr "Clave de API revocada."
 #: src/Admin/Forms.php:435
 #: src/Admin/Forms.php:458
 #: src/Admin/MembershipsPage.php:215
-#: src/Admin/Menu.php:197
-#: src/Admin/Menu.php:277
+#: src/Admin/Menu.php:198
+#: src/Admin/Menu.php:278
 #: src/Admin/MyServicesPage.php:80
 #: src/Admin/Notices.php:73
 #: src/Admin/OperationsPage.php:129
@@ -206,8 +206,8 @@ msgstr "Clave de API revocada."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:760
-#: src/Admin/SettingsPage.php:798
+#: src/Admin/SettingsPage.php:763
+#: src/Admin/SettingsPage.php:801
 #: src/Admin/SettingsTools.php:48
 #: src/Admin/SettingsTools.php:57
 #: src/Admin/SettingsTools.php:107
@@ -303,8 +303,8 @@ msgstr "Sin permiso."
 
 #: src/Admin/ApiKeysPage.php:101
 #: src/Admin/DeveloperKeysPage.php:115
-#: src/Admin/Menu.php:605
-#: src/Admin/Menu.php:676
+#: src/Admin/Menu.php:606
+#: src/Admin/Menu.php:677
 msgid "Entwickler-API"
 msgstr "API para desarrolladores"
 
@@ -410,17 +410,17 @@ msgstr "Nombre"
 #: src/GuestLists/Page.php:185
 #: src/Integrations/ConnectorsPage.php:247
 #: src/Integrations/WooCommerce/OrderAdapter.php:2335
-#: src/Mail/Types.php:92
-#: src/Mail/Types.php:192
-#: src/Mail/Types.php:538
-#: src/Mail/Types.php:547
-#: src/Mail/Types.php:565
-#: src/Mail/Types.php:585
-#: src/Mail/Types.php:605
-#: src/Mail/Types.php:628
-#: src/Mail/Types.php:643
-#: src/Mail/Types.php:667
-#: src/Mail/Types.php:686
+#: src/Mail/Types.php:94
+#: src/Mail/Types.php:194
+#: src/Mail/Types.php:540
+#: src/Mail/Types.php:549
+#: src/Mail/Types.php:567
+#: src/Mail/Types.php:587
+#: src/Mail/Types.php:607
+#: src/Mail/Types.php:630
+#: src/Mail/Types.php:645
+#: src/Mail/Types.php:669
+#: src/Mail/Types.php:688
 #: src/OfflineScanner/AdminPage.php:135
 #: src/Partners/AdminPage.php:440
 #: src/Partners/Settlements.php:837
@@ -497,7 +497,7 @@ msgstr "Último uso"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MembershipsPage.php:273
 #: src/Admin/MembershipsPage.php:295
-#: src/Mail/Types.php:711
+#: src/Mail/Types.php:713
 #: src/OfflineScanner/AdminPage.php:202
 #: src/OfflineScanner/AdminPage.php:219
 #: src/Partners/AdminPage.php:440
@@ -785,7 +785,7 @@ msgid "abgesagt"
 msgstr "cancelada"
 
 #: src/Admin/AssignmentsPage.php:112
-#: src/Admin/Menu.php:583
+#: src/Admin/Menu.php:584
 msgid "Zuweisungen"
 msgstr "Asignaciones"
 
@@ -1394,8 +1394,8 @@ msgid "Benutzer"
 msgstr "Usuario"
 
 #: src/Admin/AuditLogPage.php:315
-#: src/Admin/Menu.php:104
-#: src/Admin/Menu.php:603
+#: src/Admin/Menu.php:105
+#: src/Admin/Menu.php:604
 #: src/Allocations/AdminPage.php:226
 #: src/Partners/AdminPage.php:278
 #: src/Passes/AdminPage.php:261
@@ -1432,7 +1432,7 @@ msgid "Serie"
 msgstr "Serie"
 
 #: src/Admin/AuditLogPage.php:320
-#: src/Admin/Menu.php:675
+#: src/Admin/Menu.php:676
 #: src/Admin/ServicesPage.php:343
 #: src/Admin/ServicesPage.php:494
 #: src/Modules/Waitlist.php:36
@@ -1478,7 +1478,7 @@ msgid "Alle Objekte"
 msgstr "Todos los objetos"
 
 #: src/Admin/AuditLogPage.php:365
-#: src/Admin/Menu.php:606
+#: src/Admin/Menu.php:607
 #: src/Admin/SecurityScreens.php:45
 msgid "Audit-Log"
 msgstr "Registro de auditoría"
@@ -1767,7 +1767,7 @@ msgstr "Límite alcanzado"
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:1024
+#: src/Admin/SettingsPage.php:1028
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
@@ -1964,7 +1964,7 @@ msgstr "Opcional. Zona horaria: %s"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MembershipsPage.php:272
 #: src/Admin/MembershipsPage.php:294
-#: src/Mail/Types.php:710
+#: src/Mail/Types.php:712
 #: src/Partners/AdminPage.php:426
 #: src/Partners/AdminPage.php:440
 #: src/Sales/TaxProfilesPage.php:111
@@ -2202,10 +2202,10 @@ msgstr "Acceso desde"
 #: src/Admin/Forms.php:597
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:288
-#: src/Mail/Types.php:104
-#: src/Mail/Types.php:550
-#: src/Mail/Types.php:568
-#: src/Mail/Types.php:589
+#: src/Mail/Types.php:106
+#: src/Mail/Types.php:552
+#: src/Mail/Types.php:570
+#: src/Mail/Types.php:591
 #: src/Reminders/Placeholders.php:14
 #: src/Series/AdminPage.php:262
 #: src/WalletPasses/AppleProvider.php:80
@@ -2218,11 +2218,11 @@ msgstr "Zona horaria"
 #: src/Admin/EventsPage.php:1596
 #: src/Admin/EventsPage.php:1679
 #: src/Billing.php:133
-#: src/Mail/Types.php:95
-#: src/Mail/Types.php:103
-#: src/Mail/Types.php:549
-#: src/Mail/Types.php:569
-#: src/Mail/Types.php:597
+#: src/Mail/Types.php:97
+#: src/Mail/Types.php:105
+#: src/Mail/Types.php:551
+#: src/Mail/Types.php:571
+#: src/Mail/Types.php:599
 #: src/Modules/Fiscalization.php:1354
 #: src/Notifications.php:186
 #: src/PublicEvents.php:1214
@@ -2405,12 +2405,12 @@ msgstr "Etiqueta"
 #: src/GuestLists/Page.php:298
 #: src/GuestLists/Service.php:667
 #: src/Integrations/FormCaptain/EventRequests.php:529
-#: src/Mail/Types.php:93
-#: src/Mail/Types.php:606
-#: src/Mail/Types.php:629
-#: src/Mail/Types.php:644
-#: src/Mail/Types.php:668
-#: src/Mail/Types.php:687
+#: src/Mail/Types.php:95
+#: src/Mail/Types.php:608
+#: src/Mail/Types.php:631
+#: src/Mail/Types.php:646
+#: src/Mail/Types.php:670
+#: src/Mail/Types.php:689
 #: src/Partners/AdminPage.php:502
 #: src/Partners/AdminPage.php:514
 #: src/Partners/AdminPage.php:525
@@ -2685,7 +2685,7 @@ msgid "Alle Ergebnisse"
 msgstr "Todos los resultados"
 
 #: src/Admin/CheckinsPage.php:85
-#: src/Admin/Menu.php:575
+#: src/Admin/Menu.php:576
 msgid "Check-ins"
 msgstr "Check-ins"
 
@@ -2784,9 +2784,9 @@ msgid "Offene Zahlungen"
 msgstr "Pagos pendientes"
 
 #: src/Admin/Dashboard.php:98
-#: src/Admin/Menu.php:121
+#: src/Admin/Menu.php:122
 #: src/Admin/SettingsPage.php:146
-#: src/Admin/SettingsPage.php:926
+#: src/Admin/SettingsPage.php:930
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -3155,7 +3155,7 @@ msgid "Gerät widerrufen."
 msgstr "Dispositivo revocado."
 
 #: src/Admin/DevicesPage.php:64
-#: src/Admin/Menu.php:580
+#: src/Admin/Menu.php:581
 msgid "Scanner-Geräte"
 msgstr "Dispositivos de escaneo"
 
@@ -3206,7 +3206,7 @@ msgstr "Vincular nuevo dispositivo"
 #: src/Admin/DevicesPage.php:80
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/EventsPage.php:1423
-#: src/Admin/Menu.php:572
+#: src/Admin/Menu.php:573
 #: src/Admin/OrdersPage.php:666
 #: src/Ops/Network.php:289
 #: src/Partners/AdminPage.php:270
@@ -4445,7 +4445,7 @@ msgid "leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termin
 msgstr "vacío = hasta el inicio de la fecha; un fin de venta posterior al inicio (fechas de varios días) se aplica online como máximo hasta el final de la fecha"
 
 #: src/Admin/EventsPage.php:1827
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:221
 msgid "Servicegebühr je Ticket"
 msgstr "Gastos de gestión por entrada"
 
@@ -4781,7 +4781,7 @@ msgstr "Recursos y franjas horarias"
 
 #: src/Admin/FeatureScreens.php:37
 #: src/Admin/MembershipsPage.php:216
-#: src/Admin/Menu.php:578
+#: src/Admin/Menu.php:579
 msgid "Mitgliedspässe"
 msgstr "Pases de socio"
 
@@ -5062,7 +5062,7 @@ msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überwei
 msgstr "Activa Stripe, PayPal o Mollie con sus credenciales o, para la transferencia, introduce el IBAN."
 
 #: src/Admin/GettingStarted.php:142
-#: src/Admin/Menu.php:320
+#: src/Admin/Menu.php:321
 msgid "Zahlungsart einrichten"
 msgstr "Configurar el método de pago"
 
@@ -5153,8 +5153,8 @@ msgid "Erste-Schritte-Checkliste anzeigen"
 msgstr "Mostrar la lista de primeros pasos"
 
 #: src/Admin/GettingStarted.php:284
-#: src/Admin/Menu.php:105
-#: src/Admin/Menu.php:129
+#: src/Admin/Menu.php:106
+#: src/Admin/Menu.php:130
 msgid "Erste Schritte"
 msgstr "Primeros pasos"
 
@@ -5196,7 +5196,7 @@ msgstr "Ocultar la lista de comprobación"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/GettingStarted.php:353
-#: src/Admin/Menu.php:574
+#: src/Admin/Menu.php:575
 #: src/Admin/OrdersPage.php:1140
 #: src/Admin/OrdersPage.php:1388
 #: src/Admin/TicketsPage.php:596
@@ -5459,7 +5459,7 @@ msgid "Keine Berechtigung für diesen Pass."
 msgstr "No tienes permiso para este pase."
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:564
+#: src/Admin/SettingsPage.php:566
 #: src/Integrations/WooCommerce/Attendees.php:480
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr "Indica una dirección de correo electrónico válida."
@@ -5661,160 +5661,160 @@ msgstr "Un pase revocado ya no se puede canjear. Esta acción no se puede deshac
 msgid "Diesen Pass endgültig widerrufen?"
 msgstr "¿Revocar definitivamente este pase?"
 
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:123
 msgid "Pass Captain verkauft Tickets und Servicezeiten, stellt QR-Tickets aus und prüft den Einlass. Neue Events legst du unter „Events“ an; Termine und Ticketarten gehören zum Event."
 msgstr "Pass Captain vende entradas y franjas de servicio, emite entradas con QR y controla el acceso. Crea eventos nuevos en «Eventos»; las sesiones y los tipos de entrada pertenecen al evento."
 
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:123
 msgid "Bestellungen, Erstattungen und Tickets findest du unter „Bestellungen“ und „Tickets“. Wer welche Daten sieht, richtet sich nach den Rollen und Eventzuweisungen."
 msgstr "Los pedidos, reembolsos y entradas están en «Pedidos» y «Entradas». Quién ve qué datos depende de los roles y de las asignaciones a eventos."
 
-#: src/Admin/Menu.php:126
+#: src/Admin/Menu.php:127
 msgid "Probleme finden"
 msgstr "Encontrar problemas"
 
-#: src/Admin/Menu.php:127
+#: src/Admin/Menu.php:128
 msgid "Der Systemstatus zeigt hängende Hintergrundaufgaben, fehlgeschlagene Mails, offene Erstattungen und die letzten Betriebsalarme. Dort lassen sich Aufgaben erneut versuchen."
 msgstr "El estado del sistema muestra tareas en segundo plano bloqueadas, correos fallidos, reembolsos abiertos y las últimas alertas operativas. Allí se pueden reintentar las tareas."
 
-#: src/Admin/Menu.php:129
-#: src/Admin/Menu.php:611
-#: src/Admin/Menu.php:677
+#: src/Admin/Menu.php:130
+#: src/Admin/Menu.php:612
+#: src/Admin/Menu.php:678
 #: src/Admin/StatusPage.php:72
 #: src/Admin/StatusPage.php:245
 msgid "Systemstatus"
 msgstr "Estado del sistema"
 
-#: src/Admin/Menu.php:130
+#: src/Admin/Menu.php:131
 msgid "Weitere Hilfe"
 msgstr "Más ayuda"
 
-#: src/Admin/Menu.php:184
+#: src/Admin/Menu.php:185
 msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "Pass Captain: la actualización de la base de datos está incompleta."
 
-#: src/Admin/Menu.php:184
+#: src/Admin/Menu.php:185
 msgid "Es fehlen Tabellen, Spalten oder Indizes; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten."
 msgstr "Faltan tablas, columnas o índices; el plugin sigue funcionando con el esquema antiguo. Revisa los permisos de la base de datos y vuelve a iniciar la actualización."
 
 #. translators: 1: number of failed attempts, 2: date and time of the next automatic attempt
-#: src/Admin/Menu.php:187
+#: src/Admin/Menu.php:188
 #, php-format
 msgid "%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgid_plural "%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr[0] "%1$d intento fallido. Próximo intento automático: %2$s."
 msgstr[1] "%1$d intentos fallidos. Próximo intento automático: %2$s."
 
-#: src/Admin/Menu.php:191
+#: src/Admin/Menu.php:192
 msgid "Datenbank-Update jetzt erneut versuchen"
 msgstr "Reintentar ahora la actualización de la base de datos"
 
-#: src/Admin/Menu.php:204
+#: src/Admin/Menu.php:205
 msgid "Das Datenbank-Update wurde abgeschlossen."
 msgstr "La actualización de la base de datos se ha completado."
 
-#: src/Admin/Menu.php:204
+#: src/Admin/Menu.php:205
 msgid "Das Datenbank-Update ist erneut fehlgeschlagen. Details stehen im Hinweis."
 msgstr "La actualización de la base de datos ha vuelto a fallar. Los detalles figuran en el aviso."
 
-#: src/Admin/Menu.php:220
+#: src/Admin/Menu.php:221
 msgid "Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert."
 msgstr "Pass Captain: el método de pago «Transferencia» está activado, pero no está configurado por completo."
 
-#: src/Admin/Menu.php:220
+#: src/Admin/Menu.php:221
 msgid "Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten."
 msgstr "Faltan el beneficiario y el IBAN o una indicación de pago. Hasta entonces, la transferencia no se ofrece en el checkout."
 
-#: src/Admin/Menu.php:220
+#: src/Admin/Menu.php:221
 msgid "Überweisung einrichten"
 msgstr "Configurar la transferencia"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:241
+#: src/Admin/Menu.php:242
 #, php-format
 msgid "Pass Captain: %d bezahlte Bestellung ohne Tickets muss geklärt werden."
 msgid_plural "Pass Captain: %d bezahlte Bestellungen ohne Tickets müssen geklärt werden."
 msgstr[0] "Pass Captain: hay que resolver %d pedido pagado sin entradas."
 msgstr[1] "Pass Captain: hay que resolver %d pedidos pagados sin entradas."
 
-#: src/Admin/Menu.php:242
+#: src/Admin/Menu.php:243
 msgid "Die Zahlung kam nach Ablauf der Reservierung und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten."
 msgstr "El pago llegó después de que caducara la reserva y ya no quedaba cupo libre. Libera una plaza y vuelve a intentar la asignación, o reembolsa el pago."
 
-#: src/Admin/Menu.php:242
+#: src/Admin/Menu.php:243
 msgid "Bestellungen anzeigen"
 msgstr "Ver pedidos"
 
-#: src/Admin/Menu.php:268
+#: src/Admin/Menu.php:269
 msgid "Pass Captain: Neues Standard-Einlassfenster"
 msgstr "Pass Captain: nueva ventana de acceso predeterminada"
 
-#: src/Admin/Menu.php:268
+#: src/Admin/Menu.php:269
 msgid "Neue Installationen lassen Tickets ohne eigene Einlassregel nur von 2 Stunden vor Beginn bis zum Ende des Termins ein. Für diese bestehende Installation wurde das Einlassfenster beim Update ausgeschaltet, Scans verhalten sich also wie bisher. Es lässt sich unter Einstellungen → Einlass / Scanner-Geräte einschalten."
 msgstr "Las instalaciones nuevas solo dejan entrar las entradas sin regla de acceso propia desde 2 horas antes del inicio hasta el final de la fecha. En esta instalación existente, la ventana de acceso se desactivó durante la actualización, por lo que los escaneos se comportan como hasta ahora. Puede activarse en Ajustes → Acceso / Dispositivos de escaneo."
 
-#: src/Admin/Menu.php:271
+#: src/Admin/Menu.php:272
 msgid "Einlass-Einstellungen öffnen"
 msgstr "Abrir los ajustes de acceso"
 
-#: src/Admin/Menu.php:271
+#: src/Admin/Menu.php:272
 msgid "Hinweis ausblenden"
 msgstr "Ocultar aviso"
 
 #. translators: %s: currency codes
-#: src/Admin/Menu.php:319
+#: src/Admin/Menu.php:320
 #, php-format
 msgid "Pass Captain: Keine verfügbare Zahlungsart für %s."
 msgstr "Pass Captain: no hay ningún método de pago disponible para %s."
 
-#: src/Admin/Menu.php:320
+#: src/Admin/Menu.php:321
 msgid "Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“."
 msgstr "Los eventos publicados no se pueden reservar en el sitio web; las tarjetas de evento muestran «Venta online no disponible en este momento»."
 
 #. translators: %s: payment method names
-#: src/Admin/Menu.php:363
+#: src/Admin/Menu.php:364
 #, php-format
 msgid "Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus."
 msgstr "Pass Captain: el método de pago %s emite las entradas antes de recibir el dinero."
 
-#: src/Admin/Menu.php:364
+#: src/Admin/Menu.php:365
 msgid "Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen."
 msgstr "La compra con factura pone el pedido inmediatamente en «Procesando»; entonces Pass Captain emite las entradas. Si solo deben emitirse en «Completado», añade el método de pago al filtro wpcap_woocommerce_issue_on_completed_gateways."
 
-#: src/Admin/Menu.php:491
+#: src/Admin/Menu.php:492
 msgid "Events & Programm"
 msgstr "Eventos y programación"
 
-#: src/Admin/Menu.php:492
+#: src/Admin/Menu.php:493
 #: src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:66
 #: src/Partners/Statement.php:174
 msgid "Verkauf"
 msgstr "Venta"
 
-#: src/Admin/Menu.php:493
+#: src/Admin/Menu.php:494
 #: src/Admin/SecurityScreens.php:92
-#: src/Admin/SettingsPage.php:425
+#: src/Admin/SettingsPage.php:427
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr "Acceso"
 
-#: src/Admin/Menu.php:494
+#: src/Admin/Menu.php:495
 msgid "Finanzen & Auswertung"
 msgstr "Finanzas y análisis"
 
-#: src/Admin/Menu.php:495
+#: src/Admin/Menu.php:496
 msgid "Kommunikation"
 msgstr "Comunicación"
 
-#: src/Admin/Menu.php:496
+#: src/Admin/Menu.php:497
 msgid "Einstellungen & Integrationen"
 msgstr "Ajustes e integraciones"
 
-#: src/Admin/Menu.php:565
-#: src/Admin/Menu.php:576
+#: src/Admin/Menu.php:566
+#: src/Admin/Menu.php:577
 #: src/Admin/OrdersPage.php:1249
-#: src/Admin/SettingsPage.php:202
+#: src/Admin/SettingsPage.php:204
 #: src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:153
 #: src/Reports/Page.php:195
@@ -5823,15 +5823,15 @@ msgid "Erstattungen"
 msgstr "Reembolsos"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:569
+#: src/Admin/Menu.php:570
 #, php-format
 msgid "%d Bestellung muss geklärt werden"
 msgid_plural "%d Bestellungen müssen geklärt werden"
 msgstr[0] "Hay que resolver %d pedido"
 msgstr[1] "Hay que resolver %d pedidos"
 
-#: src/Admin/Menu.php:570
-#: src/Admin/Menu.php:573
+#: src/Admin/Menu.php:571
+#: src/Admin/Menu.php:574
 #: src/Admin/OrdersPage.php:903
 #: src/Exchange/AdminPage.php:149
 #: src/Ops/Network.php:289
@@ -5842,48 +5842,48 @@ msgstr[1] "Hay que resolver %d pedidos"
 msgid "Bestellungen"
 msgstr "Pedidos"
 
-#: src/Admin/Menu.php:577
+#: src/Admin/Menu.php:578
 msgid "Rabattcodes"
 msgstr "Códigos de descuento"
 
-#: src/Admin/Menu.php:579
+#: src/Admin/Menu.php:580
 #: src/Admin/ScannerPage.php:87
 #: src/Admission/ConflictsPage.php:107
 #: src/Admission/ConflictsPage.php:108
 msgid "Web-Scanner"
 msgstr "Escáner web"
 
-#: src/Admin/Menu.php:581
+#: src/Admin/Menu.php:582
 #: src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr "Revisión fiscal"
 
-#: src/Admin/Menu.php:582
+#: src/Admin/Menu.php:583
 #: src/Admin/MyServicesPage.php:82
 msgid "Meine Leistungen"
 msgstr "Mis servicios"
 
-#: src/Admin/Menu.php:614
+#: src/Admin/Menu.php:615
 #: src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:54
 msgid "Gemeinsamer Scanner"
 msgstr "Escáner compartido"
 
-#: src/Admin/Menu.php:614
+#: src/Admin/Menu.php:615
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Escáner compartido ↗"
 
-#: src/Admin/Menu.php:615
+#: src/Admin/Menu.php:616
 #: src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Admin/Menu.php:615
+#: src/Admin/Menu.php:616
 msgid "Voucher Captain ↗"
 msgstr "Voucher Captain ↗"
 
-#: src/Admin/Menu.php:629
+#: src/Admin/Menu.php:630
 #: src/Admin/ServiceSlotsPage.php:357
 msgid "Service-Zeitfenster"
 msgstr "Franjas horarias de servicio"
@@ -6038,6 +6038,7 @@ msgid "Hinweis für mich ausblenden"
 msgstr "Ocultar el aviso para mí"
 
 #: src/Admin/Notices.php:102
+#: src/Admin/ProHints.php:96
 msgid "Mehr erfahren"
 msgstr "Más información"
 
@@ -6282,7 +6283,7 @@ msgstr "Pedido #%d"
 #: src/Admin/OrdersPage.php:972
 #: src/Admin/TicketsPage.php:648
 #: src/BoxOffice/Service.php:716
-#: src/Mail/Types.php:384
+#: src/Mail/Types.php:386
 #: src/Mollie/MollieGateway.php:123
 #: src/Mollie/MollieGateway.php:469
 #: src/OrderPortal.php:159
@@ -6305,7 +6306,7 @@ msgstr "Entrada #%d"
 #. translators: %d: occurrence id
 #: src/Admin/OperationsPage.php:355
 #: src/blocks/events/editor.js:52
-#, php-format, js-format
+#, php-format,js-format
 msgid "Termin #%d"
 msgstr "Fecha #%d"
 
@@ -6578,8 +6579,8 @@ msgstr "Reembolsado externamente – cerrar"
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:248
 #: src/GuestLists/Service.php:667
-#: src/Mail/Types.php:243
-#: src/Mail/Types.php:252
+#: src/Mail/Types.php:245
+#: src/Mail/Types.php:254
 msgid "Grund"
 msgstr "Motivo"
 
@@ -6828,17 +6829,17 @@ msgid "Erstattung abgelehnt."
 msgstr "Reembolso rechazado."
 
 #: src/Admin/OrdersPage.php:666
-#: src/Mail/Types.php:52
-#: src/Mail/Types.php:340
-#: src/Mail/Types.php:362
-#: src/Mail/Types.php:394
-#: src/Mail/Types.php:405
-#: src/Mail/Types.php:424
-#: src/Mail/Types.php:444
-#: src/Mail/Types.php:458
-#: src/Mail/Types.php:470
-#: src/Mail/Types.php:504
-#: src/Mail/Types.php:526
+#: src/Mail/Types.php:54
+#: src/Mail/Types.php:342
+#: src/Mail/Types.php:364
+#: src/Mail/Types.php:396
+#: src/Mail/Types.php:407
+#: src/Mail/Types.php:426
+#: src/Mail/Types.php:446
+#: src/Mail/Types.php:460
+#: src/Mail/Types.php:472
+#: src/Mail/Types.php:506
+#: src/Mail/Types.php:528
 msgid "Bestellnummer"
 msgstr "Número de pedido"
 
@@ -7268,7 +7269,7 @@ msgid "Höchstbetrag (optional, Kulanz)"
 msgstr "Importe máximo (opcional, cortesía)"
 
 #: src/Admin/OrdersPage.php:1216
-#: src/Admin/SettingsPage.php:216
+#: src/Admin/SettingsPage.php:218
 #: src/ServiceFee.php:427
 msgid "Servicegebühr"
 msgstr "Gastos de gestión"
@@ -7282,12 +7283,12 @@ msgid "automatisch (bei Absage erstatten, sonst einbehalten)"
 msgstr "automático (reembolsar en caso de cancelación; si no, retener)"
 
 #: src/Admin/OrdersPage.php:1218
-#: src/Admin/SettingsPage.php:247
+#: src/Admin/SettingsPage.php:249
 msgid "mit erstatten"
 msgstr "incluir en el reembolso"
 
 #: src/Admin/OrdersPage.php:1219
-#: src/Admin/SettingsPage.php:246
+#: src/Admin/SettingsPage.php:248
 msgid "einbehalten"
 msgstr "retener"
 
@@ -7396,7 +7397,7 @@ msgstr "Datos de asistente que faltan solicitados."
 
 #: src/Admin/OrdersPage.php:1329
 #: src/Admin/OrdersPage.php:1341
-#: src/Mail/Types.php:325
+#: src/Mail/Types.php:327
 msgid "Tickets erneut senden"
 msgstr "Reenviar entradas"
 
@@ -8830,10 +8831,6 @@ msgstr "Las funciones desactivadas ya no registran menús, páginas, shortcodes,
 msgid "Im Menü ausblenden"
 msgstr "Ocultar en el menú"
 
-#: src/Admin/SettingsPage.php:108
-msgid "Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen."
-msgstr "Solo se ocultan las entradas del menú; las funciones siguen activas, los datos se conservan y los enlaces directos funcionan. Para funciones que no utilizas."
-
 #: src/Admin/SettingsPage.php:112
 msgid "Begriffe"
 msgstr "Términos"
@@ -9047,508 +9044,500 @@ msgid "Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht d
 msgstr "Se muestra en la app después de crear el webhook (un identificador, no la URL). Sin él, los pagos nunca se confirman."
 
 #: src/Admin/SettingsPage.php:190
-#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:429
 msgid "Rechtstexte"
 msgstr "Textos legales"
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:195
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Exigir consentimiento en el checkout"
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:195
 msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer)."
 msgstr "Muestra las condiciones generales / de participación en el checkout y exige su aceptación. Sin esta opción, las condiciones generales no aparecen en el checkout (la información al consumidor, siempre)."
 
-#: src/Admin/SettingsPage.php:194
-#: src/Admin/SettingsPage.php:984
+#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:988
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr "Condiciones generales / Condiciones de participación"
 
-#: src/Admin/SettingsPage.php:195
-#: src/Admin/SettingsPage.php:984
+#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:988
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Información al consumidor (p. ej. aviso de desistimiento)"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen"
 msgstr "Mostrar el aviso «sin derecho de desistimiento» junto al botón de pedido"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung."
 msgstr "Solo si todas las posiciones tienen una fecha de evento fija. Texto estándar; revísalo y adáptalo, no constituye asesoramiento jurídico."
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:199
 msgid "Text: kein Widerrufsrecht (terminierte Tickets)"
 msgstr "Texto: sin derecho de desistimiento (entradas con fecha)"
 
-#: src/Admin/SettingsPage.php:198
+#: src/Admin/SettingsPage.php:200
 msgid "Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)"
 msgstr "Texto: existe derecho de desistimiento (productos sin fecha, p. ej. pases, bonos)"
 
-#: src/Admin/SettingsPage.php:198
+#: src/Admin/SettingsPage.php:200
 msgid "Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen."
 msgstr "Se muestra cuando una posición no tiene fecha fija. Introduce aquí, p. ej., las instrucciones de desistimiento o una referencia a ellas."
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Segunda aprobación a partir de un importe"
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = sin segunda aprobación. Importe en la moneda del pedido, p. ej. 100,00."
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:208
 msgid "Vier-Augen-Prinzip auch für Freigebende"
 msgstr "Principio de doble control también para quienes aprueban"
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:208
 msgid "Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person."
 msgstr "Sin esta opción, las personas con permiso de aprobación ejecutan inmediatamente sus propios reembolsos por encima del importe. Con la opción, cada reembolso por encima del importe espera la aprobación de otra persona autorizada."
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:209
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Exigir autenticación en dos pasos para los reembolsos"
 
-#: src/Admin/SettingsPage.php:208
+#: src/Admin/SettingsPage.php:210
 msgid "Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten"
 msgstr "Reembolsar automáticamente los pagos duplicados y los pagos de pedidos cancelados/caducados"
 
-#: src/Admin/SettingsPage.php:208
+#: src/Admin/SettingsPage.php:210
 msgid "Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter."
 msgstr "Desactivado por defecto: los casos aparecen en el estado del sistema y se resuelven manualmente. Si se activa, una tarea en segundo plano reembolsa el importe en el proveedor de pagos."
 
-#: src/Admin/SettingsPage.php:209
+#: src/Admin/SettingsPage.php:211
 msgid "Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben"
 msgstr "Permitir solicitudes de reembolso en el portal de pedidos tras aplazar una fecha"
 
-#: src/Admin/SettingsPage.php:209
+#: src/Admin/SettingsPage.php:211
 msgid "Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“."
 msgstr "Los titulares de entradas pueden solicitar un reembolso hasta el plazo; cada solicitud requiere aprobación en «Reembolsos»."
 
-#: src/Admin/SettingsPage.php:210
+#: src/Admin/SettingsPage.php:212
 msgid "Antragsfrist: Stunden vor dem neuen Termin"
 msgstr "Plazo de solicitud: horas antes de la nueva fecha"
 
-#: src/Admin/SettingsPage.php:210
+#: src/Admin/SettingsPage.php:212
 msgid "0 = bis zum Beginn des neuen Termins."
 msgstr "0 = hasta el inicio de la nueva fecha."
 
-#: src/Admin/SettingsPage.php:211
+#: src/Admin/SettingsPage.php:213
 msgid "Erstattungshinweis in der Verschiebungs-Mail"
 msgstr "Aviso de reembolso en el correo de aplazamiento"
 
-#: src/Admin/SettingsPage.php:211
+#: src/Admin/SettingsPage.php:213
 msgid "Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen."
 msgstr "Marcador {refund_deadline} (plazo). Vacío = aviso de dirigirse al organizador. No es asesoramiento jurídico: revisa los derechos de desistimiento en caso de un aplazamiento considerable."
 
-#: src/Admin/SettingsPage.php:212
+#: src/Admin/SettingsPage.php:214
 msgid "Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)"
 msgstr "Solicitudes de anulación en el portal de pedidos hasta (horas antes del inicio)"
 
-#: src/Admin/SettingsPage.php:212
+#: src/Admin/SettingsPage.php:214
 msgid "0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe."
 msgstr "0 = desactivado. Los compradores pueden solicitar la anulación con reembolso de entradas válidas y sin usar hasta este plazo (no para entradas de cortesía ni pedidos de WooCommerce). Cada solicitud queda a la espera de una decisión en «Reembolsos pendientes de aprobación»; solo se paga después de la aprobación."
 
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:221
 msgid "0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen."
 msgstr "0 = ninguno. Se aplica en el checkout online propio a las entradas de pago; se puede ajustar de forma distinta para cada tipo de entrada. No se aplica en taquilla, WooCommerce, socios, entradas de cortesía ni reservas de servicio."
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:222
 #: src/ServiceFee.php:422
 msgid "Servicegebühr je Bestellung"
 msgstr "Gastos de gestión por pedido"
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:222
 msgid "0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen."
 msgstr "0 = ninguno. Una vez por cada pedido de pago en el checkout online propio; los compradores lo ven como «gastos de gestión por pedido» junto a los precios."
 
-#: src/Admin/SettingsPage.php:223
+#: src/Admin/SettingsPage.php:225
 msgid "Steuer der Servicegebühr"
 msgstr "Impuesto de los gastos de gestión"
 
-#: src/Admin/SettingsPage.php:225
+#: src/Admin/SettingsPage.php:227
 msgid "wie das Ticket (Nebenleistung)"
 msgstr "como la entrada (prestación accesoria)"
 
-#: src/Admin/SettingsPage.php:226
+#: src/Admin/SettingsPage.php:228
 msgid "eigenes Steuerprofil"
 msgstr "perfil fiscal propio"
 
-#: src/Admin/SettingsPage.php:228
+#: src/Admin/SettingsPage.php:230
 msgid "„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile."
 msgstr "«Como la entrada»: tipo impositivo y perfil fiscal de la línea de entrada correspondiente. «Perfil fiscal propio»: clase fiscal indicada abajo, tipo del perfil fiscal activo del lugar de prestación. Se aplica a los pedidos nuevos; las facturas, los recibos fiscales y los informes siguen la línea de pedido."
 
-#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:234
 msgid "Steuerklasse der Servicegebühr"
 msgstr "Clase fiscal de los gastos de gestión"
 
-#: src/Admin/SettingsPage.php:234
+#: src/Admin/SettingsPage.php:236
 msgid "Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben."
 msgstr "Solo con «perfil fiscal propio». Crea y aprueba los perfiles fiscales por país y clase fiscal en Venta → Perfiles fiscales."
 
-#: src/Admin/SettingsPage.php:238
+#: src/Admin/SettingsPage.php:240
 msgid "Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)"
 msgstr "Tipo impositivo de los gastos de gestión sin perfil fiscal aplicable (%)"
 
-#: src/Admin/SettingsPage.php:239
+#: src/Admin/SettingsPage.php:241
 msgid "Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition."
 msgstr "Solo con «perfil fiscal propio», si no hay ningún perfil activo para el lugar de prestación y la clase fiscal. Vacío = tipo de la línea de entrada."
 
-#: src/Admin/SettingsPage.php:244
+#: src/Admin/SettingsPage.php:246
 msgid "Servicegebühr bei Erstattung auf Käuferwunsch"
 msgstr "Gastos de gestión en reembolsos a petición del comprador"
 
-#: src/Admin/SettingsPage.php:249
+#: src/Admin/SettingsPage.php:251
 msgid "Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet."
 msgstr "Para reembolsos que no se deben a una cancelación (solicitud de anulación en el portal de pedidos, reembolso por parte del equipo sin cancelación). Si el organizador cancela una fecha o un evento, los gastos se reembolsan siempre."
 
-#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:253
 msgid "Servicegebühr an Partner weitergeben"
 msgstr "Transferir los gastos de gestión a los socios"
 
-#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:253
 msgid "Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös."
 msgstr "Desactivado por defecto: los gastos de gestión son ingresos del operador y no cuentan como ingresos del organizador en las liquidaciones de socios ni en la base del acuerdo de la hoja de liquidación; ambas los muestran por separado. Si se activa, cuentan como ingresos del organizador, igual que el precio de la entrada."
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:255
 msgid "Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen."
 msgstr "Línea propia en el pedido, la factura y los informes. En los reembolsos, los gastos por entrada se devuelven con la entrada y los gastos por pedido, con la última entrada: siempre en caso de cancelación y, a petición del comprador, según el ajuste de abajo. Revisa con tu asesoría fiscal la clasificación jurídica y fiscal."
 
-#: src/Admin/SettingsPage.php:256
+#: src/Admin/SettingsPage.php:258
 msgid "Gutscheine"
 msgstr "Bonos"
 
-#: src/Admin/SettingsPage.php:261
+#: src/Admin/SettingsPage.php:263
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
 msgstr "Tratar los bonos como bonos polivalentes por defecto"
 
-#: src/Admin/SettingsPage.php:263
+#: src/Admin/SettingsPage.php:265
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
 msgstr "Sí – bono polivalente (medio de pago, IVA al canjearlo)"
 
-#: src/Admin/SettingsPage.php:264
+#: src/Admin/SettingsPage.php:266
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "No – bono de un solo uso (IVA ya devengado en la venta del bono)"
 
-#: src/Admin/SettingsPage.php:266
+#: src/Admin/SettingsPage.php:268
 msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären."
 msgstr "Solo se aplica si Voucher Captain no indica ningún tipo para el bono. Bono polivalente: las entradas conservan su precio e IVA completos y el bono aparece en la factura como pago. Bono de un solo uso (el lugar de la prestación y el tipo impositivo estaban determinados en la venta, p. ej. un bono para un evento concreto en el país): el IVA ya se ingresó en la venta del bono y el canje reduce el precio. En caso de duda, consúltalo con tu asesoría fiscal (véase docs/VOUCHERS.md)."
 
-#: src/Admin/SettingsPage.php:271
-#: src/Admin/SettingsPage.php:429
+#: src/Admin/SettingsPage.php:273
+#: src/Admin/SettingsPage.php:431
 msgid "Datenschutz"
 msgstr "Protección de datos"
 
-#: src/Admin/SettingsPage.php:274
+#: src/Admin/SettingsPage.php:276
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Eliminar los datos de los asistentes tras el evento después de (días)"
 
-#: src/Admin/SettingsPage.php:274
+#: src/Admin/SettingsPage.php:276
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = usar el ajuste del campo."
 
-#: src/Admin/SettingsPage.php:275
+#: src/Admin/SettingsPage.php:277
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Datos del asistente editables hasta (horas antes del inicio)"
 
-#: src/Admin/SettingsPage.php:276
+#: src/Admin/SettingsPage.php:278
 msgid "E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)"
 msgstr "Seudonimizar las direcciones de correo de pedidos nunca pagados tras (días)"
 
-#: src/Admin/SettingsPage.php:276
-#: src/Admin/SettingsPage.php:285
+#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:287
 msgid "0 = nie."
 msgstr "0 = nunca."
 
-#: src/Admin/SettingsPage.php:277
+#: src/Admin/SettingsPage.php:279
 msgid "Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)"
 msgstr "Eliminar el contenido y el destinatario de los mensajes enviados tras (días)"
 
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:280
 msgid "Versandprotokoll der Nachrichten löschen nach (Tagen)"
 msgstr "Eliminar el registro de envío de mensajes tras (días)"
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:281
 msgid "Personal und Gerät an Check-ins entfernen nach (Tagen)"
 msgstr "Quitar el personal y el dispositivo de los accesos registrados tras (días)"
 
-#: src/Admin/SettingsPage.php:280
+#: src/Admin/SettingsPage.php:282
 msgid "Protokolleinträge (Audit-Log) löschen nach (Tagen)"
 msgstr "Eliminar las entradas del registro de auditoría tras (días)"
 
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:283
 msgid "Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)"
 msgstr "Eliminar los códigos de entrada de ventas de socios (días después de la fecha)"
 
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:283
 msgid "0 = direkt nach Ende des Termins."
 msgstr "0 = justo después de que termine la fecha."
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:284
 msgid "Rechnungen und Rechnungskorrekturen löschen nach (Jahren)"
 msgstr "Eliminar facturas y correcciones de factura tras (años)"
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:284
 msgid "0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert."
 msgstr "0 = no eliminar nunca. El plazo empieza al final del año de emisión. Respeta los plazos legales de conservación (p. ej. Austria 7 años, Alemania 8 o 10 años) y archiva antes los documentos en tu sistema contable. Los datos del comprador de los pedidos afectados se seudonimizan al mismo tiempo."
 
-#: src/Admin/SettingsPage.php:283
+#: src/Admin/SettingsPage.php:285
 msgid "Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)"
 msgstr "Eliminar los datos del comprador de los pedidos tras (años desde el final del año del pedido)"
 
-#: src/Admin/SettingsPage.php:283
-msgid "Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; deren Löschung nach Fristablauf entscheiden Sie selbst (laufende Prüfungen verlängern die Frist). 0 = nie."
-msgstr "Plazo legal de conservación de los justificantes contables: Alemania 10 años (§ 147 AO, § 257 HGB), Austria 7 años (§ 132 BAO). Después se eliminan el correo del comprador, la dirección de facturación y los datos de los asistentes del pedido, sus entradas y reservas de citas. Importes, posiciones, reembolsos, facturas, abonos y justificantes fiscales no se modifican; tú decides cuándo eliminarlos tras el plazo (las inspecciones en curso lo prolongan). 0 = nunca."
-
-#: src/Admin/SettingsPage.php:284
+#: src/Admin/SettingsPage.php:286
 msgid "Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)"
 msgstr "Anonimizar las entradas de lista de espera tras la fecha después de (días)"
 
-#: src/Admin/SettingsPage.php:284
+#: src/Admin/SettingsPage.php:286
 msgid "Gilt für Event- und Termin-Wartelisten. 0 = nie."
 msgstr "Se aplica a las listas de espera de eventos y de citas. 0 = nunca."
 
-#: src/Admin/SettingsPage.php:285
+#: src/Admin/SettingsPage.php:287
 msgid "Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)"
 msgstr "Anonimizar los pases de socio tras su caducidad después de (días)"
 
-#: src/Admin/SettingsPage.php:289
+#: src/Admin/SettingsPage.php:291
 msgid "E-Mail-Versand"
 msgstr "Envío de correo electrónico"
 
-#: src/Admin/SettingsPage.php:292
+#: src/Admin/SettingsPage.php:294
 msgid "Absenderadresse"
 msgstr "Dirección del remitente"
 
-#: src/Admin/SettingsPage.php:292
-msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@ihre-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. Ihren SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
-msgstr "Remitente (From) y remitente del sobre (Return-Path) de todos los correos a clientes, p. ej. tickets@tu-dominio.es. El dominio debería ser el del sitio web y estar autorizado mediante SPF, DKIM y DMARC para enviar a través de este servidor o de tu servicio SMTP. Vacío: valor predeterminado de WordPress (wordpress@…). Un plugin SMTP que imponga su propio remitente tiene prioridad."
-
-#: src/Admin/SettingsPage.php:293
+#: src/Admin/SettingsPage.php:295
 msgid "Absendername"
 msgstr "Nombre del remitente"
 
-#: src/Admin/SettingsPage.php:293
+#: src/Admin/SettingsPage.php:295
 msgid "Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain)."
 msgstr "Nombre que los compradores ven como remitente. Vacío = nombre / empresa del emisor de facturas; si no, el nombre del sitio web. La dirección del remitente en sí la proporciona WordPress o el plugin SMTP (acorde con el SPF/DKIM del dominio)."
 
-#: src/Admin/SettingsPage.php:294
+#: src/Admin/SettingsPage.php:296
 msgid "Antwort an (E-Mail-Adresse)"
 msgstr "Responder a (dirección de correo electrónico)"
 
-#: src/Admin/SettingsPage.php:294
+#: src/Admin/SettingsPage.php:296
 msgid "Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website."
 msgstr "Las respuestas de los compradores van a esta dirección. Vacío = la dirección del remitente; si no hay una dirección de remitente propia, el correo electrónico del administrador del sitio web."
 
-#: src/Admin/SettingsPage.php:295
+#: src/Admin/SettingsPage.php:297
 msgid "Betriebsalarme an"
 msgstr "Alertas operativas a"
 
-#: src/Admin/SettingsPage.php:295
+#: src/Admin/SettingsPage.php:297
 msgid "Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus."
 msgstr "Avisos que requieren intervención (reembolso pendiente de aprobación, revisar pago, pedido pagado sin entradas, webhook desactivado…). Vacío = el correo de administración del sitio. Las últimas alertas también aparecen en el estado del sistema."
 
-#: src/Admin/SettingsPage.php:296
+#: src/Admin/SettingsPage.php:298
 msgid "Bounce-/Beschwerde-Webhook des Versanddienstes annehmen"
 msgstr "Aceptar el webhook de rebotes/quejas del servicio de envío"
 
 #. translators: %s: webhook URL with token
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:300
 #, php-format
 msgid "Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token."
 msgstr "Introduce esta URL en el servicio de envío (Postmark, SendGrid, Mailgun, Amazon SES/SNS) como webhook para rebotes y quejas por spam: %s; los correos no entregables se marcan como fallidos y se muestran en el pedido; tras una queja ya no se envían recordatorios a la dirección. La URL contiene un token secreto."
 
-#: src/Admin/SettingsPage.php:299
+#: src/Admin/SettingsPage.php:301
 msgid "Nach dem Aktivieren erscheint hier die Webhook-URL (mit geheimem Token) für den Versanddienst."
 msgstr "Tras la activación, aquí aparece la URL del webhook (con token secreto) para el servicio de envío."
 
-#: src/Admin/SettingsPage.php:300
+#: src/Admin/SettingsPage.php:302
 msgid "Geplante Mails je Minute (höchstens)"
 msgstr "Correos programados por minuto (máximo)"
 
-#: src/Admin/SettingsPage.php:300
+#: src/Admin/SettingsPage.php:302
 msgid "0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warteschlange auf das Limit deines Mail-Anbieters; der Rest geht in den nächsten Läufen hinaus. Meldet der Anbieter ein Limit, wird die Mail später erneut versucht statt verworfen."
 msgstr "0 = sin límite. Limita los recordatorios y otros correos de la cola al límite de tu proveedor de correo; el resto sale en las siguientes ejecuciones. Si el proveedor notifica un límite, el correo se reintenta más tarde en lugar de descartarse."
 
-#: src/Admin/SettingsPage.php:304
+#: src/Admin/SettingsPage.php:306
 #: src/Partners/Settlements.php:1049
 msgid "Rechnungssteller"
 msgstr "Emisor de facturas"
 
-#: src/Admin/SettingsPage.php:307
+#: src/Admin/SettingsPage.php:309
 msgid "Name / Firma"
 msgstr "Nombre / Empresa"
 
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:310
 msgid "Anschrift"
 msgstr "Dirección"
 
-#: src/Admin/SettingsPage.php:309
+#: src/Admin/SettingsPage.php:311
 #: src/Partners/AdminPage.php:331
 msgid "USt-IdNr."
 msgstr "NIF-IVA"
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:312
 #: src/Partners/AdminPage.php:593
 msgid "Steuernummer"
 msgstr "Número fiscal"
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:312
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Dato obligatorio en las facturas si no se indica el NIF-IVA."
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:313
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "País (código ISO, p. ej. DE o AT)"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:313
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
 msgstr "Se usa para la comprobación de inversión del sujeto pasivo con organizadores en otros países de la UE y se considera lugar de prestación para las fechas sin país del evento propio (perfiles fiscales)."
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:314
 msgid "Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)"
 msgstr "Principio de doble control para perfiles fiscales (quien crea o edita un perfil no puede activarlo; excepto administradores)"
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:315
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Pequeña empresa (sin IVA en las facturas propias)"
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:315
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "Las facturas de la plataforma llevan entonces la nota de pequeña empresa y se rechazan mientras los tipos de entrada incluyan IVA (crea los tipos de entrada con el 0 %)."
 
-#: src/Admin/SettingsPage.php:314
+#: src/Admin/SettingsPage.php:316
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Nota de pequeña empresa (vacío = texto predeterminado del país)"
 
-#: src/Admin/SettingsPage.php:314
+#: src/Admin/SettingsPage.php:316
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE: «Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.» – AT: «Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.»"
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:317
 msgid "Präfix Rechnungsnummer"
 msgstr "Prefijo del número de factura"
 
-#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:318
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
 msgstr "Solicitar nombre y dirección en el pago a partir de un importe de pedido de (0 = nunca; DE: 250 €, AT: 400 €)"
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Prefijo de corrección de factura (documento de anulación / corrección)"
 
-#: src/Admin/SettingsPage.php:318
+#: src/Admin/SettingsPage.php:320
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Crear la factura automáticamente tras el pago"
 
-#: src/Admin/SettingsPage.php:319
+#: src/Admin/SettingsPage.php:321
 msgid "Kontenrahmen für den DATEV-Buchungsstapel"
 msgstr "Plan de cuentas para el lote de asientos DATEV"
 
-#: src/Admin/SettingsPage.php:319
+#: src/Admin/SettingsPage.php:321
 msgid "SKR03 (Erlöse 8400/8300, Geldtransit 1360)"
 msgstr "SKR03 (ingresos 8400/8300, fondos en tránsito 1360)"
 
-#: src/Admin/SettingsPage.php:319
+#: src/Admin/SettingsPage.php:321
 msgid "SKR04 (Erlöse 4400/4300, Geldtransit 1460)"
 msgstr "SKR04 (ingresos 4400/4300, fondos en tránsito 1460)"
 
-#: src/Admin/SettingsPage.php:319
+#: src/Admin/SettingsPage.php:321
 msgid "Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts."
 msgstr "Cuentas propias, claves fiscales y una cuenta por proveedor de pago mediante el filtro wpcap_datev_accounts."
 
-#: src/Admin/SettingsPage.php:320
+#: src/Admin/SettingsPage.php:322
 msgid "Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)"
 msgstr "Cuenta de tesorería en el lote (vacío = fondos en tránsito del plan)"
 
-#: src/Admin/SettingsPage.php:320
+#: src/Admin/SettingsPage.php:322
 msgid "4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters."
 msgstr "De 4 a 8 dígitos, p. ej. la cuenta de compensación del proveedor de pagos."
 
-#: src/Admin/SettingsPage.php:324
+#: src/Admin/SettingsPage.php:326
 #: src/Security/Policy.php:90
 msgid "Sicherheit"
 msgstr "Seguridad"
 
-#: src/Admin/SettingsPage.php:327
+#: src/Admin/SettingsPage.php:329
 msgid "Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)"
 msgstr "Permitir servicio fiscal local (HTTP a direcciones loopback/privadas)"
 
-#: src/Admin/SettingsPage.php:327
+#: src/Admin/SettingsPage.php:329
 msgid "Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden."
 msgstr "Solo para un servicio fiscal en el mismo servidor o en la red local (p. ej. efsta EFR en http://127.0.0.1:5618). Todas las demás conexiones salientes a destinos configurables deben usar HTTPS hacia direcciones públicas."
 
-#: src/Admin/SettingsPage.php:331
+#: src/Admin/SettingsPage.php:333
 msgid "Support und Fehlersuche"
 msgstr "Soporte y depuración"
 
-#: src/Admin/SettingsPage.php:334
+#: src/Admin/SettingsPage.php:336
 msgid "Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten"
 msgstr "Activar el registro de depuración (modo de depuración) durante 24 horas"
 
-#: src/Admin/SettingsPage.php:334
+#: src/Admin/SettingsPage.php:336
 msgid "Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang."
 msgstr "Guarda además entradas de diagnóstico detalladas en el registro de soporte (Operación → Registro de soporte). Se desactiva solo 24 horas después de activarlo; para volver a activarlo, desactívalo y actívalo de nuevo. Los errores y advertencias se registran siempre. Nunca se guardan secretos, códigos de entrada ni direcciones de correo electrónico. La constante WPCAP_DEBUG de wp-config.php tiene prioridad."
 
-#: src/Admin/SettingsPage.php:338
+#: src/Admin/SettingsPage.php:340
 msgid "Deinstallation"
 msgstr "Desinstalación"
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:343
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Eliminar todos los datos al borrar el plugin"
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:343
 msgid "Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren."
 msgstr "Atención: al eliminar el plugin se borran de forma irreversible eventos, pedidos, entradas, facturas, rectificaciones, justificantes de taquilla y fiscales. Las facturas y los justificantes contables están sujetos a plazos legales de conservación (DE 10 años, AT 7 años): exporta antes las facturas y el archivo fiscal y guárdalos de forma segura."
 
-#: src/Admin/SettingsPage.php:409
+#: src/Admin/SettingsPage.php:411
 msgid "Weitere Einstellungen"
 msgstr "Más ajustes"
 
-#: src/Admin/SettingsPage.php:424
+#: src/Admin/SettingsPage.php:426
 #: src/WalletPasses/AdminPage.php:180
 msgid "Allgemein"
 msgstr "General"
 
-#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:428
 msgid "Zahlungsarten"
 msgstr "Métodos de pago"
 
-#: src/Admin/SettingsPage.php:428
+#: src/Admin/SettingsPage.php:430
 msgid "Rechnungen"
 msgstr "Facturas"
 
-#: src/Admin/SettingsPage.php:430
+#: src/Admin/SettingsPage.php:432
 msgid "Erweitert"
 msgstr "Avanzado"
 
-#: src/Admin/SettingsPage.php:532
+#: src/Admin/SettingsPage.php:534
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr "Introduce un valor nuevo para sustituirlo; déjalo vacío para conservarlo"
 
-#: src/Admin/SettingsPage.php:532
+#: src/Admin/SettingsPage.php:534
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr "Sin definir"
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:538
+#: src/Admin/SettingsPage.php:540
 #, php-format
 msgid "gespeichert %s"
 msgstr "guardado %s"
 
-#: src/Admin/SettingsPage.php:540
+#: src/Admin/SettingsPage.php:542
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr "El valor guardado no se puede descifrar; vuelve a introducirlo"
 
-#: src/Admin/SettingsPage.php:542
+#: src/Admin/SettingsPage.php:544
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr "Ningún valor guardado"
 
-#: src/Admin/SettingsPage.php:545
+#: src/Admin/SettingsPage.php:547
 msgid "Gespeicherten Wert entfernen"
 msgstr "Eliminar el valor guardado"
 
@@ -9566,15 +9555,15 @@ msgstr "«%s» no es un importe válido."
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "«%s» no es una dirección de correo electrónico válida."
 
-#: src/Admin/SettingsPage.php:643
+#: src/Admin/SettingsPage.php:646
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "«Eliminar todos los datos al borrar el plugin» no se ha activado: escribe LÖSCHEN o DELETE para confirmar."
 
-#: src/Admin/SettingsPage.php:693
+#: src/Admin/SettingsPage.php:696
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "El consentimiento en el checkout está activo, pero no hay texto de condiciones generales para el idioma predeterminado. Los compradores tendrían que aceptar condiciones que no ven: introduce las condiciones generales / de participación."
 
-#: src/Admin/SettingsPage.php:736
+#: src/Admin/SettingsPage.php:739
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
 #: src/BoxOffice/Page.php:560
@@ -9587,147 +9576,147 @@ msgstr "El consentimiento en el checkout está activo, pero no hay texto de cond
 msgid "Einstellungen gespeichert."
 msgstr "Ajustes guardados."
 
-#: src/Admin/SettingsPage.php:772
+#: src/Admin/SettingsPage.php:775
 msgid "Pass Captain Einstellungen"
 msgstr "Ajustes de Pass Captain"
 
-#: src/Admin/SettingsPage.php:779
+#: src/Admin/SettingsPage.php:782
 msgid "Einstellungsbereiche"
 msgstr "Secciones de ajustes"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:816
+#: src/Admin/SettingsPage.php:819
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "Los siguientes textos se aplican al idioma predeterminado (%s) y a todos los idiomas sin versión propia."
 
-#: src/Admin/SettingsPage.php:828
+#: src/Admin/SettingsPage.php:831
 #: src/Partners/AdminPage.php:289
 msgid "Einstellungen speichern"
 msgstr "Guardar ajustes"
 
-#: src/Admin/SettingsPage.php:868
+#: src/Admin/SettingsPage.php:872
 msgid "Webhook-URL:"
 msgstr "URL del webhook:"
 
-#: src/Admin/SettingsPage.php:870
+#: src/Admin/SettingsPage.php:874
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "En la app de PayPal, en «Webhooks», crea un webhook con esta URL y estos eventos; introduce abajo el ID de webhook que se muestra:"
 
-#: src/Admin/SettingsPage.php:870
+#: src/Admin/SettingsPage.php:874
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "En el panel de Stripe, en Desarrolladores → Webhooks, crea un endpoint con esta URL y estos eventos; introduce abajo el secreto de firma que se muestra:"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:878
+#: src/Admin/SettingsPage.php:882
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Aún no está configurado por completo. Faltan: %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:879
+#: src/Admin/SettingsPage.php:883
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s solo se ofrecerá en el checkout después."
 
-#: src/Admin/SettingsPage.php:886
 #: src/Admin/SettingsPage.php:890
+#: src/Admin/SettingsPage.php:894
 msgid "Verbindung testen"
 msgstr "Probar la conexión"
 
-#: src/Admin/SettingsPage.php:887
+#: src/Admin/SettingsPage.php:891
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Comprueba con las credenciales guardadas el inicio de sesión en el proveedor y si el webhook está configurado con esta URL y todos los eventos necesarios. No se modifica nada; guarda antes."
 
-#: src/Admin/SettingsPage.php:904
+#: src/Admin/SettingsPage.php:908
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Para este método de pago no hay prueba de conexión."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:954
+#: src/Admin/SettingsPage.php:958
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Ofrecer %s en el checkout"
 
-#: src/Admin/SettingsPage.php:956
-#: src/Admin/SettingsPage.php:1034
+#: src/Admin/SettingsPage.php:960
+#: src/Admin/SettingsPage.php:1038
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(no está completamente configurado)"
 
-#: src/Admin/SettingsPage.php:965
+#: src/Admin/SettingsPage.php:969
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Modo de prueba activo: no se cobran pagos reales. Los compradores ven en el checkout el aviso «Modo de prueba». Para vender, cambia a «Live» e introduce las credenciales de producción."
 
-#: src/Admin/SettingsPage.php:968
+#: src/Admin/SettingsPage.php:972
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "La transferencia solo se ofrece en el checkout cuando se han introducido el beneficiario (o el emisor de facturas) y el IBAN o una indicación de pago."
 
-#: src/Admin/SettingsPage.php:977
-#: src/SettingsSchema.php:352
+#: src/Admin/SettingsPage.php:981
+#: src/SettingsSchema.php:360
 msgid "Rechtstexte je Sprache"
 msgstr "Textos legales por idioma"
 
-#: src/Admin/SettingsPage.php:978
+#: src/Admin/SettingsPage.php:982
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Los compradores ven los textos en su idioma (idioma de la página o de WPML/Polylang). Los campos vacíos usan el texto del idioma predeterminado. Cada idioma tiene su propia versión, que se guarda con el pedido."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:990
+#: src/Admin/SettingsPage.php:994
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vacío: se aplica el texto de %s."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:997
+#: src/Admin/SettingsPage.php:1001
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Versión actual para %1$s: %2$s"
 
-#: src/Admin/SettingsPage.php:1003
+#: src/Admin/SettingsPage.php:1007
 msgid "Archivierte Fassungen"
 msgstr "Versiones archivadas"
 
-#: src/Admin/SettingsPage.php:1003
+#: src/Admin/SettingsPage.php:1007
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Cada versión que ha estado en vigor se guarda sin cambios. En el resumen del pedido figura qué versión se aplicaba al pedido, y allí se puede mostrar su texto."
 
-#: src/Admin/SettingsPage.php:1004
+#: src/Admin/SettingsPage.php:1008
 msgid "Fassung"
 msgstr "Versión"
 
-#: src/Admin/SettingsPage.php:1004
+#: src/Admin/SettingsPage.php:1008
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Idioma"
 
-#: src/Admin/SettingsPage.php:1004
+#: src/Admin/SettingsPage.php:1008
 msgid "Archiviert am"
 msgstr "Archivada el"
 
-#: src/Admin/SettingsPage.php:1012
+#: src/Admin/SettingsPage.php:1016
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Añadir otro idioma (locale, p. ej. en_US):"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1040
+#: src/Admin/SettingsPage.php:1044
 #, php-format
 msgid "%s einrichten"
 msgstr "Configurar %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:1064
+#: src/Admin/SettingsPage.php:1068
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Versión actual: %s (se guarda con cada pedido)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:1090
+#: src/Admin/SettingsPage.php:1094
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Sustituido por %s (wp-config.php o variable de entorno); el valor guardado aquí no se utiliza."
 
-#: src/Admin/SettingsPage.php:1096
+#: src/Admin/SettingsPage.php:1100
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Escribe LÖSCHEN o DELETE para activar:"
 
@@ -12034,10 +12023,6 @@ msgstr "No se han podido guardar los datos de facturación."
 msgid "UID des Leistungsempfängers:"
 msgstr "NIF-IVA del destinatario del servicio:"
 
-#: src/Billing.php:362
-msgid "Ihre Bestell-/Referenznummer:"
-msgstr "Tu número de pedido/referencia:"
-
 #: src/BoxOffice/Cash.php:40
 msgid "Bitte bei der Stückelung nur ganze Stückzahlen eintragen."
 msgstr "En el desglose, introduce solo cantidades enteras."
@@ -13817,12 +13802,12 @@ msgid "E-Mails versenden"
 msgstr "enviar correos electrónicos"
 
 #: src/BulkRuns.php:715
-#: src/Mail/Types.php:544
+#: src/Mail/Types.php:546
 msgid "Terminabsage"
 msgstr "Cancelación de fecha"
 
 #: src/BulkRuns.php:715
-#: src/Mail/Types.php:536
+#: src/Mail/Types.php:538
 msgid "Eventabsage"
 msgstr "Cancelación del evento"
 
@@ -14357,7 +14342,7 @@ msgstr "Administración"
 
 #: src/Consents.php:571
 #: src/Exchange/AdminPage.php:175
-#: src/Mail/Types.php:413
+#: src/Mail/Types.php:415
 msgid "Ticketumtausch"
 msgstr "Cambio de entrada"
 
@@ -15127,7 +15112,7 @@ msgid "Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht 
 msgstr "El cambio se ha realizado, pero no se ha podido iniciar el reembolso de la diferencia: %s"
 
 #: src/Exchange/Service.php:886
-#: src/Mail/Types.php:433
+#: src/Mail/Types.php:435
 msgid "Sitzplatz:"
 msgstr "Asiento:"
 
@@ -15462,12 +15447,14 @@ msgid "Diese Sprache wird nicht unterstützt."
 msgstr "Este idioma no es compatible."
 
 #. translators: %s: link to the privacy policy
-#: src/Frontend/LegalNotice.php:79
+#: src/Frontend/LegalNotice.php:102
 #, php-format
 msgid "Wir verarbeiten deine Angaben zur Abwicklung der Bestellung. Details findest du in der %s."
 msgstr "Tratamos tus datos para gestionar el pedido. Encontrarás más información en la %s."
 
-#: src/Frontend/LegalNotice.php:80
+#: src/Frontend/LegalNotice.php:74
+#: src/Frontend/LegalNotice.php:82
+#: src/Frontend/LegalNotice.php:103
 msgid "Datenschutzerklärung"
 msgstr "política de privacidad"
 
@@ -15826,7 +15813,7 @@ msgid "Nächste Woche"
 msgstr "Semana siguiente"
 
 #: src/Frontend/ServiceBooking.php:431
-#: src/Mail/Types.php:194
+#: src/Mail/Types.php:196
 msgid "Anzahl Plätze"
 msgstr "Número de plazas"
 
@@ -18033,12 +18020,6 @@ msgstr "La versión anterior de Pass Captain (carpeta «%s») sigue instalada. S
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ ist so lange pausiert und wird danach automatisch wieder eingeschaltet."
 msgstr "«Eliminar todos los datos al borrar el plugin» queda en pausa hasta entonces y después se vuelve a activar automáticamente."
 
-#. translators: 1: theme template path(s) in the old folder, 2: new folder name
-#: src/LegacySlug.php:356
-#, php-format
-msgid "Ihr Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschieben Sie sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version."
-msgstr "Tu tema todavía sobrescribe plantillas de Pass Captain en la carpeta anterior (%1$s). Se siguen usando, pero muévelas a la carpeta «%2$s» del tema: la compatibilidad con la carpeta antigua desaparecerá en una versión futura."
-
 #. translators: %s: version identifier of the legal texts
 #: src/LegalVersions.php:148
 #, php-format
@@ -18249,12 +18230,6 @@ msgstr "Tu pedido"
 msgid "Für Kunden-E-Mails ist keine Absenderadresse eingestellt (Einstellungen → E-Mail-Versand). Ohne SMTP-Plugin gehen Tickets als „wordpress@…“ raus und landen eher im Spam; Antworten der Kund:innen gehen verloren."
 msgstr "No hay ninguna dirección de remitente configurada para los correos a clientes (Ajustes → Envío de correo electrónico). Sin un plugin SMTP, las entradas salen como «wordpress@…» y es más probable que acaben en spam; las respuestas de los clientes se pierden."
 
-#. translators: 1: sender domain, 2: site domain
-#: src/Mail/Mailer.php:428
-#, php-format
-msgid "Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. Ihren SMTP-Dienst erlauben (DMARC)."
-msgstr "La dirección del remitente usa el dominio %1$s y el sitio web %2$s. Para que los correos se entreguen, SPF y DKIM de %1$s deben permitir el envío a través de este servidor o de tu servicio SMTP (DMARC)."
-
 #: src/Mail/Suppression.php:159
 #: src/Mail/Suppression.php:166
 #: src/Modules/Reminders.php:128
@@ -18307,114 +18282,114 @@ msgstr "Nombre del sitio web"
 msgid "Adresse der Website"
 msgstr "Dirección del sitio web"
 
-#: src/Mail/Types.php:45
+#: src/Mail/Types.php:47
 msgid "AGB / Teilnahmebedingungen in der Sprache des Empfängers"
 msgstr "Condiciones generales / de participación en el idioma del destinatario"
 
-#: src/Mail/Types.php:46
+#: src/Mail/Types.php:48
 msgid "Verbraucherinformationen in der Sprache des Empfängers"
 msgstr "Información al consumidor en el idioma del destinatario"
 
-#: src/Mail/Types.php:53
+#: src/Mail/Types.php:55
 msgid "E-Mail-Adresse der Käufer:in"
 msgstr "Dirección de correo electrónico del comprador"
 
-#: src/Mail/Types.php:54
+#: src/Mail/Types.php:56
 msgid "Event (erstes Ticket)"
 msgstr "Evento (primera entrada)"
 
-#: src/Mail/Types.php:55
+#: src/Mail/Types.php:57
 msgid "Beginn mit Zeitzone (erstes Ticket)"
 msgstr "Inicio con zona horaria (primera entrada)"
 
-#: src/Mail/Types.php:56
+#: src/Mail/Types.php:58
 msgid "Ort (erstes Ticket)"
 msgstr "Lugar (primera entrada)"
 
-#: src/Mail/Types.php:57
+#: src/Mail/Types.php:59
 #: src/Reminders/Placeholders.php:17
 msgid "Anzahl Tickets"
 msgstr "Número de entradas"
 
-#: src/Mail/Types.php:58
+#: src/Mail/Types.php:60
 msgid "Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)"
 msgstr "Lista de entradas con fecha, lugar, enlace (y código o enlaces de wallet)"
 
-#: src/Mail/Types.php:59
+#: src/Mail/Types.php:61
 msgid "Nur die Ticket-Links, einer pro Zeile"
 msgstr "Solo los enlaces de las entradas, uno por línea"
 
-#: src/Mail/Types.php:60
-#: src/Mail/Types.php:367
+#: src/Mail/Types.php:62
+#: src/Mail/Types.php:369
 msgid "Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)"
 msgstr "Condiciones e información al consumidor en la versión vigente en el momento del pedido (con identificador de versión; vacío si no hay textos legales)"
 
-#: src/Mail/Types.php:67
+#: src/Mail/Types.php:69
 msgid "Verbraucherinformationen aus den Einstellungen (mit Überschrift); leer, wenn nicht gepflegt"
 msgstr "Información al consumidor de los ajustes (con título); vacío si no se ha completado"
 
-#: src/Mail/Types.php:68
+#: src/Mail/Types.php:70
 msgid "AGB / Teilnahmebedingungen aus den Einstellungen (mit Überschrift); leer, wenn nicht gepflegt"
 msgstr "Condiciones generales / condiciones de participación de los ajustes (con título); vacío si no se han completado"
 
-#: src/Mail/Types.php:94
+#: src/Mail/Types.php:96
 msgid "Beginn mit Zeitzone"
 msgstr "Inicio con zona horaria"
 
-#: src/Mail/Types.php:102
+#: src/Mail/Types.php:104
 msgid "Beginn des Termins mit Zeitzone"
 msgstr "Inicio de la fecha con zona horaria"
 
-#: src/Mail/Types.php:181
+#: src/Mail/Types.php:183
 msgid "Kein Interesse mehr? Angebot ablehnen:"
 msgstr "¿Ya no te interesa? Rechaza la oferta:"
 
-#: src/Mail/Types.php:190
+#: src/Mail/Types.php:192
 msgid "Buchungsnummer"
 msgstr "Número de reserva"
 
-#: src/Mail/Types.php:191
+#: src/Mail/Types.php:193
 msgid "Ressource / Angebot"
 msgstr "Recurso / oferta"
 
-#: src/Mail/Types.php:193
+#: src/Mail/Types.php:195
 msgid "Beginn des Zeitfensters mit Zeitzone"
 msgstr "Inicio de la franja horaria con zona horaria"
 
-#: src/Mail/Types.php:195
+#: src/Mail/Types.php:197
 msgid "Stornierung möglich bis"
 msgstr "Cancelación posible hasta"
 
-#: src/Mail/Types.php:196
+#: src/Mail/Types.php:198
 msgid "Umbuchung möglich bis"
 msgstr "Cambio posible hasta"
 
-#: src/Mail/Types.php:197
+#: src/Mail/Types.php:199
 msgid "Link zur Buchung (nur Buchungen ohne Bestellung)"
 msgstr "Enlace a la reserva (solo reservas sin pedido)"
 
-#: src/Mail/Types.php:209
+#: src/Mail/Types.php:211
 msgid "Umbuchen oder stornieren kannst du über den Link zu deiner Bestellung (bzw. den Buchungslink) – stornieren bis {cancel_until}, umbuchen bis {rebook_until}."
 msgstr "Puedes cambiar o cancelar la reserva mediante el enlace a tu pedido (o el enlace de la reserva): cancelar hasta {cancel_until}, cambiar hasta {rebook_until}."
 
-#: src/Mail/Types.php:212
+#: src/Mail/Types.php:214
 msgid "Servicebuchung: Bestätigung"
 msgstr "Reserva de servicio: confirmación"
 
-#: src/Mail/Types.php:213
+#: src/Mail/Types.php:215
 msgid "Bestätigung einer Termin-/Ressourcenbuchung nach Zahlung bzw. Freigabe."
 msgstr "Confirmación de una reserva de cita/recurso tras el pago o la autorización."
 
 #. translators: %s: resource
 #. translators: %s: resource and start
-#: src/Mail/Types.php:216
+#: src/Mail/Types.php:218
 #: src/ServiceBookingFlow.php:162
 #, php-format
 msgid "Buchung bestätigt: %s"
 msgstr "Reserva confirmada: %s"
 
 #. translators: 1: reference, 2: resource, 3: date, 4: places
-#: src/Mail/Types.php:218
+#: src/Mail/Types.php:220
 #, php-format
 msgid ""
 "Deine Buchung %1$s ist bestätigt.\n"
@@ -18429,25 +18404,25 @@ msgstr ""
 "Fecha: %3$s\n"
 "Plazas: %4$s"
 
-#: src/Mail/Types.php:222
+#: src/Mail/Types.php:224
 msgid "Servicebuchung: wartet auf Bestätigung"
 msgstr "Reserva de servicio: pendiente de confirmación"
 
-#: src/Mail/Types.php:223
+#: src/Mail/Types.php:225
 msgid "Information an Kund:innen, dass der Anbieter die Buchung noch bestätigen muss."
 msgstr "Información a los clientes de que el proveedor todavía tiene que confirmar la reserva."
 
-#: src/Mail/Types.php:224
-#: src/Mail/Types.php:233
+#: src/Mail/Types.php:226
+#: src/Mail/Types.php:235
 msgid "Entscheidung spätestens"
 msgstr "Fecha límite de decisión"
 
-#: src/Mail/Types.php:225
+#: src/Mail/Types.php:227
 msgid "Deine Buchung wartet auf Bestätigung"
 msgstr "Tu reserva está pendiente de confirmación"
 
 #. translators: 1: reference, 2: resource, 3: date, 4: deadline
-#: src/Mail/Types.php:227
+#: src/Mail/Types.php:229
 #, php-format
 msgid ""
 "Danke für deine Buchung %1$s (%2$s, %3$s).\n"
@@ -18458,26 +18433,26 @@ msgstr ""
 "\n"
 "El proveedor confirmará la reserva como muy tarde el %4$s. Si no llega la confirmación, la reserva se cancelará automáticamente y se reembolsará por completo."
 
-#: src/Mail/Types.php:231
+#: src/Mail/Types.php:233
 msgid "Servicebuchung: Bestätigungsanfrage an Anbieter"
 msgstr "Reserva de servicio: solicitud de confirmación al proveedor"
 
-#: src/Mail/Types.php:232
+#: src/Mail/Types.php:234
 msgid "Hinweis an den Veranstalter/Anbieter, dass eine Buchung bestätigt oder abgelehnt werden muss."
 msgstr "Aviso al organizador/proveedor de que una reserva debe confirmarse o rechazarse."
 
-#: src/Mail/Types.php:233
+#: src/Mail/Types.php:235
 msgid "Link zur Verwaltung"
 msgstr "Enlace a la gestión"
 
 #. translators: %s: resource
-#: src/Mail/Types.php:235
+#: src/Mail/Types.php:237
 #, php-format
 msgid "Neue Buchung zur Bestätigung: %s"
 msgstr "Nueva reserva por confirmar: %s"
 
 #. translators: 1: reference, 2: resource, 3: date, 4: places, 5: deadline, 6: link
-#: src/Mail/Types.php:237
+#: src/Mail/Types.php:239
 #, php-format
 msgid ""
 "Buchung %1$s für %2$s am %3$s (%4$s Plätze) wartet auf deine Bestätigung.\n"
@@ -18490,25 +18465,25 @@ msgstr ""
 "Confírmala o recházala antes del %5$s; de lo contrario, se cancelará y reembolsará automáticamente:\n"
 "%6$s"
 
-#: src/Mail/Types.php:241
+#: src/Mail/Types.php:243
 msgid "Servicebuchung: abgelehnt"
 msgstr "Reserva de servicio: rechazada"
 
-#: src/Mail/Types.php:242
+#: src/Mail/Types.php:244
 msgid "Information bei Ablehnung durch den Anbieter oder abgelaufener Bestätigungsfrist (mit Erstattung)."
 msgstr "Información en caso de rechazo por parte del proveedor o de vencimiento del plazo de confirmación (con reembolso)."
 
-#: src/Mail/Types.php:243
-#: src/Mail/Types.php:252
+#: src/Mail/Types.php:245
+#: src/Mail/Types.php:254
 msgid "Erstattungshinweis"
 msgstr "Nota de reembolso"
 
-#: src/Mail/Types.php:244
+#: src/Mail/Types.php:246
 msgid "Deine Buchung konnte nicht bestätigt werden"
 msgstr "Tu reserva no se ha podido confirmar"
 
 #. translators: 1: reference, 2: resource, 3: date, 4: reason, 5: refund note
-#: src/Mail/Types.php:246
+#: src/Mail/Types.php:248
 #, php-format
 msgid ""
 "Leider konnte deine Buchung %1$s (%2$s, %3$s) nicht bestätigt werden.\n"
@@ -18521,22 +18496,22 @@ msgstr ""
 "\n"
 "%5$s"
 
-#: src/Mail/Types.php:250
+#: src/Mail/Types.php:252
 msgid "Servicebuchung: Stornierung"
 msgstr "Reserva de servicio: cancelación"
 
-#: src/Mail/Types.php:251
+#: src/Mail/Types.php:253
 msgid "Bestätigung einer Stornierung (durch Kund:in oder Veranstalter) mit Erstattungshinweis."
 msgstr "Confirmación de una cancelación (por parte del cliente o del organizador) con nota de reembolso."
 
 #. translators: %s: reference
-#: src/Mail/Types.php:254
+#: src/Mail/Types.php:256
 #, php-format
 msgid "Buchung %s storniert"
 msgstr "Reserva %s cancelada"
 
 #. translators: 1: reference, 2: resource, 3: date, 4: reason, 5: refund note
-#: src/Mail/Types.php:256
+#: src/Mail/Types.php:258
 #, php-format
 msgid ""
 "Deine Buchung %1$s (%2$s, %3$s) wurde storniert.\n"
@@ -18549,30 +18524,30 @@ msgstr ""
 "\n"
 "%5$s"
 
-#: src/Mail/Types.php:260
+#: src/Mail/Types.php:262
 msgid "Servicebuchung: Umbuchung"
 msgstr "Reserva de servicio: cambio"
 
-#: src/Mail/Types.php:261
+#: src/Mail/Types.php:263
 msgid "Bestätigung einer Umbuchung auf ein anderes Zeitfenster."
 msgstr "Confirmación de un cambio a otra franja horaria."
 
-#: src/Mail/Types.php:262
+#: src/Mail/Types.php:264
 msgid "Bisheriger Termin"
 msgstr "Fecha anterior"
 
-#: src/Mail/Types.php:262
+#: src/Mail/Types.php:264
 msgid "Erstattungshinweis (Preisdifferenz)"
 msgstr "Nota de reembolso (diferencia de precio)"
 
 #. translators: %s: reference
-#: src/Mail/Types.php:264
+#: src/Mail/Types.php:266
 #, php-format
 msgid "Buchung %s umgebucht"
 msgstr "Reserva %s cambiada"
 
 #. translators: 1: reference, 2: old date, 3: resource, 4: new date, 5: refund note
-#: src/Mail/Types.php:266
+#: src/Mail/Types.php:268
 #, php-format
 msgid ""
 "Deine Buchung %1$s wurde umgebucht.\n"
@@ -18587,24 +18562,24 @@ msgstr ""
 "Ahora: %3$s, %4$s\n"
 "%5$s"
 
-#: src/Mail/Types.php:270
+#: src/Mail/Types.php:272
 msgid "Servicebuchung: nicht erschienen"
 msgstr "Reserva de servicio: no presentado"
 
-#: src/Mail/Types.php:271
+#: src/Mail/Types.php:273
 msgid "Information, dass ein gebuchter Termin als nicht wahrgenommen vermerkt wurde."
 msgstr "Información de que una cita reservada se ha registrado como no atendida."
 
-#: src/Mail/Types.php:272
+#: src/Mail/Types.php:274
 msgid "Gebührenhinweis"
 msgstr "Nota sobre la tarifa"
 
-#: src/Mail/Types.php:273
+#: src/Mail/Types.php:275
 msgid "Termin nicht wahrgenommen"
 msgstr "Cita no atendida"
 
 #. translators: 1: resource, 2: date, 3: fee note
-#: src/Mail/Types.php:275
+#: src/Mail/Types.php:277
 #, php-format
 msgid ""
 "Für deinen Termin %1$s am %2$s haben wir keinen Check-in erhalten; er wurde als nicht wahrgenommen vermerkt.\n"
@@ -18617,35 +18592,35 @@ msgstr ""
 "\n"
 "Si se trata de un error, responde a este correo electrónico."
 
-#: src/Mail/Types.php:279
+#: src/Mail/Types.php:281
 msgid "Warteliste Zeitfenster: Eintragung"
 msgstr "Lista de espera de franja horaria: inscripción"
 
-#: src/Mail/Types.php:280
+#: src/Mail/Types.php:282
 msgid "Bestätigung der Eintragung in die Warteliste eines ausgebuchten Zeitfensters."
 msgstr "Confirmación de la inscripción en la lista de espera de una franja horaria completa."
 
-#: src/Mail/Types.php:281
-#: src/Mail/Types.php:603
-#: src/Mail/Types.php:685
+#: src/Mail/Types.php:283
+#: src/Mail/Types.php:605
+#: src/Mail/Types.php:687
 msgid "Position auf der Warteliste"
 msgstr "Posición en la lista de espera"
 
-#: src/Mail/Types.php:281
+#: src/Mail/Types.php:283
 msgid "Link zur aktuellen Position"
 msgstr "Enlace a la posición actual"
 
-#: src/Mail/Types.php:281
+#: src/Mail/Types.php:283
 msgid "Link zum Austragen"
 msgstr "Enlace para darse de baja"
 
-#: src/Mail/Types.php:282
-#: src/Mail/Types.php:610
+#: src/Mail/Types.php:284
+#: src/Mail/Types.php:612
 msgid "Du stehst auf der Warteliste"
 msgstr "Estás en la lista de espera"
 
 #. translators: 1: resource, 2: date, 3: position, 4: status link, 5: leave link
-#: src/Mail/Types.php:284
+#: src/Mail/Types.php:286
 #, php-format
 msgid ""
 "Du stehst auf der Warteliste für %1$s am %2$s (Position %3$s). Sobald Plätze frei werden, bekommst du ein befristetes Angebot.\n"
@@ -18658,28 +18633,28 @@ msgstr ""
 "Posición actual: %4$s\n"
 "Darse de baja: %5$s"
 
-#: src/Mail/Types.php:288
+#: src/Mail/Types.php:290
 msgid "Warteliste Zeitfenster: Eintragung bestätigen (Double-Opt-in)"
 msgstr "Lista de espera de franja horaria: confirmar inscripción (doble opt-in)"
 
-#: src/Mail/Types.php:289
+#: src/Mail/Types.php:291
 msgid "Bestätigungslink nach der Eintragung in die Warteliste eines Zeitfensters. Erst nach dem Klick zählt der Eintrag und bekommt eine Position."
 msgstr "Enlace de confirmación tras inscribirse en la lista de espera de una franja horaria. La inscripción solo cuenta y recibe una posición después de hacer clic."
 
-#: src/Mail/Types.php:290
+#: src/Mail/Types.php:292
 msgid "Link zur Bestätigung"
 msgstr "Enlace de confirmación"
 
-#: src/Mail/Types.php:290
+#: src/Mail/Types.php:292
 msgid "Gültigkeit des Bestätigungslinks"
 msgstr "Validez del enlace de confirmación"
 
-#: src/Mail/Types.php:291
+#: src/Mail/Types.php:293
 msgid "Bitte bestätige deine Eintragung in die Warteliste"
 msgstr "Confirma tu inscripción en la lista de espera"
 
 #. translators: 1: resource, 2: date, 3: confirmation link, 4: expiry
-#: src/Mail/Types.php:293
+#: src/Mail/Types.php:295
 #, php-format
 msgid ""
 "Bitte bestätige deine Eintragung in die Warteliste für %1$s am %2$s:\n"
@@ -18692,34 +18667,34 @@ msgstr ""
 "\n"
 "El enlace es válido hasta %4$s. Sin confirmación no quedarás inscrito y la solicitud se eliminará después. Si no te has inscrito, puedes ignorar este correo electrónico."
 
-#: src/Mail/Types.php:297
+#: src/Mail/Types.php:299
 msgid "Warteliste Zeitfenster: Platzangebot"
 msgstr "Lista de espera de franja horaria: oferta de plaza"
 
-#: src/Mail/Types.php:298
+#: src/Mail/Types.php:300
 msgid "Befristetes Angebot an die nächste Person; die Plätze sind bis zum Ablauf reserviert."
 msgstr "Oferta con plazo limitado a la siguiente persona; las plazas quedan reservadas hasta su vencimiento."
 
-#: src/Mail/Types.php:299
-#: src/Mail/Types.php:681
+#: src/Mail/Types.php:301
+#: src/Mail/Types.php:683
 msgid "Ablauf des Angebots"
 msgstr "Vencimiento de la oferta"
 
-#: src/Mail/Types.php:299
-#: src/Mail/Types.php:682
+#: src/Mail/Types.php:301
+#: src/Mail/Types.php:684
 msgid "Link zur Annahme"
 msgstr "Enlace para aceptar"
 
-#: src/Mail/Types.php:299
+#: src/Mail/Types.php:301
 msgid "Link zum Ablehnen"
 msgstr "Enlace para rechazar"
 
-#: src/Mail/Types.php:300
+#: src/Mail/Types.php:302
 msgid "Ein Platz ist für dich frei geworden"
 msgstr "Ha quedado una plaza libre para ti"
 
 #. translators: 1: places, 2: resource, 3: date, 4: expiry, 5: accept link, 6: decline link
-#: src/Mail/Types.php:302
+#: src/Mail/Types.php:304
 #, php-format
 msgid ""
 "Gute Nachricht: %1$s Platz/Plätze für %2$s am %3$s sind bis %4$s für dich reserviert.\n"
@@ -18736,408 +18711,408 @@ msgstr ""
 "\n"
 "Después, la oferta pasará a la siguiente persona de la lista de espera."
 
-#: src/Mail/Types.php:312
+#: src/Mail/Types.php:314
 msgid "Ticketversand"
 msgstr "Envío de entradas"
 
-#: src/Mail/Types.php:313
+#: src/Mail/Types.php:315
 msgid "Tickets nach bestätigter Zahlung (mit PDF-Anhang)."
 msgstr "Entradas tras confirmarse el pago (con PDF adjunto)."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:316
-#: src/Mail/Types.php:329
+#: src/Mail/Types.php:318
+#: src/Mail/Types.php:331
 #, php-format
 msgid "Deine Tickets für %s"
 msgstr "Tus entradas para %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:320
-#: src/Mail/Types.php:331
+#: src/Mail/Types.php:322
+#: src/Mail/Types.php:333
 #, php-format
 msgid "Deine Tickets für %s:"
 msgstr "Tus entradas para %s:"
 
-#: src/Mail/Types.php:326
+#: src/Mail/Types.php:328
 msgid "Erneuter Versand der Tickets mit neuen oder den gespeicherten Ticketcodes (je Empfänger:in)."
 msgstr "Reenvío de las entradas con códigos de entrada nuevos o guardados (por destinatario)."
 
-#: src/Mail/Types.php:337
+#: src/Mail/Types.php:339
 msgid "Fehlende Teilnehmerangaben"
 msgstr "Datos de asistente que faltan"
 
-#: src/Mail/Types.php:338
+#: src/Mail/Types.php:340
 msgid "Bitte an die Käufer:in, fehlende Angaben zu Teilnehmenden zu ergänzen (mit neuem Bestelllink)."
 msgstr "Petición al comprador para que complete los datos de asistente que faltan (con un nuevo enlace del pedido)."
 
-#: src/Mail/Types.php:341
+#: src/Mail/Types.php:343
 msgid "Fehlende Angaben je Ticket"
 msgstr "Datos que faltan por entrada"
 
-#: src/Mail/Types.php:342
+#: src/Mail/Types.php:344
 msgid "Persönlicher Link zur Bestellung (neu)"
 msgstr "Enlace personal al pedido (nuevo)"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:345
+#: src/Mail/Types.php:347
 #, php-format
 msgid "Bitte ergänze die Angaben zu deiner Bestellung %s"
 msgstr "Completa los datos de tu pedido %s"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:348
+#: src/Mail/Types.php:350
 #, php-format
 msgid "Für deine Bestellung %s fehlen noch Angaben zu den Teilnehmenden:"
 msgstr "Para tu pedido %s aún faltan datos de los asistentes:"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:348
+#: src/Mail/Types.php:350
 msgid "Bitte ergänze sie über deinen persönlichen Link zur Bestellung:"
 msgstr "Complétalos mediante tu enlace personal al pedido:"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:348
+#: src/Mail/Types.php:350
 msgid "Der bisherige Link zur Bestellung gilt damit nicht mehr. Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "Por tanto, el enlace al pedido anterior ya no es válido. Guarda este enlace en un lugar seguro y no lo compartas."
 
-#: src/Mail/Types.php:359
+#: src/Mail/Types.php:361
 msgid "Bestellzugang"
 msgstr "Acceso al pedido"
 
-#: src/Mail/Types.php:360
+#: src/Mail/Types.php:362
 msgid "Persönlicher Link zur Bestellübersicht nach der Bestellung."
 msgstr "Enlace personal al resumen del pedido tras realizarlo."
 
-#: src/Mail/Types.php:363
+#: src/Mail/Types.php:365
 msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
 msgstr "Número de pedido corto (p. ej. 3F2A-9C1E, también concepto de pago)"
 
-#: src/Mail/Types.php:364
+#: src/Mail/Types.php:366
 msgid "Persönlicher Link zur Bestellung"
 msgstr "Enlace personal al pedido"
 
-#: src/Mail/Types.php:365
+#: src/Mail/Types.php:367
 msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
 msgstr "Información de pago para una transferencia pendiente / pago manual (importe, IBAN, BIC, beneficiario, concepto de pago, plazo); en caso contrario, vacío"
 
-#: src/Mail/Types.php:366
+#: src/Mail/Types.php:368
 msgid "Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)"
 msgstr "Posiciones pedidas (evento, tipo de entrada, fecha, cantidad, precio)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:370
+#: src/Mail/Types.php:372
 #, php-format
 msgid "Deine Bestellung bei %s"
 msgstr "Tu pedido en %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:374
+#: src/Mail/Types.php:376
 #, php-format
 msgid "Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:"
 msgstr "Con este enlace personal puedes consultar el estado de tu pedido en %s y gestionar tus entradas:"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:374
+#: src/Mail/Types.php:376
 msgid "Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "Guarda este enlace en un lugar seguro y no lo compartas."
 
-#: src/Mail/Types.php:389
+#: src/Mail/Types.php:391
 msgid "Ticketübertragung: Empfänger:in"
 msgstr "Transferencia de entrada: destinatario"
 
-#: src/Mail/Types.php:390
+#: src/Mail/Types.php:392
 msgid "Neues Ticket für die Person, an die ein Ticket übertragen wurde."
 msgstr "Nueva entrada para la persona a la que se ha transferido una entrada."
 
-#: src/Mail/Types.php:392
-#: src/Mail/Types.php:442
+#: src/Mail/Types.php:394
+#: src/Mail/Types.php:444
 msgid "Link zum Ticket"
 msgstr "Enlace a la entrada"
 
-#: src/Mail/Types.php:393
-#: src/Mail/Types.php:423
-#: src/Mail/Types.php:443
+#: src/Mail/Types.php:395
+#: src/Mail/Types.php:425
+#: src/Mail/Types.php:445
 msgid "Zusatzinformationen zum Ticket (z. B. Wallet-Links)"
 msgstr "Información adicional de la entrada (p. ej. enlaces de wallet)"
 
-#: src/Mail/Types.php:396
+#: src/Mail/Types.php:398
 msgid "Ein Ticket wurde an dich übertragen"
 msgstr "Se te ha transferido una entrada"
 
-#: src/Mail/Types.php:401
+#: src/Mail/Types.php:403
 msgid "Ticketübertragung: Bestätigung"
 msgstr "Transferencia de entrada: confirmación"
 
-#: src/Mail/Types.php:402
+#: src/Mail/Types.php:404
 msgid "Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde."
 msgstr "Confirmación al comprador de que se ha transferido una entrada."
 
-#: src/Mail/Types.php:404
+#: src/Mail/Types.php:406
 msgid "E-Mail-Adresse der neuen Inhaber:in"
 msgstr "Dirección de correo electrónico del nuevo titular"
 
-#: src/Mail/Types.php:407
+#: src/Mail/Types.php:409
 msgid "Ticketübertragung abgeschlossen"
 msgstr "Transferencia de entrada completada"
 
 #. translators: 1: event, 2: recipient e-mail
-#: src/Mail/Types.php:409
+#: src/Mail/Types.php:411
 #, php-format
 msgid "Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig."
 msgstr "Tu entrada para %1$s se ha transferido a %2$s. El código de entrada anterior ya no es válido."
 
-#: src/Mail/Types.php:414
+#: src/Mail/Types.php:416
 msgid "Neues Ticket nach einem Umtausch (anderer Termin oder andere Ticketart); der bisherige Code ist ungültig."
 msgstr "Nueva entrada tras un cambio (otra fecha u otro tipo de entrada); el código anterior ya no es válido."
 
-#: src/Mail/Types.php:416
+#: src/Mail/Types.php:418
 msgid "Bisheriges Event"
 msgstr "Evento anterior"
 
-#: src/Mail/Types.php:417
+#: src/Mail/Types.php:419
 msgid "Bisherige Ticketart"
 msgstr "Tipo de entrada anterior"
 
-#: src/Mail/Types.php:418
-#: src/Mail/Types.php:645
+#: src/Mail/Types.php:420
+#: src/Mail/Types.php:647
 msgid "Bisheriger Beginn mit Zeitzone"
 msgstr "Inicio anterior con zona horaria"
 
-#: src/Mail/Types.php:419
+#: src/Mail/Types.php:421
 msgid "Sitzplatz (leer ohne Saalplan)"
 msgstr "Asiento (vacío sin plano de sala)"
 
-#: src/Mail/Types.php:420
+#: src/Mail/Types.php:422
 msgid "Zeile „Sitzplatz: …“ mit Zeilenumbruch (leer ohne Saalplan)"
 msgstr "Línea «Asiento: …» con salto de línea (vacía sin plano de sala)"
 
-#: src/Mail/Types.php:421
+#: src/Mail/Types.php:423
 msgid "Hinweis zu Aufpreis, Gebühr oder Erstattung mit Zeilenumbruch (leer ohne Preisdifferenz)"
 msgstr "Aviso sobre suplemento, tarifa o reembolso con salto de línea (vacío si no hay diferencia de precio)"
 
-#: src/Mail/Types.php:422
+#: src/Mail/Types.php:424
 msgid "Link zum neuen Ticket"
 msgstr "Enlace a la nueva entrada"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:427
+#: src/Mail/Types.php:429
 #, php-format
 msgid "Dein Ticket wurde umgetauscht – %s"
 msgstr "Tu entrada se ha cambiado – %s"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:430
+#: src/Mail/Types.php:432
 msgid "Dein Ticket wurde umgetauscht."
 msgstr "Tu entrada se ha cambiado."
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:430
+#: src/Mail/Types.php:432
 #, php-format
 msgid "Bisher: %1$s — %2$s (%3$s)"
 msgstr "Antes: %1$s — %2$s (%3$s)"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:430
+#: src/Mail/Types.php:432
 msgid "Neu:"
 msgstr "Ahora:"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:430
+#: src/Mail/Types.php:432
 msgid "Der bisherige Ticketcode ist ab sofort ungültig. Bitte verwende nur noch das neue Ticket."
 msgstr "El código de entrada anterior deja de ser válido a partir de ahora. Usa solo la nueva entrada."
 
-#: src/Mail/Types.php:437
+#: src/Mail/Types.php:439
 msgid "Teilnehmerzuweisung: Teilnehmer:in"
 msgstr "Asignación de asistente: asistente"
 
-#: src/Mail/Types.php:438
+#: src/Mail/Types.php:440
 msgid "Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat."
 msgstr "Entrada para una persona a la que el comprador ha asignado una entrada."
 
-#: src/Mail/Types.php:440
-#: src/Mail/Types.php:456
+#: src/Mail/Types.php:442
+#: src/Mail/Types.php:458
 msgid "Name der Teilnehmer:in"
 msgstr "Nombre del asistente"
 
-#: src/Mail/Types.php:441
-#: src/Mail/Types.php:457
+#: src/Mail/Types.php:443
+#: src/Mail/Types.php:459
 msgid "E-Mail-Adresse der Teilnehmer:in"
 msgstr "Dirección de correo electrónico del asistente"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:447
+#: src/Mail/Types.php:449
 #, php-format
 msgid "Dein Ticket für %s"
 msgstr "Tu entrada para %s"
 
 #. translators: %s: attendee name
-#: src/Mail/Types.php:449
+#: src/Mail/Types.php:451
 #, php-format
 msgid "Teilnehmer: %s"
 msgstr "Asistente: %s"
 
-#: src/Mail/Types.php:453
+#: src/Mail/Types.php:455
 msgid "Teilnehmerzuweisung: Käufer:in"
 msgstr "Asignación de asistente: comprador"
 
-#: src/Mail/Types.php:454
+#: src/Mail/Types.php:456
 msgid "Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist."
 msgstr "Aviso al comprador de que el código anterior de una entrada asignada ya no es válido."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:461
+#: src/Mail/Types.php:463
 #, php-format
 msgid "Ticket zugewiesen – %s"
 msgstr "Entrada asignada – %s"
 
 #. translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email
-#: src/Mail/Types.php:463
+#: src/Mail/Types.php:465
 #, php-format
 msgid "Das Ticket %1$s (%2$s) wurde %3$s (%4$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig."
 msgstr "La entrada %1$s (%2$s) se ha asignado a %3$s (%4$s). El nuevo código de entrada se ha enviado a esta dirección; el código anterior de esta entrada ya no es válido."
 
-#: src/Mail/Types.php:467
+#: src/Mail/Types.php:469
 msgid "Erstattungsbestätigung"
 msgstr "Confirmación de reembolso"
 
-#: src/Mail/Types.php:468
+#: src/Mail/Types.php:470
 msgid "Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen)."
 msgstr "Confirmación de un reembolso completado (no para pedidos de WooCommerce)."
 
-#: src/Mail/Types.php:471
+#: src/Mail/Types.php:473
 msgid "Erstatteter Betrag mit Währung"
 msgstr "Importe reembolsado con moneda"
 
-#: src/Mail/Types.php:472
+#: src/Mail/Types.php:474
 msgid "Anzahl ungültig gewordener Tickets"
 msgstr "Número de entradas que han dejado de ser válidas"
 
-#: src/Mail/Types.php:473
+#: src/Mail/Types.php:475
 msgid "Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)"
 msgstr "Frase sobre las entradas que han dejado de ser válidas, con salto de línea (vacía si no hay)"
 
-#: src/Mail/Types.php:474
+#: src/Mail/Types.php:476
 msgid "Nummer der Rechnungskorrektur"
 msgstr "Número de la corrección de factura"
 
-#: src/Mail/Types.php:475
+#: src/Mail/Types.php:477
 msgid "Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)"
 msgstr "Línea «Corrección de factura: …» con salto de línea (vacía sin corrección de factura)"
 
-#: src/Mail/Types.php:476
+#: src/Mail/Types.php:478
 msgid "Grund der Erstattung"
 msgstr "Motivo del reembolso"
 
-#: src/Mail/Types.php:477
+#: src/Mail/Types.php:479
 msgid "Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)"
 msgstr "Frase introductoria según el método de pago («te hemos reembolsado…» o «te reembolsaremos… por transferencia»)"
 
-#: src/Mail/Types.php:478
+#: src/Mail/Types.php:480
 msgid "Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)"
 msgstr "Aviso sobre el pago según el método de pago (abono en la tarjeta, en efectivo en taquilla, transferencia al IBAN o solicitud del IBAN)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:481
+#: src/Mail/Types.php:483
 #, php-format
 msgid "Erstattung bestätigt – %s"
 msgstr "Reembolso confirmado – %s"
 
-#: src/Mail/Types.php:501
+#: src/Mail/Types.php:503
 msgid "Stornierungsanfrage eingegangen"
 msgstr "Solicitud de anulación recibida"
 
-#: src/Mail/Types.php:502
+#: src/Mail/Types.php:504
 msgid "Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung)."
 msgstr "Confirmación al comprador de que se ha recibido su solicitud de anulación del portal de pedidos y de que se está revisando (aún sin reembolso)."
 
-#: src/Mail/Types.php:505
-#: src/Mail/Types.php:527
+#: src/Mail/Types.php:507
+#: src/Mail/Types.php:529
 msgid "Anzahl angefragter Tickets"
 msgstr "Número de entradas solicitadas"
 
-#: src/Mail/Types.php:506
+#: src/Mail/Types.php:508
 msgid "Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)"
 msgstr "Entradas solicitadas, una por línea (evento, tipo de entrada, fecha)"
 
-#: src/Mail/Types.php:507
+#: src/Mail/Types.php:509
 msgid "Voraussichtlicher Erstattungsbetrag mit Währung"
 msgstr "Importe de reembolso previsto con moneda"
 
-#: src/Mail/Types.php:508
+#: src/Mail/Types.php:510
 msgid "Angegebener Grund (leer, wenn keiner)"
 msgstr "Motivo indicado (vacío si no hay ninguno)"
 
-#: src/Mail/Types.php:509
+#: src/Mail/Types.php:511
 msgid "Persönlicher Link zur Bestellung (Status der Anfrage)"
 msgstr "Enlace personal al pedido (estado de la solicitud)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:512
-#: src/Mail/Types.php:530
+#: src/Mail/Types.php:514
+#: src/Mail/Types.php:532
 #, php-format
 msgid "Deine Stornierungsanfrage – %s"
 msgstr "Tu solicitud de anulación – %s"
 
 #. translators: 1: short order number, 2: amount
-#: src/Mail/Types.php:515
+#: src/Mail/Types.php:517
 #, php-format
 msgid "Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s."
 msgstr "Hemos recibido tu solicitud de anulación del pedido %1$s. Reembolso previsto: %2$s."
 
-#: src/Mail/Types.php:516
+#: src/Mail/Types.php:518
 msgid "Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:"
 msgstr "Tus entradas siguen siendo válidas hasta que hayamos revisado la solicitud. Si se acepta, las entradas dejarán de ser válidas y recibirás una confirmación del reembolso. Puedes consultar el estado en cualquier momento en tu pedido:"
 
-#: src/Mail/Types.php:523
+#: src/Mail/Types.php:525
 msgid "Stornierungsanfrage abgelehnt"
 msgstr "Solicitud de anulación rechazada"
 
-#: src/Mail/Types.php:524
+#: src/Mail/Types.php:526
 msgid "Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig)."
 msgstr "Aviso al comprador de que su solicitud de anulación del portal de pedidos no se ha aceptado (las entradas siguen siendo válidas)."
 
 #. translators: %s: short order number
-#: src/Mail/Types.php:532
+#: src/Mail/Types.php:534
 #, php-format
 msgid "Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter."
 msgstr "Tu solicitud de anulación del pedido %s no se ha aceptado. Tus entradas siguen siendo válidas. Si tienes preguntas, ponte en contacto con el organizador."
 
-#: src/Mail/Types.php:537
+#: src/Mail/Types.php:539
 msgid "Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird."
 msgstr "Información a compradores y titulares de entradas cuando se cancela un evento completo."
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:539
+#: src/Mail/Types.php:541
 #, php-format
 msgid "Eventabsage: %s"
 msgstr "Evento cancelado: %s"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:540
+#: src/Mail/Types.php:542
 #, php-format
 msgid "Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung."
 msgstr "El evento «%s» se ha cancelado. Ponte en contacto con el organizador para obtener información sobre los siguientes pasos. Este mensaje no es una confirmación de reembolso."
 
-#: src/Mail/Types.php:545
+#: src/Mail/Types.php:547
 msgid "Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird."
 msgstr "Información a los titulares de entradas cuando se cancela una fecha concreta."
 
-#: src/Mail/Types.php:548
+#: src/Mail/Types.php:550
 msgid "Datum und Uhrzeit des Termins"
 msgstr "Fecha y hora de la fecha"
 
-#: src/Mail/Types.php:551
+#: src/Mail/Types.php:553
 msgid "Hinweis zur Erstattung (automatisch oder durch den Veranstalter)"
 msgstr "Aviso sobre el reembolso (automático o a cargo del organizador)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:554
+#: src/Mail/Types.php:556
 #, php-format
 msgid "Absage: %s"
 msgstr "Cancelación: %s"
 
 #. translators: 1: event, 2: date and time, 3: refund note
-#: src/Mail/Types.php:556
+#: src/Mail/Types.php:558
 #, php-format
 msgid ""
 "Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
@@ -19148,53 +19123,53 @@ msgstr ""
 "\n"
 "%3$s"
 
-#: src/Mail/Types.php:557
 #: src/Mail/Types.php:559
+#: src/Mail/Types.php:561
 #: src/OccurrenceCancellation.php:194
 #: src/Passes/Cancellation.php:303
 msgid "Der Ticketpreis wird automatisch erstattet."
 msgstr "El precio de la entrada se reembolsará automáticamente."
 
-#: src/Mail/Types.php:559
+#: src/Mail/Types.php:561
 #: src/OccurrenceCancellation.php:194
 #: src/Passes/Cancellation.php:303
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
 msgstr "El organizador te informará sobre el reembolso o una fecha alternativa."
 
-#: src/Mail/Types.php:562
+#: src/Mail/Types.php:564
 msgid "Terminänderung"
 msgstr "Cambio de fecha"
 
-#: src/Mail/Types.php:563
+#: src/Mail/Types.php:565
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
 msgstr "Información a los titulares de entradas cuando se aplaza una fecha."
 
-#: src/Mail/Types.php:566
-#: src/Mail/Types.php:588
+#: src/Mail/Types.php:568
+#: src/Mail/Types.php:590
 msgid "Bisheriges Datum und Uhrzeit"
 msgstr "Fecha y hora anteriores"
 
-#: src/Mail/Types.php:567
+#: src/Mail/Types.php:569
 msgid "Neues Datum und Uhrzeit"
 msgstr "Nueva fecha y hora"
 
-#: src/Mail/Types.php:570
+#: src/Mail/Types.php:572
 msgid "Erstattungshinweis mit Frist (Einstellungen → Erstattungen); ohne Antragsmöglichkeit der Hinweis, sich an den Veranstalter zu wenden"
 msgstr "Aviso de reembolso con plazo (Ajustes → Reembolsos); sin posibilidad de solicitud, el aviso de dirigirse al organizador"
 
-#: src/Mail/Types.php:571
-#: src/Mail/Types.php:591
+#: src/Mail/Types.php:573
+#: src/Mail/Types.php:593
 msgid "Link zur aktualisierten Kalenderdatei (.ics)"
 msgstr "Enlace al archivo de calendario actualizado (.ics)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:574
+#: src/Mail/Types.php:576
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Cambio de fecha: %s"
 
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note
-#: src/Mail/Types.php:576
+#: src/Mail/Types.php:578
 #, php-format
 msgid ""
 "Der Termin für „%1$s“ wurde verschoben.\n"
@@ -19213,39 +19188,39 @@ msgstr ""
 "\n"
 "Tu entrada sigue siendo válida. %6$s"
 
-#: src/Mail/Types.php:579
+#: src/Mail/Types.php:581
 #: src/RescheduleRefunds.php:57
 msgid "Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
 msgstr "Si tienes preguntas sobre devoluciones o reembolsos, dirígete al organizador."
 
-#: src/Mail/Types.php:582
+#: src/Mail/Types.php:584
 msgid "Termindetails geändert"
 msgstr "Detalles de la fecha modificados"
 
-#: src/Mail/Types.php:583
+#: src/Mail/Types.php:585
 msgid "Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt."
 msgstr "Aviso a los titulares de las entradas cuando cambian el lugar, el fin, el acceso o el país del evento de una fecha, también junto con una nueva hora (en ese caso sustituye al correo «Cambio de fecha»). Como máximo una vez por cambio; se adjunta el archivo de calendario actualizado."
 
-#: src/Mail/Types.php:586
+#: src/Mail/Types.php:588
 msgid "Liste der Änderungen (bisher → neu), eine Zeile je Angabe"
 msgstr "Lista de cambios (antes → ahora), una línea por dato"
 
-#: src/Mail/Types.php:587
+#: src/Mail/Types.php:589
 msgid "Aktuelles Datum und Uhrzeit"
 msgstr "Fecha y hora actuales"
 
-#: src/Mail/Types.php:590
+#: src/Mail/Types.php:592
 msgid "Aktueller Ort"
 msgstr "Lugar actual"
 
 #. translators: %s: event
-#: src/Mail/Types.php:594
+#: src/Mail/Types.php:596
 #, php-format
 msgid "Geänderte Termindetails: %s"
 msgstr "Detalles de la fecha modificados: %s"
 
 #. translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file
-#: src/Mail/Types.php:596
+#: src/Mail/Types.php:598
 #, php-format
 msgid ""
 "Für deinen Termin „%1$s“ haben sich Angaben geändert:\n"
@@ -19268,65 +19243,65 @@ msgstr ""
 "Tu entrada sigue siendo válida. Se adjunta el archivo de calendario actualizado; también puedes descargarlo aquí: %6$s\n"
 "Si tienes preguntas sobre devoluciones o reembolsos, ponte en contacto con el organizador."
 
-#: src/Mail/Types.php:600
+#: src/Mail/Types.php:602
 msgid "Warteliste: Eintragung"
 msgstr "Lista de espera: inscripción"
 
-#: src/Mail/Types.php:601
+#: src/Mail/Types.php:603
 msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr "Confirmación de la inscripción en la lista de espera."
 
-#: src/Mail/Types.php:604
-#: src/Mail/Types.php:627
+#: src/Mail/Types.php:606
+#: src/Mail/Types.php:629
 msgid "Gewünschte Anzahl"
 msgstr "Cantidad deseada"
 
-#: src/Mail/Types.php:607
-#: src/Mail/Types.php:649
-#: src/Mail/Types.php:688
+#: src/Mail/Types.php:609
+#: src/Mail/Types.php:651
+#: src/Mail/Types.php:690
 msgid "Persönlicher Link zum Austragen aus der Warteliste"
 msgstr "Enlace personal para darse de baja de la lista de espera"
 
-#: src/Mail/Types.php:608
-#: src/Mail/Types.php:650
-#: src/Mail/Types.php:689
+#: src/Mail/Types.php:610
+#: src/Mail/Types.php:652
+#: src/Mail/Types.php:691
 msgid "Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})"
 msgstr "Enlace para darse de baja (denominación antigua, como {unsubscribe_link})"
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:613
+#: src/Mail/Types.php:615
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "Te has inscrito en la lista de espera (posición %d). Te escribiremos en cuanto quede una plaza libre."
 
-#: src/Mail/Types.php:621
+#: src/Mail/Types.php:623
 msgid "Warteliste: E-Mail-Bestätigung"
 msgstr "Lista de espera: confirmación por correo electrónico"
 
-#: src/Mail/Types.php:622
+#: src/Mail/Types.php:624
 msgid "Bestätigungslink nach der Eintragung (Double-Opt-in). Erst nach der Bestätigung steht die Person auf der Warteliste; unbestätigte Eintragungen werden gelöscht."
 msgstr "Enlace de confirmación tras la inscripción (doble opt-in). La persona solo figura en la lista de espera tras confirmar; las inscripciones no confirmadas se eliminan."
 
-#: src/Mail/Types.php:624
+#: src/Mail/Types.php:626
 msgid "Persönlicher Bestätigungslink"
 msgstr "Enlace de confirmación personal"
 
-#: src/Mail/Types.php:625
+#: src/Mail/Types.php:627
 msgid "Ablauf des Bestätigungslinks"
 msgstr "Caducidad del enlace de confirmación"
 
-#: src/Mail/Types.php:626
+#: src/Mail/Types.php:628
 msgid "Gültigkeit des Bestätigungslinks in Stunden"
 msgstr "Validez del enlace de confirmación en horas"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:632
+#: src/Mail/Types.php:634
 #, php-format
 msgid "Bitte bestätige deinen Wartelistenplatz: %s"
 msgstr "Confirma tu plaza en la lista de espera: %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: date, 5: location, 6: confirmation link, 7: expiry
-#: src/Mail/Types.php:634
+#: src/Mail/Types.php:636
 #, php-format
 msgid ""
 "Du möchtest auf die Warteliste für %1$s × „%2$s“ bei „%3$s“ (%4$s, %5$s).\n"
@@ -19343,34 +19318,34 @@ msgstr ""
 "\n"
 "Solo figurarás en la lista de espera después de confirmarla. El enlace es válido hasta %7$s; después se eliminará la inscripción. Si no te has apuntado, no tienes que hacer nada."
 
-#: src/Mail/Types.php:640
+#: src/Mail/Types.php:642
 msgid "Warteliste: Termin geändert"
 msgstr "Lista de espera: fecha modificada"
 
-#: src/Mail/Types.php:641
+#: src/Mail/Types.php:643
 msgid "Information an Wartende und Personen mit offenem Angebot, wenn Beginn oder Ort des Termins geändert wurden."
 msgstr "Información para las personas en espera y con una oferta abierta cuando se han cambiado el inicio o el lugar de la fecha."
 
-#: src/Mail/Types.php:646
+#: src/Mail/Types.php:648
 msgid "Bisheriger Ort"
 msgstr "Lugar anterior"
 
-#: src/Mail/Types.php:647
+#: src/Mail/Types.php:649
 msgid "Gewünschte bzw. reservierte Anzahl"
 msgstr "Cantidad deseada o reservada"
 
-#: src/Mail/Types.php:648
+#: src/Mail/Types.php:650
 msgid "Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)"
 msgstr "Frase sobre el estado (sigue en la lista de espera o la oferta sigue siendo válida)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:653
+#: src/Mail/Types.php:655
 #, php-format
 msgid "Geänderter Termin auf deiner Warteliste: %s"
 msgstr "Fecha modificada en tu lista de espera: %s"
 
 #. translators: 1: event, 2: ticket type, 3: old date, 4: old location, 5: new date, 6: new location, 7: status sentence
-#: src/Mail/Types.php:656
+#: src/Mail/Types.php:658
 #, php-format
 msgid ""
 "Für „%1$s“ (%2$s), auf dessen Warteliste du stehst, haben sich Angaben geändert.\n"
@@ -19387,31 +19362,31 @@ msgstr ""
 "\n"
 "%7$s"
 
-#: src/Mail/Types.php:661
+#: src/Mail/Types.php:663
 #: src/Waitlists.php:1550
 msgid "Du bleibst auf der Warteliste."
 msgstr "Sigues en la lista de espera."
 
-#: src/Mail/Types.php:664
+#: src/Mail/Types.php:666
 msgid "Warteliste: geschlossen"
 msgstr "Lista de espera: cerrada"
 
-#: src/Mail/Types.php:665
+#: src/Mail/Types.php:667
 msgid "Der Wartelistenplatz endet, weil der Termin abgesagt wurde, begonnen hat oder der Verkauf beendet ist."
 msgstr "La plaza en la lista de espera termina porque la fecha se ha cancelado, ha empezado o la venta ha terminado."
 
-#: src/Mail/Types.php:669
+#: src/Mail/Types.php:671
 msgid "Grund (Absage oder Ende)"
 msgstr "Motivo (cancelación o fin)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:672
+#: src/Mail/Types.php:674
 #, php-format
 msgid "Warteliste beendet: %s"
 msgstr "Lista de espera finalizada: %s"
 
 #. translators: 1: event, 2: ticket type, 3: reason
-#: src/Mail/Types.php:674
+#: src/Mail/Types.php:676
 #, php-format
 msgid ""
 "Dein Platz auf der Warteliste für „%1$s“ (%2$s) ist beendet. %3$s\n"
@@ -19422,35 +19397,35 @@ msgstr ""
 "\n"
 "No tienes que hacer nada más; no volveremos a escribirte sobre esta fecha."
 
-#: src/Mail/Types.php:675
+#: src/Mail/Types.php:677
 #: src/Waitlists.php:1600
 msgid "Der Termin wurde abgesagt."
 msgstr "La fecha se ha cancelado."
 
-#: src/Mail/Types.php:678
+#: src/Mail/Types.php:680
 msgid "Warteliste: Platzangebot"
 msgstr "Lista de espera: oferta de plaza"
 
-#: src/Mail/Types.php:679
+#: src/Mail/Types.php:681
 msgid "Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert."
 msgstr "Oferta a la siguiente persona de la lista de espera; las entradas quedan reservadas hasta el vencimiento."
 
-#: src/Mail/Types.php:683
+#: src/Mail/Types.php:685
 msgid "Link zum Ablehnen (optional; sonst über den Annahme-Link)"
 msgstr "Enlace para rechazar (opcional; si no, mediante el enlace de aceptación)"
 
-#: src/Mail/Types.php:684
+#: src/Mail/Types.php:686
 msgid "Anzahl der reservierten Tickets"
 msgstr "Número de entradas reservadas"
 
 #. translators: %s: event
-#: src/Mail/Types.php:692
+#: src/Mail/Types.php:694
 #, php-format
 msgid "Tickets für dich reserviert: %s"
 msgstr "Entradas reservadas para ti: %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link
-#: src/Mail/Types.php:695
+#: src/Mail/Types.php:697
 #, php-format
 msgid ""
 "Gute Nachrichten: Für dich sind %1$s × „%2$s“ für „%3$s“ reserviert.\n"
@@ -19468,40 +19443,40 @@ msgstr ""
 "Si ya no necesitas las entradas, puedes rechazar la oferta con el mismo enlace."
 
 #. translators: 1: date and time with time zone, 2: location
-#: src/Mail/Types.php:698
+#: src/Mail/Types.php:700
 #, php-format
 msgid "Termin: %1$s, %2$s"
 msgstr "Fecha: %1$s, %2$s"
 
-#: src/Mail/Types.php:706
+#: src/Mail/Types.php:708
 #: src/Reports/Page.php:234
 msgid "Mitgliedspass"
 msgstr "Pase de socio"
 
-#: src/Mail/Types.php:707
+#: src/Mail/Types.php:709
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr "Código de pase de una membresía o de un pase múltiple."
 
-#: src/Mail/Types.php:709
+#: src/Mail/Types.php:711
 msgid "Passcode"
 msgstr "Código de pase"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:714
+#: src/Mail/Types.php:716
 #, php-format
 msgid "Dein Pass für %s"
 msgstr "Tu pase para %s"
 
-#: src/Mail/Types.php:715
+#: src/Mail/Types.php:717
 msgid "Dein Passcode:"
 msgstr "Tu código de pase:"
 
-#: src/Mail/Types.php:715
+#: src/Mail/Types.php:717
 msgid "Gültig bis:"
 msgstr "Válido hasta:"
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:725
+#: src/Mail/Types.php:727
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -19509,29 +19484,29 @@ msgstr[0] "Con ello, %d entrada deja de ser válida."
 msgstr[1] "Con ello, %d entradas dejan de ser válidas."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:738
+#: src/Mail/Types.php:740
 #, php-format
 msgid "Aufpreis bezahlt: %s"
 msgstr "Suplemento pagado: %s"
 
 #. translators: %s: amount
-#: src/Mail/Types.php:740
+#: src/Mail/Types.php:742
 #, php-format
 msgid "Die Preisdifferenz von %s wird erstattet."
 msgstr "Se reembolsará la diferencia de precio de %s."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:742
+#: src/Mail/Types.php:744
 #, php-format
 msgid "Die Erstattung der Preisdifferenz von %s wird geprüft."
 msgstr "Se está revisando el reembolso de la diferencia de precio de %s."
 
-#: src/Mail/Types.php:743
+#: src/Mail/Types.php:745
 msgid "Der Umtausch erfolgte aus Kulanz ohne Aufpreis."
 msgstr "El cambio se ha realizado como gesto comercial, sin suplemento."
 
 #. translators: %s: personal unsubscribe link
-#: src/Mail/Types.php:754
+#: src/Mail/Types.php:756
 #, php-format
 msgid ""
 "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n"
@@ -19541,7 +19516,7 @@ msgstr ""
 "%s"
 
 #. translators: %s: credit note number
-#: src/Mail/Types.php:760
+#: src/Mail/Types.php:762
 #, php-format
 msgid "Rechnungskorrektur: %s"
 msgstr "Corrección de factura: %s"
@@ -20170,10 +20145,6 @@ msgstr "Nombre del campo"
 #: src/Modules/Fiscalization.php:1406
 msgid "Geheimer Wert"
 msgstr "Valor secreto"
-
-#: src/Modules/Fiscalization.php:1408
-msgid "Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn Sie nur einzelne Felder ergänzen oder ersetzen. Werte werden nie wieder angezeigt."
-msgstr "Los valores nuevos se guardan cifrados en el almacén de secretos de Pass Captain (clave PASS_CAPTAIN_SECRET_KEY o, si no, derivada de las salts de wp-config; cambio de clave mediante PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Los valores existentes se conservan si solo añades o sustituyes campos concretos. Los valores no se vuelven a mostrar nunca."
 
 #: src/Modules/Fiscalization.php:1409
 msgid "Zugangsdaten können derzeit nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel fehlt); das Speichern wird abgelehnt."
@@ -26010,12 +25981,6 @@ msgstr "Un pago solo se ha autorizado y no puede cobrarse automáticamente. Cób
 msgid "Für diese Bestellung wurde beim Zahlungsanbieter eine Zahlungsanfechtung (Dispute/Chargeback) eröffnet. Bitte beim Anbieter reagieren. Wird das Geld zurückgebucht, verbucht Pass Captain die Erstattung automatisch und sperrt die Tickets."
 msgstr "Se ha abierto una disputa de pago (disputa/contracargo) para este pedido en el proveedor de pagos. Responde en el proveedor. Si se devuelve el dinero, Pass Captain registra el reembolso automáticamente y bloquea las entradas."
 
-#. translators: %s: amount with currency
-#: src/Payments/Webhooks.php:369
-#, php-format
-msgid "Eine Rückbuchung (Chargeback) wurde zu Ihren Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus."
-msgstr "Una devolución de cargo (chargeback) se ha resuelto a tu favor; el proveedor de pagos vuelve a abonar %s."
-
 #: src/Payments/Webhooks.php:371
 msgid "Die Rückbuchung war als Erstattung gebucht (Tickets widerrufen, Gutschrift erstellt). Bitte entscheiden: Tickets neu ausstellen und Gutschrift stornieren oder dem Käufer den Betrag erstatten. Pass Captain ändert die Bestellung nicht automatisch."
 msgstr "La devolución de cargo se había contabilizado como reembolso (entradas revocadas, nota de crédito creada). Decide: reemitir las entradas y anular la nota de crédito, o reembolsar el importe al comprador. Pass Captain no modifica el pedido automáticamente."
@@ -27145,14 +27110,6 @@ msgstr[1] "%d facturas se conservan sin cambios, incluidos los datos del comprad
 msgid "Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO)."
 msgstr "Se han eliminado los datos de facturación de los pedidos (empresa, nombre, dirección, NIF-IVA, referencia). Las facturas ya emitidas conservan los datos del destinatario indicados en ellas (obligación legal de conservación, art. 17, apdo. 3, letra b), RGPD)."
 
-#. translators: %d: number of tickets
-#: src/Privacy.php:533
-#, php-format
-msgid "Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
-msgid_plural "Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
-msgstr[0] "Atención: %d entrada para próximas fechas ha dejado de ser válida por la eliminación. Acuerda con la persona un reembolso o una anulación; no se activa automáticamente."
-msgstr[1] "Atención: %d entradas para próximas fechas han dejado de ser válidas por la eliminación. Acuerda con la persona un reembolso o una anulación; no se activa automáticamente."
-
 #: src/Privacy/AccessLog.php:91
 msgid "Ansicht personenbezogener Daten"
 msgstr "Visualización de datos personales"
@@ -27257,37 +27214,13 @@ msgstr[1] "Eliminamos la dirección de correo electrónico de una inscripción e
 msgid "Für die E-Mail-Adresse eines Wartelisteneintrags ist keine automatische Löschfrist eingestellt."
 msgstr "Para la dirección de correo electrónico de una inscripción en la lista de espera no hay configurado ningún plazo de eliminación automática."
 
-#. translators: %d: hours
-#: src/Privacy/PolicyText.php:142
-#, php-format
-msgid "Warteliste: Die Eintragung wird erst wirksam, wenn Sie sie über den Link in unserer E-Mail bestätigen; unbestätigte Eintragungen löschen wir nach %d Stunde automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person."
-msgid_plural "Warteliste: Die Eintragung wird erst wirksam, wenn Sie sie über den Link in unserer E-Mail bestätigen; unbestätigte Eintragungen löschen wir nach %d Stunden automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person."
-msgstr[0] "Lista de espera: la inscripción solo es efectiva cuando la confirmas mediante el enlace de nuestro correo electrónico; eliminamos automáticamente las inscripciones no confirmadas al cabo de %d hora. Si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
-msgstr[1] "Lista de espera: la inscripción solo es efectiva cuando la confirmas mediante el enlace de nuestro correo electrónico; eliminamos automáticamente las inscripciones no confirmadas al cabo de %d horas. Si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
-
-#: src/Privacy/PolicyText.php:143
-msgid "Warteliste: Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person."
-msgstr "Lista de espera: si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
-
-#: src/Privacy/PolicyText.php:145
-msgid "Vorschlag von Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr "Sugerencia de Pass Captain. Revísala y adáptala a tu empresa, tus contratos y tus procesos reales; el texto no sustituye el asesoramiento jurídico. Las secciones sobre proveedores de servicios solo aparecen si están activados en los ajustes."
-
 #: src/Privacy/PolicyText.php:147
 msgid "Ticketkauf, Tickets und Einlass"
 msgstr "Compra de entradas, entradas y acceso"
 
-#: src/Privacy/PolicyText.php:148
-msgid "Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO)."
-msgstr "Para los pedidos tratamos tu dirección de correo electrónico, las entradas compradas, los precios, el estado del pago y la versión de las condiciones aceptadas con el fin de ejecutar el contrato, enviarte por correo electrónico las entradas y los accesos al pedido e informarte de cambios o cancelaciones (art. 6, apdo. 1, letra b RGPD)."
-
 #: src/Privacy/PolicyText.php:149
 msgid "Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO)."
 msgstr "Tratamos los datos de los asistentes (nombre, correo electrónico y otros campos solicitados por el organizador con la finalidad indicada en cada caso) para la celebración del evento (art. 6, apdo. 1, letra b RGPD) o sobre la base de nuestro interés legítimo en un control de acceso ordenado (art. 6, apdo. 1, letra f RGPD). En el acceso registramos la hora, el resultado y, en su caso, la zona de acceso de la entrada para evitar usos múltiples (art. 6, apdo. 1, letra f RGPD)."
-
-#: src/Privacy/PolicyText.php:150
-msgid "Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO)."
-msgstr "Tratamos las inscripciones en listas de espera, los pases de socio y las reservas de citas para ofrecerte la plaza deseada o prestar el servicio (art. 6, apdo. 1, letra b RGPD)."
 
 #: src/Privacy/PolicyText.php:150
 msgid "Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse und gegebenenfalls die E-Mail-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO)."
@@ -27296,26 +27229,6 @@ msgstr "Para protegernos contra abusos (p. ej., intentos de pedido automatizados
 #: src/Privacy/PolicyText.php:151
 msgid "Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
 msgstr "Conservamos las facturas y los justificantes de reserva por obligaciones legales (art. 6, apdo. 1, letra c RGPD)."
-
-#: src/Privacy/PolicyText.php:155
-msgid "Gästelisten und Freikarten: Wenn Sie auf eine Gästeliste gesetzt werden, erhalten wir Name, gegebenenfalls E-Mail-Adresse und Firma von der Person oder Organisation, die Sie angemeldet hat (Art. 14 DSGVO). Wir verwenden sie für Freikarte und Einlass (Art. 6 Abs. 1 lit. b bzw. f DSGVO) und leeren diese Angaben nach der Veranstaltung mit der Frist für Teilnehmerangaben."
-msgstr "Listas de invitados y entradas de cortesía: si te incluyen en una lista de invitados, recibimos tu nombre y, en su caso, tu dirección de correo electrónico y tu empresa de la persona u organización que te ha inscrito (art. 14 RGPD). Los usamos para la entrada de cortesía y el acceso (art. 6, apdo. 1, letra b o f RGPD) y borramos estos datos después del evento con el plazo previsto para los datos de los asistentes."
-
-#: src/Privacy/PolicyText.php:157
-msgid "Höchstmenge pro Person: Um die Höchstmenge je Käufer:in durchzusetzen, speichern wir zu Ihrer E-Mail-Adresse (und gegebenenfalls Ihrem Benutzerkonto) nur einen mit einem geheimen Schlüssel gebildeten Hashwert und die gezählten Bestellungen (Art. 6 Abs. 1 lit. f DSGVO); diese Zähler löschen wir nach dem letzten Termin mit der Frist für Teilnehmerangaben."
-msgstr "Cantidad máxima por persona: para aplicar la cantidad máxima por comprador, guardamos para tu dirección de correo electrónico (y, en su caso, tu cuenta de usuario) solo un valor hash generado con una clave secreta y los pedidos contabilizados (art. 6, apdo. 1, letra f RGPD); eliminamos estos contadores después de la última fecha con el plazo previsto para los datos de los asistentes."
-
-#: src/Privacy/PolicyText.php:158
-msgid "Abendkasse: Bei Kassenverkäufen erfassen wir Ihre E-Mail-Adresse nur, wenn Sie Tickets oder eine Rechnung zugesandt bekommen möchten, bei „Rechnung auf Firma“ zusätzlich Firma, Name, Anschrift und UID-Nummer. Kassenbelege und Kassenberichte bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
-msgstr "Taquilla: en las ventas en taquilla solo registramos tu dirección de correo electrónico si quieres recibir las entradas o una factura y, con «Factura a nombre de empresa», además la empresa, el nombre, la dirección y el número de IVA. Conservamos los recibos e informes de caja por obligaciones legales (art. 6, apdo. 1, letra c RGPD)."
-
-#: src/Privacy/PolicyText.php:159
-msgid "Ticketumtausch: Für einen Umtausch verarbeiten wir die Bestellung, das bisherige und das neue Ticket sowie einen Aufpreis oder eine Erstattung (Art. 6 Abs. 1 lit. b DSGVO). Haben Sie per Überweisung bezahlt, können Sie für Erstattungen eine Bankverbindung angeben; wir verwenden sie nur dafür."
-msgstr "Cambio de entradas: para un cambio tratamos el pedido, la entrada anterior y la nueva, así como un suplemento o un reembolso (art. 6, apdo. 1, letra b RGPD). Si pagaste por transferencia, puedes indicar unos datos bancarios para los reembolsos; solo los usamos para ese fin."
-
-#: src/Privacy/PolicyText.php:160
-msgid "Verkauf über Partner: Kaufen Sie bei einem Vertriebspartner oder Veranstalter, der an unser System angebunden ist, übermittelt dieser uns die für Ticket und Einlass nötigen Angaben. Der Partner ist für seine eigene Verarbeitung selbst verantwortlich; Wiederverkäufer erhalten von uns nur Daten ihrer eigenen Verkäufe."
-msgstr "Venta a través de socios: si compras a un distribuidor u organizador conectado a nuestro sistema, este nos transmite los datos necesarios para la entrada y el acceso. El socio es responsable de su propio tratamiento; los revendedores solo reciben de nosotros datos de sus propias ventas."
 
 #: src/Privacy/PolicyText.php:162
 msgid "Weitere Funktionen"
@@ -27333,26 +27246,6 @@ msgstr "Stripe Payments Europe Ltd. (Irlanda) para pagos con tarjeta y otros mé
 msgid "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) für PayPal-Zahlungen: Bestellreferenz und Betrag; PayPal kann Daten auch in den USA verarbeiten."
 msgstr "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburgo) para pagos con PayPal: referencia del pedido e importe; PayPal también puede tratar datos en Estados Unidos."
 
-#: src/Privacy/PolicyText.php:169
-msgid "Mollie B.V. (Niederlande) für die Zahlungsabwicklung: Bestellreferenz, Betrag und gegebenenfalls das Rechnungsland; Zahlungsdaten geben Sie direkt bei Mollie ein."
-msgstr "Mollie B.V. (Países Bajos) para el procesamiento de pagos: referencia del pedido, importe y, en su caso, el país de facturación; los datos de pago los introduces directamente en Mollie."
-
-#: src/Privacy/PolicyText.php:170
-msgid "Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA."
-msgstr "Twilio Ireland Ltd. (Irlanda) para el envío de SMS: número de móvil y texto del mensaje, solo con tu consentimiento (art. 6, apdo. 1, letra a RGPD), que puedes revocar en cualquier momento; Twilio también trata datos en Estados Unidos."
-
-#: src/Privacy/PolicyText.php:171
-msgid "Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar."
-msgstr "Nuestro proveedor de SMS (encargado del tratamiento) para el envío de SMS: número de móvil y texto del mensaje, solo con tu consentimiento (art. 6, apdo. 1, letra a RGPD), que puedes revocar en cualquier momento."
-
-#: src/Privacy/PolicyText.php:172
-msgid "Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service."
-msgstr "Apple Inc. (EE. UU.), cuando añades una entrada a Apple Wallet: tu dispositivo se registra para recibir actualizaciones; para ello almacenamos un identificador de dispositivo y un token push y enviamos avisos de actualización a través del Apple Push Notification Service."
-
-#: src/Privacy/PolicyText.php:173
-msgid "Google Ireland Ltd. / Google LLC (USA), nur wenn Sie den Link „In Google Wallet speichern“ verwenden: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden dann an Google übermittelt und bei Änderungen aktualisiert. Wird das Ticket ungültig oder werden Ihre Daten gelöscht, entfernen wir Name, Platz und Ticketcode aus dem Ticket in Google Wallet."
-msgstr "Google Ireland Ltd. / Google LLC (EE. UU.), solo si usas el enlace «Guardar en Google Wallet»: en ese caso, los datos de la entrada (evento, fecha, código de entrada y, en su caso, nombre) se transmiten a Google y se actualizan cuando hay cambios. Si la entrada deja de ser válida o se eliminan tus datos, eliminamos el nombre, el asiento y el código de entrada de la entrada en Google Wallet."
-
 #: src/Privacy/PolicyText.php:174
 msgid "Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung)."
 msgstr "Socios de venta y de eventos: los socios reciben los datos de pedidos y de acceso de sus eventos, y datos personales (direcciones de correo electrónico) solo en la medida acordada por contrato (art. 6, apdo. 1, letra b o f RGPD, en su caso encargo del tratamiento)."
@@ -27364,10 +27257,6 @@ msgstr "Sistemas conectados (webhooks y conectores HTTP/JSON), p. ej., contabili
 #: src/Privacy/PolicyText.php:176
 msgid "Dienstleister für die gesetzlich vorgeschriebene Signatur von Kassenbelegen (z. B. fiskaly, fiskaltrust, efsta; Registrierkassen- bzw. Kassensicherungsverordnung): Belegdaten wie Positionen, Beträge, Steuersätze, Zahlart und Zeitpunkt, keine Kontaktdaten (Art. 6 Abs. 1 lit. c DSGVO)."
 msgstr "Proveedores de servicios para la firma legalmente obligatoria de los tiques de caja (p. ej., fiskaly, fiskaltrust, efsta; normativa de cajas registradoras): datos del tique como posiciones, importes, tipos impositivos, forma de pago y momento, sin datos de contacto (art. 6.1.c RGPD)."
-
-#: src/Privacy/PolicyText.php:177
-msgid "Affiliate-Programm (Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
-msgstr "Programa de afiliados (Affiliate Captain, en este servidor): si llegas a través de un enlace de socio o introduces un código de socio, asignamos el pedido al socio para liquidar su comisión. Solo evaluamos la cookie de recomendación con tu consentimiento (art. 6, apdo. 1, letra a RGPD, § 165 apdo. 3 TKG 2021 o § 25 TDDDG); en el caso de un código introducido por ti, sobre la base del art. 6, apdo. 1, letra f RGPD. Tu dirección de correo electrónico solo se usa para comprobar autorrecomendaciones y no se almacena allí."
 
 #: src/Privacy/PolicyText.php:178
 msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
@@ -27410,14 +27299,6 @@ msgstr[1] "Anonimizamos los pases de socio %d días después del final de su val
 #: src/Privacy/PolicyText.php:204
 msgid "Speicherdauer"
 msgstr "Plazo de conservación"
-
-#: src/Privacy/PolicyText.php:206
-msgid "Ihre Rechte"
-msgstr "Tus derechos"
-
-#: src/Privacy/PolicyText.php:207
-msgid "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO). Haben Sie Tickets für künftige Termine, bleiben diese gültig, und wir löschen die zugehörigen Bestelldaten automatisch nach dem letzten Termin; möchten Sie die Tickets sofort aufgeben, teilen Sie uns das bitte mit. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren."
-msgstr "Tienes derecho de acceso, rectificación, supresión, limitación del tratamiento, portabilidad de los datos y oposición, así como a revocar con efecto futuro los consentimientos otorgados. En caso de supresión, las facturas y los datos contables se conservan hasta que expire el plazo legal de conservación (art. 17, apdo. 3, letra b RGPD). Si tienes entradas para fechas futuras, siguen siendo válidas y eliminamos automáticamente los datos del pedido correspondientes después de la última fecha; si quieres renunciar a las entradas de inmediato, comunícanoslo. Puedes presentar una reclamación ante una autoridad de control de protección de datos."
 
 #: src/PublicEvents.php:40
 msgid "Offline-Scans synchronisieren"
@@ -29649,7 +29530,7 @@ msgstr "Categorías"
 msgid "Stehbereiche"
 msgstr "Zonas de pie"
 
-#: src/Admin/SettingsPage.php:431
+#: src/Admin/SettingsPage.php:433
 #: src/Seating/AdminPage.php:163
 msgid "Werkzeuge"
 msgstr "Herramientas"
@@ -33596,59 +33477,59 @@ msgstr "Estos métodos de pago se ofrecen en el checkout; cada uno necesita adem
 msgid "BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode."
 msgstr "BIC del banco para transferencias; aparece en la página de pago y en el GiroCode."
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:196
 msgid "Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen."
 msgstr "Texto que los compradores confirman en el checkout cuando «Solicitar aceptación de las condiciones» está activado. Conviene someterlo a revisión legal."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:197
 msgid "Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen."
 msgstr "Información obligatoria para consumidores, enlazada en el checkout y en la confirmación. Conviene someterla a revisión legal."
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:199
 msgid "Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen."
 msgstr "Aviso en el checkout de que, por lo general, las entradas con fecha fija no tienen derecho de desistimiento. Conviene someterlo a revisión legal."
 
-#: src/Admin/SettingsPage.php:275
+#: src/Admin/SettingsPage.php:277
 msgid "Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern."
 msgstr "Hasta este tiempo antes del inicio, los compradores pueden cambiar los datos de los asistentes en el portal de pedidos."
 
-#: src/Admin/SettingsPage.php:277
+#: src/Admin/SettingsPage.php:279
 msgid "Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert."
 msgstr "Después se eliminan el asunto, el texto y la dirección del destinatario de los mensajes enviados; el envío en sí sigue registrado."
 
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:280
 msgid "Danach werden die Einträge im Versandprotokoll vollständig gelöscht."
 msgstr "Después se eliminan por completo las entradas del registro de envíos."
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:281
 msgid "Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat."
 msgstr "Después, en los check-ins deja de guardarse qué persona o qué dispositivo dio acceso."
 
-#: src/Admin/SettingsPage.php:280
+#: src/Admin/SettingsPage.php:282
 msgid "Danach werden Einträge des Audit-Logs gelöscht."
 msgstr "Después se eliminan las entradas del registro de auditoría."
 
-#: src/Admin/SettingsPage.php:307
+#: src/Admin/SettingsPage.php:309
 msgid "Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails."
 msgstr "Aparece como vendedor en facturas, tiques de caja y correos electrónicos."
 
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:310
 msgid "Erscheint als Anschrift des Verkäufers auf Rechnungen."
 msgstr "Aparece como dirección del vendedor en las facturas."
 
-#: src/Admin/SettingsPage.php:309
+#: src/Admin/SettingsPage.php:311
 msgid "Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen."
 msgstr "NIF-IVA del vendedor para las facturas. Conviene someterlo a revisión legal."
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:317
 msgid "Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird."
 msgstr "Se antepone al número de factura correlativo. Conviene una revisión legal antes de cambiar un prefijo existente."
 
-#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:318
 msgid "Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen."
 msgstr "A partir de este importe de pedido, el checkout solicita nombre y dirección para la factura. El límite depende del país; conviene someterlo a revisión legal."
 
-#: src/Admin/SettingsPage.php:317
+#: src/Admin/SettingsPage.php:319
 msgid "Vorangestellt vor die Nummer von Storno- und Korrekturbelegen."
 msgstr "Se antepone al número de los documentos de anulación y rectificación."
 
@@ -33979,33 +33860,33 @@ msgid "„%s“: Dieser Wert steht nicht zur Auswahl."
 msgstr "«%s»: este valor no está entre las opciones disponibles."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:284
+#: src/SettingsSchema.php:292
 #, php-format
 msgid "„%s“ erwartet eine Liste von Werten."
 msgstr "«%s» espera una lista de valores."
 
-#: src/SettingsSchema.php:353
+#: src/SettingsSchema.php:361
 msgid "Übersetzungen von AGB und Verbraucherinformationen je Sprache; bearbeitet im Reiter „Rechtliches“."
 msgstr "Traducciones de las condiciones y de la información para consumidores por idioma; se editan en la pestaña «Legal»."
 
-#: src/SettingsSchema.php:361
+#: src/SettingsSchema.php:369
 msgid "Zahlungsstatus nachfragen nach (Minuten)"
 msgstr "Consultar el estado del pago tras (minutos)"
 
-#: src/SettingsSchema.php:362
+#: src/SettingsSchema.php:370
 msgid "Nach dieser Zeit fragt Pass Captain den Zahlungsanbieter selbst nach dem Status, falls keine Benachrichtigung (Webhook) eingegangen ist."
 msgstr "Pasado este tiempo, Pass Captain consulta por sí mismo el estado al proveedor de pagos si no se ha recibido ninguna notificación (Webhook)."
 
-#: src/SettingsSchema.php:366
+#: src/SettingsSchema.php:374
 msgid "Header der Client-Adresse (intern)"
 msgstr "Cabecera de la dirección del cliente (interno)"
 
-#: src/SettingsSchema.php:367
+#: src/SettingsSchema.php:375
 msgid "Wird aus „Header mit der Client-Adresse“ abgeleitet und nicht direkt bearbeitet."
 msgstr "Se deriva de «Cabecera con la dirección del cliente» y no se edita directamente."
 
 #. translators: 1: field label, 2: largest number of values
-#: src/SettingsSchema.php:289
+#: src/SettingsSchema.php:297
 #, php-format
 msgid "„%1$s“: höchstens %2$d Werte."
 msgstr "«%1$s»: como máximo %2$d valores."
@@ -34038,15 +33919,15 @@ msgstr "«Test» usa las claves de prueba de Stripe; no se mueve dinero. Cambia 
 msgid "„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind."
 msgstr "«Sandbox» usa el entorno de pruebas de PayPal; no se mueve dinero. Cambia a «Live» solo cuando hayas introducido las credenciales live."
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:209
 msgid "Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts."
 msgstr "Quien inicie un reembolso debe identificarse además con un segundo factor. Protege contra el uso indebido de una contraseña robada."
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:314
 msgid "Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam."
 msgstr "Recomendado si varias personas gestionan perfiles fiscales: un perfil nuevo o modificado solo surte efecto tras la aprobación de una segunda persona."
 
-#: src/Admin/SettingsPage.php:318
+#: src/Admin/SettingsPage.php:320
 msgid "Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab."
 msgstr "Crea una factura con numeración correlativa tras cada pedido pagado y la adjunta al correo de confirmación. Revisión legal: si debes emitir facturas depende del país y de la clientela."
 
@@ -34466,13 +34347,186 @@ msgid "ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, C
 msgstr "Códigos ISO separados por comas, p. ej. «CHF, EUR». Vacío = EUR, USD, CHF, GBP, CAD, AUD. Un filtro (wp_pass_captain_currencies_v1) tiene prioridad."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:260
+#: src/SettingsSchema.php:268
 #, php-format
 msgid "„%s“ muss ein Währungscode aus drei Buchstaben sein (z. B. EUR)."
 msgstr "«%s» debe ser un código de moneda de tres letras (p. ej. EUR)."
 
 #. translators: 1: field label, 2: invalid code
-#: src/SettingsSchema.php:268
+#: src/SettingsSchema.php:276
 #, php-format
 msgid "„%1$s“: „%2$s“ ist kein Währungscode aus drei Buchstaben."
 msgstr "«%1$s»: «%2$s» no es un código de moneda de tres letras."
+
+#: src/Admin/SettingsPage.php:108
+msgid "Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die du nicht nutzt."
+msgstr "Solo se ocultan las entradas del menú; las funciones siguen activas, los datos se conservan y los enlaces directos funcionan. Para funciones que no utilizas."
+
+#: src/Admin/SettingsPage.php:294
+msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@deine-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. deinen SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
+msgstr "Remitente (From) y remitente del sobre (Return-Path) de todos los correos a clientes, p. ej. tickets@tu-dominio.es. El dominio debería ser el del sitio web y estar autorizado mediante SPF, DKIM y DMARC para enviar a través de este servidor o de tu servicio SMTP. Vacío: valor predeterminado de WordPress (wordpress@…). Un plugin SMTP que imponga su propio remitente tiene prioridad."
+
+#: src/Billing.php:362
+msgid "Deine Bestell-/Referenznummer:"
+msgstr "Tu número de pedido/referencia:"
+
+#. translators: 1: theme template path(s) in the old folder, 2: new folder name
+#: src/LegacySlug.php:356
+#, php-format
+msgid "Dein Theme überschreibt Vorlagen von Pass Captain noch im früheren Ordner (%1$s). Sie werden weiter verwendet, bitte verschiebe sie aber in den Ordner „%2$s“ im Theme – die Unterstützung des alten Ordners entfällt in einer künftigen Version."
+msgstr "Tu tema todavía sobrescribe plantillas de Pass Captain en la carpeta anterior (%1$s). Se siguen usando, pero muévelas a la carpeta «%2$s» del tema: la compatibilidad con la carpeta antigua desaparecerá en una versión futura."
+
+#. translators: 1: sender domain, 2: site domain
+#: src/Mail/Mailer.php:428
+#, php-format
+msgid "Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. deinen SMTP-Dienst erlauben (DMARC)."
+msgstr "La dirección del remitente usa el dominio %1$s y el sitio web %2$s. Para que los correos se entreguen, SPF y DKIM de %1$s deben permitir el envío a través de este servidor o de tu servicio SMTP (DMARC)."
+
+#: src/Modules/Fiscalization.php:1408
+msgid "Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn du nur einzelne Felder ergänzt oder ersetzt. Werte werden nie wieder angezeigt."
+msgstr "Los valores nuevos se guardan cifrados en el almacén de secretos de Pass Captain (clave PASS_CAPTAIN_SECRET_KEY o, si no, derivada de las salts de wp-config; cambio de clave mediante PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Los valores existentes se conservan si solo añades o sustituyes campos concretos. Los valores no se vuelven a mostrar nunca."
+
+#. translators: %s: amount with currency
+#: src/Payments/Webhooks.php:369
+#, php-format
+msgid "Eine Rückbuchung (Chargeback) wurde zu deinen Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus."
+msgstr "Una devolución de cargo (chargeback) se ha resuelto a tu favor; el proveedor de pagos vuelve a abonar %s."
+
+#. translators: %d: number of tickets
+#: src/Privacy.php:533
+#, php-format
+msgid "Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
+msgid_plural "Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
+msgstr[0] "Atención: %d entrada para próximas fechas ha dejado de ser válida por la eliminación. Acuerda con la persona un reembolso o una anulación; no se activa automáticamente."
+msgstr[1] "Atención: %d entradas para próximas fechas han dejado de ser válidas por la eliminación. Acuerda con la persona un reembolso o una anulación; no se activa automáticamente."
+
+#. translators: %d: hours
+#: src/Privacy/PolicyText.php:142
+#, php-format
+msgid "Warteliste: Die Eintragung wird erst wirksam, wenn du sie über den Link in unserer E-Mail bestätigst; unbestätigte Eintragungen löschen wir nach %d Stunde automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für dich und senden dir ein befristetes Angebot per E-Mail; nimmst du es nicht an, geht es an die nächste Person."
+msgid_plural "Warteliste: Die Eintragung wird erst wirksam, wenn du sie über den Link in unserer E-Mail bestätigst; unbestätigte Eintragungen löschen wir nach %d Stunden automatisch. Wird ein Platz frei, reservieren wir ihn automatisch für dich und senden dir ein befristetes Angebot per E-Mail; nimmst du es nicht an, geht es an die nächste Person."
+msgstr[0] "Lista de espera: la inscripción solo es efectiva cuando la confirmas mediante el enlace de nuestro correo electrónico; eliminamos automáticamente las inscripciones no confirmadas al cabo de %d hora. Si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
+msgstr[1] "Lista de espera: la inscripción solo es efectiva cuando la confirmas mediante el enlace de nuestro correo electrónico; eliminamos automáticamente las inscripciones no confirmadas al cabo de %d horas. Si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
+
+#: src/Privacy/PolicyText.php:143
+msgid "Warteliste: Wird ein Platz frei, reservieren wir ihn automatisch für dich und senden dir ein befristetes Angebot per E-Mail; nimmst du es nicht an, geht es an die nächste Person."
+msgstr "Lista de espera: si queda una plaza libre, la reservamos automáticamente para ti y te enviamos una oferta con plazo limitado por correo electrónico; si no la aceptas, pasa a la siguiente persona."
+
+#: src/Privacy/PolicyText.php:145
+msgid "Vorschlag von Pass Captain. Bitte prüfen und an dein Unternehmen, deine Verträge und deine tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
+msgstr "Sugerencia de Pass Captain. Revísala y adáptala a tu empresa, tus contratos y tus procesos reales; el texto no sustituye el asesoramiento jurídico. Las secciones sobre proveedores de servicios solo aparecen si están activados en los ajustes."
+
+#: src/Privacy/PolicyText.php:148
+msgid "Für Bestellungen verarbeiten wir deine E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und dich über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO)."
+msgstr "Para los pedidos tratamos tu dirección de correo electrónico, las entradas compradas, los precios, el estado del pago y la versión de las condiciones aceptadas con el fin de ejecutar el contrato, enviarte por correo electrónico las entradas y los accesos al pedido e informarte de cambios o cancelaciones (art. 6, apdo. 1, letra b RGPD)."
+
+#: src/Privacy/PolicyText.php:150
+msgid "Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um dir den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO)."
+msgstr "Tratamos las inscripciones en listas de espera, los pases de socio y las reservas de citas para ofrecerte la plaza deseada o prestar el servicio (art. 6, apdo. 1, letra b RGPD)."
+
+#: src/Privacy/PolicyText.php:155
+msgid "Gästelisten und Freikarten: Wenn du auf eine Gästeliste gesetzt wirst, erhalten wir Name, gegebenenfalls E-Mail-Adresse und Firma von der Person oder Organisation, die dich angemeldet hat (Art. 14 DSGVO). Wir verwenden sie für Freikarte und Einlass (Art. 6 Abs. 1 lit. b bzw. f DSGVO) und leeren diese Angaben nach der Veranstaltung mit der Frist für Teilnehmerangaben."
+msgstr "Listas de invitados y entradas de cortesía: si te incluyen en una lista de invitados, recibimos tu nombre y, en su caso, tu dirección de correo electrónico y tu empresa de la persona u organización que te ha inscrito (art. 14 RGPD). Los usamos para la entrada de cortesía y el acceso (art. 6, apdo. 1, letra b o f RGPD) y borramos estos datos después del evento con el plazo previsto para los datos de los asistentes."
+
+#: src/Privacy/PolicyText.php:157
+msgid "Höchstmenge pro Person: Um die Höchstmenge je Käufer:in durchzusetzen, speichern wir zu deiner E-Mail-Adresse (und gegebenenfalls deinem Benutzerkonto) nur einen mit einem geheimen Schlüssel gebildeten Hashwert und die gezählten Bestellungen (Art. 6 Abs. 1 lit. f DSGVO); diese Zähler löschen wir nach dem letzten Termin mit der Frist für Teilnehmerangaben."
+msgstr "Cantidad máxima por persona: para aplicar la cantidad máxima por comprador, guardamos para tu dirección de correo electrónico (y, en su caso, tu cuenta de usuario) solo un valor hash generado con una clave secreta y los pedidos contabilizados (art. 6, apdo. 1, letra f RGPD); eliminamos estos contadores después de la última fecha con el plazo previsto para los datos de los asistentes."
+
+#: src/Privacy/PolicyText.php:158
+msgid "Abendkasse: Bei Kassenverkäufen erfassen wir deine E-Mail-Adresse nur, wenn du Tickets oder eine Rechnung zugesandt bekommen möchtest, bei „Rechnung auf Firma“ zusätzlich Firma, Name, Anschrift und UID-Nummer. Kassenbelege und Kassenberichte bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
+msgstr "Taquilla: en las ventas en taquilla solo registramos tu dirección de correo electrónico si quieres recibir las entradas o una factura y, con «Factura a nombre de empresa», además la empresa, el nombre, la dirección y el número de IVA. Conservamos los recibos e informes de caja por obligaciones legales (art. 6, apdo. 1, letra c RGPD)."
+
+#: src/Privacy/PolicyText.php:159
+msgid "Ticketumtausch: Für einen Umtausch verarbeiten wir die Bestellung, das bisherige und das neue Ticket sowie einen Aufpreis oder eine Erstattung (Art. 6 Abs. 1 lit. b DSGVO). Hast du per Überweisung bezahlt, kannst du für Erstattungen eine Bankverbindung angeben; wir verwenden sie nur dafür."
+msgstr "Cambio de entradas: para un cambio tratamos el pedido, la entrada anterior y la nueva, así como un suplemento o un reembolso (art. 6, apdo. 1, letra b RGPD). Si pagaste por transferencia, puedes indicar unos datos bancarios para los reembolsos; solo los usamos para ese fin."
+
+#: src/Privacy/PolicyText.php:160
+msgid "Verkauf über Partner: Kaufst du bei einem Vertriebspartner oder Veranstalter, der an unser System angebunden ist, übermittelt dieser uns die für Ticket und Einlass nötigen Angaben. Der Partner ist für seine eigene Verarbeitung selbst verantwortlich; Wiederverkäufer erhalten von uns nur Daten ihrer eigenen Verkäufe."
+msgstr "Venta a través de socios: si compras a un distribuidor u organizador conectado a nuestro sistema, este nos transmite los datos necesarios para la entrada y el acceso. El socio es responsable de su propio tratamiento; los revendedores solo reciben de nosotros datos de sus propias ventas."
+
+#: src/Privacy/PolicyText.php:169
+msgid "Mollie B.V. (Niederlande) für die Zahlungsabwicklung: Bestellreferenz, Betrag und gegebenenfalls das Rechnungsland; Zahlungsdaten gibst du direkt bei Mollie ein."
+msgstr "Mollie B.V. (Países Bajos) para el procesamiento de pagos: referencia del pedido, importe y, en su caso, el país de facturación; los datos de pago los introduces directamente en Mollie."
+
+#: src/Privacy/PolicyText.php:170
+msgid "Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA."
+msgstr "Twilio Ireland Ltd. (Irlanda) para el envío de SMS: número de móvil y texto del mensaje, solo con tu consentimiento (art. 6, apdo. 1, letra a RGPD), que puedes revocar en cualquier momento; Twilio también trata datos en Estados Unidos."
+
+#: src/Privacy/PolicyText.php:171
+msgid "Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit deiner Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar."
+msgstr "Nuestro proveedor de SMS (encargado del tratamiento) para el envío de SMS: número de móvil y texto del mensaje, solo con tu consentimiento (art. 6, apdo. 1, letra a RGPD), que puedes revocar en cualquier momento."
+
+#: src/Privacy/PolicyText.php:172
+msgid "Apple Inc. (USA), wenn du ein Ticket zu Apple Wallet hinzufügst: Dein Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service."
+msgstr "Apple Inc. (EE. UU.), cuando añades una entrada a Apple Wallet: tu dispositivo se registra para recibir actualizaciones; para ello almacenamos un identificador de dispositivo y un token push y enviamos avisos de actualización a través del Apple Push Notification Service."
+
+#: src/Privacy/PolicyText.php:173
+msgid "Google Ireland Ltd. / Google LLC (USA), nur wenn du den Link „In Google Wallet speichern“ verwendest: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden dann an Google übermittelt und bei Änderungen aktualisiert. Wird das Ticket ungültig oder werden deine Daten gelöscht, entfernen wir Name, Platz und Ticketcode aus dem Ticket in Google Wallet."
+msgstr "Google Ireland Ltd. / Google LLC (EE. UU.), solo si usas el enlace «Guardar en Google Wallet»: en ese caso, los datos de la entrada (evento, fecha, código de entrada y, en su caso, nombre) se transmiten a Google y se actualizan cuando hay cambios. Si la entrada deja de ser válida o se eliminan tus datos, eliminamos el nombre, el asiento y el código de entrada de la entrada en Google Wallet."
+
+#: src/Privacy/PolicyText.php:206
+msgid "Deine Rechte"
+msgstr "Tus derechos"
+
+#: src/Privacy/PolicyText.php:207
+msgid "Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO). Hast du Tickets für künftige Termine, bleiben diese gültig, und wir löschen die zugehörigen Bestelldaten automatisch nach dem letzten Termin; möchtest du die Tickets sofort aufgeben, teile uns das bitte mit. Du kannst dich bei einer Datenschutzaufsichtsbehörde beschweren."
+msgstr "Tienes derecho de acceso, rectificación, supresión, limitación del tratamiento, portabilidad de los datos y oposición, así como a revocar con efecto futuro los consentimientos otorgados. En caso de supresión, las facturas y los datos contables se conservan hasta que expire el plazo legal de conservación (art. 17, apdo. 3, letra b RGPD). Si tienes entradas para fechas futuras, siguen siendo válidas y eliminamos automáticamente los datos del pedido correspondientes después de la última fecha; si quieres renunciar a las entradas de inmediato, comunícanoslo. Puedes presentar una reclamación ante una autoridad de control de protección de datos."
+
+#: src/Admin/SettingsPage.php:285
+msgid "Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; über deren Löschung nach Fristablauf entscheidest du selbst (laufende Prüfungen verlängern die Frist). 0 = nie."
+msgstr "Plazo legal de conservación de los justificantes contables: Alemania 10 años (§ 147 AO, § 257 HGB), Austria 7 años (§ 132 BAO). Después se eliminan el correo del comprador, la dirección de facturación y los datos de los asistentes del pedido, sus entradas y reservas de citas. Importes, posiciones, reembolsos, facturas, abonos y justificantes fiscales no se modifican; tú decides cuándo eliminarlos tras el plazo (las inspecciones en curso lo prolongan). 0 = nunca."
+
+#: src/Privacy/PolicyText.php:177
+msgid "Affiliate-Programm (Affiliate Captain, auf diesem Server): Wenn du über einen Partnerlink kommst oder einen Partnercode eingibst, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit deiner Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Deine E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
+msgstr "Programa de afiliados (Affiliate Captain, en este servidor): si llegas a través de un enlace de socio o introduces un código de socio, asignamos el pedido al socio para liquidar su comisión. Solo evaluamos la cookie de recomendación con tu consentimiento (art. 6, apdo. 1, letra a RGPD, § 165 apdo. 3 TKG 2021 o § 25 TDDDG); en el caso de un código introducido por ti, sobre la base del art. 6, apdo. 1, letra f RGPD. Tu dirección de correo electrónico solo se usa para comprobar autorrecomendaciones y no se almacena allí."
+
+#: src/Admin/ProHints.php:93
+msgid "Erweiterungen"
+msgstr "Extensiones"
+
+#. translators: %s: title of the hint
+#: src/Admin/ProHints.php:102
+#, php-format
+msgid "Hinweis „%s“ ausblenden"
+msgstr "Ocultar aviso «%s»"
+
+#. translators: %s: title of the hint
+#: src/Admin/ProHints.php:102
+msgid "Ausblenden"
+msgstr "Ocultar"
+
+#: src/Admin/SettingsPage.php:193
+msgid "Impressum (Adresse)"
+msgstr "Aviso legal (dirección)"
+
+#: src/Admin/SettingsPage.php:193
+msgid "Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht."
+msgstr "Enlace al aviso legal; aparece en el checkout, en el pie de los correos y como marcador {imprint_url}. Vacío = sin enlace. Revisión legal: en muchos países el aviso legal es obligatorio."
+
+#: src/Admin/SettingsPage.php:194
+msgid "Datenschutzerklärung (Adresse)"
+msgstr "Política de privacidad (dirección)"
+
+#: src/Admin/SettingsPage.php:194
+msgid "Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz)."
+msgstr "Enlace a la política de privacidad en el checkout, en el pie de los correos y como marcador {privacy_url}. Vacío = la página de privacidad de WordPress (Ajustes → Privacidad)."
+
+#: src/Frontend/LegalNotice.php:73
+#: src/Frontend/LegalNotice.php:81
+#: src/Frontend/LegalNotice.php:107
+msgid "Impressum"
+msgstr "Aviso legal"
+
+#: src/Mail/Types.php:45
+msgid "Link zum Impressum (leer, wenn keiner eingestellt ist)"
+msgstr "Enlace al aviso legal (vacío si no hay ninguno)"
+
+#: src/Mail/Types.php:46
+msgid "Link zur Datenschutzerklärung"
+msgstr "Enlace a la política de privacidad"
+
+#. translators: %s: field label
+#: src/SettingsSchema.php:261
+#, php-format
+msgid "„%s“ muss eine vollständige Adresse mit http:// oder https:// sein."
+msgstr "«%s» debe ser una dirección completa con http:// o https://."

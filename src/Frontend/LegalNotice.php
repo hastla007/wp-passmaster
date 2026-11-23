@@ -55,9 +55,32 @@ final class LegalNotice {
 		return '' !== $text ? array( 'kind' => 'right', 'text' => $text ) : array( 'kind' => '', 'text' => '' );
 	}
 
-	/** URL of the privacy policy page ('' when none is set or the function is unavailable). */
+	/** URL of the privacy policy: setting privacy_url (SET-PC-19), else the WordPress privacy page ('' when none). */
 	public static function privacy_url() {
+		$own = trim( (string) Settings::get( 'privacy_url', '' ) );
+		if ( '' !== $own ) { return $own; }
 		return function_exists( 'get_privacy_policy_url' ) ? (string) get_privacy_policy_url() : '';
+	}
+
+	/** URL of the imprint (setting imprint_url, SET-PC-19; '' = no link). */
+	public static function imprint_url() {
+		return trim( (string) Settings::get( 'imprint_url', '' ) );
+	}
+
+	/** Links to imprint and privacy policy as HTML (empty without either). */
+	public static function links_html() {
+		$links = array();
+		if ( '' !== self::imprint_url() ) { $links[] = '<a href="' . esc_url( self::imprint_url() ) . '">' . esc_html__( 'Impressum', 'pass-captain' ) . '</a>'; }
+		if ( '' !== self::privacy_url() ) { $links[] = '<a href="' . esc_url( self::privacy_url() ) . '">' . esc_html__( 'Datenschutzerklärung', 'pass-captain' ) . '</a>'; }
+		return implode( ' · ', $links );
+	}
+
+	/** Links to imprint and privacy policy as plain text lines (mail text part). */
+	public static function links_text() {
+		$lines = array();
+		if ( '' !== self::imprint_url() ) { $lines[] = __( 'Impressum', 'pass-captain' ) . ': ' . self::imprint_url(); }
+		if ( '' !== self::privacy_url() ) { $lines[] = __( 'Datenschutzerklärung', 'pass-captain' ) . ': ' . self::privacy_url(); }
+		return implode( "\n", $lines );
 	}
 
 	/**
@@ -79,6 +102,9 @@ final class LegalNotice {
 				esc_html__( 'Wir verarbeiten deine Angaben zur Abwicklung der Bestellung. Details findest du in der %s.', 'pass-captain' ),
 				'<a href="' . esc_url( $privacy ) . '" target="_blank" rel="noopener">' . esc_html__( 'Datenschutzerklärung', 'pass-captain' ) . '</a>'
 			) . '</small></p>';
+		}
+		if ( '' !== self::imprint_url() ) {
+			$html .= '<p class="wpcap-legal-notice wpcap-imprint-notice"><small><a href="' . esc_url( self::imprint_url() ) . '" target="_blank" rel="noopener">' . esc_html__( 'Impressum', 'pass-captain' ) . '</a></small></p>';
 		}
 		return (string) apply_filters( 'wp_pass_captain_checkout_legal_html_v1', $html, $occurrence, $types );
 	}

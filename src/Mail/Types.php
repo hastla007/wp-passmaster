@@ -42,6 +42,8 @@ final class Types {
 		return array(
 			'site_name' => __( 'Name der Website', 'pass-captain' ),
 			'site_url' => __( 'Adresse der Website', 'pass-captain' ),
+			'imprint_url' => __( 'Link zum Impressum (leer, wenn keiner eingestellt ist)', 'pass-captain' ),
+			'privacy_url' => __( 'Link zur Datenschutzerklärung', 'pass-captain' ),
 			'terms_text' => __( 'AGB / Teilnahmebedingungen in der Sprache des Empfängers', 'pass-captain' ),
 			'consumer_info_text' => __( 'Verbraucherinformationen in der Sprache des Empfängers', 'pass-captain' ),
 		);

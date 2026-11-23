@@ -62,6 +62,7 @@ final class Menu {
 			SettingsTools::IMPORT_ACTION => array( SettingsTools::class, 'handle_import' ),
 			SettingsTools::RESET_ACTION => array( SettingsTools::class, 'handle_reset' ),
 			SettingsTools::PRESET_ACTION => array( SettingsTools::class, 'handle_preset' ),
+			ProHints::ACTION => array( ProHints::class, 'handle_hide' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
 			'wpcap_campaign_create' => array( CampaignsPage::class, 'handle_create' ),

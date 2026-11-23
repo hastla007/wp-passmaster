@@ -366,7 +366,7 @@ final class Webhooks {
 			$booked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND provider_reference IN (%s,%s) AND status='completed'", $p . 'wpcap_refunds', $order_id, (string) ( $event['provider_reference'] ?? '' ), 'ext:' . sanitize_key( $provider ) . ':' . (string) ( $event['provider_reference'] ?? '' ) ) );
 			Audit::record( 'chargeback_reversed', 'order', $order_id, array( 'provider' => $provider, 'reference' => (string) ( $event['provider_reference'] ?? '' ), 'amount_minor' => $amount, 'chargeback_booked' => $booked > 0, 'status' => (string) $order->status ) );
 			/* translators: %s: amount with currency */
-			$message = sprintf( __( 'Eine Rückbuchung (Chargeback) wurde zu Ihren Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus.', 'pass-captain' ), \PassCaptain\Money::format( $amount, (string) $order->currency ) ) . ' ';
+			$message = sprintf( __( 'Eine Rückbuchung (Chargeback) wurde zu deinen Gunsten entschieden; der Zahlungsanbieter zahlt %s wieder aus.', 'pass-captain' ), \PassCaptain\Money::format( $amount, (string) $order->currency ) ) . ' ';
 			$message .= $booked
 				? __( 'Die Rückbuchung war als Erstattung gebucht (Tickets widerrufen, Gutschrift erstellt). Bitte entscheiden: Tickets neu ausstellen und Gutschrift stornieren oder dem Käufer den Betrag erstatten. Pass Captain ändert die Bestellung nicht automatisch.', 'pass-captain' )
 				: __( 'Zu dieser Rückbuchung ist keine Erstattung gebucht; die Bestellung bleibt unverändert. Bitte beim Zahlungsanbieter prüfen.', 'pass-captain' );

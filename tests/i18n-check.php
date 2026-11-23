@@ -68,6 +68,20 @@ foreach ( $argv as $arg ) {
 		echo "ok   languages/pass-captain.pot matches the source strings\n";
 	}
 }
+// SET-PC-09: source strings address the reader with "du" only (de_DE); "Sie" lives in de_DE_formal.
+$formal_re = '/\b(Ihnen|Ihr|Ihre|Ihren|Ihrem|Ihrer|Ihres)\b|(?<![.:!?–]\s)(?<!^)\bSie\b/u';
+$informal_re = '/\b(du|dich|dir|dein|deine|deinen|deinem|deiner|deines|Du|Dich|Dir|Dein|Deine|Deinen|Deinem|Deiner|Deines)\b/u';
+$formal_src = array();
+foreach ( $pot as $e ) {
+	if ( '' !== $e['msgid'] && ( preg_match( $formal_re, $e['msgid'] ) || ( null !== $e['msgid_plural'] && preg_match( $formal_re, $e['msgid_plural'] ) ) ) ) { $formal_src[] = $e['msgid']; }
+}
+if ( $formal_src ) {
+	$fail = 1;
+	echo 'FAIL ' . count( $formal_src ) . " source string(s) use the formal address (Sie/Ihr); de_DE uses \"du\" (SET-PC-09)\n";
+	foreach ( array_slice( $formal_src, 0, 10 ) as $s ) { echo '     - ' . mb_substr( $s, 0, 140 ) . "\n"; }
+} else {
+	echo "ok   source strings use the informal address only (SET-PC-09)\n";
+}
 foreach ( glob( $root . '/languages/pass-captain-*.po' ) as $po ) {
 	$locale = preg_replace( '/^.*pass-captain-(.+)\.po$/', '$1', $po );
 	$problems = array(); $fuzzy = 0; $untranslated = 0; $ids = array();
@@ -87,6 +101,7 @@ foreach ( glob( $root . '/languages/pass-captain-*.po' ) as $po ) {
 				|| ( $want_plural && array_values( array_diff( $want_plural['printf'], array( '%d' ) ) ) === $got['printf'] );
 			if ( ! $ok_printf ) { $problems[] = "printf placeholders differ: \"{$e['msgid']}\" → \"$str\""; }
 			if ( $got['braces'] !== $want['braces'] && ( ! $want_plural || $got['braces'] !== $want_plural['braces'] ) ) { $problems[] = "{placeholders} differ: \"{$e['msgid']}\" → \"$str\""; }
+			if ( 'de_DE_formal' === $locale && preg_match( $informal_re, $str ) ) { $problems[] = "informal address in the formal translation: \"$str\""; }
 			if ( $got['tags'] !== $want['tags'] && ( ! $want_plural || $got['tags'] !== $want_plural['tags'] ) ) { $problems[] = "HTML tags differ: \"{$e['msgid']}\" → \"$str\""; }
 		}
 	}

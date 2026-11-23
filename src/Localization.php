@@ -74,6 +74,7 @@ final class Localization {
 	/** Native names of the locales the plugin ships translations for. */
 	const LOCALE_NAMES = array(
 		'de_DE' => 'Deutsch',
+		'de_DE_formal' => 'Deutsch (Sie)',
 		'en_US' => 'English',
 		'es_ES' => 'Español',
 		'fr_FR' => 'Français',
@@ -90,7 +91,7 @@ final class Localization {
 	public static function supported_locales() {
 		$locales = array( 'de_DE' => self::LOCALE_NAMES['de_DE'] );
 		foreach ( (array) glob( WPCAP_PATH . 'languages/pass-captain-*.mo' ) as $file ) {
-			if ( preg_match( '/pass-captain-([a-z]{2,3}_[A-Z]{2})\.mo$/', (string) $file, $m ) ) {
+			if ( preg_match( '/pass-captain-([a-z]{2,3}_[A-Z]{2}(?:_formal)?)\.mo$/', (string) $file, $m ) ) {
 				$locales[ $m[1] ] = self::LOCALE_NAMES[ $m[1] ] ?? $m[1];
 			}
 		}
