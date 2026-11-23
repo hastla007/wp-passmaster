@@ -64,6 +64,7 @@ final class SettingsPage {
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120, 'description' => __( 'So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei.', 'pass-captain' ) ),
 					'default_currency' => array( 'type' => 'currency', 'label' => __( 'Standardwährung', 'pass-captain' ), 'description' => __( 'Währung für neue Ticketarten, Kassen, Rabattcodes und SMS-Kosten (ISO-Code, z. B. EUR oder CHF). Bestehende Preise behalten ihre Währung.', 'pass-captain' ) ),
+					'price_entry' => array( 'type' => 'choice', 'label' => __( 'Preiseingabe', 'pass-captain' ), 'options' => array( 'gross' => __( 'brutto (inkl. Steuer, Standard)', 'pass-captain' ), 'net' => __( 'netto (ohne Steuer)', 'pass-captain' ) ), 'description' => __( 'Ob du Ticketpreise mit oder ohne Steuer einträgst. Gespeichert und Käufern angezeigt wird immer der Bruttopreis; bei netto rechnet Pass Captain den Steuersatz der Ticketart dazu (auf den Cent gerundet).', 'pass-captain' ) ),
 					'currencies' => array( 'type' => 'currencies', 'label' => __( 'Angebotene Währungen', 'pass-captain' ), 'description' => __( 'ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, CHF, GBP, CAD, AUD. Ein Filter (wp_pass_captain_currencies_v1) hat Vorrang.', 'pass-captain' ) ),
 					'occurrence_default_duration_hours' => array( 'type' => 'int', 'label' => __( 'Standarddauer von Terminen ohne Ende (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 168, 'description' => __( 'Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen.', 'pass-captain' ) ),
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“.', 'pass-captain' ) ),
@@ -584,6 +585,7 @@ final class SettingsPage {
 		$current = Settings::all();
 		$values = array();
 		$errors = array();
+		$field_errors = array();
 		// Only the submitted tab (and provider section) is processed: checkboxes of other tabs are
 		// not in the form, and treating them as unticked would reset them.
 		$sections = self::scoped_sections( array_key_exists( 'wpcap_tab', $in ) ? (string) ( is_scalar( $in['wpcap_tab'] ) ? $in['wpcap_tab'] : '' ) : null, $in['wpcap_section'] ?? '' );
@@ -613,6 +615,7 @@ final class SettingsPage {
 						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
 						if ( is_wp_error( $checked ) ) {
 							$errors[] = $checked->get_error_message();
+							$field_errors[ $key ] = $checked->get_error_message(); // SET-PC-44
 							break;
 						}
 						$values[ $key ] = $checked;
@@ -625,6 +628,7 @@ final class SettingsPage {
 						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
 						if ( is_wp_error( $checked ) ) {
 							$errors[] = $checked->get_error_message();
+							$field_errors[ $key ] = $checked->get_error_message(); // SET-PC-44
 							break;
 						}
 						$values[ $key ] = $checked;
@@ -665,6 +669,7 @@ final class SettingsPage {
 					$clean = call_user_func( $def['sanitize'], $values[ $key ], $current[ $key ] ?? null );
 					if ( is_wp_error( $clean ) ) {
 						$errors[] = $clean->get_error_message();
+						$field_errors[ $key ] = $clean->get_error_message(); // SET-PC-44
 						unset( $values[ $key ] );
 					} else {
 						$values[ $key ] = $clean;
@@ -698,7 +703,7 @@ final class SettingsPage {
 		$secrets = array_intersect_key( $values, array_flip( Settings::secret_keys() ) );
 		$saved = array_diff_key( $values, $secrets );
 		$saved['secrets_updated'] = array_keys( $secrets );
-		return array( 'saved' => $saved, 'errors' => $errors, 'warnings' => $warnings );
+		return array( 'saved' => $saved, 'errors' => $errors, 'warnings' => $warnings, 'field_errors' => $field_errors );
 	}
 
 	/**
@@ -744,10 +749,26 @@ final class SettingsPage {
 		return $out;
 	}
 
+	/** Transient prefix of the field errors of the last save (SET-PC-44). */
+	const FIELD_ERRORS = 'wpcap_settings_field_errors_';
+
+	/** @var array<string,string> Field errors shown in the current render (key => message). */
+	private static $field_errors = array();
+
+	/** Field errors of the last save of the current person (read once). */
+	public static function take_field_errors() {
+		$errors = get_transient( self::FIELD_ERRORS . get_current_user_id() );
+		if ( false !== $errors ) { delete_transient( self::FIELD_ERRORS . get_current_user_id() ); }
+		return is_array( $errors ) ? $errors : array();
+	}
+
 	public static function handle_save() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_save_settings' );
 		$result = self::save( $in );
+		if ( ! is_wp_error( $result ) && ! empty( $result['field_errors'] ) ) {
+			set_transient( self::FIELD_ERRORS . get_current_user_id(), $result['field_errors'], 5 * MINUTE_IN_SECONDS ); // SET-PC-44
+		}
 		if ( ! is_wp_error( $result ) && ( $result['errors'] || $result['warnings'] ) ) {
 			$result['warning'] = implode( ' ', array_merge( $result['errors'], $result['warnings'] ) );
 		}
@@ -817,6 +838,23 @@ final class SettingsPage {
 			}
 			echo '</div>';
 			return;
+		}
+		?>
+		<?php
+		// SET-PC-44: list of invalid fields with jump links (the fields carry aria-invalid and the message).
+		self::$field_errors = self::take_field_errors();
+		$visible_errors = array();
+		foreach ( $sections as $def ) {
+			foreach ( array_keys( $def['fields'] ) as $field_key ) {
+				if ( isset( self::$field_errors[ $field_key ] ) ) { $visible_errors[ $field_key ] = array( (string) $def['fields'][ $field_key ]['label'], self::$field_errors[ $field_key ] ); }
+			}
+		}
+		if ( $visible_errors ) {
+			echo '<div class="notice notice-error inline wpcap-error-summary" role="alert" tabindex="-1"><p><strong>' . esc_html__( 'Bitte prüfe diese Felder:', 'pass-captain' ) . '</strong></p><ul>';
+			foreach ( $visible_errors as $field_key => $error ) {
+				echo '<li><a href="#' . esc_attr( 'wpcap-set-' . $field_key ) . '">' . esc_html( $error[0] ) . '</a>: ' . esc_html( $error[1] ) . '</li>';
+			}
+			echo '</ul></div>';
 		}
 		?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
@@ -1032,6 +1070,30 @@ final class SettingsPage {
 	}
 
 	private static function render_field( $key, array $def, $value ) {
+		ob_start();
+		self::render_field_inner( $key, $def, $value );
+		$html = (string) ob_get_clean();
+		// SET-PC-44: the help text and an error message describe the input (aria-describedby, aria-invalid).
+		$id = 'wpcap-set-' . $key;
+		$described = array();
+		if ( ! empty( $def['description'] ) ) {
+			$html = str_replace( '<p class="description">' . esc_html( $def['description'] ) . '</p>', '<p class="description" id="' . esc_attr( $id . '-desc' ) . '">' . esc_html( $def['description'] ) . '</p>', $html );
+			$described[] = $id . '-desc';
+		}
+		$error = self::$field_errors[ $key ] ?? '';
+		if ( '' !== $error ) {
+			$html .= '<p class="wpcap-field-error" id="' . esc_attr( $id . '-error' ) . '"><strong>' . esc_html( $error ) . '</strong></p>';
+			$described[] = $id . '-error';
+		}
+		if ( $described ) {
+			$attr = ' aria-describedby="' . esc_attr( implode( ' ', $described ) ) . '"' . ( '' !== $error ? ' aria-invalid="true"' : '' );
+			$html = preg_replace( '/(<(?:input|select|textarea)\b[^>]*\bid="' . preg_quote( esc_attr( $id ), '/' ) . '")/', '$1' . $attr, $html, 1 );
+		}
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
+	}
+
+	/** Input of one field (render_field() adds the accessibility attributes). */
+	private static function render_field_inner( $key, array $def, $value ) {
 		$id = 'wpcap-set-' . $key;
 		// Secrets show their own source/status line (Secrets::render_field()).
 		$override = ( 'secret' !== $def['type'] && ! empty( $def['overridable'] ) ) ? self::override_source( $key ) : '';

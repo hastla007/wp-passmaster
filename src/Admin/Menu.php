@@ -382,6 +382,8 @@ final class Menu {
 
 	/** Inline CSS of plugin_page_assets() (handle wpcap-admin). */
 	const ADMIN_CSS = '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+		// SET-PC-44: field errors and grey hint lines with sufficient contrast (WCAG AA on white).
+		. '#wpbody-content .wpcap-admin .wpcap-field-error{color:#b32d2e;margin:4px 0 0}#wpbody-content .wpcap-admin .wpcap-pro-hint{color:#50575e}#wpbody-content .wpcap-admin [aria-invalid="true"]{border-color:#b32d2e;box-shadow:0 0 0 1px #b32d2e}'
 		. '#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}#wpbody-content .wpcap-admin .button-link{min-height:24px;min-width:24px;padding:2px 0;line-height:20px}'
 		. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
 		. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'

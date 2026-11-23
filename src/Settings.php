@@ -215,6 +215,8 @@ final class Settings {
 			'woo_collect_attendees'     => 'fields',
 			// SET-PC-40: payment method rules, one per line ("stripe | events=1,2 | min=10 | max=500 | countries=DE,AT").
 			'payment_rules'             => '',
+			// SET-PC-45: ticket prices entered gross (default) or net; buyers always see gross prices.
+			'price_entry'               => 'gross',
 		);
 	}
 

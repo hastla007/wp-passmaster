@@ -24,6 +24,8 @@
 - Rechnungsadresse (SET-PC-24): Länderliste als Einstellung, optionales Feld „Region / Bundesland“, Verkäuferland als Auswahl.
 - WooCommerce (SET-PC-29): Reservierungszeit, Ausstellen bei „Abgeschlossen“ je Zahlungsart und Teilnehmerdaten im Woo-Checkout als Einstellungen; Filter behalten Vorrang.
 - Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`.
+- Bedienbarkeit (SET-PC-44): Hilfetexte und Fehlermeldungen sind mit den Feldern verknüpft, nach dem Speichern erscheint eine Fehlerliste mit Sprungmarken.
+- Netto-Eingabe (SET-PC-45): Ticketpreise können netto eingetragen werden; gespeichert und angezeigt wird weiter der Bruttopreis.
 - WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
