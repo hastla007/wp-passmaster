@@ -6,6 +6,8 @@
  * Included from run.php (uses check(), make_type(), tickets()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Billing;
 use PassCaptain\Invoices;
 use PassCaptain\Orders;
@@ -45,9 +47,6 @@ function bb_token( $public_id ) {
 		if ( preg_match( '/wpcap_order=' . preg_quote( $public_id, '/' ) . '&wpcap_access=([a-f0-9]{64})/', $mail['body'], $m ) ) { return $m[1]; }
 	}
 	return '';
-}
-function bb_billing( array $override = array() ) {
-	return array_merge( array( 'enabled' => true, 'company' => 'Muster GmbH', 'first_name' => 'Erika', 'last_name' => 'Muster', 'street' => 'Ringstraße 1/3', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT', 'vat_id' => 'ATU 1234 5678', 'po_number' => 'PO-4711' ), $override );
 }
 function bb_order( $type, $email, $billing, $qty = 1 ) {
 	wpcap_test_reset_transients();

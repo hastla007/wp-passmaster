@@ -10,6 +10,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Integrations\WooCommerce\Attendees;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 

@@ -8,6 +8,8 @@
  * Included from run.php after all module tests (uses check(), make_type(), admin_paid_order()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Frontend\Format;
 use PassCaptain\Invoices;
 use PassCaptain\Mail\Mailer;
@@ -37,19 +39,6 @@ $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 
-function p1u_request( array $body, array $params = array() ) {
-	$r = new WP_REST_Request( 'POST' );
-	$r->set_body( wp_json_encode( $body ) );
-	foreach ( $params as $k => $v ) { $r->set_param( $k, $v ); }
-	return $r;
-}
-function p1u_data( $res ) { return $res instanceof WP_REST_Response ? $res->get_data() : $res; }
-function p1u_access_token( $public_id ) {
-	foreach ( array_reverse( $GLOBALS['wpcap_test_mails'] ) as $mail ) {
-		if ( preg_match( '/wpcap_order=' . preg_quote( $public_id, '/' ) . '&wpcap_access=([a-f0-9]{64})/', $mail['body'], $m ) ) { return $m[1]; }
-	}
-	return '';
-}
 
 echo "Phase 1 UX: formatting helpers\n";
 check( 'short order number from the public id', '3F2A-9C1E' === Format::order_reference( '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ) );

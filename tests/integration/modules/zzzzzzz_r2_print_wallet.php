@@ -16,6 +16,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Printing\Page as PrintPage;
 use PassCaptain\Printing\PdfWriter;

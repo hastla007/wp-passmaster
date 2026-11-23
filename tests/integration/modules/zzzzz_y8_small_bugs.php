@@ -18,6 +18,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_fiscal.php';
+
 use PassCaptain\Admin\CampaignsPage as Y8CampaignsPage;
 use PassCaptain\Admin\Forms as Y8Forms;
 use PassCaptain\Campaigns as Y8Campaigns;

@@ -11,6 +11,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Invoices;
 use PassCaptain\Orders;
 use PassCaptain\Partners\Repository as MsPartners;
@@ -37,9 +39,6 @@ class Wpcap_Ms_Item {
 class Wpcap_Ms_Order extends Wpcap_Test_Woo_Order {
 	public function add_meta_data( $k, $v, $unique = false ) { $this->meta[ $k ] = array_merge( (array) ( $this->meta[ $k ] ?? array() ), array( $v ) ); }
 }
-class Wpcap_Ms_Cart { public array $cart_contents = array(); public function get_cart() { return $this->cart_contents; } }
-class Wpcap_Ms_WC { public $cart; public $session; public bool $store_api = false; public function is_store_api_request() { return $this->store_api; } }
-class Wpcap_Ms_Errors { public array $errors = array(); public function add( $code, $message ) { $this->errors[ $code ] = $message; } }
 if ( ! function_exists( 'WC' ) ) {
 	function WC() { return $GLOBALS['wpcap_test_wc']; }
 }

@@ -9,6 +9,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Printing\AttendeeList;
 use PassCaptain\Printing\InvoicePdf;
@@ -24,23 +26,6 @@ if ( is_readable( dirname( __DIR__, 3 ) . '/vendor/autoload.php' ) ) { require_o
 global $wpdb;
 $p = $wpdb->prefix;
 
-if ( ! function_exists( 'wpp_pdf_ok' ) ) {
-	/** Structural PDF check: header, EOF, xref offset and every object offset, page count. */
-	function wpp_pdf_ok( $pdf, $pages = null ) {
-		if ( ! is_string( $pdf ) || ! str_starts_with( $pdf, '%PDF-1.4' ) || ! preg_match( '/startxref\n(\d+)\n%%EOF$/', $pdf, $m ) ) { return false; }
-		$xref = substr( $pdf, (int) $m[1] );
-		if ( 0 !== strpos( $xref, 'xref' ) || ! preg_match_all( '/^(\d{10}) 00000 n $/m', $xref, $offsets ) ) { return false; }
-		foreach ( $offsets[1] as $i => $offset ) {
-			if ( 0 !== strpos( substr( $pdf, (int) $offset ), ( $i + 1 ) . ' 0 obj' ) ) { return false; }
-		}
-		if ( ! preg_match_all( '/<< \/Length (\d+)(?: \/Filter \/FlateDecode)? >>\nstream\n/', $pdf, $streams, PREG_OFFSET_CAPTURE ) ) { return false; }
-		foreach ( $streams[1] as $i => $len ) {
-			$start = $streams[0][ $i ][1] + strlen( $streams[0][ $i ][0] );
-			if ( "\nendstream" !== substr( $pdf, $start + (int) $len[0], 10 ) ) { return false; }
-		}
-		return null === $pages || $pages === preg_match_all( '#/Type /Page /Parent#', $pdf );
-	}
-}
 
 echo "Print: layouts and placeholders\n";
 $item = array( 'event' => 'Gala (Wien)', 'date' => '24.12.2026 19:30', 'location' => 'Saal', 'ticket_category' => 'VIP', 'attendee_name' => 'Ada Lovelace', 'seat_label' => '', 'order' => 'abc', 'qr' => str_repeat( 'a', 64 ) );

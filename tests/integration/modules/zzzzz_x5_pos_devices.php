@@ -13,6 +13,9 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+require_once dirname( __DIR__ ) . '/lib/fixtures_fiscal.php';
+
 use PassCaptain\BoxOffice\DeviceGatewayInterface;
 use PassCaptain\BoxOffice\Devices;
 use PassCaptain\BoxOffice\Page as X5dPage;

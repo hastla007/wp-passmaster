@@ -12,6 +12,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Jobs;
 use PassCaptain\Orders;
 use PassCaptain\ServiceBookings;
@@ -26,15 +28,7 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 // Queue mechanics without the double opt-in step (covered by zzzzzz_z1_security.php).
 $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] = 0;
 
-/** Token of the last mail to $email whose body matches $param=<64 hex>. */
-function svc_token_from_mail( $email, $param ) {
-	foreach ( array_reverse( $GLOBALS['wpcap_test_mails'] ) as $m ) {
-		if ( $m['to'] === $email && preg_match( '/' . preg_quote( $param, '/' ) . '=(\d+)(?:&amp;|&)(?:do=[a-z]+(?:&amp;|&))?token=([a-f0-9]{64})/', $m['body'], $mm ) ) { return array( (int) $mm[1], $mm[2] ); }
-	}
-	return array( 0, '' );
-}
 function svc_entry( $entry_id ) { return ServiceWaitlist::get( $entry_id ); }
-function svc_run_jobs() { svc_reset_limits(); return Jobs::process_due( 100 ); }
 
 echo "Waitlist for full service slots\n";
 list( $wl_event ) = svc_event();

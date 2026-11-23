@@ -11,6 +11,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Admin\ChangeHistory;
 use PassCaptain\Admin\EventsPage;
 use PassCaptain\Admin\Forms;

@@ -12,6 +12,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Z1Woo;
 use PassCaptain\Mail\Types as Z1MailTypes;
 use PassCaptain\Orders;

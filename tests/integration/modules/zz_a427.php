@@ -9,6 +9,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\HelpCode;
 use PassCaptain\Orders;
 use PassCaptain\Printing\BatchJob;

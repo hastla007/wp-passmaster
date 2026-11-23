@@ -23,6 +23,9 @@ if ( PHP_SAPI === 'cli' && isset( $argv ) && in_array( '--seating-child', $argv,
 	exit;
 }
 
+// Shared helpers (after the worker branch: they need the WooCommerce fakes of the bootstrap).
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) { $GLOBALS['wpcap_test_enqueued'][] = $a[0]; } }
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) { $GLOBALS['wpcap_test_enqueued'][] = $a[0]; } }
@@ -47,18 +50,6 @@ function seating_status( $occurrence_id ) {
 	$out = array();
 	foreach ( Reservations::availability( $occurrence_id )['seats'] ?? array() as $seat ) { $out[ $seat['id'] ] = $seat['status']; }
 	return $out;
-}
-function seating_draft() {
-	$seats = array();
-	foreach ( array( 1, 2, 3, 4 ) as $n ) { $seats[] = array( 'key' => 'a' . $n, 'group' => 'ga', 'row' => 'Reihe A', 'label' => (string) $n, 'x' => 40 + 30 * $n, 'y' => 60, 'zone' => 'parkett', 'category' => 'kat1', 'accessible' => 4 === $n ); }
-	foreach ( array( 1, 2 ) as $n ) { $seats[] = array( 'key' => 'b' . $n, 'group' => 'gb', 'row' => 'Reihe B', 'label' => (string) $n, 'x' => 40 + 30 * $n, 'y' => 200, 'zone' => 'balkon', 'category' => 'kat1' ); }
-	return array(
-		'width' => 800, 'height' => 500,
-		'zones' => array( array( 'key' => 'parkett', 'name' => 'Parkett', 'color' => '#2271b1' ), array( 'key' => 'balkon', 'name' => 'Balkon', 'color' => '#d63638' ), array( 'key' => 'steh', 'name' => 'Stehplätze', 'color' => '#00a32a' ) ),
-		'categories' => array( array( 'key' => 'kat1', 'name' => 'Kategorie 1', 'color' => '#00a32a' ) ),
-		'groups' => array( array( 'key' => 'ga', 'type' => 'row', 'label' => '' ), array( 'key' => 'gb', 'type' => 'row', 'label' => '' ), array( 'key' => 'st', 'type' => 'standing', 'label' => 'Stehbereich', 'x' => 400, 'y' => 300, 'w' => 200, 'h' => 100, 'capacity' => 3, 'zone' => 'steh' ) ),
-		'seats' => $seats,
-	);
 }
 
 echo "Seating: editor, versions and sold-seat protection\n";

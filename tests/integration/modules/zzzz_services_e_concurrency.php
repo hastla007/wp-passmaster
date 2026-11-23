@@ -12,6 +12,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\ServiceBookings;
 use PassCaptain\ServiceResources;
@@ -25,19 +27,6 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 // Queue mechanics without the double opt-in step (covered by zzzzzz_z1_security.php).
 $GLOBALS['wpcap_test_options'][ PassCaptain\Settings::OPTION ]['waitlist_double_opt_in'] = 0;
 
-/** Runs worker processes that start at the same moment; returns their outputs in order. */
-function svc_parallel( array $jobs ) {
-	$start = sprintf( '%.3f', microtime( true ) + 1.2 );
-	$procs = array();
-	foreach ( $jobs as $args ) {
-		$procs[] = popen( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( dirname( __DIR__ ) . '/workers/service_worker.php' ) . ' ' . $start . ' ' . implode( ' ', array_map( 'escapeshellarg', array_map( 'strval', $args ) ) ) . ' 2>&1', 'r' );
-	}
-	$out = array();
-	foreach ( $procs as $proc ) { $out[] = trim( (string) stream_get_contents( $proc ) ); pclose( $proc ); }
-	if ( getenv( 'WPCAP_SVC_DEBUG' ) ) { fwrite( STDERR, 'PAR ' . json_encode( $out ) . "\n" ); }
-	return $out;
-}
-function svc_ok( array $out ) { return count( array_filter( $out, static fn( $o ) => str_starts_with( $o, 'OK:' ) ) ); }
 
 echo "Concurrency: slot capacity and collisions\n";
 list( $cc_event ) = svc_event();
