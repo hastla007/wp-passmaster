@@ -141,7 +141,7 @@ final class Capacity {
 			'links' => $links,
 			'gates' => $gates,
 			'order_id' => absint( $context['order_id'] ?? 0 ),
-			'now' => (string) ( $context['now'] ?? current_time( 'mysql', true ) ),
+			'now' => (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() ),
 		);
 		return $result;
 	}
@@ -207,7 +207,7 @@ final class Capacity {
 	/** Free places of an occurrence including foreign pass usage; null when unlimited. */
 	public static function occurrence_remaining( $occurrence, $now = null ) {
 		if ( ! $occurrence || (int) $occurrence->capacity < 1 ) { return null; }
-		$now = $now ? $now : current_time( 'mysql', true );
+		$now = $now ? $now : \PassCaptain\Clock::mysql();
 		$id = (int) $occurrence->occurrence_id;
 		return max( 0, (int) $occurrence->capacity - self::core_used( $id, 0, $now ) - self::pass_used( $id, 0, $now, true ) );
 	}
@@ -216,7 +216,7 @@ final class Capacity {
 	public static function quota_remaining( $occurrence_id, $now = null ) {
 		$quota = Definitions::quota( $occurrence_id );
 		if ( $quota < 1 ) { return null; }
-		return max( 0, $quota - self::pass_used( $occurrence_id, 0, $now ? $now : current_time( 'mysql', true ), false ) );
+		return max( 0, $quota - self::pass_used( $occurrence_id, 0, $now ? $now : \PassCaptain\Clock::mysql(), false ) );
 	}
 
 	/** Filter callback for `wpcap_ticket_availability` (only ever lowers the value). */
@@ -233,7 +233,7 @@ final class Capacity {
 			$check = array( $anchor_id );
 		}
 		if ( ! $check ) { return $remaining; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$min = $remaining;
 		foreach ( $check as $occurrence_id ) {
 			$occ = $occurrence && (int) $occurrence->occurrence_id === $occurrence_id ? $occurrence : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) );

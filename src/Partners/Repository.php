@@ -107,7 +107,7 @@ final class Repository {
 		$removed = 0;
 		$retained = false;
 		if ( '' !== $email && \PassCaptain\Privacy::has_table( 'wpcap_partners' ) ) {
-			$removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partners SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", current_time( 'mysql', true ), $email ) );
+			$removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partners SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", \PassCaptain\Clock::mysql(), $email ) );
 			$retained = $removed > 0 && \PassCaptain\Privacy::has_table( 'wpcap_partner_settlements' ) && (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_snapshot LIKE %s LIMIT 1", '%' . addcslashes( $email, '_%\\' ) . '%' ) );
 		}
 		return array(
@@ -140,7 +140,7 @@ final class Repository {
 		if ( is_wp_error( $seller ) ) { return $seller; }
 		$sales = self::sales_fields( $data, $existing );
 		if ( is_wp_error( $sales ) ) { return $sales; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$row = array(
 			'name' => $name,
 			'contact_name' => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $data['contact_name'] ?? '' ) ), 190 ),
@@ -543,7 +543,7 @@ final class Repository {
 		global $wpdb;
 		if ( ! self::history_ready() ) { return; }
 		$table = $wpdb->prefix . 'wpcap_partner_event_history';
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// A stale open row (link removed outside this class) ends now.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET valid_to=%s WHERE event_id=%d AND valid_to IS NULL", $now, $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		$last = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(valid_to) FROM {$table} WHERE event_id=%d", $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
@@ -557,7 +557,7 @@ final class Repository {
 		global $wpdb;
 		if ( ! self::history_ready() ) { return; }
 		$table = $wpdb->prefix . 'wpcap_partner_event_history';
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET valid_to=%s WHERE event_id=%d AND partner_id=%d AND valid_to IS NULL", $now, $event_id, $partner_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		if ( ! $updated && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE event_id=%d LIMIT 1", $event_id ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 			$wpdb->insert( $table, array( 'event_id' => $event_id, 'partner_id' => $partner_id, 'valid_to' => $now, 'created_by' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'created_at' => $now ) );

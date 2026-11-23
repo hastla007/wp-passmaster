@@ -66,7 +66,7 @@ final class Pools {
 		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'pass-captain' ) ); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
 		$type_name = mb_substr( sanitize_text_field( (string) ( $in['type_name'] ?? '' ) ), 0, 190 );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_pools", array( 'series_id' => (int) $series->series_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) { return self::error( 'wpcap_series_pool_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$pool_id = (int) $wpdb->insert_id;
@@ -82,7 +82,7 @@ final class Pools {
 		if ( is_wp_error( $pool ) ) { return $pool; }
 		$capacity = absint( $capacity );
 		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'pass-captain' ) ); }
-		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'capacity' => $capacity, 'updated_at' => current_time( 'mysql', true ) ), array( 'pool_id' => (int) $pool->pool_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'capacity' => $capacity, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'pool_id' => (int) $pool->pool_id ) );
 		\PassCaptain\Audit::record( 'series_pool_updated', 'series', (int) $pool->series_id, array( 'event_id' => (int) $pool->event_id, 'series_id' => (int) $pool->series_id, 'pool_id' => (int) $pool->pool_id, 'capacity' => $capacity, 'changes' => \PassCaptain\Admin\ChangeHistory::diff( array( 'name' => $pool->name, 'capacity' => (int) $pool->capacity ), array( 'name' => $pool->name, 'capacity' => $capacity ) ) ) );
 		return true;
 	}
@@ -92,7 +92,7 @@ final class Pools {
 		global $wpdb;
 		$pool = self::pool_with_event( $pool_id );
 		if ( is_wp_error( $pool ) ) { return $pool; }
-		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'pool_id' => (int) $pool->pool_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'status' => 'deleted', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'pool_id' => (int) $pool->pool_id ) );
 		\PassCaptain\Audit::record( 'series_pool_deleted', 'series', (int) $pool->series_id, array( 'event_id' => (int) $pool->event_id, 'series_id' => (int) $pool->series_id, 'pool_id' => (int) $pool->pool_id, 'name' => (string) $pool->name ) );
 		return true;
 	}
@@ -196,7 +196,7 @@ final class Pools {
 		$types = (array) ( $context['types'] ?? array() );
 		if ( ! $types ) { return $result; }
 		$pools = self::pools_for_types( $types, true );
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		foreach ( $pools as $entry ) {
 			$need = 0;
 			foreach ( $entry['type_ids'] as $type_id ) { $need += (int) ( $demand[ $type_id ] ?? 0 ); }
@@ -218,7 +218,7 @@ final class Pools {
 		}
 		$min = null;
 		foreach ( self::pools_for_types( array( $type ) ) as $entry ) {
-			$left = max( 0, (int) $entry['pool']->capacity - self::used( self::member_type_ids( $entry['pool'] ), current_time( 'mysql', true ) ) );
+			$left = max( 0, (int) $entry['pool']->capacity - self::used( self::member_type_ids( $entry['pool'] ), \PassCaptain\Clock::mysql() ) );
 			$min = null === $min ? $left : min( $min, $left );
 		}
 		return $min;
@@ -257,7 +257,7 @@ final class Pools {
 		$out = array();
 		foreach ( self::for_series( $series_id ) as $pool ) {
 			$members = self::member_type_ids( $pool );
-			$pool->used = self::used( $members, current_time( 'mysql', true ) );
+			$pool->used = self::used( $members, \PassCaptain\Clock::mysql() );
 			$pool->member_count = count( $members );
 			$out[] = $pool;
 		}

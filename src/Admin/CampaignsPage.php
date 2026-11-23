@@ -215,7 +215,7 @@ final class CampaignsPage {
 
 	/** Whether the campaign can currently be redeemed, as a label. */
 	public static function state_label( $c ) {
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		if ( 'active' !== $c->status ) { return __( 'Deaktiviert', 'pass-captain' ); }
 		if ( $c->starts_at && $c->starts_at > $now ) { return __( 'Geplant', 'pass-captain' ); }
 		if ( $c->ends_at && $c->ends_at < $now ) { return __( 'Abgelaufen', 'pass-captain' ); }

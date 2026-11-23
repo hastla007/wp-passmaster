@@ -59,7 +59,7 @@ final class Campaigns {
 		}
 		$campaigns = array();
 		$table = $wpdb->prefix . 'wpcap_campaigns';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		foreach ( $codes as $code ) {
 			$campaign = $wpdb->get_row( $wpdb->prepare( "SELECT *,discount_value AS value FROM %i WHERE code=%s AND status='active'" . ( $lock ? ' FOR UPDATE' : '' ), $table, $code ) );
 			if ( ! $campaign || ( $campaign->starts_at && $campaign->starts_at > $now ) || ( $campaign->ends_at && $campaign->ends_at < $now ) || ( $campaign->usage_limit > 0 && (int) $campaign->used_count >= (int) $campaign->usage_limit ) || strtoupper( $campaign->currency ) !== strtoupper( $currency ) ) {
@@ -262,7 +262,7 @@ final class Campaigns {
 		$uses = $wpdb->prefix . 'wpcap_campaign_uses';
 		foreach ( $adjustments as $adjustment ) {
 			$campaign = $adjustment['campaign'];
-			$inserted = $wpdb->insert( $uses, array( 'campaign_id' => (int) $campaign->campaign_id, 'order_id' => (int) $order_id, 'code' => $campaign->code, 'discount_minor' => (int) $adjustment['amount_minor'], 'status' => 'reserved', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%d', '%s', '%s' ) );
+			$inserted = $wpdb->insert( $uses, array( 'campaign_id' => (int) $campaign->campaign_id, 'order_id' => (int) $order_id, 'code' => $campaign->code, 'discount_minor' => (int) $adjustment['amount_minor'], 'status' => 'reserved', 'created_at' => Clock::mysql() ), array( '%d', '%d', '%s', '%d', '%s', '%s' ) );
 			if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_use_failed', __( 'Kampagnennutzung konnte nicht gespeichert werden.', 'pass-captain' ) ); }
 			$updated = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET used_count=used_count+1 WHERE campaign_id=%d AND (usage_limit=0 OR used_count<usage_limit)', $campaigns, $campaign->campaign_id ) );
 			if ( 1 !== $updated ) { return new \WP_Error( 'wpcap_campaign_exhausted', __( 'Das Kampagnenlimit wurde während des Checkouts erreicht.', 'pass-captain' ) ); }
@@ -427,7 +427,7 @@ final class Campaigns {
 			'name' => sanitize_text_field( $data['name'] ?? $code ), 'kind' => $kind, 'discount_value' => $value, 'currency' => $currency,
 			'usage_limit' => absint( $data['usage_limit'] ?? 0 ), 'used_count' => 0, 'priority' => min( 1000, absint( $data['priority'] ?? 100 ) ),
 			'starts_at' => $window['starts_at'], 'ends_at' => $window['ends_at'],
-			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
+			'status' => 'active', 'created_at' => Clock::mysql(),
 		) + self::stacking_values( $data ) );
 		if ( false === $inserted ) {
 			// A parallel request took the code (unique index): the same neutral answer.
@@ -514,7 +514,7 @@ final class Campaigns {
 		$prefix = substr( self::normalize_code( $prefix ), 0, 12 );
 		$prefix = '' === $prefix ? '' : rtrim( $prefix, '-' ) . '-';
 		$table = $wpdb->prefix . 'wpcap_campaigns';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$columns = array( 'event_id', 'ticket_type_id', 'code', 'name', 'kind', 'discount_value', 'currency', 'usage_limit', 'used_count', 'priority', 'starts_at', 'ends_at', 'status', 'combinable', 'with_price_rules', 'max_discount_minor', 'min_quantity', 'auto_apply', 'per_buyer_limit', 'batch_id', 'created_at' );
 		$codes = array();
 		$attempts = 0;
@@ -619,7 +619,7 @@ final class Campaigns {
 		global $wpdb;
 		$currency = strtoupper( (string) $currency );
 		if ( ! isset( self::$active[ $currency ] ) ) {
-			$now = current_time( 'mysql', true );
+			$now = Clock::mysql();
 			self::$active[ $currency ] = array_flip( array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
 				"SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_campaigns WHERE status='active' AND currency=%s AND (starts_at IS NULL OR starts_at<=%s) AND (ends_at IS NULL OR ends_at>=%s) AND (usage_limit=0 OR used_count<usage_limit)",
 				$currency,

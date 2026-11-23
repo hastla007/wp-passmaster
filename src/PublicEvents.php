@@ -810,7 +810,7 @@ final class PublicEvents {
 		global $wpdb;
 		$occ_ids = array_values( array_unique( array_filter( array_map( 'absint', $occ_ids ) ) ) );
 		if ( ! $occ_ids ) { return array( array(), array() ); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 		$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,sales_start FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_end IS NULL OR sales_end >= %s)", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) );
 		$status = array();
@@ -1177,7 +1177,7 @@ final class PublicEvents {
 			if ( empty( $listing[ (int) $row->occurrence_id ] ) ) { $ids[] = (int) $row->occurrence_id; }
 		}
 		if ( ! $ids ) { return array(); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$out = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id, MIN(sales_start) AS sales_start FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( array_unique( $ids ) ), '%d' ) ) . ") AND status='active' AND sales_start > %s AND (sales_end IS NULL OR sales_end > sales_start) GROUP BY occurrence_id", array_merge( array_values( array_unique( $ids ) ), array( $now ) ) ) ) as $row ) {
 			$out[ (int) $row->occurrence_id ] = (string) $row->sales_start;
@@ -1245,7 +1245,7 @@ final class PublicEvents {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		if ( ! $rows ) { return array(); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$event_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) );
 		$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
 		$translations = array();
@@ -1392,7 +1392,7 @@ final class PublicEvents {
 	public static function block_choices() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$events = array();
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT e.event_id,e.name,MIN(o.starts_at) AS next_start,COUNT(*) AS dates FROM {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s GROUP BY e.event_id,e.name ORDER BY next_start ASC,e.event_id ASC LIMIT %d",

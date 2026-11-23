@@ -76,7 +76,7 @@ final class PayoutAccount {
 		$normalized = self::normalize_iban( $iban );
 		if ( '' === $normalized ) { return new \WP_Error( 'wpcap_payout_iban', __( 'Die IBAN ist ungültig.', 'pass-captain' ), array( 'status' => 400, 'field' => 'iban' ) ); }
 		if ( '' === $holder ) { return new \WP_Error( 'wpcap_payout_holder', __( 'Bitte den Namen des Kontoinhabers angeben.', 'pass-captain' ), array( 'status' => 400, 'field' => 'holder' ) ); }
-		$data = array( 'iban' => $normalized, 'holder' => $holder, 'updated_at' => current_time( 'mysql', true ) );
+		$data = array( 'iban' => $normalized, 'holder' => $holder, 'updated_at' => Clock::mysql() );
 		$ok = $wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payout_account' => wp_json_encode( $data ) ), array( 'order_id' => (int) $order->order_id ) );
 		if ( false === $ok ) { return new \WP_Error( 'wpcap_payout_save', __( 'Die Bankverbindung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'payout_account_saved', 'order', (int) $order->order_id );

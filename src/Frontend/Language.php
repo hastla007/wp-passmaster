@@ -74,7 +74,7 @@ final class Language {
 		$public_id = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $public_id ) );
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( (string) $token ) );
 		$order = 32 === strlen( $public_id ) ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) ) : null;
-		if ( ! $order || 64 !== strlen( $token ) || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) {
+		if ( ! $order || 64 !== strlen( $token ) || ! $order->access_expires_at || $order->access_expires_at <= \PassCaptain\Clock::mysql() || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) {
 			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$locale = Localization::normalize_buyer_locale( $locale );
@@ -82,7 +82,7 @@ final class Language {
 			return new \WP_Error( 'wpcap_locale_unsupported', __( 'Diese Sprache wird nicht unterstützt.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( $locale !== (string) $order->locale ) {
-			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'locale' => $locale, 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'locale' => $locale, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
 			Audit::record( 'order_locale_changed', 'order', (int) $order->order_id, array( 'from' => (string) $order->locale, 'to' => $locale, 'source' => 'portal' ) );
 			$order->locale = $locale;
 		}

@@ -127,7 +127,7 @@ final class PriceRules {
 		$currency = $type ? (string) $type->currency : (string) ( $ref->currency ?? 'EUR' );
 		$rule = Engine::normalize( $in, $timezone ?: 'UTC', $currency ?: 'EUR' );
 		if ( is_wp_error( $rule ) ) { return $rule; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( "{$p}wpcap_price_rules", $rule + array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) { return self::error( 'wpcap_price_rule_save', __( 'Die Preisregel konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$rule_id = (int) $wpdb->insert_id;
@@ -142,7 +142,7 @@ final class PriceRules {
 		$rule = $wpdb->get_row( $wpdb->prepare( 'SELECT rule_id,event_id FROM %i WHERE rule_id=%d', $wpdb->prefix . 'wpcap_price_rules', absint( $rule_id ) ) );
 		if ( ! $rule ) { return self::error( 'wpcap_price_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $rule->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$wpdb->update( "{$wpdb->prefix}wpcap_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_price_rules", array( 'status' => 'deleted', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'rule_id' => (int) $rule->rule_id ) );
 		self::flush_cache();
 		Audit::record( 'price_rule_deleted', 'event', (int) $rule->event_id, array( 'rule_id' => (int) $rule->rule_id ) );
 		return true;
@@ -177,7 +177,7 @@ final class PriceRules {
 		if ( ! $occurrence || ! isset( $occurrence->event_id ) ) { return null; }
 		$rules = self::candidates( $type, $occurrence );
 		if ( ! $rules ) { return null; }
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		return Engine::select( $rules, array(
 			'now' => $now,
 			'starts_at' => $occurrence->starts_at,
@@ -213,7 +213,7 @@ final class PriceRules {
 			'base_minor' => (int) $price,
 			'unit_minor' => (int) $new,
 			'explanation' => self::explain( $rule, $context['occurrence'] ?? null ),
-			'evaluated_at' => (string) ( $context['now'] ?? current_time( 'mysql', true ) ),
+			'evaluated_at' => (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() ),
 		);
 		return $new;
 	}

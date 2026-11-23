@@ -253,7 +253,7 @@ final class ZReport {
 			'difference_reason' => mb_substr( (string) $reason, 0, 255 ),
 			'totals' => wp_json_encode( $totals ),
 			'prev_hash' => $last ? (string) $last->hash : '',
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => \PassCaptain\Clock::mysql(),
 		);
 		$row['hash'] = self::hash( $row );
 		if ( false === $wpdb->insert( self::t( 'zreports' ), $row ) ) {

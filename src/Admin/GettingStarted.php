@@ -36,7 +36,7 @@ final class GettingStarted {
 	public static function state() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$counts = $wpdb->get_row( $wpdb->prepare(
 			"SELECT
 				(SELECT COUNT(*) FROM {$p}wpcap_events) AS events,

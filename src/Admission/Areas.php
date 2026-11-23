@@ -50,7 +50,7 @@ final class Areas {
 			$wpdb->update( "{$wpdb->prefix}wpcap_admission_areas", $data, array( 'area_id' => (int) $area_id ) );
 			return (int) $area_id;
 		}
-		$wpdb->insert( "{$wpdb->prefix}wpcap_admission_areas", $data + array( 'event_id' => absint( $event_id ), 'status' => 'active', 'created_at' => current_time( 'mysql', true ) ) );
+		$wpdb->insert( "{$wpdb->prefix}wpcap_admission_areas", $data + array( 'event_id' => absint( $event_id ), 'status' => 'active', 'created_at' => \PassCaptain\Clock::mysql() ) );
 		return (int) $wpdb->insert_id;
 	}
 
@@ -235,7 +235,7 @@ final class Areas {
 	/** Remembers an offline sync upload of a device. */
 	public static function touch_device_sync( $device_id, $scans ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (device_id,last_sync_at,last_sync_scans) VALUES (%d,%s,%d) ON DUPLICATE KEY UPDATE last_sync_at=VALUES(last_sync_at), last_sync_scans=VALUES(last_sync_scans)', $wpdb->prefix . 'wpcap_admission_devices', absint( $device_id ), current_time( 'mysql', true ), absint( $scans ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (device_id,last_sync_at,last_sync_scans) VALUES (%d,%s,%d) ON DUPLICATE KEY UPDATE last_sync_at=VALUES(last_sync_at), last_sync_scans=VALUES(last_sync_scans)', $wpdb->prefix . 'wpcap_admission_devices', absint( $device_id ), \PassCaptain\Clock::mysql(), absint( $scans ) ) );
 	}
 
 	/**

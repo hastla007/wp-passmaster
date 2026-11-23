@@ -54,7 +54,7 @@ final class Shifts {
 	}
 
 	private static function now() {
-		return current_time( 'mysql', true );
+		return \PassCaptain\Clock::mysql();
 	}
 
 	/* ------------------------------------------------------------------ lookups */

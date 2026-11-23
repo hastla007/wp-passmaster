@@ -76,7 +76,7 @@ final class EventsPage {
 		$status = Forms::choice( $in, 'status', array( 'draft', 'published' ), 'draft' );
 		$repeat = Forms::choice( $in, 'repeat_frequency', array( 'none', 'weekly' ), 'none' );
 		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, Forms::int( $in, 'repeat_count', 1 ) ) ) : 1;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$slug = \PassCaptain\Text::cut( sanitize_title( $name ), 180 ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
 
 		global $wpdb;
@@ -151,7 +151,7 @@ final class EventsPage {
 	public static function publish_issues( $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$rows = (array) $wpdb->get_results( $wpdb->prepare(
 			"SELECT o.occurrence_id, o.timezone, tt.ticket_type_id, tt.currency, tt.sales_start, tt.sales_end FROM {$p}wpcap_occurrences o LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id AND tt.status='active' WHERE o.event_id=%d AND o.status='scheduled' AND o.starts_at >= %s",
 			(int) $event_id,
@@ -228,7 +228,7 @@ final class EventsPage {
 			'name' => $name,
 			'description' => wp_kses_post( (string) ( $in['description'] ?? '' ) ),
 			'status' => $status,
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		);
 		$formats = array( '%s', '%s', '%s', '%s' );
 		$extra = array();
@@ -722,7 +722,7 @@ final class EventsPage {
 	public static function upcoming_occurrences( $event_id, $except = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id,starts_at,timezone FROM {$p}wpcap_occurrences WHERE event_id=%d AND occurrence_id<>%d AND status='scheduled' AND starts_at>=%s ORDER BY starts_at,occurrence_id", absint( $event_id ), absint( $except ), current_time( 'mysql', true ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT occurrence_id,starts_at,timezone FROM {$p}wpcap_occurrences WHERE event_id=%d AND occurrence_id<>%d AND status='scheduled' AND starts_at>=%s ORDER BY starts_at,occurrence_id", absint( $event_id ), absint( $except ), \PassCaptain\Clock::mysql() ) );
 	}
 
 	/**
@@ -734,7 +734,7 @@ final class EventsPage {
 	public static function sibling_types( $event_id, $except_occurrence, $name ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.timezone,o.starts_at AS occurrence_starts_at FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.occurrence_id<>%d AND o.status='scheduled' AND o.starts_at>=%s AND tt.name=%s AND tt.status<>'archived' ORDER BY o.starts_at,tt.ticket_type_id", absint( $event_id ), absint( $except_occurrence ), current_time( 'mysql', true ), (string) $name ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.timezone,o.starts_at AS occurrence_starts_at FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.occurrence_id<>%d AND o.status='scheduled' AND o.starts_at>=%s AND tt.name=%s AND tt.status<>'archived' ORDER BY o.starts_at,tt.ticket_type_id", absint( $event_id ), absint( $except_occurrence ), \PassCaptain\Clock::mysql(), (string) $name ) );
 	}
 
 	/**

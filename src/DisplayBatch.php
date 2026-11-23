@@ -34,7 +34,7 @@ final class DisplayBatch {
 		$type_ids = array_values( array_unique( array_filter( array_map( 'absint', $type_ids ) ) ) );
 		self::$batch = array(
 			'prefix' => $wpdb->prefix,
-			'now' => current_time( 'mysql', true ),
+			'now' => Clock::mysql(),
 			'types' => array(),
 			'occurrences' => array(),
 			'memo' => array(),
@@ -99,7 +99,7 @@ final class DisplayBatch {
 
 	/** UTC time the batch started (one "now" for every lookup of the page). */
 	public static function now() {
-		return self::active() ? self::$batch['now'] : current_time( 'mysql', true );
+		return self::active() ? self::$batch['now'] : Clock::mysql();
 	}
 
 	/**

@@ -85,7 +85,7 @@ final class Policy {
 		if ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) {
 			return new \WP_Error( 'wpcap_exchange_event', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
-		$row = array( 'event_id' => $event_id, 'updated_at' => current_time( 'mysql', true ) );
+		$row = array( 'event_id' => $event_id, 'updated_at' => \PassCaptain\Clock::mysql() );
 		$clean = self::sanitize( array_merge( self::defaults(), array_filter( $in, static function ( $v ) { return null !== $v && '' !== $v; } ) ) );
 		foreach ( self::EVENT_KEYS as $key ) {
 			$row[ $key ] = array_key_exists( $key, $in ) && null !== $in[ $key ] && '' !== $in[ $key ] ? $clean[ $key ] : null;

@@ -74,7 +74,7 @@ final class Revisions {
 		if ( ! $occurrence_id || ! self::ready() ) { return 0; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET revision=revision+1,revised_at=%s WHERE occurrence_id=%d", current_time( 'mysql', true ), $occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET revision=revision+1,revised_at=%s WHERE occurrence_id=%d", \PassCaptain\Clock::mysql(), $occurrence_id ) );
 		return self::current( $occurrence_id );
 	}
 
@@ -84,7 +84,7 @@ final class Revisions {
 		if ( ! $ids || ! self::ready() ) { return; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET revision=revision+1,revised_at=%s WHERE occurrence_id IN (" . implode( ',', $ids ) . ')', current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET revision=revision+1,revised_at=%s WHERE occurrence_id IN (" . implode( ',', $ids ) . ')', \PassCaptain\Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
 	/** Current revision of an occurrence (0 when unknown or before the upgrade). */

@@ -445,7 +445,7 @@ final class ServicesPage {
 		} else {
 			$targets = array();
 			foreach ( ServiceResources::slots( $slot->resource_id ) as $other ) {
-				if ( (int) $other->slot_id !== (int) $slot->slot_id && 'open' === $other->status && $other->starts_at > current_time( 'mysql', true ) ) { $targets[ (string) (int) $other->slot_id ] = Forms::datetime( $other->starts_at, $tz, false ) . ' (' . ( (int) $other->capacity - (int) $other->booked ) . ')'; }
+				if ( (int) $other->slot_id !== (int) $slot->slot_id && 'open' === $other->status && $other->starts_at > \PassCaptain\Clock::mysql() ) { $targets[ (string) (int) $other->slot_id ] = Forms::datetime( $other->starts_at, $tz, false ) . ' (' . ( (int) $other->capacity - (int) $other->booked ) . ')'; }
 			}
 			echo '<table class="widefat striped"><thead><tr>';
 			foreach ( array( __( 'Buchung', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Anzahl', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Betrag', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Angelegt', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $head ) {

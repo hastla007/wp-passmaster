@@ -151,7 +151,7 @@ final class TicketsPage {
 		if ( '' === $key && isset( $context['idempotency_key'] ) && is_scalar( $context['idempotency_key'] ) ) { $key = mb_substr( sanitize_text_field( (string) $context['idempotency_key'] ), 0, 190 ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$busy = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_db_busy', __( 'Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
@@ -248,7 +248,7 @@ final class TicketsPage {
 		// A532: each write and the COMMIT are checked; nothing is reported or audited as corrected otherwise.
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
 		$ticket_saved = $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%s' ), array( '%d' ) );
-		$assignment_saved = false === $ticket_saved ? false : $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $ticket->customer_email, $email, $name, current_time( 'mysql', true ) ) );
+		$assignment_saved = false === $ticket_saved ? false : $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $ticket->customer_email, $email, $name, \PassCaptain\Clock::mysql() ) );
 		if ( false === $assignment_saved || $wpdb->last_error ) { return $failed(); }
 		\PassCaptain\TicketAssignments::touch( array( (int) $ticket->ticket_id ) ); // A574: partner API "since".
 		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }

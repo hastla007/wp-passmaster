@@ -53,7 +53,7 @@ final class Conflicts {
 			empty( $data['scanned_at'] ) ? '' : (string) $data['scanned_at'],
 			absint( $data['checkin_id'] ?? 0 ), $first ? (int) $first->checkin_id : 0, $first ? (int) $first->device_id : 0, $first ? (int) $first->user_id : 0,
 			$first ? (string) $first->at : '',
-			current_time( 'mysql', true )
+			\PassCaptain\Clock::mysql()
 		) );
 		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT conflict_id FROM %i WHERE dedupe_key=%s', $p . 'wpcap_admission_conflicts', $dedupe ) );
 		if ( $id && $id === (int) $wpdb->insert_id ) {
@@ -159,7 +159,7 @@ final class Conflicts {
 		if ( 'other' === $resolution && '' === $note ) {
 			return new \WP_Error( 'wpcap_conflict_note', __( 'Bei „Sonstiges“ ist eine Notiz erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution=%s, resolution_note=%s, resolved_by=%d, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', $resolution, $note, get_current_user_id(), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution=%s, resolution_note=%s, resolved_by=%d, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', $resolution, $note, get_current_user_id(), \PassCaptain\Clock::mysql(), (int) $conflict->conflict_id ) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'wpcap_conflict_resolved', __( 'Dieser Konflikt wurde bereits geklärt.', 'pass-captain' ), array( 'status' => 409 ) );
 		}

@@ -167,7 +167,7 @@ final class Definitions {
 
 	/** Units sold or actively held of a pass type (paid minus refunded plus active holds). */
 	public static function sold_units( $type_id ) {
-		return Capacity::type_units( array( absint( $type_id ) ), 0, current_time( 'mysql', true ) );
+		return Capacity::type_units( array( absint( $type_id ) ), 0, \PassCaptain\Clock::mysql() );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -266,7 +266,7 @@ final class Definitions {
 
 		// Occurrences added to a pass that is already sold must have room for the sold passes.
 		$sold = self::sold_units( $type_id );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		if ( $sold > 0 ) {
 			foreach ( array_diff( $ids, $previous ? $previous->occurrence_ids : array() ) as $id ) {
 				$occ = $occurrences[ $id ];
@@ -321,7 +321,7 @@ final class Definitions {
 		if ( ! $event_id ) { return self::error( 'wpcap_pass_occurrences', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$gates = self::table( 'gates' );
-		$wpdb->query( $wpdb->prepare( "INSERT INTO $gates (occurrence_id,pass_quota,updated_at) VALUES (%d,%d,%s) ON DUPLICATE KEY UPDATE pass_quota=VALUES(pass_quota),updated_at=VALUES(updated_at)", $occurrence_id, absint( $quota ), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$wpdb->query( $wpdb->prepare( "INSERT INTO $gates (occurrence_id,pass_quota,updated_at) VALUES (%d,%d,%s) ON DUPLICATE KEY UPDATE pass_quota=VALUES(pass_quota),updated_at=VALUES(updated_at)", $occurrence_id, absint( $quota ), \PassCaptain\Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		Audit::record( 'pass_quota_saved', 'occurrence', $occurrence_id, array( 'pass_quota' => absint( $quota ) ) );
 		return true;
 	}

@@ -81,7 +81,7 @@ final class Rules {
 		$rules = array( 'enabled' => ! empty( $in['enabled'] ), 'max_offline_hours' => $hours, 'duplicate_policy' => $policy, 'include_attendee' => ! empty( $in['include_attendee'] ) );
 		$wpdb->query( $wpdb->prepare(
 			'INSERT INTO %i (event_id,enabled,max_offline_hours,duplicate_policy,include_attendee,updated_by,updated_at) VALUES (%d,%d,%d,%s,%d,%d,%s) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),max_offline_hours=VALUES(max_offline_hours),duplicate_policy=VALUES(duplicate_policy),include_attendee=VALUES(include_attendee),updated_by=VALUES(updated_by),updated_at=VALUES(updated_at)', $wpdb->prefix . 'wpcap_offline_events',
-			absint( $event_id ), $rules['enabled'] ? 1 : 0, $hours, $policy, $rules['include_attendee'] ? 1 : 0, get_current_user_id(), current_time( 'mysql', true )
+			absint( $event_id ), $rules['enabled'] ? 1 : 0, $hours, $policy, $rules['include_attendee'] ? 1 : 0, get_current_user_id(), \PassCaptain\Clock::mysql()
 		) );
 		Audit::record( 'offline_rules_saved', 'event', absint( $event_id ), $rules );
 		return $rules;

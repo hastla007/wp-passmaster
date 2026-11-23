@@ -46,7 +46,7 @@ final class ApiKeysPage {
 				$event_id = Forms::int( $in, 'event_id' );
 				if ( ! $event_id || ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 				$expires = FeatureScreens::optional_local( $in, 'expires_at', FeatureScreens::site_timezone() );
-				if ( null === $expires || ( '' !== $expires && $expires <= current_time( 'mysql', true ) ) ) {
+				if ( null === $expires || ( '' !== $expires && $expires <= \PassCaptain\Clock::mysql() ) ) {
 					return Forms::error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ) );
 				}
 				$scopes = array_values( array_intersect( array_map( 'strval', array_filter( (array) ( $in['scopes'] ?? array() ), 'is_scalar' ) ), array_keys( DeveloperKeys::scopes() ) ) );
@@ -90,7 +90,7 @@ final class ApiKeysPage {
 
 	public static function status_of( $key ) {
 		if ( $key->revoked_at ) { return 'revoked'; }
-		if ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) { return 'expired'; }
+		if ( $key->expires_at && $key->expires_at <= \PassCaptain\Clock::mysql() ) { return 'expired'; }
 		return 'active';
 	}
 

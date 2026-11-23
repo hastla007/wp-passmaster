@@ -117,7 +117,7 @@ final class BuyerLimits {
 				return self::error( 'wpcap_buyer_limit_scope', __( 'Die Ticketart gehört nicht zu diesem Event bzw. Termin.', 'pass-captain' ) );
 			}
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( "{$p}wpcap_buyer_limits", array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'max_quantity' => $max, 'match_by' => $match, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) { return self::error( 'wpcap_buyer_limit_save', __( 'Das Käuferlimit konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$id = (int) $wpdb->insert_id;
@@ -131,7 +131,7 @@ final class BuyerLimits {
 		$limit = $wpdb->get_row( $wpdb->prepare( 'SELECT limit_id,event_id FROM %i WHERE limit_id=%d', $wpdb->prefix . 'wpcap_buyer_limits', absint( $limit_id ) ) );
 		if ( ! $limit ) { return self::error( 'wpcap_buyer_limit_missing', __( 'Käuferlimit nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $limit->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$wpdb->update( "{$wpdb->prefix}wpcap_buyer_limits", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'limit_id' => (int) $limit->limit_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_buyer_limits", array( 'status' => 'deleted', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'limit_id' => (int) $limit->limit_id ) );
 		Audit::record( 'buyer_limit_deleted', 'event', (int) $limit->event_id, array( 'limit_id' => (int) $limit->limit_id ) );
 		return true;
 	}

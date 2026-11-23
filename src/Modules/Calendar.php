@@ -330,7 +330,7 @@ final class Calendar {
 	}
 
 	public static function render_list( $event_id = 0, $limit = 50, $wrapper = '' ) {
-		$rows = self::occurrences( current_time( 'mysql', true ), '9999-12-31 00:00:00', $event_id, $limit ?: 50, self::show_cancelled() );
+		$rows = self::occurrences( \PassCaptain\Clock::mysql(), '9999-12-31 00:00:00', $event_id, $limit ?: 50, self::show_cancelled() );
 		$out = self::open_root( (string) $wrapper, 'list' );
 		if ( ! $rows ) {
 			return $out . '<p>' . esc_html__( 'Aktuell sind keine Termine geplant.', 'pass-captain' ) . '</p></div>';
@@ -401,7 +401,7 @@ final class Calendar {
 		// The local dates of this month, in any timezone (UTC-12 … UTC+14), lie inside this UTC window.
 		$utc = new \DateTimeZone( 'UTC' );
 		$from = ( new \DateTime( $month . '-01 00:00:00', $utc ) )->modify( '-14 hours' )->format( 'Y-m-d H:i:s' );
-		$from = max( $from, current_time( 'mysql', true ) ); // Upcoming only.
+		$from = max( $from, \PassCaptain\Clock::mysql() ); // Upcoming only.
 		$to = ( new \DateTime( $next->format( 'Y-m-d' ) . ' 00:00:00', $utc ) )->modify( '+12 hours' )->format( 'Y-m-d H:i:s' );
 		$by_day = array();
 		$rows = array();

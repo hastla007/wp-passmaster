@@ -116,7 +116,7 @@ final class TaxProfiles {
 		if ( is_wp_error( $row ) ) { return $row; }
 		$duplicate = $wpdb->get_var( $wpdb->prepare( 'SELECT tax_profile_id FROM %i WHERE country_code=%s AND tax_class=%s AND version=%s', self::table(), $row['country_code'], $row['tax_class'], $row['version'] ) );
 		if ( $duplicate ) { return self::error( 'wpcap_tax_profile_duplicate', __( 'Diese Version existiert für Land und Steuerklasse bereits.', 'pass-captain' ), 409 ); }
-		$ok = $wpdb->insert( self::table(), $row + array( 'status' => 'draft', 'created_at' => current_time( 'mysql', true ) ) );
+		$ok = $wpdb->insert( self::table(), $row + array( 'status' => 'draft', 'created_at' => \PassCaptain\Clock::mysql() ) );
 		if ( ! $ok ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$id = (int) $wpdb->insert_id;
 		Audit::record( 'tax_profile_created', 'tax_profile', $id, array( 'country' => $row['country_code'], 'class' => $row['tax_class'], 'version' => $row['version'], 'rate_bp' => $row['rate_basis_points'] ) );
@@ -154,7 +154,7 @@ final class TaxProfiles {
 			/* translators: %s: version of the overlapping profile */
 			return self::error( 'wpcap_tax_profile_overlap', sprintf( __( 'Der Gültigkeitszeitraum überschneidet sich mit der aktiven Version %s. Bitte deren „gültig bis“ zuerst über eine neue Version begrenzen oder sie archivieren.', 'pass-captain' ), $overlap->version ), 409 );
 		}
-		$wpdb->update( self::table(), array( 'status' => 'active', 'activated_at' => current_time( 'mysql', true ) ), array( 'tax_profile_id' => (int) $profile->tax_profile_id ) );
+		$wpdb->update( self::table(), array( 'status' => 'active', 'activated_at' => \PassCaptain\Clock::mysql() ), array( 'tax_profile_id' => (int) $profile->tax_profile_id ) );
 		Audit::record( 'tax_profile_activated', 'tax_profile', (int) $profile->tax_profile_id, array( 'country' => $profile->country_code, 'class' => $profile->tax_class, 'version' => $profile->version, 'rate_bp' => (int) $profile->rate_basis_points ) );
 		return true;
 	}

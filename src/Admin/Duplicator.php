@@ -62,7 +62,7 @@ final class Duplicator {
 		if ( ! $occ || ! Access::can_access_event( (int) $occ->event_id, EventsPage::CAP ) ) { return Forms::forbidden( __( 'Nicht gefunden oder keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$status = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE event_id=%d', $p . 'wpcap_events', (int) $occ->event_id ) );
 		if ( 'cancelled' === $status ) { return Forms::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 ); }
-		if ( ! is_string( $starts_at ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $starts_at ) || $starts_at <= current_time( 'mysql', true ) ) {
+		if ( ! is_string( $starts_at ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $starts_at ) || $starts_at <= \PassCaptain\Clock::mysql() ) {
 			return Forms::error( 'wpcap_duplicate_start', __( 'Bitte einen Beginn in der Zukunft angeben.', 'pass-captain' ) );
 		}
 		if ( $wpdb->get_var( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE event_id=%d AND starts_at=%s', $p . 'wpcap_occurrences', (int) $occ->event_id, $starts_at ) ) ) {
@@ -101,7 +101,7 @@ final class Duplicator {
 		$p = $wpdb->prefix;
 		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d', $p . 'wpcap_events', absint( $event_id ) ), ARRAY_A );
 		if ( ! $event || ! current_user_can( EventsPage::CAP ) || ! Access::can_access_event( (int) $event['event_id'], EventsPage::CAP ) ) { return Forms::forbidden( __( 'Nicht gefunden oder keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$source_id = (int) $event['event_id'];
 		unset( $event['event_id'] );
 		/* translators: %s: event name */

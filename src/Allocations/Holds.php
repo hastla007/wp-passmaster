@@ -102,7 +102,7 @@ final class Holds {
 	public static function open_units( $hold ) {
 		$hold = is_object( $hold ) ? $hold : self::get( $hold );
 		if ( ! $hold ) { return 0; }
-		$stale = Capacity::stale_usage( array( (int) $hold->hold_id ), current_time( 'mysql', true ) );
+		$stale = Capacity::stale_usage( array( (int) $hold->hold_id ), \PassCaptain\Clock::mysql() );
 		return Capacity::open( $hold, $stale[ (int) $hold->hold_id ] ?? 0 );
 	}
 
@@ -142,7 +142,7 @@ final class Holds {
 		foreach ( (array) $rows as $row ) { $holds[ (int) $row->hold_id ] = $row; }
 		$phase = (string) ( $context['phase'] ?? 'create' );
 		$source = sanitize_key( (string) ( $context['source'] ?? 'native' ) );
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		$order_id = absint( $context['order_id'] ?? 0 );
 		self::$tx = array(
 			'phase' => $phase,
@@ -285,7 +285,7 @@ final class Holds {
 		$holds = array();
 		foreach ( self::for_occurrence( (int) $occurrence->occurrence_id ) as $hold ) { $holds[ (int) $hold->hold_id ] = $hold; }
 		if ( ! $holds ) { return $remaining; }
-		$public = Capacity::public_remaining( $type, $occurrence, $holds, current_time( 'mysql', true ) );
+		$public = Capacity::public_remaining( $type, $occurrence, $holds, \PassCaptain\Clock::mysql() );
 		return null === $public ? $remaining : min( (int) $remaining, $public );
 	}
 
@@ -305,7 +305,7 @@ final class Holds {
 		$need = $partial ? absint( $details['quantity'] ?? 0 ) : PHP_INT_MAX;
 		if ( $partial && ( ! $type_id || ! $need ) ) { return; }
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'usage' ) . " WHERE order_id=%d AND status='active'" . ( $type_id ? $wpdb->prepare( ' AND ticket_type_id=%d', $type_id ) : '' ) . ' ORDER BY usage_id', $order_id ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		foreach ( (array) $rows as $row ) {
 			if ( $need < 1 ) { break; }
 			$units = min( $need, (int) $row->quantity - (int) $row->released );
@@ -377,7 +377,7 @@ final class Holds {
 		if ( 'kill' === $kind ) { $hours = 0; }
 		if ( '' === $name ) { return self::error( 'wpcap_alloc_name', __( 'Bitte einen Namen für das Kontingent angeben.', 'pass-captain' ) ); }
 		if ( $quantity < 1 || $quantity > 100000 ) { return self::error( 'wpcap_alloc_quantity', __( 'Bitte eine Anzahl ab 1 angeben.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( $occurrence_id );
 		if ( ! $locked['occurrence'] ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
@@ -418,7 +418,7 @@ final class Holds {
 		global $wpdb;
 		$hold = self::get( $hold_id );
 		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
@@ -457,7 +457,7 @@ final class Holds {
 		global $wpdb;
 		$hold = self::get( $hold_id );
 		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
@@ -505,7 +505,7 @@ final class Holds {
 	 */
 	public static function auto_release_due( $now = null ) {
 		global $wpdb;
-		$now = $now ? (string) $now : current_time( 'mysql', true );
+		$now = $now ? (string) $now : \PassCaptain\Clock::mysql();
 		$ids = $wpdb->get_col( $wpdb->prepare(
 			'SELECT h.hold_id FROM ' . self::table( 'holds' ) . " h INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=h.occurrence_id WHERE h.status='active' AND h.kind='hold' AND h.release_hours>0 AND DATE_SUB(o.starts_at, INTERVAL h.release_hours HOUR) <= %s ORDER BY h.hold_id LIMIT 200",
 			$now

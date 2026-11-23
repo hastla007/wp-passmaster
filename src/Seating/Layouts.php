@@ -495,7 +495,7 @@ final class Layouts {
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::forbidden(); }
 		$name = self::text( $name, 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_seating_name', __( 'Bitte einen Namen für den Saalplan angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->insert( self::table( 'layouts' ), array( 'event_id' => $event_id, 'name' => $name, 'draft' => wp_json_encode( self::empty_draft() ), 'draft_revision' => 0, 'published_version' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$layout_id = (int) $wpdb->insert_id;
 		if ( ! $layout_id ) { return new \WP_Error( 'wpcap_seating_save', __( 'Der Saalplan konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -532,7 +532,7 @@ final class Layouts {
 			"UPDATE %i SET draft=%s,updated_at=%s,name=IF(%d=1,%s,name),draft_revision=draft_revision+1 WHERE layout_id=%d AND (%d=0 OR draft_revision=%d)",
 			self::table( 'layouts' ),
 			wp_json_encode( $normalized ),
-			current_time( 'mysql', true ),
+			\PassCaptain\Clock::mysql(),
 			'' !== $new_name ? 1 : 0,
 			$new_name,
 			(int) $layout->layout_id,
@@ -571,7 +571,7 @@ final class Layouts {
 				if ( $lost ) { throw new SeatingException( self::mapping_error( $lost ) ); }
 			}
 			$version = (int) $layout->published_version + 1;
-			$now = current_time( 'mysql', true );
+			$now = \PassCaptain\Clock::mysql();
 			$inserted = $wpdb->insert( self::table( 'versions' ), array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'version' => $version, 'name' => $layout->name, 'definition' => wp_json_encode( $normalized ), 'seat_count' => count( $rows ), 'created_by' => get_current_user_id(), 'created_at' => $now ) );
 			$version_id = (int) $wpdb->insert_id;
 			if ( ! $inserted || ! $version_id ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Version konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
@@ -686,7 +686,7 @@ final class Layouts {
 				$clean[ $type_id ][ $zone ] = $zone;
 			}
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->query( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_occurrences', (int) $occurrence->occurrence_id ) );
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', self::table( 'links' ), (int) $occurrence->occurrence_id ) );

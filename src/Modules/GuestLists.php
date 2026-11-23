@@ -113,7 +113,7 @@ final class GuestLists {
 		$email = sanitize_email( (string) $email_address );
 		$removed = 0;
 		if ( '' !== $email ) {
-			$removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_guest_entries SET name=%s,email='',company='',note='',updated_at=%s WHERE email=%s", __( 'Gast (gelöscht)', 'pass-captain' ), current_time( 'mysql', true ), $email ) );
+			$removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_guest_entries SET name=%s,email='',company='',note='',updated_at=%s WHERE email=%s", __( 'Gast (gelöscht)', 'pass-captain' ), \PassCaptain\Clock::mysql(), $email ) );
 		}
 		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
 	}

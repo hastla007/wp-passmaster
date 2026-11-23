@@ -114,7 +114,7 @@ final class Generator {
 		$items = Rules::expand( $definition['rule'] );
 		if ( is_wp_error( $items ) ) { return $items; }
 		$existing = self::existing_starts( $definition['event_id'], $items );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		foreach ( $items as &$item ) {
 			$item['exists'] = isset( $existing[ $item['starts_at'] ] );
 			$item['past'] = $item['starts_at'] <= $now;
@@ -149,7 +149,7 @@ final class Generator {
 		$definition = $preview['definition'];
 		$items = $preview['items'];
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$template = null;
 		$types = array();
 		if ( $definition['template_occurrence_id'] ) {
@@ -387,7 +387,7 @@ final class Generator {
 				}
 				$policy['ticket_type_id'] = (int) $to_type;
 				$policy['updated_by'] = get_current_user_id();
-				$policy['updated_at'] = current_time( 'mysql', true );
+				$policy['updated_at'] = \PassCaptain\Clock::mysql();
 				$wpdb->delete( "{$p}wpcap_admission_policies", array( 'ticket_type_id' => (int) $to_type ) );
 				if ( ! $wpdb->insert( "{$p}wpcap_admission_policies", $policy ) ) { throw new \RuntimeException( 'policy_insert' ); }
 			}
@@ -537,7 +537,7 @@ final class Generator {
 		$items = Rules::expand( $rule );
 		if ( is_wp_error( $items ) ) { return $items; }
 		$options = array( 'include_sold_out' => ! empty( $options['include_sold_out'] ), 'include_cancelled' => ! empty( $options['include_cancelled'] ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$old_tz = (string) ( $old_rule['timezone'] ?? $rule['timezone'] );
 		$template = $definition['template_occurrence_id'] ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $definition['template_occurrence_id'] ) ) : null;
 		$target_capacity = $definition['capacity'] ? $definition['capacity'] : ( $template ? (int) $template->capacity : null );
@@ -664,7 +664,7 @@ final class Generator {
 		$definition = $plan['definition'];
 		$series_id = (int) $plan['series']->series_id;
 		$event_id = (int) $definition['event_id'];
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$template = null;
 		$types = array();
 		if ( $definition['template_occurrence_id'] ) {

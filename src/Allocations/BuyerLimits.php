@@ -96,7 +96,7 @@ final class BuyerLimits {
 			$wpdb->delete( Holds::table( 'limits' ), array( 'event_id' => $event_id, 'ticket_type_id' => $ticket_type_id ) );
 			return true;
 		}
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (event_id,ticket_type_id,max_per_buyer,updated_at) VALUES (%d,%d,%d,%s) ON DUPLICATE KEY UPDATE max_per_buyer=VALUES(max_per_buyer),updated_at=VALUES(updated_at)', Holds::table( 'limits' ), $event_id, $ticket_type_id, $max, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (event_id,ticket_type_id,max_per_buyer,updated_at) VALUES (%d,%d,%d,%s) ON DUPLICATE KEY UPDATE max_per_buyer=VALUES(max_per_buyer),updated_at=VALUES(updated_at)', Holds::table( 'limits' ), $event_id, $ticket_type_id, $max, \PassCaptain\Clock::mysql() ) );
 		return '' === $wpdb->last_error ? true : new \WP_Error( 'wpcap_alloc_save', __( 'Das Limit konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
@@ -174,7 +174,7 @@ final class BuyerLimits {
 		// Lock name unique per installation (A364): the fixed name blocked other sites on the server.
 		if ( ! DbLock::acquire( 'alloc_keys' ) ) { return false; }
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$rebuild = $version < 2;
 		if ( $rebuild ) { $wpdb->query( "DELETE FROM $table" ); } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		$events = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE max_per_buyer>0', Holds::table( 'limits' ) ) ) );
@@ -280,7 +280,7 @@ final class BuyerLimits {
 		$user_id = isset( $internal['customer_user_id'] ) ? absint( $internal['customer_user_id'] ) : ( in_array( $source, array( 'native', 'woocommerce', 'waitlist' ), true ) ? absint( get_current_user_id() ) : 0 );
 		$keys = self::keys( (string) ( $payload['email'] ?? '' ), $user_id );
 		if ( ! $keys ) { return; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$table = Holds::table( 'buyers' );
 		foreach ( $limits as $event_id => $event_limits ) {
 			$ordered = $by_event[ $event_id ];
@@ -362,7 +362,7 @@ final class BuyerLimits {
 		if ( ! apply_filters( 'wpcap_allocation_buyer_limit_applies', ! in_array( $source, self::exempt_sources(), true ), $source, array(), $internal ) ) { return $result; }
 		$keys = self::keys( (string) ( $context['email'] ?? '' ) );
 		if ( ! $keys ) { return $result; }
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		$table = Holds::table( 'buyers' );
 		foreach ( $limits as $event_id => $event_limits ) {
 			$ordered = $by_event[ $event_id ];
@@ -424,7 +424,7 @@ final class BuyerLimits {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", $order_id ) );
 		$keys = $order ? self::keys( (string) $order->customer_email ) : array();
 		if ( ! $keys ) { return $result; }
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		$table = Holds::table( 'buyers' );
 		$name = (string) $wpdb->get_var( $wpdb->prepare( "SELECT name FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );
 		foreach ( $keys as $key ) {
@@ -510,7 +510,7 @@ final class BuyerLimits {
 		foreach ( self::keys( $email, $user_id ) as $key ) {
 			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM %i WHERE event_id=%d AND buyer_key=%s', Holds::table( 'buyers' ), absint( $event_id ), $key ) );
 			$holdings = json_decode( (string) $raw, true );
-			$current = self::current( is_array( $holdings ) ? $holdings : array(), current_time( 'mysql', true ) );
+			$current = self::current( is_array( $holdings ) ? $holdings : array(), \PassCaptain\Clock::mysql() );
 			$max = max( $max, array_sum( $current ? $current['types'] : array() ) );
 		}
 		return $max;
@@ -535,7 +535,7 @@ final class BuyerLimits {
 		$limits = self::for_event( $event_id );
 		if ( ! $limits || ( ! isset( $limits[0] ) && ! isset( $limits[ $type_id ] ) ) ) { return $error; }
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$total = 0;
 		$of_type = 0;
 		foreach ( self::keys( (string) ( $context['email'] ?? '' ) ) as $key ) {

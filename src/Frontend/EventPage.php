@@ -171,7 +171,7 @@ final class EventPage {
 	public static function json_ld( $event ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND starts_at>=%s AND status IN ('scheduled','cancelled') ORDER BY starts_at LIMIT %d", $p . 'wpcap_occurrences', (int) $event->event_id, current_time( 'mysql', true ), self::MAX_DATES ) );
+		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id=%d AND starts_at>=%s AND status IN ('scheduled','cancelled') ORDER BY starts_at LIMIT %d", $p . 'wpcap_occurrences', (int) $event->event_id, \PassCaptain\Clock::mysql(), self::MAX_DATES ) );
 		if ( ! $occurrences ) { return array(); }
 		$occ_ids = array_map( static function ( $o ) { return (int) $o->occurrence_id; }, $occurrences );
 		$types = array();
@@ -207,7 +207,7 @@ final class EventPage {
 					'name' => (string) $type->name,
 					'price' => \PassCaptain\Localization::money_decimal( Orders::unit_price( $type, $occ, 1 ), (string) $type->currency ),
 					'priceCurrency' => (string) $type->currency,
-					'availability' => 'scheduled' !== $occ->status ? 'https://schema.org/Discontinued' : ( null !== $available && $available < 1 ? 'https://schema.org/SoldOut' : ( $type->sales_start && $type->sales_start > current_time( 'mysql', true ) ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock' ) ),
+					'availability' => 'scheduled' !== $occ->status ? 'https://schema.org/Discontinued' : ( null !== $available && $available < 1 ? 'https://schema.org/SoldOut' : ( $type->sales_start && $type->sales_start > \PassCaptain\Clock::mysql() ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock' ) ),
 				);
 				if ( $type->sales_start ) { $offer['validFrom'] = self::iso( $type->sales_start, $occ->timezone ); }
 				if ( '' !== $url ) { $offer['url'] = $url; }
@@ -241,7 +241,7 @@ final class EventPage {
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM %i e INNER JOIN %i o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50", $wpdb->prefix . 'wpcap_events', $wpdb->prefix . 'wpcap_occurrences',
 			(int) $event->event_id,
-			current_time( 'mysql', true )
+			\PassCaptain\Clock::mysql()
 		) );
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );

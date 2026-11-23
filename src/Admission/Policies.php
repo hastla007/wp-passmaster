@@ -122,7 +122,7 @@ final class Policies {
 		}
 		$wpdb->query( $wpdb->prepare(
 			'REPLACE INTO ' . self::table() . ' (ticket_type_id,policy,max_entries,valid_dates,opens_before_minutes,closes_after_minutes,day_from,day_until,updated_by,updated_at) VALUES (%d,%s,%d,%s,' . ( null === $minutes['opens_before_minutes'] ? 'NULL' : (int) $minutes['opens_before_minutes'] ) . ',' . ( null === $minutes['closes_after_minutes'] ? 'NULL' : (int) $minutes['closes_after_minutes'] ) . ',' . ( $hours['day_from'] ? "'" . $hours['day_from'] . "'" : 'NULL' ) . ',' . ( $hours['day_until'] ? "'" . $hours['day_until'] . "'" : 'NULL' ) . ',%d,%s)', // phpcs:ignore WordPress.DB.PreparedSQL -- integers and regex-validated HH:MM only.
-			$ticket_type_id, $policy, $max, wp_json_encode( $dates ), get_current_user_id(), current_time( 'mysql', true )
+			$ticket_type_id, $policy, $max, wp_json_encode( $dates ), get_current_user_id(), \PassCaptain\Clock::mysql()
 		) );
 		if ( $wpdb->last_error ) {
 			return new \WP_Error( 'wpcap_admission_policy_save', __( 'Einlassregel konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );

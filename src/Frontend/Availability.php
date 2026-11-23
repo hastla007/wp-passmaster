@@ -80,7 +80,7 @@ final class Availability {
 		$type_ids = self::parse_ids( $type_ids );
 		if ( ! $type_ids ) { return array(); }
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.status,tt.max_per_order,tt.sales_start,tt.sales_end,o.status AS occurrence_status,o.starts_at,e.status AS event_status FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE tt.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ), $type_ids ) ) );
 		$out = array();

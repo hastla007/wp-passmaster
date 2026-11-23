@@ -709,7 +709,7 @@ final class AdminPage {
 	/** Effective prices and availability of the next occurrences right now. */
 	private static function render_price_preview( $series_id, $currency ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.timezone FROM %i so INNER JOIN %i o ON o.occurrence_id=so.occurrence_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE so.series_id=%d AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,tt.ticket_type_id LIMIT 30", $wpdb->prefix . 'wpcap_series_occurrences', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_ticket_types', absint( $series_id ), current_time( 'mysql', true ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.timezone FROM %i so INNER JOIN %i o ON o.occurrence_id=so.occurrence_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE so.series_id=%d AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,tt.ticket_type_id LIMIT 30", $wpdb->prefix . 'wpcap_series_occurrences', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_ticket_types', absint( $series_id ), \PassCaptain\Clock::mysql() ) );
 		if ( ! $rows ) { return; }
 		echo '<h3>' . esc_html__( 'Aktuelle Preise der nächsten Termine', 'pass-captain' ) . '</h3><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Grundpreis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktueller Preis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verfügbar', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $type ) {

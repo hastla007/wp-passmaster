@@ -559,13 +559,13 @@ final class Settlements {
 		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! self::valid_period( $period ) ) { return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		list( $start, $end ) = self::period_bounds( $period );
-		if ( $start > current_time( 'mysql', true ) ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $start > \PassCaptain\Clock::mysql() ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM %i WHERE partner_id=%d AND status IN ('finalized','paid')", $wpdb->prefix . 'wpcap_partner_settlements', (int) $partner->partner_id ) );
 		if ( '' !== $latest && $period <= $latest ) {
 			/* translators: %s: period */
 			return new \WP_Error( 'wpcap_settlement_order', sprintf( __( 'Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'pass-captain' ), $latest ), array( 'status' => 409 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$saved = $wpdb->insert( "{$wpdb->prefix}wpcap_partner_settlements", array(
 			'partner_id' => (int) $partner->partner_id,
 			'period' => $period,
@@ -629,7 +629,7 @@ final class Settlements {
 			'platform_fee_gross_minor' => $t['platform_fee_gross'],
 			'payout_minor' => $t['payout'],
 			'totals' => wp_json_encode( $t ),
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		), array( 'settlement_id' => (int) $s->settlement_id ) );
 	}
 
@@ -645,7 +645,7 @@ final class Settlements {
 		$fail = static function ( $error ) use ( $wpdb ) { $wpdb->query( 'ROLLBACK' ); return $error; };
 		if ( ! $s ) { return $fail( new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ) ); }
 		if ( 'draft' !== $s->status ) { return $fail( self::immutable_error() ); }
-		if ( $s->period_end > current_time( 'mysql', true ) ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'pass-captain' ), array( 'status' => 409 ) ) ); }
+		if ( $s->period_end > \PassCaptain\Clock::mysql() ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'pass-captain' ), array( 'status' => 409 ) ) ); }
 		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", $p . 'wpcap_partner_settlements', (int) $s->partner_id, $s->period ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_order', __( 'Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
@@ -681,7 +681,7 @@ final class Settlements {
 		);
 		// The snapshot keeps the payout account the settlement is paid to, encrypted for this settlement.
 		$snapshot['partner']['payout_details'] = \PassCaptain\Security\Vault::encrypt( (string) Repository::payout_details( $partner ), Repository::snapshot_payout_context( $settlement_id ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$sb_sql = null === $self_billing_number ? 'NULL' : $wpdb->prepare( '%s', $self_billing_number );
 		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlements SET status='finalized', document_number=%s, self_billing_number=$sb_sql, partner_snapshot=%s, finalized_by=%d, finalized_at=%s, updated_at=%s WHERE settlement_id=%d AND status='draft'", $number, wp_json_encode( $snapshot ), get_current_user_id(), $now, $now, $settlement_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 		if ( 1 !== (int) $updated ) { return $fail( new \WP_Error( 'wpcap_settlement_save', __( 'Abrechnung konnte nicht abgeschlossen werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
@@ -697,7 +697,7 @@ final class Settlements {
 		$s = self::get( $settlement_id );
 		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $wpdb->prefix . 'wpcap_partner_settlements', $now, \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ), $now, (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reference ), 190 ) ) );
 		return self::get( $settlement_id );

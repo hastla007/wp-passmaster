@@ -169,7 +169,7 @@ final class AdminPage {
 		<?php if ( ! $rules['enabled'] ) : ?><div class="notice notice-warning inline"><p><?php esc_html_e( 'Offline-Scannen ist für dieses Event nicht freigegeben – zugewiesene Geräte erhalten keine Pakete.', 'pass-captain' ); ?></p></div><?php endif; ?>
 		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letztes Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $assigned as $row ) :
-			$active = ! $row->revoked_at && ( ! $row->expires_at || $row->expires_at > current_time( 'mysql', true ) );
+			$active = ! $row->revoked_at && ( ! $row->expires_at || $row->expires_at > \PassCaptain\Clock::mysql() );
 			?>
 			<tr><td><?php echo esc_html( ( $row->label ?: __( 'Ohne Namen', 'pass-captain' ) ) . ' (#' . (int) $row->device_id . ')' ); ?></td>
 			<td><?php echo esc_html( $occ_labels[ (int) $row->occurrence_id ] ?? '#' . (int) $row->occurrence_id ); ?></td>

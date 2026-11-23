@@ -79,7 +79,7 @@ final class Partners {
 		$lines = "{$p}wpcap_partner_settlement_lines";
 		$history = "{$p}wpcap_partner_event_history";
 		if ( $history !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $history ) ) || $lines !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $lines ) ) ) { return false; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "INSERT INTO {$history} (event_id,partner_id,valid_from,valid_to,created_by,created_at) SELECT pe.event_id,pe.partner_id,NULL,NULL,0,%s FROM {$p}wpcap_partner_events pe WHERE NOT EXISTS (SELECT 1 FROM {$history} h WHERE h.event_id=pe.event_id)", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names.
 		$wpdb->query( "UPDATE {$lines} SET source_key=CONCAT(source_key,':',partner_id) WHERE kind IN ('voucher','voucher_refund') AND source_key IS NOT NULL AND source_key NOT LIKE '%:%:%' AND source_key NOT LIKE 'dup:%'" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		$duplicates = array();

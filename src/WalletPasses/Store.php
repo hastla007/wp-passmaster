@@ -111,7 +111,7 @@ final class Store {
 		$existing = self::state( $ticket_id );
 		$auth = bin2hex( random_bytes( 20 ) );
 		$generation = $existing ? (int) $existing->generation + 1 : 1;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		self::remember_key();
 		$row = array(
 			'secret' => self::encrypt( array( 'code' => (string) $code, 'auth' => $auth ) ),
@@ -136,7 +136,7 @@ final class Store {
 	public static function touch( $ticket_id, $fingerprint, $previous_tag ) {
 		global $wpdb;
 		$tag = self::next_tag( $previous_tag );
-		$wpdb->update( self::t( 'wallet_state' ), array( 'fingerprint' => $fingerprint, 'update_tag' => $tag, 'updated_at' => current_time( 'mysql', true ) ), array( 'ticket_id' => absint( $ticket_id ) ) );
+		$wpdb->update( self::t( 'wallet_state' ), array( 'fingerprint' => $fingerprint, 'update_tag' => $tag, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'ticket_id' => absint( $ticket_id ) ) );
 		return $tag;
 	}
 
@@ -158,7 +158,7 @@ final class Store {
 	/** Idempotent insert/update by serial number. */
 	public static function save_pass( $ticket_id, $provider, $serial, $ref, $status = 'active' ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$existing = self::pass_by_serial( $provider, $serial );
 		if ( $existing ) {
 			$wpdb->update( self::t( 'wallet_passes' ), array( 'provider_ref' => $ref, 'status' => $status, 'updated_at' => $now ), array( 'wallet_pass_id' => (int) $existing->wallet_pass_id ) );
@@ -172,7 +172,7 @@ final class Store {
 	public static function mark_synced( $wallet_pass_id ) {
 		global $wpdb;
 		if ( ! $wallet_pass_id ) { return; }
-		$wpdb->update( self::t( 'wallet_passes' ), array( 'synced_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
+		$wpdb->update( self::t( 'wallet_passes' ), array( 'synced_at' => \PassCaptain\Clock::mysql() ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
 	}
 
 	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.21, A566; deferred upgrades). */
@@ -195,12 +195,12 @@ final class Store {
 	public static function mark_remote( $provider, $serial ) {
 		global $wpdb;
 		if ( ! self::remote_ready() ) { return false; }
-		return (bool) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'wallet_passes' ) . ' SET remote_at=%s WHERE provider=%s AND serial_number=%s AND remote_at IS NULL', current_time( 'mysql', true ), (string) $provider, (string) $serial ) );
+		return (bool) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'wallet_passes' ) . ' SET remote_at=%s WHERE provider=%s AND serial_number=%s AND remote_at IS NULL', \PassCaptain\Clock::mysql(), (string) $provider, (string) $serial ) );
 	}
 
 	public static function set_pass_status( $wallet_pass_id, $status ) {
 		global $wpdb;
-		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
+		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
 	}
 
 	/* ---- Apple device registrations ---- */
@@ -208,7 +208,7 @@ final class Store {
 	public static function register_device( $device, $pass_type, $serial, $push_token, $auth_hash ) {
 		global $wpdb;
 		$table = self::t( 'wallet_registrations' );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT registration_id FROM %i WHERE device_library_id=%s AND serial_number=%s', $table, $device, $serial ) );
 		// A648: the caller is authenticated for this serial only – the push token of the device's other
 		// registrations is never changed here (each pass registers its own token).

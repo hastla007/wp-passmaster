@@ -110,7 +110,7 @@ final class UserAccess {
 		if ( Privacy::has_table( 'wpcap_scanner_devices' ) ) {
 			$devices = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT device_id FROM {$p}wpcap_scanner_devices WHERE user_id=%d AND revoked_at IS NULL", $user_id ) ) );
 			if ( $devices ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_scanner_devices SET revoked_at=%s WHERE user_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), $user_id ) );
+				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_scanner_devices SET revoked_at=%s WHERE user_id=%d AND revoked_at IS NULL", Clock::mysql(), $user_id ) );
 				$done['devices'] = $devices;
 			}
 		}

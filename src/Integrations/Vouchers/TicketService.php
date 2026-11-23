@@ -222,7 +222,7 @@ final class TicketService {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$where = '';
-		$args = array( current_time( 'mysql', true ) );
+		$args = array( \PassCaptain\Clock::mysql() );
 		if ( ! empty( $filter['event_id'] ) ) {
 			$where .= ' AND e.event_id=%d';
 			$args[] = absint( $filter['event_id'] );

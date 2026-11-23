@@ -283,7 +283,7 @@ final class Menu {
 	public static function currencies_without_payment() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$currencies = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.currency FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s AND tt.status='active'", current_time( 'mysql', true ) ) );
+		$currencies = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.currency FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s AND tt.status='active'", \PassCaptain\Clock::mysql() ) );
 		$missing = array();
 		foreach ( $currencies as $currency ) {
 			$currency = strtoupper( (string) $currency );

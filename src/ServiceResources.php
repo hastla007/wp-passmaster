@@ -252,7 +252,7 @@ final class ServiceResources {
 	/** SQL condition for bookings that occupy capacity (table alias $a; held bookings only while unexpired). */
 	public static function active_sql( $a = 'b' ) {
 		$a = preg_replace( '/[^a-z_]/', '', (string) $a );
-		$now = gmdate( 'Y-m-d H:i:s', strtotime( current_time( 'mysql', true ) . ' UTC' ) );
+		$now = gmdate( 'Y-m-d H:i:s', strtotime( Clock::mysql() . ' UTC' ) );
 		return "($a.status IN ('pending_confirmation','confirmed','checked_in') OR ($a.status IN ('held','pending_payment') AND ($a.expires_at IS NULL OR $a.expires_at > '$now')))";
 	}
 

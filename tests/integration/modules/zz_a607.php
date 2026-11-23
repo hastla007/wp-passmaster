@@ -31,5 +31,9 @@ $GLOBALS['wpcap_test_filters']['wpcap_now'] = strtotime( '2030-01-01 12:00:00 UT
 check( 'A607: Clock::mysql() follows wpcap_now', '2030-01-01 12:00:00' === Clock::mysql() );
 $a607_rows = array( (object) array( 'occurrence_id' => 1, 'starts_at' => '2029-12-01 19:00:00', 'timezone' => 'UTC', 'status' => 'scheduled', 'label' => 'A' ) );
 check( 'A607: the scanner date choice judges "past" by the injected time', array() === PassCaptain\Admin\Queries::occurrence_choices( $a607_rows, false ) );
+// Z1: converted in the second round (current_time( 'mysql', true ) only): the key expiry follows wpcap_now too.
+$a607_key = (object) array( 'revoked_at' => null, 'expires_at' => '2029-06-01 00:00:00' );
+check( 'A607/Z1: an API key valid until 2029 counts as expired at the injected 2030 time', 'expired' === PassCaptain\Admin\ApiKeysPage::status_of( $a607_key ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_now'] );
+check( 'A607/Z1: with the real time the same key is active', 'active' === PassCaptain\Admin\ApiKeysPage::status_of( $a607_key ) );
 check( 'A607: with the real time the same date is upcoming', isset( PassCaptain\Admin\Queries::occurrence_choices( $a607_rows, false )[1] ) );

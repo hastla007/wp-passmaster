@@ -189,7 +189,7 @@ final class Service {
 			'owner_id' => absint( $in['owner_id'] ?? ( $existing ? $existing->owner_id : get_current_user_id() ) ),
 			'approver_id' => absint( $in['approver_id'] ?? 0 ),
 			'note' => mb_substr( sanitize_textarea_field( (string) ( $in['note'] ?? '' ) ), 0, 2000 ),
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		);
 		if ( $existing ) {
 			if ( (int) $existing->approver_id !== $row['approver_id'] && ! self::can_approve( $existing ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Freigabeberechtigte können die freigebende Person ändern.', 'pass-captain' ), 403 ); }
@@ -214,7 +214,7 @@ final class Service {
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_guest_entries WHERE list_id=%d AND status IN ('requested','approved','issuing','issued')", (int) $list->list_id ) );
 		if ( $open ) { return self::error( 'wpcap_guestlist_open_entries', __( 'Die Liste hat noch offene oder ausgestellte Einträge.', 'pass-captain' ), 409 ); }
-		$wpdb->update( "{$wpdb->prefix}wpcap_guest_lists", array( 'status' => 'archived', 'updated_at' => current_time( 'mysql', true ) ), array( 'list_id' => (int) $list->list_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_guest_lists", array( 'status' => 'archived', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'list_id' => (int) $list->list_id ) );
 		Audit::record( 'guestlist_archived', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id ) );
 		return true;
 	}
@@ -249,7 +249,7 @@ final class Service {
 			if ( (int) $t->ticket_type_id === $type_id ) { $type = $t; }
 		}
 		if ( ! $type ) { return self::error( 'wpcap_guestlist_entry_type', __( 'Bitte eine Ticketart dieses Termins wählen.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$row = array(
 			'list_id' => (int) $list->list_id,
 			'event_id' => (int) $list->event_id,
@@ -334,7 +334,7 @@ final class Service {
 				return self::error( 'wpcap_guestlist_quota', sprintf( __( 'Das Kontingent der Liste ist ausgeschöpft (%1$d von %2$d Tickets vergeben).', 'pass-captain' ), $used, (int) $locked->quota ), 409 );
 			}
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->update( "{$p}wpcap_guest_entries", array( 'status' => 'approved', 'decided_by' => get_current_user_id(), 'decided_at' => $now, 'updated_at' => $now ), array( 'entry_id' => (int) $entry->entry_id ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'guestlist_entry_approved', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => (int) $entry->entry_id, 'quantity' => (int) $current->quantity ) );
@@ -347,7 +347,7 @@ final class Service {
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
 		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'pass-captain' ), 403 ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_guest_entries SET status='rejected',decided_by=%d,decided_at=%s,updated_at=%s WHERE entry_id=%d AND status IN ('requested','approved')", get_current_user_id(), $now, $now, (int) $entry->entry_id ) );
 		if ( ! $changed ) { return self::error( 'wpcap_guestlist_state', __( 'Der Eintrag kann in diesem Status nicht abgelehnt werden.', 'pass-captain' ), 409 ); }
 		$note = mb_substr( sanitize_text_field( (string) $note ), 0, 255 );
@@ -385,7 +385,7 @@ final class Service {
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		if ( 'issued' === $entry->status ) { return $entry; }
 		if ( 'approved' === $entry->status ) {
-			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET status='issuing',updated_at=%s WHERE entry_id=%d AND status='approved'", current_time( 'mysql', true ), (int) $entry->entry_id ) );
+			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET status='issuing',updated_at=%s WHERE entry_id=%d AND status='approved'", \PassCaptain\Clock::mysql(), (int) $entry->entry_id ) );
 			if ( ! $claimed ) { return self::issue( $entry_id ); }
 		} elseif ( 'issuing' !== $entry->status ) {
 			return self::error( 'wpcap_guestlist_state', __( 'Nur freigegebene Einträge können ausgestellt werden.', 'pass-captain' ), 409 );
@@ -430,7 +430,7 @@ final class Service {
 		if ( $issued < (int) $entry->quantity ) {
 			return self::error( 'wpcap_guestlist_not_issued', __( 'Es wurden nicht alle Tickets ausgestellt. Bitte erneut versuchen.', 'pass-captain' ), 409 );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET status='issued',issued_at=%s,updated_at=%s WHERE entry_id=%d AND status='issuing'", $now, $now, (int) $entry->entry_id ) );
 		Audit::record( 'guestlist_entry_issued', 'order', $order_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => (int) $entry->entry_id, 'tickets' => (int) $entry->quantity, 'reason' => (string) $list->reason, 'mailed' => '' !== (string) $entry->email ) );
 		return self::get_entry( $entry_id );
@@ -456,7 +456,7 @@ final class Service {
 		$email = \PassCaptain\Http::optional_email( $email );
 		if ( '' !== $email ) {
 			if ( false === $email || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
-			$wpdb->update( "{$p}wpcap_guest_entries", array( 'email' => $email, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id ) );
+			$wpdb->update( "{$p}wpcap_guest_entries", array( 'email' => $email, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'entry_id' => (int) $entry->entry_id ) );
 			$wpdb->update( "{$p}wpcap_orders", array( 'customer_email' => $email ), array( 'order_id' => (int) $entry->order_id ) );
 			\PassCaptain\Privacy\AccessLog::correction( 'guest_entry', (int) $entry->entry_id, array( 'email' => self::is_placeholder_email( (string) $entry->email ) ? '' : (string) $entry->email ), array( 'email' => $email ), array( 'order_id' => (int) $entry->order_id, 'event_id' => (int) $list->event_id, 'source' => 'guestlist_resend' ) );
 			$entry->email = $email;
@@ -485,7 +485,7 @@ final class Service {
 			$checked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t WHERE t.order_id=%d AND (t.status='checked_in' OR EXISTS (SELECT 1 FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in'))", (int) $entry->order_id ) );
 			if ( $checked ) { return self::error( 'wpcap_guestlist_checked_in', __( 'Mindestens ein Ticket dieses Eintrags wurde bereits eingecheckt; der Eintrag kann nicht mehr storniert werden.', 'pass-captain' ), 409 ); }
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// Tickets first: if that fails the entry stays active and the cancellation can be repeated.
 		if ( $entry->order_id ) {
 			$cancelled = Orders::cancel_order( (int) $entry->order_id, 'guestlist_cancelled' );
@@ -499,7 +499,7 @@ final class Service {
 	/** wpcap_order_cancelled / wpcap_order_refunded: an entry whose comp order ended elsewhere is cancelled too. */
 	public static function on_order_ended( $order_id ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_guest_entries SET status='cancelled',cancelled_at=%s,updated_at=%s WHERE order_id=%d AND status IN ('issuing','issued')", $now, $now, absint( $order_id ) ) );
 	}
 
@@ -641,7 +641,7 @@ final class Service {
 			if ( is_wp_error( $result ) ) { $errors[] = $result->get_error_message(); } else { ++$checked; }
 		}
 		if ( $checked ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET arrived_at=COALESCE(arrived_at,%s),updated_at=%s WHERE entry_id=%d", current_time( 'mysql', true ), current_time( 'mysql', true ), (int) $entry->entry_id ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET arrived_at=COALESCE(arrived_at,%s),updated_at=%s WHERE entry_id=%d", \PassCaptain\Clock::mysql(), \PassCaptain\Clock::mysql(), (int) $entry->entry_id ) );
 			Audit::record( 'guestlist_entry_arrived', 'event', (int) $entry->event_id, array( 'entry_id' => (int) $entry->entry_id, 'checked_in' => $checked ) );
 		}
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'", (int) $entry->order_id ) );

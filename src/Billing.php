@@ -303,7 +303,7 @@ final class Billing {
 		$billing = is_array( $billing ) ? self::sanitize( $billing ) : array();
 		return false !== $wpdb->update(
 			$wpdb->prefix . 'wpcap_orders',
-			array( 'billing' => self::is_empty( $billing ) ? null : wp_json_encode( $billing ), 'updated_at' => current_time( 'mysql', true ) ),
+			array( 'billing' => self::is_empty( $billing ) ? null : wp_json_encode( $billing ), 'updated_at' => Clock::mysql() ),
 			array( 'order_id' => absint( $order_id ) )
 		);
 	}

@@ -233,7 +233,7 @@ final class StaffAssignments {
 				return self::error( 'wpcap_assignment_team', __( 'Die Person ist für dieses Recht nicht im Event-Team. Bitte zuerst beim Event unter „Personal und Zugriff“ zuweisen.', 'pass-captain' ) );
 			}
 		}
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_staff_assignments (user_id,event_id,scope,object_id,capability,created_by,created_at) VALUES (%d,%d,%s,%d,%s,%d,%s)", (int) $user->ID, $event_id, $scope, absint( $object_id ), $capability, get_current_user_id(), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_staff_assignments (user_id,event_id,scope,object_id,capability,created_by,created_at) VALUES (%d,%d,%s,%d,%s,%d,%s)", (int) $user->ID, $event_id, $scope, absint( $object_id ), $capability, get_current_user_id(), Clock::mysql() ) );
 		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT assignment_id FROM {$wpdb->prefix}wpcap_staff_assignments WHERE user_id=%d AND scope=%s AND object_id=%d AND capability=%s", (int) $user->ID, $scope, absint( $object_id ), $capability ) );
 		self::flush();
 		Audit::record( 'staff_assignment_added', $scope, absint( $object_id ), array( 'event_id' => $event_id, 'user_id' => (int) $user->ID, 'capability' => $capability ) );

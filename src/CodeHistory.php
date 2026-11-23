@@ -53,7 +53,7 @@ final class CodeHistory {
 			'token_hash' => $old_hash,
 			'kind' => 'replaced',
 			'reason' => in_array( $reason, self::ROTATION_REASONS, true ) ? $reason : 'other',
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => Clock::mysql(),
 		), array( '%d', '%s', '%s', '%s', '%s' ) );
 	}
 
@@ -66,7 +66,7 @@ final class CodeHistory {
 			'token_hash' => '',
 			'kind' => 'revoked',
 			'reason' => self::revoke_category( (string) $reason ),
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => Clock::mysql(),
 		), array( '%d', '%s', '%s', '%s', '%s' ) );
 	}
 

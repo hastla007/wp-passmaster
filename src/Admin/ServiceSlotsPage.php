@@ -310,7 +310,7 @@ final class ServiceSlotsPage {
 			$open( 'confirm' );
 			echo '<button class="button-link">' . esc_html__( 'Bestätigen', 'pass-captain' ) . '</button></form>';
 		}
-		if ( 'confirmed' === $status && (string) $booking->starts_at <= current_time( 'mysql', true ) ) {
+		if ( 'confirmed' === $status && (string) $booking->starts_at <= \PassCaptain\Clock::mysql() ) {
 			$open( 'no_show' );
 			echo '<button class="button-link">' . esc_html__( 'Nicht erschienen', 'pass-captain' ) . '</button></form>';
 		}
@@ -477,7 +477,7 @@ final class ServiceSlotsPage {
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Buchung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Ressource', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Zeitfenster', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'E-Mail', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Plätze', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gebucht am', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		$targets = array();
 		foreach ( $slots as $slot ) {
-			if ( 'open' === $slot->status && $slot->starts_at > current_time( 'mysql', true ) ) { $targets[ (int) $slot->slot_id ] = $slot->resource_name . ' · ' . Forms::datetime( $slot->starts_at, $zone, false ) . ' (' . ( (int) $slot->capacity - (int) $slot->booked ) . ')'; }
+			if ( 'open' === $slot->status && $slot->starts_at > \PassCaptain\Clock::mysql() ) { $targets[ (int) $slot->slot_id ] = $slot->resource_name . ' · ' . Forms::datetime( $slot->starts_at, $zone, false ) . ' (' . ( (int) $slot->capacity - (int) $slot->booked ) . ')'; }
 		}
 		foreach ( $bookings as $booking ) {
 			echo '<tr><td>#' . esc_html( (string) (int) $booking->booking_id ) . '</td><td>' . esc_html( $booking->resource_name ) . '</td><td>' . esc_html( Forms::datetime( $booking->starts_at, $zone, false ) . ' – ' . Forms::utc_to_local( $booking->ends_at, $zone, 'H:i' ) ) . '</td><td>' . esc_html( Pii::show( 'buyer_email', (string) $booking->customer_email ) ) . '</td><td>' . esc_html( (string) (int) $booking->quantity ) . '</td><td>' . esc_html( self::status_label( ServiceBookings::booking_status( $booking ) ) ) . '</td><td>' . esc_html( Forms::datetime( $booking->created_at, $zone, false ) ) . '</td><td>';

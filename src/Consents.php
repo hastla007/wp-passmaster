@@ -65,7 +65,7 @@ final class Consents {
 		$version = self::text_version( $field->label, $field->purpose );
 		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT text_id FROM $table WHERE field_id=%d AND text_version=%s", (int) $field->field_id, $version ) );
 		if ( ! $id ) {
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (field_id,text_version,label,purpose,created_at) VALUES (%d,%s,%s,%s,%s)", (int) $field->field_id, $version, (string) $field->label, (string) $field->purpose, current_time( 'mysql', true ) ) );
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (field_id,text_version,label,purpose,created_at) VALUES (%d,%s,%s,%s,%s)", (int) $field->field_id, $version, (string) $field->label, (string) $field->purpose, Clock::mysql() ) );
 			$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT text_id FROM $table WHERE field_id=%d AND text_version=%s", (int) $field->field_id, $version ) );
 		}
 		return array( 'text_id' => $id, 'text_version' => $version );
@@ -123,7 +123,7 @@ final class Consents {
 		foreach ( $attendees as $attendee ) { $ids = array_merge( $ids, array_keys( (array) ( $attendee['answers'] ?? array() ) ) ); }
 		$fields = self::fields_by_id( $ids );
 		if ( ! $fields ) { return $attendees; }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		foreach ( $attendees as $index => $attendee ) {
 			$texts = array();
 			foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
@@ -166,7 +166,7 @@ final class Consents {
 				'subject_hash' => self::subject_hash( $email ),
 				'ip_hash' => (string) ( $proof['ip'] ?? '' ),
 				'actor_user_id' => absint( $proof['user'] ?? 0 ),
-				'created_at' => preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) ( $proof['at'] ?? '' ) ) ? (string) $proof['at'] : current_time( 'mysql', true ),
+				'created_at' => preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) ( $proof['at'] ?? '' ) ) ? (string) $proof['at'] : Clock::mysql(),
 			) );
 			if ( $log_id ) { self::$pending[] = $log_id; }
 		}
@@ -192,7 +192,7 @@ final class Consents {
 	/** Appends a log row; returns the log ID (0 on failure). */
 	private static function insert( array $row ) {
 		global $wpdb;
-		$row = array_merge( array( 'order_id' => 0, 'text_id' => 0, 'text_version' => '', 'locale' => '', 'subject_hash' => '', 'ip_hash' => '', 'actor_user_id' => 0, 'note' => '', 'created_at' => current_time( 'mysql', true ) ), $row );
+		$row = array_merge( array( 'order_id' => 0, 'text_id' => 0, 'text_version' => '', 'locale' => '', 'subject_hash' => '', 'ip_hash' => '', 'actor_user_id' => 0, 'note' => '', 'created_at' => Clock::mysql() ), $row );
 		$row['source'] = substr( sanitize_key( (string) $row['source'] ), 0, 24 );
 		$row['locale'] = substr( (string) $row['locale'], 0, 20 );
 		$row['note'] = mb_substr( (string) $row['note'], 0, 190 );
@@ -290,7 +290,7 @@ final class Consents {
 				$subject = (string) $current->subject_hash;
 			}
 		}
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$condition = self::GRANTED === $action ? "COALESCE(( SELECT x.action FROM {$p}wpcap_consent_log x WHERE x.ticket_id=%d AND x.field_id=%d ORDER BY x.log_id DESC LIMIT 1 ),'')<>'granted'" : "( SELECT x.action FROM {$p}wpcap_consent_log x WHERE x.ticket_id=%d AND x.field_id=%d ORDER BY x.log_id DESC LIMIT 1 )='granted'";
 		$inserted = $wpdb->query( $wpdb->prepare(
 			"INSERT INTO {$p}wpcap_consent_log (ticket_id,order_id,field_id,field_key,text_id,text_version,action,source,locale,subject_hash,ip_hash,actor_user_id,note,created_at) SELECT %d,%d,%d,%s,%d,%s,%s,%s,%s,%s,%s,%d,%s,%s FROM DUAL WHERE $condition", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static condition.

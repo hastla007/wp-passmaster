@@ -91,7 +91,7 @@ final class SeatHolds {
 		$hold = Holds::get( $hold_id );
 		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! $seat_ids || count( $seat_ids ) > 500 ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$occurrence_id = (int) $hold->occurrence_id;
 		$wpdb->query( 'START TRANSACTION' );
 		$fail = static function ( $code, $message, $status = 409 ) use ( $wpdb ) {
@@ -149,7 +149,7 @@ final class SeatHolds {
 		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$seat_ids = array_values( array_unique( array_filter( array_map( 'absint', $seat_ids ) ) ) );
 		if ( ! $seat_ids ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = Holds::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
@@ -221,7 +221,7 @@ final class SeatHolds {
 		if ( ! $consumption || ! $consumption['seats'] ) { return; }
 		$hold = $consumption['hold'];
 		$claims = self::claims();
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		foreach ( $consumption['seats'] as $type_id => $rows ) {
 			$own = (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $claims WHERE order_id=%d AND ticket_type_id=%d AND active_key IS NOT NULL ORDER BY claim_id FOR UPDATE", (int) $order_id, (int) $type_id ) );
 			$own_keys = array_map( static function ( $claim ) { return $claim->seat_key; }, $own );

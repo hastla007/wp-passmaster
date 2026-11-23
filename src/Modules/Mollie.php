@@ -88,7 +88,7 @@ final class Mollie {
 		if ( 'mollie' !== ( $internal['payment_provider'] ?? '' ) ) { return; }
 		$method = sanitize_key( is_scalar( $payload['mollie_method'] ?? null ) ? $payload['mollie_method'] : '' );
 		if ( '' === $method || ! in_array( $method, MollieGateway::config()['methods'], true ) ) { return; }
-		$wpdb->query( $wpdb->prepare( 'REPLACE INTO %i (order_id,method,created_at) VALUES (%d,%s,%s)', $wpdb->prefix . 'wpcap_mollie_choices', absint( $order_id ), $method, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'REPLACE INTO %i (order_id,method,created_at) VALUES (%d,%s,%s)', $wpdb->prefix . 'wpcap_mollie_choices', absint( $order_id ), $method, \PassCaptain\Clock::mysql() ) );
 	}
 
 	public static function chosen_method( $order_id ) {

@@ -290,7 +290,7 @@ final class Templates {
 		if ( '' === $name || ! in_array( $kind, self::KINDS, true ) || '' === $body ) {
 			return new \WP_Error( 'wpcap_print_template_invalid', __( 'Bitte Name, Layout und Inhalt angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$data = array( 'name' => $name, 'kind' => $kind, 'body' => $body, 'status' => 'active', 'updated_at' => current_time( 'mysql', true ) );
+		$data = array( 'name' => $name, 'kind' => $kind, 'body' => $body, 'status' => 'active', 'updated_at' => \PassCaptain\Clock::mysql() );
 		$forbidden = new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Vorlage.', 'pass-captain' ), array( 'status' => 403 ) );
 		if ( $template_id ) {
 			$template = self::get_template( $template_id );

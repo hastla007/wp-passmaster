@@ -120,7 +120,7 @@ final class ServiceProviders {
 			Audit::record( 'service_provider_updated', 'service_provider', $provider_id, array( 'before' => array( 'name' => $current->name, 'status' => $current->status, 'user_id' => (int) $current->user_id ), 'after' => array( 'name' => $name, 'status' => $row['status'], 'user_id' => $row['user_id'], 'partner_id' => $row['partner_id'] ) ) );
 			return $provider_id;
 		}
-		$wpdb->insert( $table, $row + array( 'created_at' => current_time( 'mysql', true ) ) );
+		$wpdb->insert( $table, $row + array( 'created_at' => Clock::mysql() ) );
 		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_provider_save', __( 'Leistungserbringer konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$provider_id = (int) $wpdb->insert_id;
 		Audit::record( 'service_provider_created', 'service_provider', $provider_id, array( 'name' => $name, 'user_id' => $row['user_id'], 'partner_id' => $row['partner_id'] ) );
@@ -190,7 +190,7 @@ final class ServiceProviders {
 	public static function double_booking( $resource_id, $provider_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
 		$active1 = str_replace( 'b.', 'b1.', ServiceBookings::ACTIVE_SQL );
 		$active2 = str_replace( 'b.', 'b2.', ServiceBookings::ACTIVE_SQL );

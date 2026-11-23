@@ -124,7 +124,7 @@ final class Import {
 		$p = $wpdb->prefix;
 		if ( ! current_user_can( EventsPage::CAP ) ) { return Forms::forbidden(); }
 		if ( ! empty( $plan['errors'] ) || empty( $plan['events'] ) ) { return Forms::error( 'wpcap_import_invalid', __( 'Die Datei enthält Fehler oder keine Zeilen; es wurde nichts importiert.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$counts = array( 'events' => 0, 'occurrences' => 0, 'ticket_types' => 0, 'event_ids' => array() );
 		$wpdb->query( 'START TRANSACTION' );
 		try {

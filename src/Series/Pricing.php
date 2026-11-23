@@ -188,7 +188,7 @@ final class Pricing {
 		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$rule = self::normalize( $in, $series->timezone, $series->currency );
 		if ( is_wp_error( $rule ) ) { return $rule; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_price_rules", $rule + array( 'series_id' => (int) $series->series_id, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) { return self::error( 'wpcap_series_rule_save', __( 'Die Preisregel konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$rule_id = (int) $wpdb->insert_id;
@@ -218,7 +218,7 @@ final class Pricing {
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$changes = \PassCaptain\Admin\ChangeHistory::diff( array_intersect_key( (array) $old, array_flip( self::RULE_FIELDS ) ), $rule );
 		if ( ! $changes ) { return (int) $old->rule_id; }
-		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", $rule + array( 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $old->rule_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", $rule + array( 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'rule_id' => (int) $old->rule_id ) );
 		self::flush_cache();
 		\PassCaptain\Audit::record( 'series_price_rule_updated', 'series', (int) $series->series_id, array( 'event_id' => (int) $series->event_id, 'series_id' => (int) $series->series_id, 'rule_id' => (int) $old->rule_id, 'kind' => $rule['kind'], 'currency' => $series->currency, 'price_mode' => $rule['price_mode'], 'changes' => $changes ) );
 		return (int) $old->rule_id;
@@ -236,7 +236,7 @@ final class Pricing {
 		$rule = $wpdb->get_row( $wpdb->prepare( 'SELECT r.*,s.event_id FROM %i r INNER JOIN %i s ON s.series_id=r.series_id WHERE r.rule_id=%d', $wpdb->prefix . 'wpcap_series_price_rules', $wpdb->prefix . 'wpcap_series', absint( $rule_id ) ) );
 		if ( ! $rule ) { return self::error( 'wpcap_series_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $rule->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
-		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", array( 'status' => 'deleted', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'rule_id' => (int) $rule->rule_id ) );
 		self::flush_cache();
 		$series = self::series( $rule->series_id );
 		\PassCaptain\Audit::record( 'series_price_rule_deleted', 'series', (int) $rule->series_id, array( 'event_id' => (int) $rule->event_id, 'series_id' => (int) $rule->series_id, 'rule_id' => (int) $rule->rule_id, 'currency' => $series ? $series->currency : 'EUR', 'rule' => array_intersect_key( (array) $rule, array_flip( self::RULE_FIELDS ) ) ) );
@@ -376,7 +376,7 @@ final class Pricing {
 		if ( ! $series_id ) { return null; }
 		$rules = self::for_series( $series_id );
 		if ( ! $rules ) { return null; }
-		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$now = (string) ( $context['now'] ?? \PassCaptain\Clock::mysql() );
 		return self::select( $rules, array(
 			'now' => $now,
 			'starts_at' => $occurrence->starts_at,

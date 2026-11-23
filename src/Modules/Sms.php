@@ -374,7 +374,7 @@ final class Sms {
 		if ( '' !== $reason || ! is_object( $row ) || 'reminder' !== $row->purpose ) { return $reason; }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND o.status='scheduled' AND o.starts_at>%s", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $row->order_id, (int) $row->occurrence_id, current_time( 'mysql', true ) ) );
+		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND o.status='scheduled' AND o.starts_at>%s", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $row->order_id, (int) $row->occurrence_id, \PassCaptain\Clock::mysql() ) );
 		return $valid ? '' : 'not_valid_anymore';
 	}
 

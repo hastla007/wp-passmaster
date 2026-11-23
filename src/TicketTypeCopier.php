@@ -73,7 +73,7 @@ final class TicketTypeCopier {
 		if ( ! $map ) { return $counts; }
 		$ids = array_map( 'absint', array_keys( $map ) );
 		$in = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 
 		// A332: deactivated participant fields stay with the source type (their answers are kept there).
 		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN ($in) AND status<>'inactive' ORDER BY field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $ids ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.

@@ -107,7 +107,7 @@ final class Registers {
 			'currency' => $currency,
 			'blind_count' => empty( $data['blind_count'] ) ? 0 : 1,
 			'status' => $status,
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		);
 		if ( null !== $terminal ) { $row += $terminal; }
 		if ( $existing ) {
@@ -126,7 +126,7 @@ final class Registers {
 	/** Inserts a register without capability check (system use: default register, migration). */
 	private static function insert_system( $name, $currency = 'EUR', $location = '' ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->insert( self::table(), array( 'name' => $name, 'location' => $location, 'event_id' => 0, 'currency' => $currency, 'blind_count' => 0, 'status' => 'active', 'created_by' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$register_id = (int) $wpdb->insert_id;
 		if ( $register_id ) { Audit::record( 'pos_register_created', 'pos_register', $register_id, array( 'name' => $name, 'system' => true ) ); }

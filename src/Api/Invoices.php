@@ -81,7 +81,7 @@ final class Invoices {
 		$token = strtolower( (string) preg_replace( '/[^a-fA-F0-9]/', '', (string) $token ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return 0; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,access_token_hash,access_expires_at FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return 0; }
+		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= \PassCaptain\Clock::mysql() || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return 0; }
 		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', (int) $order->order_id ) );
 	}
 

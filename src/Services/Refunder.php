@@ -81,7 +81,7 @@ final class Refunder {
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + (int) $calc['amount_minor'];
 		$staff = in_array( $actor, array( 'admin', 'partner' ), true ) && current_user_can( Refunds::APPROVE_CAP );
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! $staff;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$user = in_array( $actor, array( 'admin', 'partner' ), true ) ? get_current_user_id() : 0;
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", ( Refunds::source_ready() ? array( 'source' => 'service_booking' ) : array() ) + array(
 			'order_id' => $order_id,

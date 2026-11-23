@@ -157,7 +157,7 @@ final class Engine {
 		if ( $undone && (int) $undone->n > 0 ) {
 			$n = (int) $undone->n;
 			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET undone=1 WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT %d", $p . 'wpcap_admission_entries', (int) $ticket_id, $n ) ) ) { return false; }
-			if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', $n, (int) $undone->last_id, current_time( 'mysql', true ), (int) $ticket_id ) ) ) { return false; }
+			if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', $n, (int) $undone->last_id, \PassCaptain\Clock::mysql(), (int) $ticket_id ) ) ) { return false; }
 			$state = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', $p . 'wpcap_admission_state', (int) $ticket_id ) );
 			if ( '' !== (string) $wpdb->last_error ) { return false; }
 		}
@@ -185,7 +185,7 @@ final class Engine {
 	private static function record( array $found, $checkin_id, array $context, $at, $user_id, $direction ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$when = gmdate( 'Y-m-d H:i:s', (int) $at );
 		$area = absint( $context['area_id'] ?? 0 );
 		$wpdb->insert( "{$p}wpcap_admission_entries", array(
@@ -252,7 +252,7 @@ final class Engine {
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND direction='in' AND undone=0", $p . 'wpcap_admission_entries', $ticket_id ) );
 		$last = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT direction FROM %i WHERE ticket_id=%d AND undone=0 ORDER BY entry_id DESC LIMIT 1', $p . 'wpcap_admission_entries', $ticket_id ) );
 		if ( self::db_failed() ) { return false; }
-		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=%d, entries=%d, last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', 'in' === $last ? 1 : 0, $remaining, (int) $undo_id, current_time( 'mysql', true ), $ticket_id ) ) ) { return false; }
+		if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET inside=%d, entries=%d, last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d', $p . 'wpcap_admission_state', 'in' === $last ? 1 : 0, $remaining, (int) $undo_id, \PassCaptain\Clock::mysql(), $ticket_id ) ) ) { return false; }
 		return $remaining;
 	}
 
@@ -304,7 +304,7 @@ final class Engine {
 			$wpdb->query( 'ROLLBACK' );
 			return $guard;
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$device_id = absint( $context['device_id'] ?? 0 );
 		$source = sanitize_key( (string) ( $context['source'] ?? '' ) );
 		$source = '' !== $source ? $source : 'admin';
