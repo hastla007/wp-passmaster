@@ -44,7 +44,7 @@ final class ReadFacade {
 		$p = $wpdb->prefix;
 		$where = self::where( $id, true, 'o.order_id', 'o.public_id' );
 		if ( null === $where ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the WHERE part from where() adds its own placeholder.
 			'SELECT o.order_id,o.public_id,o.status,o.payment_status,o.payment_provider,o.currency,o.total_minor,o.subtotal_minor,o.discount_minor,o.tax_minor,o.refunded_minor,o.customer_user_id,o.created_at,o.updated_at,'
 			. "(SELECT COUNT(*) FROM %i t WHERE t.order_id=o.order_id) AS ticket_count,(SELECT COUNT(*) FROM %i t WHERE t.order_id=o.order_id AND t.status='checked_in') AS checked_in_count"
 			. ' FROM %i o WHERE ' . $where[0] . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column comparison with a placeholder.
@@ -86,7 +86,7 @@ final class ReadFacade {
 		$p = $wpdb->prefix;
 		$where = self::where( $id, true, 't.ticket_id', 't.public_id' );
 		if ( null === $where ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the WHERE part from where() adds its own placeholder.
 			'SELECT t.ticket_id,t.public_id,t.order_id,t.ticket_type_id,t.status,t.refunded,t.issued_at,tt.occurrence_id,oc.event_id,o.public_id AS order_public_id'
 			. ' FROM %i t LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i oc ON oc.occurrence_id=tt.occurrence_id LEFT JOIN %i o ON o.order_id=t.order_id'
 			. ' WHERE ' . $where[0] . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column comparison with a placeholder.
@@ -124,7 +124,7 @@ final class ReadFacade {
 		$p = $wpdb->prefix;
 		$where = self::where( $id, false, 'r.refund_id', '' );
 		if ( null === $where ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the WHERE part from where() adds its own placeholder.
 			'SELECT r.refund_id,r.order_id,r.status,r.currency,r.amount_minor,r.tax_minor,r.deducted_minor,r.ticket_ids,r.requested_by,r.approved_by,r.created_at,r.updated_at,o.public_id AS order_public_id'
 			. ' FROM %i r LEFT JOIN %i o ON o.order_id=r.order_id WHERE ' . $where[0] . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column comparison with a placeholder.
 			$p . 'wpcap_refunds',
@@ -163,7 +163,7 @@ final class ReadFacade {
 		$where = self::where( $id, false, 'oc.occurrence_id', '' );
 		if ( null === $where ) { return null; }
 		// Issued tickets: the same basis as Admin\Queries::issued_ticket_count_for_occurrence() (valid or checked in).
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the WHERE part from where() adds its own placeholder.
 			'SELECT oc.occurrence_id,oc.event_id,oc.status,oc.starts_at,oc.ends_at,oc.timezone,oc.capacity,oc.rescheduled_at,'
 			. "(SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=oc.occurrence_id AND t.status IN ('valid','checked_in')) AS issued_ticket_count"
 			. ' FROM %i oc WHERE ' . $where[0] . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column comparison with a placeholder.
@@ -198,7 +198,7 @@ final class ReadFacade {
 		$p = $wpdb->prefix;
 		$where = self::where( $id, false, 'e.event_id', '' );
 		if ( null === $where ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare(
+		$row = $wpdb->get_row( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the WHERE part from where() adds its own placeholder.
 			'SELECT e.event_id,e.status,e.created_at,e.updated_at,(SELECT COUNT(*) FROM %i oc WHERE oc.event_id=e.event_id) AS occurrence_count'
 			. ' FROM %i e WHERE ' . $where[0] . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column comparison with a placeholder.
 			$p . 'wpcap_occurrences',

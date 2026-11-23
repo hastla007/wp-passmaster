@@ -88,7 +88,7 @@ final class EventForms {
 		foreach ( $ids as $id ) {
 			self::$by_event[ $id ] = null;
 		}
-		$rows = $wpdb->get_results( "SELECT event_id,form_id,form_public_id,form_title FROM {$wpdb->prefix}wpcap_event_forms WHERE event_id IN (" . implode( ',', $ids ) . ')', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$rows = $wpdb->get_results( "SELECT event_id,form_id,form_public_id,form_title FROM {$wpdb->prefix}wpcap_event_forms WHERE event_id IN (" . implode( ',', $ids ) . ')', ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- integer list.
 		foreach ( (array) $rows as $row ) {
 			self::$by_event[ (int) $row['event_id'] ] = array(
 				'event_id'       => (int) $row['event_id'],
