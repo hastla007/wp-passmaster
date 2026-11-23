@@ -557,8 +557,13 @@ final class Controller {
 		if ( ! empty( $result['reused'] ) ) {
 			// Same key, different attempt (provider, tickets, e-mail or codes changed): never hand out the old
 			// order – its payment would arrive for another provider or amount (paid without tickets).
+			// A639: another payment method first – that payment could not be assigned to the order by any
+			// webhook. Its own message tells the buyer to reload for a new attempt with the other method.
+			if ( (string) ( $result['payment_provider'] ?? $provider_id ) !== $provider_id ) {
+				return new \WP_Error( 'wpcap_checkout_provider_changed', __( 'Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen.', 'pass-captain' ), array( 'status' => 409, 'field' => 'provider' ) );
+			}
 			$stored = (string) ( $result['request_fingerprint'] ?? '' );
-			if ( (string) ( $result['payment_provider'] ?? $provider_id ) !== $provider_id || ( '' !== $stored && ! hash_equals( $stored, $fingerprint ) ) ) {
+			if ( '' !== $stored && ! hash_equals( $stored, $fingerprint ) ) {
 				return new \WP_Error( 'wpcap_idempotency_mismatch', __( 'Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 		}
@@ -566,13 +571,6 @@ final class Controller {
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
 		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
 			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
-		}
-		// A639: a retry with another payment method would start a payment no webhook can assign to the order.
-		if ( ! empty( $result['reused'] ) ) {
-			$reused_order = Orders::get( $result['order_id'] );
-			if ( $reused_order && (string) $reused_order->payment_provider !== $provider_id ) {
-				return new \WP_Error( 'wpcap_checkout_provider_changed', __( 'Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen.', 'pass-captain' ), array( 'status' => 409, 'field' => 'provider' ) );
-			}
 		}
 		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
 		// Also on a retry whose first attempt stopped before the voucher was stored (the reservation key is the same).
