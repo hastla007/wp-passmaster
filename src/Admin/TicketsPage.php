@@ -632,9 +632,10 @@ final class TicketsPage {
 				<tbody>
 				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
-					$email = \PassCaptain\Pii::show( 'attendee_email', '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email );
-					$buyer_email = \PassCaptain\Pii::show( 'buyer_email', $ticket->customer_email );
-					$attendee_name = \PassCaptain\Pii::show( 'attendee_name', (string) $ticket->attendee_name );
+					// Gate staff: DataPolicy::ticket_view() removes contact fields, so read them defensively.
+					$email = \PassCaptain\Pii::show( 'attendee_email', '' !== (string) ( $ticket->assigned_email ?? '' ) ? (string) $ticket->assigned_email : (string) ( $ticket->attendee_email ?? '' ) );
+					$buyer_email = \PassCaptain\Pii::show( 'buyer_email', (string) ( $ticket->customer_email ?? '' ) );
+					$attendee_name = \PassCaptain\Pii::show( 'attendee_name', (string) ( $ticket->attendee_name ?? '' ) );
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
 					$can_checkin = Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id );
 					?>
