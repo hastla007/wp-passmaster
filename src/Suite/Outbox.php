@@ -121,7 +121,7 @@ final class Outbox {
 		if ( false === $event_id ) { return false; }
 		$class = self::contract_for( $type );
 		if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::DISPATCH_HOOK ) && $class && has_filter( $class::FILTER ) ) {
-			wp_schedule_single_event( time() + 5, self::DISPATCH_HOOK );
+			wp_schedule_single_event( \PassCaptain\Clock::now() + 5, self::DISPATCH_HOOK );
 		}
 		return $event_id;
 	}
@@ -135,10 +135,10 @@ final class Outbox {
 		$data = (array) apply_filters( 'wpcap_outbox_event_data', $data, $type );
 		$data = $class::sanitize( $type, $data, $dropped );
 		if ( $dropped ) { \PassCaptain\Log::debug( $class::NAME, $class::code( 'field_not_allowed' ) . ': ' . $type, array( 'fields' => array_slice( $dropped, 0, 20 ) ) ); }
-		$occurred_at = null === $occurred_at ? time() : (int) $occurred_at;
+		$occurred_at = null === $occurred_at ? \PassCaptain\Clock::now() : (int) $occurred_at;
 		$event_id = self::event_id( $type, $dedupe );
 		$envelope = $class::envelope( $event_id, $type, $subject_id, $data, $occurred_at );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$values = array( $event_id, $type, $class::schema_version( $type ), $class::subject( $type ), substr( (string) $subject_id, 0, 64 ), (string) wp_json_encode( $envelope ), gmdate( 'Y-m-d H:i:s', $occurred_at ), $now, $now );
 		$inserted = (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (contract,event_id,event_type,schema_version,subject_type,subject_id,payload,occurred_at,status,attempts,next_attempt_at,created_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',0,%s,%s)", array_merge( array( self::table(), $class::NAME ), $values ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- 12 values in one array.
 		if ( 1 !== $inserted ) { return false; }
@@ -180,12 +180,12 @@ final class Outbox {
 		$t = self::table();
 		$scope = $wpdb->prepare( ' AND contract=%s', $contract::NAME );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 50;
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", $t, gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", $t, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 15 * MINUTE_IN_SECONDS ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
 		$done = 0;
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
-			$now = current_time( 'mysql', true );
+			$now = \PassCaptain\Clock::mysql();
 			// Due events in sequence order. A failing event does not hold back later ones: providers order
 			// by `sequence` and treat events idempotently (at-least-once delivery).
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status='pending' AND next_attempt_at<=%s", $t, $now ) . $scope . ' ORDER BY outbox_id LIMIT 1' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
@@ -204,7 +204,7 @@ final class Outbox {
 		// Delivered before and queued again (replay()): the provider sees replay = true.
 		$envelope = self::envelope_of( $row, ! empty( $row->delivered_at ) );
 		$attempts = (int) $row->attempts + 1;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$code = '';
 		$retry = true;
 		$provider_error = $contract::code( 'provider_error' );
@@ -235,7 +235,7 @@ final class Outbox {
 			'attempts' => $attempts,
 			'last_error' => \PassCaptain\Text::cut( '' !== $code ? $code : $provider_error, 190 ),
 			'locked_at' => null,
-			'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + \PassCaptain\Webhooks\Dispatcher::backoff( $attempts ) ),
+			'next_attempt_at' => gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + \PassCaptain\Webhooks\Dispatcher::backoff( $attempts ) ),
 		), array( 'outbox_id' => (int) $row->outbox_id ) );
 		if ( $final ) {
 			\PassCaptain\Log::warning( $contract::NAME, 'Suite contract event not delivered: ' . $row->event_type, array( 'code' => $code, 'attempts' => $attempts, 'sequence' => (int) $row->outbox_id ) );
@@ -247,7 +247,7 @@ final class Outbox {
 		$previous = get_option( $option );
 		$state = array( 'state' => (string) ( $status['state'] ?? '' ), 'version' => (string) ( $status['version'] ?? '' ), 'code' => (string) ( $status['code'] ?? '' ) );
 		if ( ! is_array( $previous ) || array_intersect_key( $previous, $state ) !== $state ) {
-			update_option( $option, $state + array( 'checked_at' => current_time( 'mysql', true ) ), false );
+			update_option( $option, $state + array( 'checked_at' => \PassCaptain\Clock::mysql() ), false );
 		}
 	}
 
@@ -294,7 +294,7 @@ final class Outbox {
 		}
 		if ( ! self::ready() || ! self::multi_ready() ) { return 0; }
 		$scope = $wpdb->prepare( ' AND contract=%s', $class::NAME );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$count = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='pending',attempts=0,last_error='',next_attempt_at=%s,locked_at=NULL WHERE outbox_id>=%d AND status<>'delivering'", self::table(), $now, absint( $from_sequence ) ) . $scope ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		Audit::record( $class::NAME . '_replay', $class::NAME, absint( $from_sequence ), array( 'events' => $count ) );
 		return $count;
@@ -305,6 +305,6 @@ final class Outbox {
 		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
 		$days = max( 1, min( 365, (int) apply_filters( 'wpcap_outbox_retention_days', self::RETENTION_DAYS ) ) );
-		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status<>'delivering' AND created_at<%s", self::table(), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status<>'delivering' AND created_at<%s", self::table(), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - $days * DAY_IN_SECONDS ) ) );
 	}
 }
