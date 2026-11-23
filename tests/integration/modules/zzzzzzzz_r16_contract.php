@@ -76,6 +76,24 @@ check( 'R16: the eleven add-on hooks exist and are documented as "since 1.5.0"' 
 check( 'R16: public classes for add-ons exist', class_exists( \PassCaptain\Api\Auth::class ) && class_exists( \PassCaptain\Api\Invoices::class ) && interface_exists( \PassCaptain\BoxOffice\DeviceGatewayInterface::class ) );
 check( 'R16: public methods for add-ons exist', is_callable( array( \PassCaptain\Orders::class, 'request_fingerprint' ) ) && is_callable( array( \PassCaptain\Access::class, 'can_access_occurrence' ) ) && is_callable( array( \PassCaptain\BoxOffice\Service::class, 'confirm_device_payment' ) ) );
 
+// Public global functions (PublicApi::FUNCTIONS): exactly the functions of src/functions.php, each one
+// documented in docs/EXTENSIONS.md, none newer than the contract version (PASS-E17-01).
+$r16_fn_src = (string) file_get_contents( $r16_root . '/src/functions.php' );
+preg_match_all( '/^\tfunction (wpcap_[a-z_]+)\(/m', $r16_fn_src, $r16_fn_m );
+$r16_fn_code = $r16_fn_m[1];
+$r16_fn_list = defined( \PassCaptain\PublicApi::class . '::FUNCTIONS' ) ? \PassCaptain\PublicApi::FUNCTIONS : array();
+check( 'R16: PublicApi::FUNCTIONS lists exactly the global functions of src/functions.php' . ( array_diff( $r16_fn_code, array_keys( $r16_fn_list ) ) ? ': missing ' . implode( ', ', array_diff( $r16_fn_code, array_keys( $r16_fn_list ) ) ) : '' ), count( $r16_fn_code ) >= 14 && array() === array_diff( $r16_fn_code, array_keys( $r16_fn_list ) ) && array() === array_diff( array_keys( $r16_fn_list ), $r16_fn_code ) );
+$r16_fn_undoc = array_values( array_filter( array_keys( $r16_fn_list ), static fn( $fn ) => false === strpos( $r16_docs, '`' . $fn . '(' ) ) );
+check( 'R16: every public function is documented in docs/EXTENSIONS.md' . ( $r16_fn_undoc ? ': ' . implode( ', ', $r16_fn_undoc ) : '' ), array() === $r16_fn_undoc );
+$r16_fn_future = array_keys( array_filter( $r16_fn_list, static fn( $since ) => 1 !== preg_match( '/^\d+\.\d+\.\d+$/', (string) $since ) || version_compare( (string) $since, $r16_contract, '>' ) ) );
+check( 'R16: no public function claims a contract version newer than WPCAP_CONTRACT_VERSION' . ( $r16_fn_future ? ': ' . implode( ', ', $r16_fn_future ) : '' ), array() === $r16_fn_future && function_exists( 'wpcap_get_ticket_details' ) );
+// Contract 1.4.0 (PASS-E17-01): connectors read, audit and switch through functions, not through tables,
+// the internal Audit class or the core option.
+$r16_e17 = array( 'wpcap_get_ticket_details', 'wpcap_get_order_ticket_details', 'wpcap_connector_audit', 'wpcap_set_connector_enabled', 'wpcap_is_connector_enabled' );
+check( 'R16: contract 1.4.0 provides the connector functions (read service, audit entry, opt-in) and names them in the version table', version_compare( $r16_contract, '1.4.0', '>=' ) && array() === array_diff( $r16_e17, array_keys( array_filter( $r16_fn_list, static fn( $since ) => '1.4.0' === $since ) ) ) && 1 === preg_match( '/^\| 1\.4\.0 \| 1\.6\.\d+ \|[^\n]*`wpcap_get_ticket_details\(\)`[^\n]*`wpcap_connector_audit\(\)`[^\n]*`wpcap_set_connector_enabled\(\)`/m', $r16_docs ) );
+$r16_lb = (string) ( preg_match( '/\n## Connectoren BoatingSchool und LearnBoating[^\n]*\n(.*?)(?=\n## )/s', $r16_docs, $r16_lb_m ) ? $r16_lb_m[1] : '' );
+check( 'R16: docs/EXTENSIONS.md notes the existing LearnBoating ticket connector and the APIs it should move to', false !== strpos( $r16_lb, 'learnboating-ticket-connector' ) && false !== strpos( $r16_lb, '`wpcap_get_ticket_details()`' ) && false !== strpos( $r16_lb, '`wpcap_connector_audit()`' ) && false !== strpos( $r16_lb, '`wpcap_set_connector_enabled()`' ) && false !== strpos( $r16_lb, 'WPCAP_CONTRACT_VERSION' ) );
+
 // Rule: generic hooks only. The core never checks for a particular add-on.
 $r16_knows_addon = array();
 $r16_it          = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $r16_root . '/src', FilesystemIterator::SKIP_DOTS ) );

@@ -57,6 +57,33 @@ final class PublicApi {
 		'wp_pass_captain_checkin_service_v1'  => array( 'filter', '1.0', 'scanner' ),
 	);
 
+	/**
+	 * Public global functions of src/functions.php: name => extension contract version (WPCAP_CONTRACT_VERSION)
+	 * that introduced it. Compared with src/functions.php and docs/EXTENSIONS.md by
+	 * tests/integration/modules/zzzzzzzz_r16_contract.php.
+	 */
+	const FUNCTIONS = array(
+		'wpcap_get_invoice'              => '1.1.0',
+		'wpcap_confirm_pos_payment'      => '1.1.0',
+		'wpcap_api_request_can'          => '1.1.0',
+		'wpcap_get_ticket'               => '1.1.0',
+		'wpcap_get_order_state'          => '1.3.0',
+		'wpcap_get_ticket_state'         => '1.3.0',
+		'wpcap_get_refund_state'         => '1.3.0',
+		'wpcap_get_occurrence_state'     => '1.3.0',
+		'wpcap_get_event_state'          => '1.3.0',
+		'wpcap_get_ticket_details'       => '1.4.0', // PASS-E17-01: read service for connectors.
+		'wpcap_get_order_ticket_details' => '1.4.0',
+		'wpcap_connector_audit'          => '1.4.0', // PASS-E17-01: audit entry of a connector.
+		'wpcap_set_connector_enabled'    => '1.4.0', // PASS-E17-01: opt-in instead of writing the option.
+		'wpcap_is_connector_enabled'     => '1.4.0',
+	);
+
+	/** Public global functions (see FUNCTIONS). */
+	public static function functions() {
+		return self::FUNCTIONS;
+	}
+
 	/** Public hooks (see HOOKS). */
 	public static function hooks() {
 		return self::HOOKS;

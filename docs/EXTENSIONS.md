@@ -125,6 +125,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
 | `wp_pass_captain_workflow_provider_v1` | 1.5.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
+| `PassCaptain\Api\Tickets::get()`, `wpcap_get_ticket()` (Vertrag `ticket_read`, [CONTRACTS.md](CONTRACTS.md#ticket-lesevertrag-v1)) | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\TicketDetails` (`ticket()`, `order()`, `VERSION`, `EMAIL_CAP`), `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Integrations\ConnectorAudit::record()`, `wpcap_connector_audit()` | 1.6.0 (Vertrag 1.4.0) |
@@ -831,6 +832,23 @@ die Herkunft (Signatur) prüfen, bevor es bestätigt.
 ## Connectoren BoatingSchool und LearnBoating (eigene Projektprodukte)
 
 Die Connectoren zu BoatingSchool und LearnBoating sind eigene Projektprodukte (Entscheidung 17, endgültig 16.11.2026): je Connector ein Plugin mit eigenem Produktschlüssel und Präfix, getrennt installiert, nur mit gültiger Lizenz, nicht Teil von Pass Captain Pro. Sie docken ausschließlich über den Connector-Vertrag an (Registrierung über `wp_pass_captain_connectors_v1`, Ausführung nur nach Freigabe in `wpcap_enabled_connectors`), lesen keine Kerntabellen direkt und bringen Lizenzclient und Updater selbst mit. Regeln wie „Kauf oder Gutscheineinlösung löst Kurszugang, Ticket oder beides aus“ liegen im Connector. Fehlt die Lizenz, stoppt nur dessen Synchronisierung; Verkauf, Tickets und Einlass im Kern laufen weiter. Details: [FREE-PREMIUM.md](FREE-PREMIUM.md#connectoren-boatingschool-und-learnboating-entscheidung-17-endgültig-16112026), TODO.md Abschnitt C.
+
+**Bestehender Ticket-Connector (Stand 23.11.2026).** Für LearnBoating gibt es bereits einen Ticket-Connector als
+eigenes Plugin (`learnboating-ticket-connector` 1.0.0 im Projekt-Repository, nicht Teil dieses Plugins). Er ist gegen
+Pass Captain 1.4 gebaut und hält sich in drei Punkten nicht an die Regel oben, weil es damals keinen Lese-Vertrag gab:
+Er liest sechs Tabellen des Kerns direkt, ruft die interne Klasse `PassCaptain\Audit` auf und schreibt die Option
+`wpcap_enabled_connectors` selbst. Seit Vertragsversion 1.4.0 (Plugin 1.6.0, PASS-E17-01) gibt es dafür öffentliche
+Funktionen; der Connector soll auf sie umstellen (Aufgabe dort: LB-15):
+
+| Bisher (intern, ohne Versionszusage) | Ersatz ab `WPCAP_CONTRACT_VERSION` 1.4.0 |
+|---|---|
+| eigene SQL-Abfragen auf Tickets, Bestellungen, Ticketarten, Termine, Events, Check-ins | `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` ([Lesedienst für Connectoren](#lesedienst-für-connectoren)); E-Mail des Inhabers nur mit `wpcap_read_holder_email` |
+| `PassCaptain\Audit::record()` | `wpcap_connector_audit()` ([Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors)) |
+| `update_option( 'wpcap_enabled_connectors', … )` | `wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()` ([Freigabe eines Connectors](#freigabe-eines-connectors-opt-in)) |
+
+Der Connector prüft dazu neben `WPCAP_VERSION` auch `WPCAP_CONTRACT_VERSION` (mindestens 1.4.0, kleiner als 2.0.0) und
+bleibt auf älteren Ständen bei seinem bisherigen Weg. Tabellenstruktur, interne Klassen und die Option können sich mit
+jeder Schemaversion ändern; die Funktionen oben nicht innerhalb von Version 1.
 
 ## Affiliate Captain
 

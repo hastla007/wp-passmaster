@@ -135,7 +135,7 @@ getrennt installiert, nur mit **gültiger Lizenz** (fail-closed: ohne Lizenz kei
 **nicht Teil von Pass Captain Pro**; eine Pro-Lizenz ist nicht nötig, eine externe Kundenfreigabe auch nicht
 (eigene Projekte). Lizenzclient, Rechteprüfung und Updater liegen im Connector, nie im Kern. Der Kern liefert nur den
 freien, versionierten Connector-Vertrag (`PassCaptain\Integrations\ConnectorInterface`,
-`wp_pass_captain_connectors_v1`, Opt-in `wpcap_enabled_connectors`, geschaltet über `wpcap_set_connector_enabled()` seit Vertrag 1.4.0, siehe [HOOKS.md](HOOKS.md)) und prüft keine
+`wp_pass_captain_connectors_v1`, Opt-in `wpcap_enabled_connectors`, geschaltet über `wpcap_set_connector_enabled()` seit Vertrag 1.4.0, siehe [HOOKS.md](HOOKS.md); seit Vertrag 1.4.0 auch Lesedienst `wpcap_get_ticket_details()` und Protokolleintrag `wpcap_connector_audit()`, siehe [EXTENSIONS.md](EXTENSIONS.md#connectoren-boatingschool-und-learnboating-eigene-projektprodukte)) und prüft keine
 Lizenz. Läuft die Lizenz ab, stoppt nur die weitere Synchronisierung; Tickets und Kurszugänge bleiben gültig.
 Aufgaben: TODO.md Abschnitt C, ARBEITSLISTE.md Phase 13 (A701–A708).
 
