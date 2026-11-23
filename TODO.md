@@ -471,7 +471,8 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 
 ### Wartet auf Inhaber (Vorlage mit Empfehlung bei der Lizenz-Sitzung)
 - E2 Länder der ersten Profile (Empfehlung DE, AT, CH) · E3 Kassenpflicht-Sperre für weitere Länder (Empfehlung: Sperre mit Bestätigungs-Ausweg je Land mit Fiskal-Vorschlag) · E4 weitere E-Rechnungsformate/QR-Rechnung (Empfehlung: Formate unter `pass.e_invoicing`, Netz-Versand neuer Schlüssel, QR-Rechnung frei) · E5 Storno-Staffeln und Gebührenregeln als Pro (Empfehlung: Frist + ein Wert frei, Staffeln Pro) · E6 eigenes Recht `wpcap_manage_settings` (Empfehlung: einführen) · E7 Netzwerk-Vorgaben (Empfehlung: Vorgaben frei, Verteilen Pro) · E8 vier neue Pro-Schlüssel · E9 Deinstallation im Add-on (captain-pro).
-- Abweichungen vom Suite-Rahmen, die die Inhaberin bestätigen muss: Quelltexte von Pass Captain sind Deutsch (Rahmen: Englisch; A304) und Preise brutto (Rahmen: „Preise netto“).
+- Quellsprache Englisch statt Deutsch (A304): gemeinsame Frage für Pass, Review und Workflow, legt die Lizenz-Sitzung dem Inhaber vor; Pflicht bleibt nur de_DE „du“, de_DE_formal „Sie“, keine Mischung (SET-PC-09).
+- [ ] **SET-PC-45 [OPTIMIERUNG] · Netto-Eingabe und Netto-Anzeige für Firmenkunden:** Brutto bleibt Standard (Ticketpreise im Shop); Einstellung für Preiseingabe netto und Netto-Anzeige an Firmenkunden mit USt-IdNr. („Preise netto“ im Suite-Rahmen betrifft nur die Tarife der Captain-Produkte).
 
 ## Prüfphase Einstellungen und neue Funktionen (Auftrag des Inhabers vom 23.11.2026)
 
