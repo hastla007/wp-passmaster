@@ -77,6 +77,19 @@ Datenbank brauchen getrennte Tabellenpräfixe: `WPCAP_TEST_PREFIX=wpx1_ php test
 Zusätzlich in CI: `node tests/offline-scanner-i18n.js` (Übersetzungskataloge der Offline-PWA) und
 `bash tests/release-guard.sh`.
 
+Einzelläufe: `WPCAP_TEST_ONLY='<Regex>'` führt nur die Moduldateien aus, deren Name passt (die Kerndateien
+`finance`, `payments`, `admin`, `mobile`, `affiliate` nur, wenn der Regex sie trifft oder `WPCAP_TEST_CORE=1`
+gesetzt ist); `WPCAP_TEST_SKIP='<Regex>'` lässt Module aus. Gemeinsame Stubs und Hilfsfunktionen liegen in
+`tests/integration/lib/` und werden auch im Einzellauf geladen: `fixtures_payments.php` (HTTP-/REST-Attrappen,
+`http_*`, Stripe/PayPal-Anfragen), `fixtures_admin.php` (Redirect/Die als Ausnahme, Testbenutzer,
+`admin_paid_order()`), `fixtures_mobile.php` (`WP_REST_Response`, `rest_url()`, `app_call()`,
+`ticket_code_for()`) jeweils an der Stelle ihrer Kerndatei, `fixtures_wp.php` (Template-Stubs wie `esc_url()`,
+`selected()`, `submit_button()`) und `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) vor der ersten
+Moduldatei. Wer eine Hilfsfunktion in mehreren Modulen braucht, legt sie dort ab statt in einem Modul. Noch
+modulgebunden sind u. a. `wpb_*` (`boxoffice.php`), `sp_*` (`series_pricing.php`), `woo_t_*`
+(`woocommerce.php`) und `q1_*` (`zz_a277.php`); manche Module setzen außerdem Zustand anderer Module voraus
+(registrierte Module, Einstellungen).
+
 Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
 der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).
 `modules/zz_a186.php` prüft die atomaren Backends `db` und `cache`. Dazu startet der Test parallele

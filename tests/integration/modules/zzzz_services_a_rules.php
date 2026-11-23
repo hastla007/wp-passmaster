@@ -4,8 +4,8 @@
  * booking rules (cutoff, opening window, per-customer limit, no-show block), organizer (partner)
  * scope of resources and the admin screen actions for rules.
  *
- * Included from run.php (module glob); uses check() and make_type(). Defines the svc_* helpers used
- * by the other zzzz_services_* files. Registers the Services module hooks for the rest of the run.
+ * Included from run.php (module glob); uses check() and make_type() and the svc_* helpers of
+ * lib/fixtures_modules.php. Registers the Services module hooks for the rest of the run.
  *
  * @package PassCaptain
  */
@@ -28,45 +28,6 @@ if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 
 PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_terms' => 0 ) );
 PassCaptain\Modules\Services::register();
 PassCaptain\ServiceBookingFlow::register(); // As at plugin load (Plugin::boot): checkout link of service bookings (A135).
-
-/** Event with one ticket type (price in minor units); returns [event_id, ticket_type_id]. */
-function svc_event( $price = 0, $capacity = 500 ) {
-	global $wpdb;
-	$type = make_type( $capacity, 20, $price );
-	$event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=" . (int) $type );
-	// Service slots may lie after the occurrence used as the price carrier.
-	$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_occurrences SET starts_at='" . gmdate( 'Y-m-d H:i:s', time() + 400 * 86400 ) . "' WHERE event_id=$event" );
-	return array( $event, $type );
-}
-/** Resource with rules; returns its id. */
-function svc_resource( $event_id, array $data = array() ) {
-	$id = ServiceResources::save_resource( array_merge( array( 'event_id' => $event_id, 'name' => 'Boot ' . uniqid(), 'capacity' => 2, 'timezone' => 'Europe/Vienna' ), $data ) );
-	return is_wp_error( $id ) ? 0 : (int) $id;
-}
-/** Slot starting $hours from now (UTC, whole minutes); returns slot id or WP_Error. */
-/** Slot at a fixed local time (resource timezone Europe/Vienna) $days from today: independent of the time of day the suite runs. */
-function svc_slot_at( $resource_id, $days, $local_time, $minutes = 60, $capacity = 0 ) {
-	$tz = new DateTimeZone( 'Europe/Vienna' );
-	$local = new DateTimeImmutable( 'today ' . $local_time, $tz );
-	$start = $local->modify( '+' . (int) $days . ' days' )->setTimezone( new DateTimeZone( 'UTC' ) );
-	return ServiceResources::create_slot( $resource_id, $start->format( 'Y-m-d H:i:s' ), $start->modify( '+' . (int) $minutes . ' minutes' )->format( 'Y-m-d H:i:s' ), $capacity );
-}
-function svc_slot( $resource_id, $hours, $minutes = 60, $capacity = 0 ) {
-	$start = (int) ( floor( ( time() + (int) round( $hours * 3600 ) ) / 60 ) * 60 );
-	return ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $start + $minutes * 60 ), $capacity );
-}
-function svc_reset_limits() { wpcap_test_reset_transients(); }
-function svc_book( $slot_id, $email, $qty = 1, array $args = array(), $order_id = 0 ) {
-	svc_reset_limits();
-	return ServiceBookings::reserve( $slot_id, $email, $qty, $order_id, 10, 'svc-' . uniqid( '', true ), $args );
-}
-function svc_status( $booking_id ) { return (string) ServiceBookings::get( $booking_id )->status; }
-function svc_audit( $action, $object_id = 0 ) {
-	global $wpdb;
-	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_audit_logs WHERE action=%s" . ( $object_id ? ' AND object_id=' . (int) $object_id : '' ) . ' ORDER BY audit_id DESC LIMIT 1', $action ) );
-}
-function svc_mails_to( $email, $from = 0 ) { return array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $from ), static fn( $m ) => $m['to'] === $email ) ); }
-function svc_free( $slot_id ) { $slot = ServiceResources::slot( $slot_id ); return (int) $slot->capacity - ServiceResources::booked_quantity( $slot_id ) - PassCaptain\ServiceWaitlist::held_quantity( $slot_id ); }
 
 echo "Service bookings: duration, buffers and slot collisions\n";
 list( $sa_event, $sa_type ) = svc_event();

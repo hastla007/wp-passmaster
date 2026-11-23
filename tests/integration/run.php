@@ -363,11 +363,16 @@ assert_capacity_counters( 'run.php core' );
 // WPCAP_TEST_ONLY=<regex>: run only the module files whose name matches (core files only with WPCAP_TEST_CORE=1).
 $wpcap_only = (string) getenv( 'WPCAP_TEST_ONLY' );
 foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {
+	// Shared stubs and helpers of a core file load at its position even when the file itself is skipped (Z1).
+	if ( is_file( __DIR__ . "/lib/fixtures_$core_test.php" ) ) { require_once __DIR__ . "/lib/fixtures_$core_test.php"; }
 	if ( '' !== $wpcap_only && '1' !== getenv( 'WPCAP_TEST_CORE' ) && ! preg_match( '#' . $wpcap_only . '#', $core_test ) ) { continue; }
 	require __DIR__ . "/$core_test.php";
 	assert_capacity_counters( "$core_test.php" );
 	drain_lapsed_holds();
 }
+// Template stubs and helpers several modules share (ex_*, adm_*, svc_*), so a module also runs on its own (Z1).
+require_once __DIR__ . '/lib/fixtures_wp.php';
+require_once __DIR__ . '/lib/fixtures_modules.php';
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
 	if ( '' !== (string) getenv( 'WPCAP_TEST_SKIP' ) && preg_match( '#' . getenv( 'WPCAP_TEST_SKIP' ) . '#', basename( $module_test, '.php' ) ) ) { continue; }

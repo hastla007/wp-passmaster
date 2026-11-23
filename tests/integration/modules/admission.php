@@ -19,28 +19,6 @@ PassCaptain\Modules\Admission::register();
 global $wpdb;
 $p = $wpdb->prefix;
 
-function adm_ts( $local, $tz ) { return ( new DateTimeImmutable( $local, new DateTimeZone( $tz ) ) )->getTimestamp(); }
-function adm_now( $ts ) { if ( null === $ts ) { unset( $GLOBALS['wpcap_test_filters']['wpcap_checkin_now'] ); } else { $GLOBALS['wpcap_test_filters']['wpcap_checkin_now'] = (int) $ts; } }
-/** Event with one occurrence (local times in $tz) and $qty free tickets. */
-function adm_setup( $tz = 'Europe/Vienna', $start = null, $end = null, $qty = 1 ) {
-	global $wpdb;
-	$p = $wpdb->prefix;
-	$type = make_type( 100, 50, 0 );
-	$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
-	$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$occ" );
-	wpcap_test_reset_transients();
-	$order = Orders::create( array( 'email' => 'adm' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'adm-' . uniqid( '', true ) ) );
-	$codes = is_wp_error( $order ) ? array() : ticket_code_for( $order['order_id'] );
-	$fields = array( 'timezone' => $tz );
-	if ( $start ) { $fields['starts_at'] = gmdate( 'Y-m-d H:i:s', adm_ts( $start, $tz ) ); }
-	if ( $end ) { $fields['ends_at'] = gmdate( 'Y-m-d H:i:s', adm_ts( $end, $tz ) ); }
-	$wpdb->update( "{$p}wpcap_occurrences", $fields, array( 'occurrence_id' => $occ ) );
-	return array( 'type' => $type, 'occ' => $occ, 'event' => $event, 'codes' => $codes );
-}
-function adm_r( $r ) { return is_wp_error( $r ) ? (string) ( $r->get_error_data()['result'] ?? $r->get_error_code() ) : (string) $r['status']; }
-function adm_in( $code, $at = null, array $ctx = array() ) { adm_now( $at ); $r = Checkin::perform( $code, $ctx + array( 'idempotency_key' => 'adm-' . uniqid( '', true ) ) ); adm_now( null ); return adm_r( $r ); }
-function adm_out( $code, $at = null, array $ctx = array() ) { adm_now( $at ); $r = Checkin::check_out( $code, $ctx + array( 'idempotency_key' => 'adm-' . uniqid( '', true ) ) ); adm_now( null ); return adm_r( $r ); }
-function adm_ticket_status( $code ) { global $wpdb; return $wpdb->get_var( "SELECT status FROM {$wpdb->prefix}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $code ) . "'" ); }
 
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();

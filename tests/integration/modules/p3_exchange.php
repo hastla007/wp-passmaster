@@ -40,45 +40,6 @@ Seating::register();
 global $wpdb;
 $p = $wpdb->prefix;
 
-function ex_event( $name = 'Festival' ) {
-	global $wpdb;
-	$now = gmdate( 'Y-m-d H:i:s' );
-	$wpdb->insert( "{$wpdb->prefix}wpcap_events", array( 'name' => $name, 'slug' => 'ex' . uniqid(), 'description' => '', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
-	return (int) $wpdb->insert_id;
-}
-function ex_occ( $event, $capacity = 0, $hours = 168 ) {
-	global $wpdb;
-	$wpdb->insert( "{$wpdb->prefix}wpcap_occurrences", array( 'event_id' => $event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + $hours * 3600 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => $capacity, 'status' => 'scheduled' ) );
-	return (int) $wpdb->insert_id;
-}
-function ex_type( $occ, $name, $price, $capacity = 0, $rate = 1000 ) {
-	global $wpdb;
-	$wpdb->insert( "{$wpdb->prefix}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => $name, 'price_minor' => $price, 'currency' => 'EUR', 'capacity' => $capacity, 'max_per_order' => 10, 'tax_rate_bp' => $rate, 'status' => 'active' ) );
-	return (int) $wpdb->insert_id;
-}
-/** Buys and pays $qty tickets; returns [order_id, ticket ids]. */
-function ex_buy( $type, $qty = 1, $email = 'ex@example.com' ) {
-	$GLOBALS['wpcap_test_transients'] = array();
-	$r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'ex-' . uniqid( '', true ) ) );
-	if ( is_wp_error( $r ) ) { return array( 0, array() ); }
-	if ( 'paid' !== $r['payment_status'] ) { Orders::confirm_external_payment( $r['order_id'], 'test' ); }
-	return array( (int) $r['order_id'], array_map( static fn( $t ) => (int) $t->ticket_id, tickets( $r['order_id'], 'valid' ) ) );
-}
-function ex_ticket( $id ) {
-	global $wpdb;
-	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $id ) );
-}
-function ex_item( $order_id, $type_id ) {
-	global $wpdb;
-	return $wpdb->get_row( $wpdb->prepare( "SELECT SUM(quantity) AS quantity,SUM(refunded_quantity) AS refunded,SUM(line_total_minor) AS line_total FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", $order_id, $type_id ) );
-}
-function ex_mails( $type_word ) {
-	return array_values( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => false !== strpos( (string) $m['subject'], $type_word ) ) );
-}
-function ex_policy( array $values ) {
-	Policy::save_global( array_merge( Policy::defaults(), $values ) );
-}
-
 $GLOBALS['ex_events'] = array();
 add_action( 'wpcap_ticket_exchanged', static function ( $old, $new, $id ) { $GLOBALS['ex_events'][] = array( 'exchanged', (int) $old, (int) $new, (int) $id ); }, 10, 3 );
 add_action( 'wpcap_ticket_revoked', static function ( $id, $reason = '' ) { $GLOBALS['ex_events'][] = array( 'revoked', (int) $id, (string) $reason ); }, 99, 2 );
