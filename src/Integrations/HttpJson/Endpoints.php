@@ -263,12 +263,9 @@ final class Endpoints {
 		return true;
 	}
 
-	/** Adds/removes the endpoint's connector key in wpcap_enabled_connectors. */
+	/** Adds/removes the endpoint's connector key in wpcap_enabled_connectors (one writer: ConnectorRegistry). */
 	private static function sync_enabled( $endpoint_id, $enabled ) {
-		$list = get_option( 'wpcap_enabled_connectors', array() );
-		$list = is_array( $list ) ? array_values( array_diff( array_map( 'strval', $list ), array( self::key( $endpoint_id ) ) ) ) : array();
-		if ( $enabled ) { $list[] = self::key( $endpoint_id ); }
-		update_option( 'wpcap_enabled_connectors', $list );
+		\PassCaptain\Integrations\ConnectorRegistry::store( self::key( $endpoint_id ), (bool) $enabled );
 	}
 
 	/* ------------------------------------------------------------------ Mapping */

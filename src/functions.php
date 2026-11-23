@@ -178,3 +178,30 @@ if ( ! function_exists( 'wpcap_connector_audit' ) ) {
 		return PassCaptain\Integrations\ConnectorAudit::record( $source, $action, $object_type, $object_id, $details );
 	}
 }
+
+if ( ! function_exists( 'wpcap_set_connector_enabled' ) ) {
+	/**
+	 * Opts a connector in or out (contract 1.4.0, PASS-E17-01) instead of writing the option
+	 * wpcap_enabled_connectors, see PassCaptain\Integrations\ConnectorRegistry::set_enabled().
+	 * Needs manage_options (or WP-CLI); enabling needs a registered connector; audited.
+	 *
+	 * @param string $key     Connector key.
+	 * @param bool   $enabled True = opt in, false = opt out.
+	 * @return true|WP_Error
+	 */
+	function wpcap_set_connector_enabled( $key, $enabled ) {
+		return PassCaptain\Integrations\ConnectorRegistry::set_enabled( $key, $enabled );
+	}
+}
+
+if ( ! function_exists( 'wpcap_is_connector_enabled' ) ) {
+	/**
+	 * Whether a connector is opted in (contract 1.4.0), see PassCaptain\Integrations\ConnectorRegistry::is_enabled().
+	 *
+	 * @param string $key Connector key.
+	 * @return bool
+	 */
+	function wpcap_is_connector_enabled( $key ) {
+		return PassCaptain\Integrations\ConnectorRegistry::is_enabled( $key );
+	}
+}

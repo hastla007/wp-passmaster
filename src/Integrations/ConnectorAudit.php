@@ -90,16 +90,7 @@ final class ConnectorAudit {
 
 	/** Whether $key is the key of a connector registered through wp_pass_captain_connectors_v1. */
 	public static function registered( $key ) {
-		$connectors = apply_filters( 'wp_pass_captain_connectors_v1', array() );
-		foreach ( is_array( $connectors ) ? $connectors : array() as $connector ) {
-			if ( ! $connector instanceof ConnectorInterface ) { continue; }
-			try {
-				if ( (string) $connector->key() === (string) $key ) { return true; }
-			} catch ( \Throwable $error ) {
-				continue;
-			}
-		}
-		return false;
+		return ConnectorRegistry::is_registered( $key );
 	}
 
 	private static function valid_key( $key ) {

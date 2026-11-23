@@ -2,7 +2,7 @@
 
 Pass Captain ist als Kern-Plugin vollständig frei (GPL-2.0-or-later): ohne Lizenzprüfung, ohne gesperrte oder zeitlich begrenzte Funktionen und ohne eigenen Update-Server – Updates kommen von WordPress.org. Alles, was der Kern heute ausliefert, bleibt dauerhaft frei (Inventar und Regeln: [FREE-PREMIUM.md](FREE-PREMIUM.md), Entscheidung vom 13.11.2026). Premiumfunktionen gibt es nur im **separaten Add-on** `pass-captain-pro` mit eigenem Shop, eigenem Updater und eigener Lizenz; **nur das Add-on spricht mit WP License Captain**. Der Kern enthält keinen Lizenzclient, keine Route `wplc/v1`, keinen Header `Update URI` und keine eigenen Update-Filter – `tests/license-guard.php` erzwingt das in der CI.
 
-Das Add-on und andere Erweiterungen docken nur über öffentliche, versionierte Schnittstellen an: die öffentliche Add-on-API (Einstieg `wpcap_loaded`, Admin-Seiten, Einstellungs-Tabs, Checkout, Berichte, Exporte, PDF, Mail und REST; [HOOKS.md](HOOKS.md#öffentliche-add-on-api), Vertrag `addon` 1.0.0), Adapter-Verträge ([CONTRACTS.md](CONTRACTS.md)) und den Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface`; Adapter werden über `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option `wpcap_enabled_connectors` freigegeben wurde. Erweiterungen dürfen bestehende Tickets und Einlass nie sperren – auch nicht, wenn ein externer Dienst, der Lizenzserver oder die Add-on-Lizenz ausfällt; dann ist nur die jeweilige Add-on-Funktion aus.
+Das Add-on und andere Erweiterungen docken nur über öffentliche, versionierte Schnittstellen an: die öffentliche Add-on-API (Einstieg `wpcap_loaded`, Admin-Seiten, Einstellungs-Tabs, Checkout, Berichte, Exporte, PDF, Mail und REST; [HOOKS.md](HOOKS.md#öffentliche-add-on-api), Vertrag `addon` 1.0.0), Adapter-Verträge ([CONTRACTS.md](CONTRACTS.md)) und den Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface`; Adapter werden über `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option `wpcap_enabled_connectors` freigegeben wurde (geschaltet seit Vertrag 1.4.0 über `wpcap_set_connector_enabled()`, nicht durch Schreiben der Option). Erweiterungen dürfen bestehende Tickets und Einlass nie sperren – auch nicht, wenn ein externer Dienst, der Lizenzserver oder die Add-on-Lizenz ausfällt; dann ist nur die jeweilige Add-on-Funktion aus.
 
 Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` einplanen. Ein Handler registriert einen Filter auf `wpcap_process_job` und gibt `true` zurück, wenn der Job erfolgreich und wiederholbar verarbeitet wurde; andernfalls (auch bei einer Exception) wird er mit Backoff erneut versucht und nach acht Läufen als `dead_letter` markiert. Jobs laufen mindestens einmal – Handler müssen idempotent sein (siehe [OPERATIONS.md](OPERATIONS.md#garantien-bei-worker-fehlern-und-neustarts-a188)).
 
@@ -51,6 +51,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 | 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`) (PASS-E17-01); additiv |
 | 1.4.0 | 1.6.0 | zusätzlich der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`) und der [Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors) (`wpcap_connector_audit()`) (PASS-E17-01); additiv |
+| 1.4.0 | 1.6.0 | zusätzlich der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`), der [Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors) (`wpcap_connector_audit()`) und die [Freigabe eines Connectors](#freigabe-eines-connectors-opt-in) (`wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()`) (PASS-E17-01); additiv |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
@@ -127,6 +128,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\TicketDetails` (`ticket()`, `order()`, `VERSION`, `EMAIL_CAP`), `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Integrations\ConnectorAudit::record()`, `wpcap_connector_audit()` | 1.6.0 (Vertrag 1.4.0) |
+| `PassCaptain\Integrations\ConnectorRegistry::set_enabled()`, `is_enabled()`, `is_registered()`, `wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\Integrations\Vouchers\Reconciliation` (`orders()`, `VERSION`, `MAX_LIMIT`) | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
@@ -157,6 +159,7 @@ ihnen stehen im `CHANGELOG.md`.
 | Gutschein-Abgleich (nur lesend) | `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` | Versionierte PHP-API (`VERSION`) | `src/Integrations/Vouchers/Reconciliation.php` |
 | Connectoren (CRM, Kalender, Buchhaltung) | `wp_pass_captain_connectors_v1` + `PassCaptain\Integrations\ConnectorInterface` | Versionierter Filter | `src/Integrations/ConnectorRegistry.php` |
 | Protokolleintrag eines Connectors | `wpcap_connector_audit()` | Funktion (Vertrag 1.4.0) | `src/Integrations/ConnectorAudit.php` |
+| Connector ein- und ausschalten (Opt-in) | `wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()` | Funktion (Vertrag 1.4.0) | `src/Integrations/ConnectorRegistry.php` |
 | Hintergrundjobs | `PassCaptain\Jobs::enqueue()` + `wp_pass_captain_process_job_v1` | Versionierter Filter | `src/Jobs.php` |
 | E-Mail-Typen | `wpcap_mail_types`, `wpcap_mail`, `wpcap_mail_before_send` | Filter/Action | `src/Mail/Types.php`, `src/Mail/Mailer.php` |
 | Checkout-Felder | `wpcap_checkout_form_fields`, `wpcap_checkout_payload_keys`, `wpcap_order_creating` | Action/Filter | `templates/event-card.php`, `src/Orders.php` |
@@ -302,7 +305,9 @@ Der Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface` (`key()`, `v
 `contract_version`. Eine Minor-Version fügt nur Ereignisse oder Felder hinzu; Connectoren ignorieren unbekannte
 Ereignisse und Felder. Adapter werden über
 `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option
-`wpcap_enabled_connectors` freigegeben wurde. Fehler meldet `wp_pass_captain_connector_error_v1`.
+`wpcap_enabled_connectors` freigegeben wurde; ein- und ausgeschaltet wird über
+[`wpcap_set_connector_enabled()`](#freigabe-eines-connectors-opt-in), nicht durch Schreiben der Option. Fehler meldet
+`wp_pass_captain_connector_error_v1`.
 
 Der Kern liefert seine Domänenereignisse über die Job-Queue an alle freigegebenen Connectoren
 (`PassCaptain\Integrations\ConnectorEvents`, Jobtyp `connector_delivery`). Je Ereignis und Connector entsteht
@@ -373,6 +378,22 @@ Minute sind höchstens 60 Einträge möglich (`ConnectorAudit::RATE_LIMIT`), dan
 durch dieselbe Schwärzung. Die Einträge erscheinen unter „Audit-Log“ mit der Aktion `connector_log_…`. Personenbezogene
 Daten gehören nicht hinein; wer eine Person meint, nennt das Ticket oder die Bestellung über `$object_type` und
 `$object_id`.
+
+### Freigabe eines Connectors (Opt-in)
+
+Seit Vertragsversion 1.4.0 (Plugin 1.6.0, PASS-E17-01) schaltet ein Connector-Plugin seine Freigabe über zwei
+öffentliche Funktionen, statt die Option `wpcap_enabled_connectors` selbst zu schreiben. Die Option, ihr Name und
+ihr Format gehören **nicht** zum Vertrag: Nur der Kern schreibt sie (`ConnectorRegistry::OPTION`), unter einer
+Datenbanksperre, damit zwei gleichzeitige Änderungen sich nicht gegenseitig überschreiben.
+
+| Funktion | Rückgabe | Regeln |
+|---|---|---|
+| `wpcap_set_connector_enabled( $key, $enabled )` | `true` oder `WP_Error` | Schlüssel `a-z`, `0-9`, `_`, `-` (höchstens 64 Zeichen, sonst `wpcap_connector_invalid`, 400); nur mit `manage_options` oder unter WP-CLI (sonst `wpcap_connector_forbidden`, 403); Einschalten nur für einen über `wp_pass_captain_connectors_v1` registrierten Connector (sonst `wpcap_connector_unknown`, 404), Ausschalten auch für einen nicht mehr registrierten; ist die Sperre belegt, `wpcap_connector_busy` (409). Idempotent; jede Änderung steht im Audit-Log (`connector_enabled` / `connector_disabled`, Angabe `connector`) |
+| `wpcap_is_connector_enabled( $key )` | `bool` | ob der Schlüssel freigegeben ist (unabhängig davon, ob der Connector gerade registriert ist) |
+
+Üblich ist der Aufruf beim Speichern der eigenen Einstellungsseite (nach Nonce-Prüfung) oder beim Deaktivieren des
+Connector-Plugins (`wpcap_set_connector_enabled( 'my_connector', false )`). Die Freigabe bleibt eine Entscheidung der
+Betreiberin: Der Kern schaltet keinen Connector von selbst ein.
 
 ### Mitgelieferte Connectoren
 

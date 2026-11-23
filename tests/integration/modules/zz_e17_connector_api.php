@@ -206,4 +206,57 @@ if ( $e17_has_audit ) {
 	check( 'E17-2: docs/EXTENSIONS.md "Protokolleintrag eines Connectors" documents function, version, rules, object types and error codes' . ( $e17_missing || $e17_object_doc ? ': ' . implode( ', ', array_merge( $e17_missing, $e17_object_doc ) ) : '' ), '' !== $e17_audit_doc && array() === $e17_missing && array() === $e17_object_doc && 10 === PassCaptain\Integrations\ConnectorAudit::MAX_DETAILS );
 }
 
+/* ---- Part 3: opt-in through a function instead of writing the option ---- */
+
+$e17_has_optin = function_exists( 'wpcap_set_connector_enabled' ) && function_exists( 'wpcap_is_connector_enabled' );
+check( 'E17-3: wpcap_set_connector_enabled() and wpcap_is_connector_enabled() exist (contract 1.4.0)', $e17_has_optin );
+if ( $e17_has_optin ) {
+	$e17_saved = get_option( 'wpcap_enabled_connectors', array() );
+	update_option( 'wpcap_enabled_connectors', array( 'e17_other', 'e17_gone' ) );
+	$e17_lb = 'e17-learnboating';
+	$e17_lb_filter = static function ( $list ) use ( $e17_lb ) { $list[] = new E17_Stub_Connector( $e17_lb ); return $list; };
+	add_filter( 'wp_pass_captain_connectors_v1', $e17_lb_filter );
+	$e17_audits = static function ( $action ) use ( $wpdb, $p, $e17_lb ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action=%s AND object_type='connector' AND details LIKE %s", $action, '%' . $wpdb->esc_like( $e17_lb ) . '%' ) ); };
+	$e17_on_before = $e17_audits( 'connector_enabled' );
+	$e17_off_before = $e17_audits( 'connector_disabled' );
+
+	$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+	$e17_forbidden = wpcap_set_connector_enabled( $e17_lb, true );
+	$GLOBALS['wpcap_test_denied_caps'] = array();
+	check( 'E17-3: without manage_options the opt-in is refused (403) and nothing changes', is_wp_error( $e17_forbidden ) && 'wpcap_connector_forbidden' === $e17_forbidden->get_error_code() && 403 === ( $e17_forbidden->get_error_data()['status'] ?? 0 ) && false === wpcap_is_connector_enabled( $e17_lb ) );
+	$e17_unknown = wpcap_set_connector_enabled( 'e17_not_registered', true );
+	$e17_invalid = wpcap_set_connector_enabled( 'E17 Connector', true );
+	check( 'E17-3: an unregistered connector cannot be enabled (404); an invalid key is refused (400)', is_wp_error( $e17_unknown ) && 'wpcap_connector_unknown' === $e17_unknown->get_error_code() && is_wp_error( $e17_invalid ) && 'wpcap_connector_invalid' === $e17_invalid->get_error_code() && array( 'e17_other', 'e17_gone' ) === get_option( 'wpcap_enabled_connectors' ) );
+
+	$e17_on = wpcap_set_connector_enabled( $e17_lb, true );
+	$e17_on_again = wpcap_set_connector_enabled( $e17_lb, true );
+	check( 'E17-3: enabling a registered connector adds its key once, keeps the other keys and is audited once (idempotent)', true === $e17_on && true === $e17_on_again && true === wpcap_is_connector_enabled( $e17_lb ) && array( 'e17_other', 'e17_gone', $e17_lb ) === get_option( 'wpcap_enabled_connectors' ) && $e17_on_before + 1 === $e17_audits( 'connector_enabled' ) );
+	check( 'E17-3: an enabled connector is picked up by the event delivery', in_array( $e17_lb, PassCaptain\Integrations\ConnectorEvents::enabled_keys(), true ) );
+
+	// Busy lock: another request is switching right now.
+	$e17_other_db = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
+	$e17_lock = PassCaptain\DbLock::name( PassCaptain\Integrations\ConnectorRegistry::LOCK );
+	$e17_held = '1' === (string) $e17_other_db->query( "SELECT GET_LOCK('" . $e17_lock . "',0)" )->fetch_row()[0];
+	$e17_busy = wpcap_set_connector_enabled( $e17_lb, false );
+	$e17_other_db->query( "SELECT RELEASE_LOCK('" . $e17_lock . "')" );
+	$e17_other_db->close();
+	check( 'E17-3: while another request holds the opt-in lock nothing is written (409 wpcap_connector_busy, no lost update)', $e17_held && is_wp_error( $e17_busy ) && 'wpcap_connector_busy' === $e17_busy->get_error_code() && true === wpcap_is_connector_enabled( $e17_lb ) );
+
+	$e17_off = wpcap_set_connector_enabled( $e17_lb, false );
+	check( 'E17-3: disabling removes the key, keeps the others and is audited', true === $e17_off && false === wpcap_is_connector_enabled( $e17_lb ) && array( 'e17_other', 'e17_gone' ) === get_option( 'wpcap_enabled_connectors' ) && $e17_off_before + 1 === $e17_audits( 'connector_disabled' ) && ! in_array( $e17_lb, PassCaptain\Integrations\ConnectorEvents::enabled_keys(), true ) );
+	check( 'E17-3: a connector whose plugin is gone (not registered) can still be disabled', true === wpcap_set_connector_enabled( 'e17_gone', false ) && array( 'e17_other' ) === get_option( 'wpcap_enabled_connectors' ) && false === wpcap_is_connector_enabled( 'e17_gone' ) && true === wpcap_is_connector_enabled( 'e17_other' ) && false === wpcap_is_connector_enabled( array( 'e17_other' ) ) );
+	remove_filter( 'wp_pass_captain_connectors_v1', $e17_lb_filter );
+	update_option( 'wpcap_enabled_connectors', $e17_saved );
+
+	// Only ConnectorRegistry writes the option (the HTTP/JSON connector goes through it as well).
+	$e17_writers = array();
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src', FilesystemIterator::SKIP_DOTS ) ) as $e17_file ) {
+		if ( 'php' === $e17_file->getExtension() && preg_match( "/update_option\(\s*'wpcap_enabled_connectors'/", (string) file_get_contents( $e17_file->getPathname() ) ) ) { $e17_writers[] = $e17_file->getFilename(); }
+	}
+	check( 'E17-3: no file in src/ writes wpcap_enabled_connectors directly (single writer ConnectorRegistry::store())' . ( $e17_writers ? ': ' . implode( ', ', $e17_writers ) : '' ), array() === $e17_writers && 'wpcap_enabled_connectors' === PassCaptain\Integrations\ConnectorRegistry::OPTION );
+	$e17_optin_doc = $e17_section( 'Freigabe eines Connectors (Opt-in)', '###' );
+	$e17_missing = array_values( array_filter( array( '`wpcap_set_connector_enabled( $key, $enabled )`', '`wpcap_is_connector_enabled( $key )`', 'Vertragsversion 1.4.0', '`manage_options`', '`wpcap_connector_invalid`', '`wpcap_connector_forbidden`', '`wpcap_connector_unknown`', '`wpcap_connector_busy`', '`connector_enabled`', '`connector_disabled`', 'gehören **nicht** zum Vertrag' ), static fn( $w ) => false === strpos( $e17_optin_doc, $w ) ) );
+	check( 'E17-3: docs/EXTENSIONS.md "Freigabe eines Connectors (Opt-in)" documents both functions, rules, errors and that the option is not part of the contract' . ( $e17_missing ? ': ' . implode( ', ', $e17_missing ) : '' ), '' !== $e17_optin_doc && array() === $e17_missing );
+}
+
 check( 'E17: WPCAP_CONTRACT_VERSION is at least 1.4.0 and the version table names 1.4.0', version_compare( (string) ( preg_match( "/^define\( 'WPCAP_CONTRACT_VERSION', '([^']+)' \);/m", (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' ), $e17_m ) ? $e17_m[1] : '0' ), '1.4.0', '>=' ) && 1 === preg_match( '/^\| 1\.4\.0 \| 1\.6\.\d+ \|/m', $e17_docs ) );
