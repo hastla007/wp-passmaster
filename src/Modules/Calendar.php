@@ -1,6 +1,6 @@
 <?php
 /**
- * Event calendar: shortcode [wp_pass_captain_calendar] / block wp-pass-captain/calendar (month and
+ * Event calendar: shortcode [wpcap_calendar] / block pass-captain/calendar (month and
  * list view of upcoming published occurrences), public iCalendar downloads (?wpcap_ics=occurrence&id=N),
  * per-event feeds (?wpcap_ics=event&id=N, webcal-compatible) and an .ics attachment per occurrence
  * in the ticket mail. Every copy uses the same UID per occurrence and the occurrence's revision as
@@ -21,8 +21,8 @@ final class Calendar {
 	const PAGE = 'wpcap-calendar';
 
 	public static function register() {
-		add_shortcode( 'wp_pass_captain_calendar', array( __CLASS__, 'render_shortcode' ) );
 		add_shortcode( 'wpcap_calendar', array( __CLASS__, 'render_shortcode' ) );
+		add_shortcode( 'wp_pass_captain_calendar', array( __CLASS__, 'render_shortcode' ) ); // A303: deprecated alias.
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_serve_ics' ), 1 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'attach_ics' ), 20, 3 );
@@ -50,6 +50,7 @@ final class Calendar {
 			\PassCaptain\PublicEvents::register_styles(); // block.json "style" (A391).
 			$block = register_block_type( WPCAP_PATH . 'src/blocks/calendar' );
 			\PassCaptain\Localization::block_translations( $block );
+			\PassCaptain\LegacyNames::register_block_alias( $block ); // A303: former name wp-pass-captain/calendar.
 			// A502: the event selection of the block (published events with upcoming dates).
 			if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {
 				add_action( 'enqueue_block_editor_assets', static function () use ( $block ) {
@@ -176,6 +177,7 @@ final class Calendar {
 	 * dates instead of all events, and editors see a hint for every invalid attribute.
 	 */
 	public static function render_shortcode( $atts = array(), $content = '', $tag = '' ) {
+		\PassCaptain\LegacyNames::shortcode_used( $tag );
 		$raw = is_array( $atts ) ? $atts : array();
 		$defaults = array( 'view' => 'month', 'event' => 0, 'limit' => 50 );
 		$atts = function_exists( 'shortcode_atts' ) ? \PassCaptain\PublicEvents::shortcode_atts( $defaults, $raw, $tag, 'wp_pass_captain_calendar' ) : array_merge( $defaults, $raw );
@@ -194,7 +196,7 @@ final class Calendar {
 	}
 
 	/**
-	 * Render callback of the block wp-pass-captain/calendar (render.php, A449): the block wrapper
+	 * Render callback of the block pass-captain/calendar and its former name (render.php, A449, A303): the block wrapper
 	 * attributes (block class, custom CSS class, alignment, spacing) go on the root element.
 	 */
 	public static function render_block( array $attributes ) {
@@ -326,7 +328,7 @@ final class Calendar {
 		$post = function_exists( 'get_post' ) ? get_post() : null;
 		if ( ! $post ) { return false; }
 		$content = (string) $post->post_content;
-		return ( function_exists( 'has_shortcode' ) && ( has_shortcode( $content, 'wp_pass_captain_events' ) || has_shortcode( $content, 'wpcap_events' ) ) ) || false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );
+		return \PassCaptain\LegacyNames::content_has_shortcode( $content, 'wpcap_events' ) || \PassCaptain\LegacyNames::content_has_block( $content, \PassCaptain\LegacyNames::EVENTS_BLOCK );
 	}
 
 	public static function render_list( $event_id = 0, $limit = 50, $wrapper = '' ) {
@@ -493,7 +495,7 @@ final class Calendar {
 		$s = (array) Settings::get( 'calendar' );
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Kalender', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<p>' . esc_html__( 'Shortcode: [wp_pass_captain_calendar view="month"] oder view="list"; alternativ der Block „Pass Captain Kalender“.', 'pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Shortcode: [wpcap_calendar view="month"] oder view="list"; alternativ der Block „Pass Captain Kalender“.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_calendar_save' );
 		echo '<table class="form-table"><tbody>';
 		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html( sprintf( /* translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID} */ __( 'Kalendereinträge verlinken auf den Termin auf dieser Seite (?wpcap_occurrence=…, Anker %s). Leer: die veröffentlichte Seite mit dem Event-Shortcode bzw. -Block wird automatisch verwendet; ohne eine solche Seite öffnet der Kalender den Termin auf der Kalenderseite selbst.', 'pass-captain' ), '#wpcap-occ-{' . _x( 'Termin-ID', 'placeholder name for the numeric occurrence ID in an anchor', 'pass-captain' ) . '}' ) ) . '</p></td></tr>';

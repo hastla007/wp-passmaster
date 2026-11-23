@@ -5,5 +5,5 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 return array(
 	'dependencies' => array( 'wp-blocks', 'wp-element', 'wp-server-side-render', 'wp-block-editor', 'wp-components', 'wp-i18n' ),
-	'version'      => 'b1299065fadc15e5e774',
+	'version'      => 'eba9c9a8534851d84c4d',
 );

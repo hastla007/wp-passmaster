@@ -353,8 +353,9 @@ und Seiten mit Event-Liste oder Kalender werden bei jeder Änderung **gezielt ge
   gewordene Plätze) und geänderte Rechtstexte (`$event_id` 0 = alle Seiten mit Liste).
 - **Welche Seiten:** Ein Index (Option `wpcap_page_cache_index`, beim ersten Gebrauch aus allen
   veröffentlichten Beiträgen aufgebaut, danach bei `save_post` über `has_shortcode()`/`has_block()` gepflegt)
-  kennt alle Beiträge mit `[wp_pass_captain_events]`/`[wpcap_events]`, `[wp_pass_captain_calendar]`/
-  `[wpcap_calendar]` und den Blöcken `wp-pass-captain/events`/`wp-pass-captain/calendar`. Geleert werden die
+  kennt alle Beiträge mit `[wpcap_events]`/`[wp_pass_captain_events]`, `[wpcap_calendar]`/
+  `[wp_pass_captain_calendar]` und den Blöcken `pass-captain/events`/`pass-captain/calendar` (auch unter den
+  früheren Namen `wp-pass-captain/…`, A303). Geleert werden die
   Beiträge mit `event`/`occurrence`-Attribut des Events bzw. eines seiner Termine sowie **alle** Beiträge mit
   vollständiger Liste oder Kalender. Listen in Templates, Template-Parts, synchronisierten Mustern oder
   Widgets sieht der Index nicht – solche URLs mit dem Filter `wpcap_page_cache_urls` ergänzen.
@@ -1788,9 +1789,9 @@ Die Ticket-IDs einer Pass-Absage werden je Bestellung einzeln gelesen (keine `GR
 
 ## Blöcke „Pass Captain Events“ und „Pass Captain Kalender“
 
-Die Blöcke `wp-pass-captain/events` und `wp-pass-captain/calendar` behalten ihre Namen (sie stehen im gespeicherten Beitragsinhalt, siehe [RENAME.md](RENAME.md)); Shortcodes `[wpcap_events]` und `[wpcap_calendar]` liefern dieselbe Ausgabe.
+Die Blöcke heißen seit 1.5.0 `pass-captain/events` und `pass-captain/calendar` (A303). Die früheren Namen `wp-pass-captain/events` und `wp-pass-captain/calendar` stehen in bereits gespeicherten Beiträgen; sie bleiben als ausgeblendete Aliase registriert, werden auf der Website unverändert ausgegeben und beim Öffnen des Beitrags im Block-Editor automatisch auf den neuen Namen umgestellt (gespeichert wird er mit dem nächsten Speichern; manuell auch über „Umwandeln in“). Shortcodes `[wpcap_events]` und `[wpcap_calendar]` liefern dieselbe Ausgabe; die früheren `[wp_pass_captain_events]`/`[wp_pass_captain_calendar]` funktionieren weiter und werden bei aktivem `WP_DEBUG` als veraltet gemeldet.
 
-- **Block-Unterstützungen (A449):** Beide Blöcke unterstützen eigene CSS-Klassen, die Ausrichtung „weit“/„volle Breite“ und Außen-/Innenabstand. Auf der Website trägt das äußere Element die Block-Wrapper-Attribute (`wp-block-wp-pass-captain-events` bzw. `wp-block-wp-pass-captain-calendar`, eigene Klasse, `alignwide`/`alignfull`, Abstände) zusätzlich zu `wpcap-events` bzw. `wpcap-calendar wpcap-calendar-{month|list}`; Blockstile aus `theme.json` (`styles.blocks["wp-pass-captain/events"]`) greifen damit auch auf der Website. Die Shortcodes geben weiterhin nur die eigenen Klassen aus.
+- **Block-Unterstützungen (A449):** Beide Blöcke unterstützen eigene CSS-Klassen, die Ausrichtung „weit“/„volle Breite“ und Außen-/Innenabstand. Auf der Website trägt das äußere Element die Block-Wrapper-Attribute (`wp-block-pass-captain-events` bzw. `wp-block-pass-captain-calendar`, bei noch nicht umgestellten Beiträgen `wp-block-wp-pass-captain-…`, eigene Klasse, `alignwide`/`alignfull`, Abstände) zusätzlich zu `wpcap-events` bzw. `wpcap-calendar wpcap-calendar-{month|list}`; Blockstile aus `theme.json` (`styles.blocks["pass-captain/events"]`) greifen damit auch auf der Website. Die Shortcodes geben weiterhin nur die eigenen Klassen aus.
 
 - **Monatsnavigation (A452):** Die Links „Vorheriger/Nächster Monat“ bauen auf der aufgerufenen URL auf (nicht auf dem Permalink des globalen Beitrags, der in Widgets, Template-Teilen, Archiven und Query-Loops falsch ist) und ersetzen nur den eigenen Parameter; alle anderen Parameter bleiben erhalten. Jeder Monatskalender einer Seite hat einen eigenen Parameter in Ausgabereihenfolge: `wpcap_month` (erster, wie bisher), `wpcap_month_2`, `wpcap_month_3` … – zwei Kalender blättern unabhängig. Die Links springen zur Navigation des jeweiligen Kalenders (`#wpcap-cal-nav-{n}`). Pfade, die mit `//` oder `/\` beginnen, werden auf einen lokalen Pfad reduziert. In der REST-Vorschau des Editors dient der Permalink des bearbeiteten Beitrags als Basis.
 

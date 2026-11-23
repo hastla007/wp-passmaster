@@ -23,7 +23,7 @@
 			limit: { type: 'integer', shortcode: function ( a ) { var n = parseInt( a.named.limit, 10 ); return n > 0 ? Math.min( 200, n ) : 50; } }
 		}
 	};
-	blocks.registerBlockType( 'wp-pass-captain/calendar', {
+	blocks.registerBlockType( 'pass-captain/calendar', {
 		transforms: { from: [ fromShortcode ] },
 		edit: function ( props ) {
 			var blockProps = blockEditor.useBlockProps ? blockEditor.useBlockProps() : {};
@@ -65,7 +65,7 @@
 						limitControl
 					)
 				),
-				preview( el( serverSideRender, { block: 'wp-pass-captain/calendar', attributes: attrs } ) )
+				preview( el( serverSideRender, { block: 'pass-captain/calendar', attributes: attrs } ) )
 			);
 		},
 		save: function () {

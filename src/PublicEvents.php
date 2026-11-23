@@ -325,7 +325,7 @@ final class PublicEvents {
 		return array_values( $handles );
 	}
 
-	/** Default attributes of [wp_pass_captain_events] and the wp-pass-captain/events block. */
+	/** Default attributes of [wpcap_events] and the pass-captain/events block. */
 	const DEFAULT_ATTS = array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'layout' => 'auto' );
 
 	/** Query parameter of the single-occurrence view (?wpcap_occ=ID) of the list layout. */
@@ -365,6 +365,7 @@ final class PublicEvents {
 	 * list when there would be more cards than auto_list_threshold().
 	 */
 	public static function render_shortcode( $atts = array(), $content = '', $tag = '' ) {
+		LegacyNames::shortcode_used( $tag );
 		$raw = is_array( $atts ) ? $atts : array();
 		$atts = self::shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50, 'dates' => '', 'layout' => 'auto' ), $raw, $tag, 'wp_pass_captain_events' );
 		// A503: an invalid value no longer falls back silently to "all events" (or the defaults).
@@ -489,7 +490,7 @@ final class PublicEvents {
 	}
 
 	/**
-	 * Render callback of the block wp-pass-captain/events (render.php, A449): the block wrapper
+	 * Render callback of the block pass-captain/events and its former name (render.php, A449, A303): the block wrapper
 	 * attributes (block class, custom CSS class, alignment, spacing) go on the root element, so
 	 * theme.json block styles and the classes set in the editor apply on the website too.
 	 */
@@ -912,11 +913,11 @@ final class PublicEvents {
 		$url = '';
 		$candidates = array();
 		if ( function_exists( 'get_posts' ) ) {
-			foreach ( array( 'wp_pass_captain_events', 'wpcap_events', 'wp-pass-captain/events' ) as $needle ) {
+			foreach ( array( 'wp_pass_captain_events', 'wpcap_events', LegacyNames::EVENTS_BLOCK ) as $needle ) {
 				foreach ( (array) get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'publish', 's' => $needle, 'numberposts' => 20, 'orderby' => 'ID', 'order' => 'ASC' ) ) as $post ) {
 					$content = (string) $post->post_content;
-					$shortcode = function_exists( 'has_shortcode' ) ? ( has_shortcode( $content, 'wp_pass_captain_events' ) || has_shortcode( $content, 'wpcap_events' ) ) : ( false !== strpos( $content, '[wp_pass_captain_events' ) || false !== strpos( $content, '[wpcap_events' ) );
-					$block = false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );
+					$shortcode = LegacyNames::content_has_shortcode( $content, 'wpcap_events' );
+					$block = LegacyNames::content_has_block( $content, LegacyNames::EVENTS_BLOCK );
 					// A page that shows one fixed date (occurrence attribute) is no list page.
 					if ( ( $shortcode || $block ) && ! preg_match( '/\[(?:wp_pass_captain|wpcap)_events[^\]]*occurrence=|"occurrence(?:Id)?":\s*[1-9]/', $content ) ) {
 						$candidates[ (int) $post->ID ] = ( 'page' === $post->post_type ? 0 : 1000000000000 ) + (int) $post->ID; // Pages first, then the oldest.
@@ -1493,7 +1494,9 @@ final class PublicEvents {
 		self::protect_scanner_page();
 	}
 
-	public static function render_scanner_shortcode() {
+	public static function render_scanner_shortcode( $atts = array(), $content = '', $tag = '' ) {
+		unset( $atts, $content );
+		LegacyNames::shortcode_used( $tag );
 		// A508: never cache the scanner page (login state, nonce). Headers were sent on
 		// template_redirect (PageCache::maybe_no_store_request()); DONOTCACHEPAGE covers late rendering.
 		PageCache::no_store( 'scanner' );

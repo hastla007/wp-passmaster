@@ -28,7 +28,7 @@
 			layout: { type: 'string', shortcode: function ( a ) { return layoutOf( a.named.layout ); } }
 		}
 	};
-	blocks.registerBlockType( 'wp-pass-captain/events', {
+	blocks.registerBlockType( 'pass-captain/events', {
 		transforms: { from: [ fromShortcode ] },
 		edit: function ( props ) {
 			var attrs = props.attributes;
@@ -84,7 +84,7 @@
 					} ) : null
 				)
 			) : null;
-			return el( element.Fragment, {}, controls, el( 'div', blockProps, preview( el( serverSideRender, { block: 'wp-pass-captain/events', attributes: attrs } ) ) ) );
+			return el( element.Fragment, {}, controls, el( 'div', blockProps, preview( el( serverSideRender, { block: 'pass-captain/events', attributes: attrs } ) ) ) );
 		},
 		save: function () {
 			return null;

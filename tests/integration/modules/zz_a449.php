@@ -52,10 +52,10 @@ check( 'calendar block: empty list keeps the wrapper', 0 === strpos( a449_render
 check( 'calendar shortcode: plain root classes', 0 === strpos( Calendar::render_shortcode( array( 'view' => 'list', 'event' => $a449_event ) ), '<div class="wpcap-calendar wpcap-calendar-list">' ) );
 
 echo "A449: supports in block.json\n";
-foreach ( array( 'events' => 'wp-pass-captain/events', 'calendar' => 'wp-pass-captain/calendar' ) as $a449_dir => $a449_name ) {
+foreach ( array( 'events' => 'pass-captain/events', 'calendar' => 'pass-captain/calendar' ) as $a449_dir => $a449_name ) {
 	$a449_json = json_decode( (string) file_get_contents( WPCAP_PATH . 'src/blocks/' . $a449_dir . '/block.json' ), true );
 	$a449_s = $a449_json['supports'] ?? array();
-	check( "$a449_name: stored block name unchanged (docs/RENAME.md)", $a449_name === ( $a449_json['name'] ?? '' ) );
+	check( "$a449_name: block name (former wp-pass-captain/* stays registered as alias, A303)", $a449_name === ( $a449_json['name'] ?? '' ) );
 	check( "$a449_name: supports custom class, alignment and spacing, no HTML editing", false === ( $a449_s['html'] ?? null ) && false !== ( $a449_s['className'] ?? true ) && false !== ( $a449_s['customClassName'] ?? true ) && array( 'wide', 'full' ) === ( $a449_s['align'] ?? null ) && ! empty( $a449_s['spacing']['margin'] ) && ! empty( $a449_s['spacing']['padding'] ) );
 	check( "$a449_name: render.php uses the block render callback", false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/blocks/' . $a449_dir . '/render.php' ), '::render_block( (array) $attributes )' ) );
 }

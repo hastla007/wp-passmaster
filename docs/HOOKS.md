@@ -27,7 +27,9 @@ dem neuen Hook und WordPress meldet sie bei aktivem `WP_DEBUG` als veraltet
 
 Shortcodes gibt es ebenfalls mit Präfix `wpcap_`: `[wpcap_events]`, `[wpcap_scanner]`,
 `[wpcap_calendar]`, `[wpcap_passes]`; die bisherigen `[wp_pass_captain_events]`,
-`[wp_pass_captain_scanner]` und `[wp_pass_captain_calendar]` bleiben gültig. Externe Systeme sollten statt PHP-Hooks die signierten
+`[wp_pass_captain_scanner]` und `[wp_pass_captain_calendar]` bleiben gültig und werden seit 1.5.0 bei aktivem
+`WP_DEBUG` als veraltet gemeldet (A303, `PassCaptain\LegacyNames`). Blöcke: `pass-captain/events`,
+`pass-captain/calendar`, `pass-captain/service-booking` (frühere Namen `wp-pass-captain/*` als Aliase, siehe RENAME.md). Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
 Lesende Funktionen ohne Hook (Lesefassade `wpcap_get_order_state()`, `wpcap_get_ticket_state()`,

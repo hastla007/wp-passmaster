@@ -15,7 +15,9 @@ $a275_root = dirname( __DIR__, 3 );
 
 echo "A275: block editor translations\n";
 if ( ! function_exists( 'register_block_type' ) ) {
-	function register_block_type( $path ) {
+	function register_block_type( $path, $args = array() ) {
+		// A303: a registration by name with arguments (alias of a former block name).
+		if ( is_array( $args ) && $args ) { $GLOBALS['wpcap_test_block_types'][ $path ] = $args; return (object) array_merge( array( 'name' => $path ), $args ); }
 		$meta = json_decode( (string) file_get_contents( rtrim( $path, '/' ) . '/block.json' ), true );
 		$GLOBALS['a275_registered'][] = $meta['name'];
 		return (object) array( 'name' => $meta['name'], 'editor_script_handles' => array( str_replace( '/', '-', $meta['name'] ) . '-editor-script' ), 'view_script_handles' => array() );

@@ -29,7 +29,7 @@ function a455_render( $dir, array $attributes ) {
 }
 
 echo "A455: block.json validation\n";
-$a455_names = array( 'events' => 'wp-pass-captain/events', 'calendar' => 'wp-pass-captain/calendar', 'service-booking' => 'pass-captain/service-booking' );
+$a455_names = array( 'events' => 'pass-captain/events', 'calendar' => 'pass-captain/calendar', 'service-booking' => 'pass-captain/service-booking' );
 $a455_dirs = array_map( 'basename', (array) glob( WPCAP_PATH . 'src/blocks/*', GLOB_ONLYDIR ) );
 sort( $a455_dirs );
 $a455_known = array_keys( $a455_names );

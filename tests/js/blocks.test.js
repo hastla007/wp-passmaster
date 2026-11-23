@@ -58,8 +58,8 @@ function nodes(tree, ancestors, out) {
 function find(tree, type) { return nodes(tree).filter((n) => n.node.type === type); }
 
 const CASES = [
-	{ dir: 'events', name: 'wp-pass-captain/events', attributes: { event: 0, occurrence: 0 } },
-	{ dir: 'calendar', name: 'wp-pass-captain/calendar', attributes: { view: 'month', eventId: 0 } },
+	{ dir: 'events', name: 'pass-captain/events', attributes: { event: 0, occurrence: 0 } },
+	{ dir: 'calendar', name: 'pass-captain/calendar', attributes: { view: 'month', eventId: 0 } },
 	{ dir: 'service-booking', name: 'pass-captain/service-booking', attributes: { eventId: 3, resourceId: 0 } },
 ];
 

@@ -19,8 +19,18 @@ translate.wordpress.org geladen werden.
 | Action-Scheduler-Gruppe der Folgeläufe | `wp-pass-captain` | `pass-captain` (ausstehende Aktionen werden übernommen, siehe unten) |
 
 **Unverändert:** alle Daten (Tabellen `{prefix}wpcap_*`, Optionen `wpcap_*`), Rollen und Rechte, PHP-Namensraum
-`PassCaptain`, Hooks und Shortcodes (`wpcap_*`, die älteren Namen `wp_pass_captain_*` bleiben als Aliase), die
-Blocknamen `wp-pass-captain/events` und `wp-pass-captain/calendar` (sie stehen im gespeicherten Seiteninhalt).
+`PassCaptain`, Hooks und Shortcodes (`wpcap_*`, die älteren Namen `wp_pass_captain_*` bleiben als Aliase; die
+Shortcodes `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]` meldet WordPress bei
+aktivem `WP_DEBUG` als veraltet, A303). Die versionierten Verträge mit den Partner-Plugins
+(`wp_pass_captain_*_v1`, siehe HOOKS.md) behalten ihren Namen.
+
+**Blöcke (A303):** Die Blöcke heißen `pass-captain/events` und `pass-captain/calendar` (wie
+`pass-captain/service-booking`). Die früheren Namen `wp-pass-captain/events` und `wp-pass-captain/calendar` stehen im
+gespeicherten Seiteninhalt; sie bleiben als im Inserter ausgeblendete Aliase registriert und werden auf der Website
+unverändert ausgegeben. Öffnet man einen solchen Beitrag im Block-Editor, stellt der Editor den Block mit allen
+Einstellungen auf den neuen Namen um; gespeichert wird das mit dem nächsten Speichern. Die Block-CSS-Klasse wechselt
+dabei von `wp-block-wp-pass-captain-events` auf `wp-block-pass-captain-events` (bzw. `…-calendar`) – Theme-CSS, das
+die alte Klasse anspricht, bitte um die neue ergänzen; die eigenen Klassen `wpcap-events`/`wpcap-calendar` bleiben.
 Die Partner-Plugins heißen entsprechend **Voucher Captain** und **Affiliate Captain**.
 
 ## Umstieg auf einer bestehenden Website

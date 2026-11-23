@@ -82,7 +82,7 @@ final class GettingStarted {
 		$cached = get_transient( self::PAGES_CACHE );
 		if ( is_array( $cached ) && isset( $cached['sales_page_id'], $cached['scanner_page_id'] ) ) { return array_map( 'intval', $cached ); }
 		$like = static function ( $needle ) use ( $wpdb ) { return '%' . $wpdb->esc_like( $needle ) . '%'; };
-		$sales = array( '[wpcap_events', '[wp_pass_captain_events', '<!-- wp:wp-pass-captain/events', '[wpcap_calendar', '[wp_pass_captain_calendar', '<!-- wp:wp-pass-captain/calendar' );
+		$sales = array( '[wpcap_events', '[wp_pass_captain_events', '<!-- wp:pass-captain/events', '<!-- wp:wp-pass-captain/events', '[wpcap_calendar', '[wp_pass_captain_calendar', '<!-- wp:pass-captain/calendar', '<!-- wp:wp-pass-captain/calendar' );
 		$scanner = array( '[wpcap_scanner', '[wp_pass_captain_scanner' );
 		$sales_sql = implode( ' OR ', array_fill( 0, count( $sales ), 'post_content LIKE %s' ) );
 		$scanner_sql = implode( ' OR ', array_fill( 0, count( $scanner ), 'post_content LIKE %s' ) );

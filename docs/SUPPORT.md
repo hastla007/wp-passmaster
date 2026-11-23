@@ -47,7 +47,7 @@ Als **öffentliche Schnittstelle** gelten:
   und [HOOKS.md](HOOKS.md)) samt der dort genannten Interfaces;
 - der REST-Namespace `pass-captain/v1` (der alte Namensraum `wp-pass-captain/v1` wird dorthin weitergeleitet, [RENAME.md](RENAME.md); öffentliche Routen, Mobile-API, Partner-API; [MOBILE-API.md](MOBILE-API.md),
   [PARTNER-API.md](PARTNER-API.md)) und die Webhook-Nutzlasten ([WEBHOOKS.md](WEBHOOKS.md));
-- Shortcodes `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`, Blöcke,
+- Shortcodes `[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_scanner]` (frühere `[wp_pass_captain_*]` als veraltete Aliase), Blöcke `pass-captain/*` (frühere `wp-pass-captain/*` als Aliase),
   überschreibbare Templates in `templates/`;
 - dokumentierte Filter/Actions mit Präfix `wpcap_` in [HOOKS.md](HOOKS.md).
 

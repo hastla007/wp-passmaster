@@ -38,8 +38,8 @@ final class PageCache {
 	const EVENT_SHORTCODES = array( 'wp_pass_captain_events', 'wpcap_events' );
 	const CALENDAR_SHORTCODES = array( 'wp_pass_captain_calendar', 'wpcap_calendar' );
 	const SCANNER_SHORTCODES = array( 'wp_pass_captain_scanner', 'wpcap_scanner' );
-	const EVENT_BLOCK = 'wp-pass-captain/events';
-	const CALENDAR_BLOCK = 'wp-pass-captain/calendar';
+	const EVENT_BLOCK = LegacyNames::EVENTS_BLOCK;
+	const CALENDAR_BLOCK = LegacyNames::CALENDAR_BLOCK;
 
 	/** Query parameters of personal pages that must never be stored by a page cache. */
 	const NO_STORE_PARAMS = array(
@@ -158,7 +158,12 @@ final class PageCache {
 				self::collect( $event, $occurrence, $all, $events, $occurrences );
 			}
 		}
-		foreach ( array( self::EVENT_BLOCK => array( 'event', 'occurrence' ), self::CALENDAR_BLOCK => array( 'eventId', '' ) ) as $block => $keys ) {
+		// A303: current block names and their former wp-pass-captain/* names (stored content).
+		$blocks = array();
+		foreach ( array( self::EVENT_BLOCK => array( 'event', 'occurrence' ), self::CALENDAR_BLOCK => array( 'eventId', '' ) ) as $current => $keys ) {
+			foreach ( LegacyNames::block_names( $current ) as $name ) { $blocks[ $name ] = $keys; }
+		}
+		foreach ( $blocks as $block => $keys ) {
 			if ( ! self::contains_block( $content, $block ) ) { continue; }
 			if ( ! preg_match_all( '/<!--\s+wp:' . preg_quote( $block, '/' ) . '(\s+\{.*?\})?\s+\/?-->/s', $content, $matches ) ) { continue; }
 			foreach ( $matches[1] as $raw ) {
@@ -219,7 +224,7 @@ final class PageCache {
 		if ( ! empty( $wpdb->posts ) ) {
 			$like = array();
 			foreach ( array_merge( self::EVENT_SHORTCODES, self::CALENDAR_SHORTCODES ) as $tag ) { $like[] = '%[' . $wpdb->esc_like( $tag ) . '%'; }
-			foreach ( array( self::EVENT_BLOCK, self::CALENDAR_BLOCK ) as $block ) { $like[] = '%wp:' . $wpdb->esc_like( $block ) . '%'; }
+			foreach ( array_merge( LegacyNames::block_names( self::EVENT_BLOCK ), LegacyNames::block_names( self::CALENDAR_BLOCK ) ) as $block ) { $like[] = '%wp:' . $wpdb->esc_like( $block ) . '%'; }
 			$where = implode( ' OR ', array_fill( 0, count( $like ), 'post_content LIKE %s' ) );
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ID,post_type,post_content FROM {$wpdb->posts} WHERE post_status='publish' AND ($where)", ...$like ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
 			foreach ( (array) $rows as $row ) {

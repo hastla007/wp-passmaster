@@ -165,10 +165,11 @@ final class Plugin {
 		// A667/A669: review participation contract v1 (experience_completed and corrections, same outbox).
 		Review\Events::register();
 		Modules::register_all();
-		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
+		// A303: [wpcap_*] are the shortcodes; the former [wp_pass_captain_*] tags stay as deprecated aliases.
 		add_shortcode( 'wpcap_events', array( PublicEvents::class, 'render_shortcode' ) );
-		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wpcap_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'template_redirect', array( PublicEvents::class, 'maybe_protect_scanner_page' ), 1, 0 );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
 		add_action( 'save_post', array( PublicEvents::class, 'flush_page_cache' ), 10, 0 );
@@ -340,6 +341,7 @@ final class Plugin {
 		PublicEvents::register_styles(); // block.json "style" (A391).
 		$block = register_block_type( WPCAP_PATH . 'src/blocks/events' );
 		Localization::block_translations( $block );
+		LegacyNames::register_block_alias( $block ); // A303: former name wp-pass-captain/events.
 		if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {
 			add_action( 'enqueue_block_editor_assets', static function () use ( $block ) {
 				wp_add_inline_script( $block->editor_script_handles[0], 'window.WPCAP_BLOCK_EVENTS=' . wp_json_encode( PublicEvents::block_choices() ) . ';', 'before' );

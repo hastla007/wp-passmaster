@@ -125,7 +125,7 @@ $card = Calendar::add_card_anchor( '<article class="wpcap-event"><h3>x</h3></art
 check( 'event cards get an anchor id', 0 === strpos( $card, '<article id="wpcap-occ-42" class="wpcap-event"' ) );
 check( 'shortcode registered', isset( $GLOBALS['wpcap_test_shortcodes']['wp_pass_captain_calendar'] ) || ! isset( $GLOBALS['wpcap_test_shortcodes'] ) );
 $block = json_decode( (string) file_get_contents( WPCAP_PATH . 'src/blocks/calendar/block.json' ), true );
-check( 'block.json declares a dynamic block with view attribute', 'wp-pass-captain/calendar' === ( $block['name'] ?? '' ) && 'file:./render.php' === ( $block['render'] ?? '' ) && isset( $block['attributes']['view'] ) );
+check( 'block.json declares a dynamic block with view attribute', 'pass-captain/calendar' === ( $block['name'] ?? '' ) && 'file:./render.php' === ( $block['render'] ?? '' ) && isset( $block['attributes']['view'] ) );
 Settings::update( array( 'calendar' => is_array( $cal_saved ) ? $cal_saved : array() ) );
 // Calendar::register() hooked the ticket mail and resend attachments (ICS, on by default): later modules
 // run without the calendar module and expect only the ticket PDF.

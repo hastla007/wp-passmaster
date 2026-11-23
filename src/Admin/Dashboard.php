@@ -70,7 +70,7 @@ final class Dashboard {
 			'payments' => array( (bool) $providers, __( 'Mindestens eine Zahlungsart aktivieren', 'pass-captain' ), $settings ),
 			'terms' => array( '' !== trim( (string) Settings::get( 'terms_text' ) ) && '' !== trim( (string) Settings::get( 'consumer_info_text' ) ), __( 'Bedingungen und Verbraucherinformationen hinterlegen', 'pass-captain' ), $settings ),
 			'event' => array( $sellable > 0, __( 'Ein veröffentlichtes Event mit kommendem Termin und aktiver Ticketart anlegen', 'pass-captain' ), Forms::page_url( EventsPage::SLUG ) ),
-			'frontend' => array( (bool) Settings::get( 'event_pages' ), __( 'Eventseiten einschalten oder den Shortcode [wp_pass_captain_events] auf einer Seite einfügen', 'pass-captain' ), $settings ),
+			'frontend' => array( (bool) Settings::get( 'event_pages' ), __( 'Eventseiten einschalten oder den Shortcode [wpcap_events] auf einer Seite einfügen', 'pass-captain' ), $settings ),
 			'status' => array( ! $critical, __( 'Systemstatus ohne Fehler (Hintergrundaufgaben, Datenbank)', 'pass-captain' ), Forms::page_url( StatusPage::SLUG ) ),
 		);
 	}
