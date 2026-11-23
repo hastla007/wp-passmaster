@@ -455,7 +455,7 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 - [ ] **SET-PC-30 · Netzwerk-Vorgaben (Multisite)**, Standardwerte für neue Unterseiten und Sperren je Wert. Braucht: -01; E7.
 
 ### OPTIMIERUNG
-- [ ] **SET-PC-31 · Einrichtungsassistent** (Land → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event). Braucht: -02.
+- [x] **SET-PC-31 · Einrichtungsassistent** (Land → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event). Braucht: -02. *Erledigt 23.11.2026: Die Checkliste „Erste Schritte“ führt jetzt in der Reihenfolge Land (Länderprofil) → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event; jeder Schritt verlinkt die passende Stelle und gilt aus den gespeicherten Daten als erledigt (Test `zz_a088`).*
 - [x] **SET-PC-32 · Suche und Übersicht „Alle Einstellungen“** mit Wert, Standard und Quelle. Braucht: -01. *Erledigt 23.11.2026: Übersicht „Alle Einstellungen“ mit Suche im Reiter Werkzeuge, Test `zz_set_pc_10`.*
 - [ ] **SET-PC-33 · Ticket-PDF: Logo und Fußzeile als Feld** (je Sprache, je Event übersteuerbar, Filter bleiben).
 - [ ] **SET-PC-34 · Erinnerungen je Event übersteuerbar.**

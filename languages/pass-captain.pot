@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-23T19:27:14+00:00\n"
+"POT-Creation-Date: 2026-11-23T19:28:34+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
@@ -2801,7 +2801,7 @@ msgid "Einrichtung: %1$d von %2$d erledigt"
 msgstr ""
 
 #: src/Admin/Dashboard.php:110
-#: src/Admin/GettingStarted.php:299
+#: src/Admin/GettingStarted.php:310
 msgid "Erledigt:"
 msgstr ""
 
@@ -5046,161 +5046,169 @@ msgstr ""
 msgid "Status: %s"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:129
+#: src/Admin/GettingStarted.php:132
 msgid "Eine Online-Zahlungsart ist aktiv und vollständig eingerichtet."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:131
+#: src/Admin/GettingStarted.php:134
 msgid "Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:133
+#: src/Admin/GettingStarted.php:136
 msgid "Die Zahlung läuft über den WooCommerce-Checkout (Produkte mit Ticketart verknüpft)."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:135
+#: src/Admin/GettingStarted.php:138
 msgid "WooCommerce ist aktiv, aber noch kein veröffentlichtes Produkt ist mit einer Ticketart verknüpft (Produkt bearbeiten → „Pass Captain Ticketart“). Alternativ eine eigene Zahlungsart einrichten."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:137
+#: src/Admin/GettingStarted.php:140
 msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:142
+#: src/Admin/GettingStarted.php:146
+msgid "Land wählen"
+msgstr ""
+
+#: src/Admin/GettingStarted.php:147
+msgid "Ein Länderprofil schlägt passende Werte für Fristen, Hinweise und Vorwahlen vor; du übernimmst nur, was du auswählst."
+msgstr ""
+
+#: src/Admin/GettingStarted.php:153
+msgid "Rechnungssteller angeben"
+msgstr ""
+
+#: src/Admin/GettingStarted.php:154
+msgid "Name und Anschrift für Rechnungen und Belege."
+msgstr ""
+
+#: src/Admin/GettingStarted.php:160
 #: src/Admin/Menu.php:321
 msgid "Zahlungsart einrichten"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:150
+#: src/Admin/GettingStarted.php:168
 msgid "Rechtstexte hinterlegen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:158
-msgid "Rechnungssteller angeben"
-msgstr ""
-
-#: src/Admin/GettingStarted.php:159
-msgid "Name und Anschrift für Rechnungen und Belege."
-msgstr ""
-
-#: src/Admin/GettingStarted.php:165
+#: src/Admin/GettingStarted.php:176
 msgid "Erstes Event anlegen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:166
+#: src/Admin/GettingStarted.php:177
 msgid "Ein Event mit erstem Termin und Ticketart lässt sich in einem Schritt anlegen."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:172
+#: src/Admin/GettingStarted.php:183
 msgid "Kommenden Termin planen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:173
+#: src/Admin/GettingStarted.php:184
 msgid "Mindestens ein geplanter Termin in der Zukunft."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:179
+#: src/Admin/GettingStarted.php:190
 msgid "Ticketart anlegen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:180
+#: src/Admin/GettingStarted.php:191
 msgid "Mindestens eine aktive Ticketart mit Preis und Kontingent."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:186
+#: src/Admin/GettingStarted.php:197
 msgid "Event veröffentlichen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:187
+#: src/Admin/GettingStarted.php:198
 msgid "Erst veröffentlichte Events sind buchbar."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:193
+#: src/Admin/GettingStarted.php:204
 msgid "Verkaufsseite anlegen"
 msgstr ""
 
 #. translators: %s: shortcode
-#: src/Admin/GettingStarted.php:195
+#: src/Admin/GettingStarted.php:206
 #, php-format
 msgid "Eine veröffentlichte Seite mit dem Shortcode %s oder dem Block „Pass Captain Events“ – dort wählen Besucher Tickets und bezahlen."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:202
+#: src/Admin/GettingStarted.php:213
 msgid "Einlass vorbereiten"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:203
+#: src/Admin/GettingStarted.php:214
 msgid "Ein Smartphone mit der Scanner-App koppeln oder den Web-Scanner nutzen: Shortcode [wpcap_scanner] auf einer Seite für das Einlasspersonal bzw. den Offline-Scanner als installierbare Web-App (Links unter „Scanner-Geräte“)."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:209
+#: src/Admin/GettingStarted.php:220
 msgid "Testbestellung durchführen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:210
+#: src/Admin/GettingStarted.php:221
 msgid "Eine Bestellung bis zur Zahlung durchspielen und Ticket-E-Mail prüfen."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:241
+#: src/Admin/GettingStarted.php:252
 msgid "Die Zustimmung im Checkout ist aktiv, aber es ist kein AGB-Text hinterlegt: Käufer bestätigen Bedingungen, die sie nicht sehen. AGB/Teilnahmebedingungen eintragen."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:244
+#: src/Admin/GettingStarted.php:255
 msgid "Die AGB sind hinterlegt, werden im Checkout aber erst angezeigt, wenn „Zustimmung im Checkout verlangen“ aktiv ist."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:246
+#: src/Admin/GettingStarted.php:257
 msgid "AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) hinterlegen und „Zustimmung im Checkout verlangen“ aktivieren."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:278
+#: src/Admin/GettingStarted.php:289
 msgid "Erste-Schritte-Checkliste anzeigen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:284
+#: src/Admin/GettingStarted.php:295
 #: src/Admin/Menu.php:106
 #: src/Admin/Menu.php:130
 msgid "Erste Schritte"
 msgstr ""
 
 #. translators: 1: completed steps, 2: all steps
-#: src/Admin/GettingStarted.php:286
+#: src/Admin/GettingStarted.php:297
 #, php-format
 msgid "%1$d von %2$d Schritten erledigt"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:291
+#: src/Admin/GettingStarted.php:302
 msgid "alles bereit für den Verkauf."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:291
+#: src/Admin/GettingStarted.php:302
 msgid "Verkaufsseite ansehen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:299
+#: src/Admin/GettingStarted.php:310
 msgid "Offen:"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:306
+#: src/Admin/GettingStarted.php:317
 msgid "Auf Website ansehen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:311
+#: src/Admin/GettingStarted.php:322
 msgid "Verkaufsseite als Entwurf anlegen"
 msgstr ""
 
 #. translators: %s: shortcode
-#: src/Admin/GettingStarted.php:313
+#: src/Admin/GettingStarted.php:324
 #, php-format
 msgid "oder %s in eine bestehende Seite einfügen"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:318
+#: src/Admin/GettingStarted.php:329
 msgid "Checkliste ausblenden"
 msgstr ""
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/GettingStarted.php:353
+#: src/Admin/GettingStarted.php:364
 #: src/Admin/Menu.php:577
 #: src/Admin/OrdersPage.php:1140
 #: src/Admin/OrdersPage.php:1388
@@ -5234,11 +5242,11 @@ msgstr ""
 msgid "Tickets"
 msgstr ""
 
-#: src/Admin/GettingStarted.php:359
+#: src/Admin/GettingStarted.php:370
 msgid "Die Seite konnte nicht angelegt werden."
 msgstr ""
 
-#: src/Admin/GettingStarted.php:370
+#: src/Admin/GettingStarted.php:381
 msgid "Seite „Tickets“ als Entwurf angelegt. Prüfen und veröffentlichen – danach ist der Schritt „Verkaufsseite anlegen“ erledigt."
 msgstr ""
 

@@ -85,9 +85,9 @@ check( 'checklist toggle handler is registered', isset( Menu::handlers()['wpcap_
 
 echo "A088: getting-started checklist derived from data\n";
 $a088_empty = GettingStarted::items( array() );
-check( 'ten steps, all open on an empty installation', 10 === count( $a088_empty ) && ! array_filter( $a088_empty, static fn( $i ) => $i['done'] ) && array( 'payment', 'legal', 'seller', 'event', 'occurrence', 'ticket_type', 'publish', 'sales_page', 'scanner', 'test_order' ) === array_column( $a088_empty, 'key' ) );
-$a088_full = GettingStarted::items( array( 'payment_manual' => true, 'legal_texts' => true, 'require_terms' => true, 'seller' => true, 'events' => 1, 'upcoming_occurrences' => 2, 'ticket_types' => 3, 'published_events' => 1, 'sales_page_id' => 5, 'devices' => 1, 'paid_orders' => 1 ) );
-check( 'all steps done when the data is complete', 10 === count( array_filter( $a088_full, static fn( $i ) => $i['done'] ) ) );
+check( 'eleven steps (SET-PC-31: country first), all open on an empty installation', 11 === count( $a088_empty ) && ! array_filter( $a088_empty, static fn( $i ) => $i['done'] ) && array( 'country', 'seller', 'payment', 'legal', 'event', 'occurrence', 'ticket_type', 'publish', 'sales_page', 'scanner', 'test_order' ) === array_column( $a088_empty, 'key' ) );
+$a088_full = GettingStarted::items( array( 'country' => true, 'payment_manual' => true, 'legal_texts' => true, 'require_terms' => true, 'seller' => true, 'events' => 1, 'upcoming_occurrences' => 2, 'ticket_types' => 3, 'published_events' => 1, 'sales_page_id' => 5, 'devices' => 1, 'paid_orders' => 1 ) );
+check( 'all steps done when the data is complete', 11 === count( array_filter( $a088_full, static fn( $i ) => $i['done'] ) ) );
 $a088_by = static function ( array $items ) { $o = array(); foreach ( $items as $i ) { $o[ $i['key'] ] = $i; } return $o; };
 check( 'payment counts via online gateway, bank transfer or WooCommerce', $a088_by( GettingStarted::items( array( 'payment_online' => true ) ) )['payment']['done'] && $a088_by( GettingStarted::items( array( 'woocommerce' => true ) ) )['payment']['done'] && ! $a088_by( GettingStarted::items( array( 'payment_manual' => false ) ) )['payment']['done'] );
 check( 'open steps link to the place where they are done', false !== strpos( $a088_by( $a088_empty )['legal']['url'], 'page=wpcap-settings' ) && str_ends_with( $a088_by( $a088_empty )['legal']['url'], '#wpcap-settings-legal' ) && false !== strpos( $a088_by( $a088_empty )['scanner']['url'], 'page=wpcap-devices' ) && str_ends_with( $a088_by( $a088_empty )['event']['url'], '#wpcap-create-event' ) );
@@ -113,11 +113,11 @@ check( 'state needs a single database query', 1 === $wpdb->num_queries - $a088_q
 add_filter( 'wpcap_getting_started_items', $a088_gf = static function ( $items, $state ) { $items[] = array( 'key' => 'module_step', 'label' => 'Modul', 'done' => ! empty( $state['events'] ) ); $items[] = array( 'label' => 'ohne Schlüssel' ); return $items; }, 10, 2 );
 $a088_ext = $a088_by( GettingStarted::items( array( 'events' => 1 ) ) );
 remove_filter( 'wpcap_getting_started_items', $a088_gf, 10 );
-check( 'wpcap_getting_started_items adds steps (invalid ones are dropped)', isset( $a088_ext['module_step'] ) && $a088_ext['module_step']['done'] && 11 === count( $a088_ext ) );
+check( 'wpcap_getting_started_items adds steps (invalid ones are dropped)', isset( $a088_ext['module_step'] ) && $a088_ext['module_step']['done'] && 12 === count( $a088_ext ) );
 
 $GLOBALS['p1u_user_meta'][1][ GettingStarted::META ] = 0;
 ob_start(); GettingStarted::render(); $a088_html = ob_get_clean();
-check( 'checklist: section with heading, progress and ordered list', false !== strpos( $a088_html, '<section class="wpcap-getting-started' ) && false !== strpos( $a088_html, 'aria-labelledby="wpcap-getting-started-title"' ) && false !== strpos( $a088_html, '<h2 id="wpcap-getting-started-title">Erste Schritte</h2>' ) && false !== strpos( $a088_html, '<progress max="10"' ) && false !== strpos( $a088_html, '<ol class="wpcap-getting-started-list"' ) );
+check( 'checklist: section with heading, progress and ordered list', false !== strpos( $a088_html, '<section class="wpcap-getting-started' ) && false !== strpos( $a088_html, 'aria-labelledby="wpcap-getting-started-title"' ) && false !== strpos( $a088_html, '<h2 id="wpcap-getting-started-title">Erste Schritte</h2>' ) && false !== strpos( $a088_html, '<progress max="11"' ) && false !== strpos( $a088_html, '<ol class="wpcap-getting-started-list"' ) );
 check( 'checklist: done/open is announced as text, icons are hidden', false !== strpos( $a088_html, '<span class="screen-reader-text">Erledigt: </span>' ) && false !== strpos( $a088_html, '<span class="screen-reader-text">Offen: </span>' ) && false !== strpos( $a088_html, 'aria-hidden="true"' ) );
 check( 'checklist: open step is a link, the hide button posts the toggle', false !== strpos( $a088_html, '#wpcap-settings-legal">Rechtstexte hinterlegen</a>' ) && false !== strpos( $a088_html, 'value="wpcap_getting_started"' ) && false !== strpos( $a088_html, 'name="mode" value="hide"' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
