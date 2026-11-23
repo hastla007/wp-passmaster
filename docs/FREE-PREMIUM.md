@@ -68,6 +68,7 @@ erste Release, das das Modul enthielt („nächstes Release“: in `main`, noch 
 | `Admission` | Einlassregeln je Ticketart (einmalig, Tages-/Mehrtagesticket, Mehrfacheinlass, Wiedereinlass), Einlassfenster, Check-out und Anwesenheit, Einlassbereiche, Gerätesynchronisation, Einlass-Konflikte | ≤ 1.1.0 | Kern, dauerhaft frei |
 | `Allocations` | Kontingente (Holds/Kills) je Termin oder Ticketart, Sitzplatz-Holds, Kaufgrenzen je Käufer ([ALLOCATIONS.md](ALLOCATIONS.md)) | nächstes Release | Kern, dauerhaft frei |
 | `BoxOffice` | Kasse: Kassen, Schichten, Übergabe, Z-Berichte, Schnellverkauf, Belege, Storno (keine Registrierkasse, siehe OPERATIONS.md) | ≤ 1.1.0 | Kern, dauerhaft frei |
+| `FormCaptain` | Optionaler Adapter zu Form Captain: Formular je Event, signierter Event-Kontext, ausdrückliche Übergabe freigegebener Felder als Anfrage (nie Buchung/Zahlung); ohne Form Captain inaktiv ([EXTENSIONS.md](EXTENSIONS.md)) | 1.5.0 | Kern, dauerhaft frei |
 | `Calendar` | Eventkalender (Shortcode/Block, Monats- und Listenansicht), iCalendar-Downloads und -Feeds | ≤ 1.1.0 | Kern, dauerhaft frei |
 | `Exchange` | Ticketumtausch in einen anderen Termin/eine andere Ticketart: Admin, Bestellportal, Kasse ([EXCHANGE.md](EXCHANGE.md)) | nächstes Release | Kern, dauerhaft frei |
 | `GuestLists` | Gästelisten und Freikarten, Scanner-Abfrage ([GUEST-LISTS.md](GUEST-LISTS.md)) | nächstes Release | Kern, dauerhaft frei |
@@ -107,7 +108,7 @@ Alles außerhalb der Module gehört zum Grundgerüst und ist ebenfalls **Kern, d
 | Wallet | `src/Wallet/`, `src/WalletPasses/` (Apple, Google) | Kern, dauerhaft frei |
 | Berichte und Druck | `src/Reports/`, `src/Printing/` | Kern, dauerhaft frei |
 | Wartelisten, Kampagnen, Mitgliedschaften, Service-Buchungen | `src/Waitlists.php`, `src/Waitlists/`, `src/Campaigns.php`, `src/Memberships.php`, `src/ServiceBookings.php`, `src/ServiceBookingFlow.php`, `src/ServiceProviders.php` | Kern, dauerhaft frei |
-| Partner und Integrationen | `src/Partners/`, `src/Integrations/` (WooCommerce, Affiliate Captain, Voucher Captain, Connector-Vertrag) | Kern, dauerhaft frei |
+| Partner und Integrationen | `src/Partners/`, `src/Integrations/` (WooCommerce, Affiliate Captain, Voucher Captain, Form Captain, Connector-Vertrag) | Kern, dauerhaft frei |
 | Bestellportal und Selbstbedienung | `src/OrderPortal.php`, `src/PortalSelfService.php` | Kern, dauerhaft frei |
 | Datenschutz und Sicherheit | `src/Privacy.php`, `src/Privacy/` (Aufbewahrung, Zugriffsprotokoll), `src/Pii.php`, `src/Redact.php`, `src/Secrets.php`, `src/Security/OneTimeSecret.php` (einmal angezeigte Schlüssel, verschlüsselt), `src/Access.php`, `src/UserAccess.php` (Rechte-Rücknahme bei Rollenentzug), `src/TicketCodes.php` (verschlüsselt gespeicherte Ticketcodes), `src/RateLimit.php`, `src/ClientIp.php`, `src/DeveloperKeys.php`, `src/Audit.php`, `src/Alerts.php` (Betriebsalarme an einstellbaren Empfänger), `src/Config.php` (Laufzeitwerte per Filter) | Kern, dauerhaft frei |
 | Betrieb | `src/Operations/` (Doctor, Monitor, Warteschlangen, Website-Zustand), `src/Jobs.php`, `src/Log.php` (Support-Protokoll), `src/Jobs/`, `src/BulkRuns.php`, `src/PageCache.php`, `src/Installer.php`, `src/Rest/` (REST-API), `src/Http.php`, `src/OutboundHttp.php`, `src/Localization.php`, `src/LegacySlug.php` (Umbenennung) |
