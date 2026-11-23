@@ -233,7 +233,7 @@ mit Modulen auch `mollie` und die Kassen-Zahlarten) und nimmt weitere Objekte mi
 
 - Aktivierung über die Kern-Einstellung „Zahlungsarten“ (`enabled_providers`); dort erscheinen alle
   registrierten Adapter automatisch.
-- Webhooks des Anbieters laufen über `POST /wp-json/wp-pass-captain/v1/payments/{id}/webhook`; der Kern
+- Webhooks des Anbieters laufen über `POST /wp-json/pass-captain/v1/payments/{id}/webhook`; der Kern
   dedupliziert Ereignisse (`wpcap_payment_events`) und bestätigt Zahlungen nur bei passendem Betrag und
   passender Währung.
 - Weitere Filter: `wpcap_payment_return_url`.
@@ -280,7 +280,7 @@ if ( $service && $service->recognizes( $code ) ) {
 }
 ```
 
-Externe Geräte und Apps verwenden die Mobile-API (`/wp-json/wp-pass-captain/v1/app/`, siehe
+Externe Geräte und Apps verwenden die Mobile-API (`/wp-json/pass-captain/v1/app/`, siehe
 [MOBILE-API.md](MOBILE-API.md)) und den Offline-Scanner ([OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)).
 Ereignisse: `wpcap_ticket_checked_in`, `wpcap_ticket_checked_out`.
 

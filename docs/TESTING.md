@@ -523,7 +523,7 @@ Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_
   eine Wegwerf-DB, lädt WP-CLI): WordPress installieren (`WP_DEBUG_LOG`), optional WooCommerce, dann
   `wp plugin install <zip> --activate`. Fehlschlag bei PHP-Fehlern/Warnungen/Deprecations aus Plugin-Dateien.
   Smoke-Check `build/ci-smoke.php`: Tabellen, Schema-Version/-Fingerprint, Rollenrechte, Cron, REST-Routen und
-  `GET /wp-pass-captain/v1/events`, QR-Code; mit WooCommerce HPOS-Kompatibilität und eine Woo-Bestellung über den
+  `GET /pass-captain/v1/events` (auch über den alten Namensraum `/wp-pass-captain/v1/events`), QR-Code; mit WooCommerce HPOS-Kompatibilität und eine Woo-Bestellung über den
   aktiven Speicher – mit HPOS an und aus, danach Deaktivieren/Aktivieren und erneuter Smoke-Check.
   CI-Matrix: WordPress aktuell und 7.0, WooCommerce aktuell und 11.2.2, Update von 1.4.0, Multisite – alle mit
   PHP 8.5, Datenbank MariaDB 12.3. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`,

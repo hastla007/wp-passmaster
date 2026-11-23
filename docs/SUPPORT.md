@@ -45,7 +45,7 @@ Als **öffentliche Schnittstelle** gelten:
 - versionierte Hooks und Verträge mit Suffix `_v1` (z. B. `wp_pass_captain_wallet_provider_v1`,
   `wp_pass_captain_ticket_service_v1`, `wp_pass_captain_admin_menu_v1`; Liste in [EXTENSIONS.md](EXTENSIONS.md)
   und [HOOKS.md](HOOKS.md)) samt der dort genannten Interfaces;
-- der REST-Namespace `wp-pass-captain/v1` (öffentliche Routen, Mobile-API, Partner-API; [MOBILE-API.md](MOBILE-API.md),
+- der REST-Namespace `pass-captain/v1` (der alte Namensraum `wp-pass-captain/v1` wird dorthin weitergeleitet, [RENAME.md](RENAME.md); öffentliche Routen, Mobile-API, Partner-API; [MOBILE-API.md](MOBILE-API.md),
   [PARTNER-API.md](PARTNER-API.md)) und die Webhook-Nutzlasten ([WEBHOOKS.md](WEBHOOKS.md));
 - Shortcodes `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`, Blöcke,
   überschreibbare Templates in `templates/`;
@@ -53,9 +53,9 @@ Als **öffentliche Schnittstelle** gelten:
 
 Zusagen:
 
-- `_v1`-Verträge und `wp-pass-captain/v1` werden innerhalb einer Major-Version **nicht inkompatibel
+- `_v1`-Verträge und `pass-captain/v1` (samt der Weiterleitung von `wp-pass-captain/v1`) werden innerhalb einer Major-Version **nicht inkompatibel
   geändert**: Felder und Parameter kommen nur hinzu, Bedeutung und Typen bleiben. Inkompatible Änderungen
-  bekommen einen neuen Namen (`_v2`, `wp-pass-captain/v2`); der alte bleibt mindestens bis zur nächsten
+  bekommen einen neuen Namen (`_v2`, `pass-captain/v2`); der alte bleibt mindestens bis zur nächsten
   Major-Version erhalten und wird vorher im CHANGELOG als veraltet markiert.
 - `wpcap_`-Hooks sind stabil; Änderungen stehen im CHANGELOG, Entfernen nur mit Ankündigung eine
   Minor-Version vorher.

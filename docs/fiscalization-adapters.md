@@ -64,15 +64,15 @@ See docs/HOOKS.md for the complete list.
 
 All endpoints require an authenticated user with `manage_options`:
 
-- `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (supported ISO country code), and seller tax/address details
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, optional `location_id` and `register_id`, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys; optional `effective_from`/`effective_until` as `Y-m-d H:i:s` (UTC) or ISO 8601 with offset (stored in UTC; other formats or an end before the start return HTTP 400 with `data.field`)
-- `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/health-check` runs a provider health check without creating a receipt
-- `PUT /wp-json/wp-pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`
-- `POST /wp-json/wp-pass-captain/v1/fiscal/events/{event_id}/manual-resolution` records a provider correction completed outside the plugin; requires `resolution` (`void`, `refund`, `credit_note`, or `correction`) and a provider reference
-- `POST /wp-json/wp-pass-captain/v1/fiscal/documents/{document_id}/reconcile` queries an ambiguous provider result
-- `POST /wp-json/wp-pass-captain/v1/fiscal/orders/{order_id}/retry` to retry terminal failures
+- `GET /wp-json/pass-captain/v1/fiscal/sellers`
+- `POST /wp-json/pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (supported ISO country code), and seller tax/address details
+- `POST /wp-json/pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, optional `location_id` and `register_id`, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys; optional `effective_from`/`effective_until` as `Y-m-d H:i:s` (UTC) or ISO 8601 with offset (stored in UTC; other formats or an end before the start return HTTP 400 with `data.field`)
+- `PUT /wp-json/pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
+- `POST /wp-json/pass-captain/v1/fiscal/sellers/{seller_id}/health-check` runs a provider health check without creating a receipt
+- `PUT /wp-json/pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`
+- `POST /wp-json/pass-captain/v1/fiscal/events/{event_id}/manual-resolution` records a provider correction completed outside the plugin; requires `resolution` (`void`, `refund`, `credit_note`, or `correction`) and a provider reference
+- `POST /wp-json/pass-captain/v1/fiscal/documents/{document_id}/reconcile` queries an ambiguous provider result
+- `POST /wp-json/pass-captain/v1/fiscal/orders/{order_id}/retry` to retry terminal failures
 
 Example seller modes are `organizer_seller` (organizer is seller and invoice issuer) and `platform_seller` (central operating company is seller and issuer). The selected entity must be a legally correct seller for the transaction. Profile activation records the reviewer, reference, and profile version. `not_required` must be an explicit reviewed decision; the system does not infer an exemption from the country alone.
 

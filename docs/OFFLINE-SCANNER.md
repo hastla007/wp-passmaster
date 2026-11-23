@@ -247,8 +247,9 @@ everywhere, whatever the setting.
   It is only used while the device is **not paired**; a paired device keeps its stored API base and
   ignores the parameter (the parameter is removed from the address bar either way). Accepted API
   bases (parameter, stored value and the `api` of the pairing QR): **same origin** and exactly the
-  plugin's app namespace, either a REST path ending in `/wp-pass-captain/v1/app/` or
-  `…?rest_route=/wp-pass-captain/v1/app/` as the only query parameter; anything else falls back to the
+  plugin's app namespace, either a REST path ending in `/pass-captain/v1/app/` or
+  `…?rest_route=/pass-captain/v1/app/` as the only query parameter (both forms also with the
+  legacy namespace instead of `pass-captain/v1`: `wp-pass-captain/v1`); anything else falls back to the
   base derived from the plugin URL. HTTPS (or localhost) is required for the service worker and
   WebCrypto.
 - **Language:** on every online start the app loads `GET /app/offline/i18n` with the device languages

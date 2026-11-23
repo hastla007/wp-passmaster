@@ -31,7 +31,7 @@ Regeln:
 - Aktive Versionen desselben Landes und derselben Klasse dürfen sich zeitlich **nicht überschneiden**
   (die Aktivierung wird sonst abgelehnt). Für einen Satzwechsel: alte Version archivieren oder von
   vornherein mit „gültig bis“ anlegen, neue Version ab dem Stichtag aktivieren.
-- REST `POST /wp-pass-captain/v1/tax-profiles` (`manage_options`) nutzt dieselben Regeln wie die Admin-Seite:
+- REST `POST /pass-captain/v1/tax-profiles` (`manage_options`) nutzt dieselben Regeln wie die Admin-Seite:
   Felder `country_code`, `tax_class`, `rate_basis_points` oder `rate` (Prozent), `version`, `effective_from`,
   `effective_until`, `label`, `place_of_supply_note`. Ohne `tax_profile_id` entsteht ein Entwurf (201), mit
   `tax_profile_id` wird ein Entwurf geändert (200; aktive/archivierte Versionen: `wpcap_tax_profile_frozen`).

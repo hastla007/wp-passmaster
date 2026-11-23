@@ -877,7 +877,7 @@ Wird ein Termin verschoben (`wpcap_occurrence_rescheduled`), merkt sich Pass Cap
 (`wpcap_occurrences.rescheduled_at`). Käufer:innen, die **vor** der Verschiebung bestellt haben, sehen
 im Bestellportal den Kasten „Termin verschoben“ mit dem Button **„Erstattung beantragen“** – bis zur
 Frist (Beginn des neuen Termins minus *Einstellungen → Erstattungen → Antragsfrist*, Standard 0 Stunden).
-Der Antrag (`POST /wp-pass-captain/v1/orders/{id}/refund-request`, Token wie die übrigen Portal-Aktionen
+Der Antrag (`POST /pass-captain/v1/orders/{id}/refund-request`, Token wie die übrigen Portal-Aktionen
 per `X-WPCAP-Access-Token`; je Client 10, je Bestellung 3 Anfragen pro Stunde) legt über
 `Refunds::request()` eine Erstattung an, die **immer** auf Freigabe wartet (*Erstattungen*); erst die
 Freigabe zahlt aus und sperrt die Tickets. Ein erneuter Antrag erzeugt keine zweite Erstattung.

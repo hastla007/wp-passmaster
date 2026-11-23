@@ -119,7 +119,7 @@ Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budge
 
 = The plugin used to be called "WP Pass Captain". What changed? =
 
-Only the name, the main file (`pass-captain.php`), the folder and the text domain (`pass-captain`). If the old copy `wp-pass-captain/wp-pass-captain.php` is still active, the new copy takes over its activation; data, settings, shortcodes, blocks, hooks and the REST namespace `wp-pass-captain/v1` stay the same. Afterwards the old copy can be deleted without losing data. Old webhook and API addresses keep working. Details: docs/RENAME.md in the source repository.
+Only the name, the main file (`pass-captain.php`), the folder and the text domain (`pass-captain`). If the old copy `wp-pass-captain/wp-pass-captain.php` is still active, the new copy takes over its activation; data, settings, shortcodes, blocks and hooks stay the same. The REST namespace is now `pass-captain/v1`; requests to the old namespace `wp-pass-captain/v1` are forwarded to it. Afterwards the old copy can be deleted without losing data. Old webhook and API addresses keep working. Details: docs/RENAME.md in the source repository.
 
 = Does the plugin work with page caches and CDNs? =
 
