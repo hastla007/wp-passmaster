@@ -70,12 +70,19 @@ final class OrdersListTable extends \WP_List_Table {
 		echo OrdersPage::empty_state( $this->filters ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in empty_state().
 	}
 
+	/**
+	 * @param object $item Order row.
+	 */
 	protected function column_cb( $item ) {
 		$ref = \PassCaptain\Frontend\Format::order_reference( $item->public_id );
 		/* translators: %s: order number */
 		return '<label class="screen-reader-text" for="wpcap-order-' . (int) $item->order_id . '">' . esc_html( sprintf( __( 'Bestellung %s auswählen', 'pass-captain' ), $ref ) ) . '</label><input type="checkbox" id="wpcap-order-' . (int) $item->order_id . '" name="order[]" value="' . (int) $item->order_id . '">';
 	}
 
+	/**
+	 * @param object $item        Order row.
+	 * @param string $column_name Column key.
+	 */
 	protected function column_default( $item, $column_name ) {
 		return OrdersPage::list_cell( (string) $column_name, $item, ! empty( $this->masked[ (int) $item->order_id ] ) );
 	}

@@ -591,7 +591,7 @@ parameters:
 		-
 			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'
 			identifier: notIdentical.alwaysFalse
-			count: 17
+			count: 18
 			path: src/Orders.php
 
 		-

@@ -98,20 +98,20 @@ final class LegacyNames {
 		$supports = is_array( $block->supports ?? null ) ? $block->supports : array();
 		$supports['inserter'] = false;
 		$args = array(
-			'api_version'     => $block->api_version ?? 3,
-			'title'           => (string) ( $block->title ?? $old ),
+			'api_version'     => (int) $block->api_version,
+			'title'           => '' !== (string) $block->title ? (string) $block->title : $old,
 			'category'        => $block->category ?? 'widgets',
 			'icon'            => $block->icon ?? null,
 			'attributes'      => is_array( $block->attributes ?? null ) ? $block->attributes : array(),
 			'supports'        => $supports,
-			'style_handles'   => (array) ( $block->style_handles ?? array() ),
-			'render_callback' => $block->render_callback ?? null,
+			'style_handles'   => (array) $block->style_handles,
+			'render_callback' => $block->render_callback,
 		);
 		if ( function_exists( 'wp_register_script' ) && defined( 'WPCAP_URL' ) ) {
 			wp_register_script( self::SCRIPT, WPCAP_URL . 'assets/blocks/legacy-names.js', array( 'wp-blocks', 'wp-element', 'wp-block-editor', 'wp-data', 'wp-i18n' ), defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : false, true );
 			if ( function_exists( 'wp_set_script_translations' ) ) { wp_set_script_translations( self::SCRIPT, 'pass-captain', Localization::languages_dir() ); }
 			$args['editor_script_handles'] = array( self::SCRIPT );
 		}
-		return register_block_type( $old, $args );
+		return register_block_type( $old, $args ); // @phpstan-ignore argument.type (WordPress stores api_version as int; the stub types it as string.)
 	}
 }

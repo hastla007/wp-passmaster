@@ -19,6 +19,7 @@ parameters:
 		- build/phpstan-bootstrap.php
 	scanFiles:
 		- build/phpstan-stubs/wp-cli.php
+		- build/phpstan-stubs/form-captain.php
 		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
 	excludePaths:
 		- vendor
