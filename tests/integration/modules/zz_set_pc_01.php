@@ -61,3 +61,22 @@ remove_filter( 'wp_pass_captain_settings_defaults_v1', $sp_def );
 remove_filter( 'wp_pass_captain_settings_schema_v1', $sp_sch );
 Settings::flush();
 check( 'SET-PC-01: the register follows Settings::flush()', null === SettingsSchema::get( 'addon_sp_limit' ) );
+
+// Step 3: module pages validate through the register (no form clamps on its own).
+$sp_grp = SettingsSchema::check_group( 'waitlist', array( 'offer_hours' => '400', 'max_offers_per_run' => '0', 'auto_offers' => 1 ) );
+check( 'SET-PC-01: check_group reports every invalid sub-field in one error', is_wp_error( $sp_grp ) && 2 === count( $sp_grp->get_error_data()['messages'] ?? array() ) );
+$sp_grp = SettingsSchema::check_group( 'waitlist', array( 'offer_hours' => ' 48 ', 'confirm_hours' => '', 'auto_offers' => 1 ) );
+check( 'SET-PC-01: check_group returns checked numbers; an emptied number field falls back to the default', is_array( $sp_grp ) && 48 === $sp_grp['offer_hours'] && 48 === $sp_grp['confirm_hours'] && 1 === $sp_grp['auto_offers'] );
+check( 'SET-PC-01: list fields check every item and the number of items', is_wp_error( SettingsSchema::check_group( 'reminders', array( 'offsets' => array( 2, 721 ) ) ) ) && is_wp_error( SettingsSchema::check_group( 'reminders', array( 'offsets' => array( 1, 2, 3, 4, 5, 6 ) ) ) ) && array( 'offsets' => array( 2, 24 ) ) === SettingsSchema::check_group( 'reminders', array( 'offsets' => array( '2', '24' ) ) ) );
+$sp_many = SettingsSchema::check_many( array( 'partners' => array( 'rate_limit' => '0' ), 'partner_negative_balance' => 'later' ) );
+check( 'SET-PC-01: check_many reports group and top-level errors together', is_wp_error( $sp_many ) && 2 === count( $sp_many->get_error_data()['messages'] ?? array() ) );
+foreach ( array( 'waitlist', 'exchange', 'allocations', 'admission', 'webhooks', 'partners', 'sms', 'reminders' ) as $sp_group ) {
+	check( "SET-PC-01: group setting $sp_group describes its limited fields", ! empty( SettingsSchema::get( $sp_group )['fields'] ) );
+}
+// Source guard: the module settings forms no longer clamp numbers themselves.
+$sp_forms = array( 'src/Waitlists/AdminPage.php', 'src/Modules/Webhooks.php', 'src/Modules/Sms.php', 'src/Partners/AdminPage.php', 'src/Allocations/AdminPage.php', 'src/Admission/RulesPage.php', 'src/Exchange/AdminPage.php', 'src/Modules/Reminders.php' );
+$sp_clamps = array();
+foreach ( $sp_forms as $sp_file ) {
+	if ( preg_match( '/min\(\s*\d+,\s*(?:Forms::int|absint\(\s*\$in)/', (string) file_get_contents( WPCAP_PATH . $sp_file ) ) ) { $sp_clamps[] = $sp_file; }
+}
+check( 'SET-PC-01: no module settings form clamps numbers itself', array() === $sp_clamps );

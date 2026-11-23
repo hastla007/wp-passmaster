@@ -547,11 +547,13 @@ final class Page {
 		$terminal_raw = Forms::textarea( $in, 'boxoffice_terminals', 10000 );
 		$valid_terminals = TerminalRegistry::validate( $terminal_raw );
 		if ( is_wp_error( $valid_terminals ) ) { Forms::finish( $valid_terminals, '', self::back() ); }
+		$cashier = \PassCaptain\SettingsSchema::validate( 'boxoffice_receipt_cashier', $in['boxoffice_receipt_cashier'] ?? 'id' ); // SET-PC-01
+		if ( is_wp_error( $cashier ) ) { Forms::finish( $cashier, '', self::back() ); }
 		Settings::update( array(
 			'boxoffice_receipt_prefix' => preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'boxoffice_receipt_prefix', 10 ) ) ?: 'BON',
 			'boxoffice_receipt_footer' => Forms::text( $in, 'boxoffice_receipt_footer', 300 ),
 			'boxoffice_terminals' => $terminal_raw,
-			'boxoffice_receipt_cashier' => Forms::choice( $in, 'boxoffice_receipt_cashier', array( 'id', 'initials', 'name' ), 'id' ),
+			'boxoffice_receipt_cashier' => $cashier,
 			'boxoffice_cash_confirmed' => Forms::flag( $in, 'boxoffice_cash_confirmed' ) ? 1 : 0,
 		) );
 		Audit::record( 'boxoffice_settings_saved', 'settings', 0, array( 'cash_confirmed' => (bool) Settings::get( 'boxoffice_cash_confirmed' ) ) );

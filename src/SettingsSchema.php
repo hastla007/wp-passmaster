@@ -150,6 +150,56 @@ final class SettingsSchema {
 			/* translators: %s: setting key */
 			return new \WP_Error( 'wpcap_setting_unknown', sprintf( __( 'Unbekannte Einstellung „%s“.', 'pass-captain' ), (string) $key ) );
 		}
+		return self::check_value( $entry, $value, (string) $key );
+	}
+
+	/**
+	 * Checks the sub-values of a group setting against the field descriptions of its entry (SET-PC-01:
+	 * module pages validate through the register, no form checks on its own). Only submitted fields are
+	 * checked; fields without a description pass unchanged.
+	 *
+	 * @param string $key Group setting key (e.g. 'waitlist').
+	 * @param array  $raw Submitted sub-values.
+	 * @return array|\WP_Error Checked sub-values, or one error listing every invalid field.
+	 */
+	public static function check_group( $key, array $raw ) {
+		$entry = self::get( $key );
+		if ( null === $entry ) { return self::validate( $key, $raw ); }
+		$out = array();
+		$errors = array();
+		foreach ( $raw as $field => $value ) {
+			$def = $entry['fields'][ $field ] ?? null;
+			if ( ! is_array( $def ) ) { $out[ $field ] = $value; continue; }
+			$sub = self::normalize( (string) $field, $def, $entry['default'][ $field ] ?? null );
+			// An emptied number field means "back to the default", as on the core settings screen.
+			if ( 'int' === $sub['type'] && ( null === $value || '' === $value ) ) { $value = $sub['default'] ?? $sub['min']; }
+			$checked = self::check_value( $sub, $value, (string) $field );
+			if ( is_wp_error( $checked ) ) { $errors[] = $checked->get_error_message(); continue; }
+			$out[ $field ] = $checked;
+		}
+		return $errors ? new \WP_Error( 'wpcap_setting_invalid', implode( ' ', $errors ), array( 'messages' => $errors ) ) : $out;
+	}
+
+	/**
+	 * Checks several top-level settings at once (module forms, CLI, import).
+	 *
+	 * @param array $raw key => submitted value.
+	 * @return array|\WP_Error key => value to store, or one error listing every invalid field.
+	 */
+	public static function check_many( array $raw ) {
+		$out = array();
+		$errors = array();
+		foreach ( $raw as $key => $value ) {
+			$entry = self::get( $key );
+			$checked = null !== $entry && 'group' === $entry['type'] && is_array( $value ) ? self::check_group( (string) $key, $value ) : self::validate( (string) $key, $value );
+			if ( is_wp_error( $checked ) ) { $errors[] = $checked->get_error_message(); continue; }
+			$out[ $key ] = $checked;
+		}
+		return $errors ? new \WP_Error( 'wpcap_setting_invalid', implode( ' ', $errors ), array( 'messages' => $errors ) ) : $out;
+	}
+
+	/** Checks one value against a (sub-)entry; see validate(). */
+	private static function check_value( array $entry, $value, $key ) {
 		$label = '' !== $entry['label'] ? $entry['label'] : (string) $key;
 		switch ( $entry['type'] ) {
 			case 'int':
@@ -200,6 +250,18 @@ final class SettingsSchema {
 					/* translators: %s: field label */
 					return new \WP_Error( 'wpcap_setting_list', sprintf( __( '„%s“ erwartet eine Liste von Werten.', 'pass-captain' ), $label ) );
 				}
+				if ( 'list' === $entry['type'] && $entry['item'] ) {
+					if ( $entry['max_items'] > 0 && count( $value ) > $entry['max_items'] ) {
+						/* translators: 1: field label, 2: largest number of values */
+						return new \WP_Error( 'wpcap_setting_list_size', sprintf( __( '„%1$s“: höchstens %2$d Werte.', 'pass-captain' ), $label, $entry['max_items'] ) );
+					}
+					$item = self::normalize( $key, $entry['item'] + array( 'label' => $label ), null );
+					foreach ( $value as $i => $one ) {
+						$checked = self::check_value( $item, $one, $key );
+						if ( is_wp_error( $checked ) ) { return $checked; }
+						$value[ $i ] = $checked;
+					}
+				}
 				return $value;
 			default:
 				return is_scalar( $value ) ? Text::cut( sanitize_text_field( (string) $value ), 'trusted_proxies' === $key ? 1000 : 190 ) : '';
@@ -232,6 +294,8 @@ final class SettingsSchema {
 			'module' => (string) ( $def['module'] ?? '' ),
 			'internal' => ! empty( $def['internal'] ),
 			'fields' => 'group' === $type && is_array( $def['fields'] ?? null ) ? $def['fields'] : array(),
+			'item' => 'list' === $type && is_array( $def['item'] ?? null ) ? $def['item'] : array(),
+			'max_items' => 'list' === $type ? (int) ( $def['max_items'] ?? 0 ) : 0,
 		);
 		// Described: a label, and for anything a person edits also a help text or a self-explaining choice/flag.
 		$entry['described'] = ( $def['described'] ?? true ) && '' !== $label && ( '' !== $help || in_array( $type, array( 'bool', 'choice' ), true ) || $entry['internal'] );

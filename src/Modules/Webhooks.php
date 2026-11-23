@@ -50,7 +50,7 @@ final class Webhooks {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'webhooks' => array( 'type' => 'group', 'label' => __( 'Webhooks', 'pass-captain' ), 'help' => __( 'Wie lange Zustellprotokolle der Webhooks aufbewahrt werden.', 'pass-captain' ), 'page' => 'wpcap-webhooks' ),
+			'webhooks' => array( 'type' => 'group', 'label' => __( 'Webhooks', 'pass-captain' ), 'help' => __( 'Wie lange Zustellprotokolle der Webhooks aufbewahrt werden.', 'pass-captain' ), 'page' => 'wpcap-webhooks', 'fields' => array( 'retention_days' => array( 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => __( 'Abgeschlossene Zustellungen löschen nach (Tagen)', 'pass-captain' ) ) ) ),
 		);
 	}
 
@@ -397,9 +397,10 @@ final class Webhooks {
 				Dispatcher::delete_subscription( $id );
 				return array( 'deleted' => $id );
 			case 'settings':
-				$days = max( 1, min( 365, absint( $in['retention_days'] ?? 30 ) ) );
-				\PassCaptain\Settings::update( array( 'webhooks' => array( 'retention_days' => $days ) ) );
-				return array( 'retention_days' => $days );
+				$checked = \PassCaptain\SettingsSchema::check_group( 'webhooks', array( 'retention_days' => $in['retention_days'] ?? 30 ) ); // SET-PC-01
+				if ( is_wp_error( $checked ) ) { return $checked; }
+				\PassCaptain\Settings::update( array( 'webhooks' => $checked ) );
+				return array( 'retention_days' => $checked['retention_days'] );
 			case 'redeliver':
 				$r = Dispatcher::redeliver( $id );
 				return is_wp_error( $r ) ? $r : array( 'delivery_id' => $id );

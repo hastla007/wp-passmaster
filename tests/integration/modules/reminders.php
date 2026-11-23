@@ -96,7 +96,8 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 check( 'saving requires manage_options', is_wp_error( Reminders::save( array( 'enabled' => '1' ) ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'enabled reminders need offsets and texts', is_wp_error( Reminders::save( array( 'enabled' => '1', 'offsets' => 'abc', 'subject' => 'x', 'body' => 'y' ) ) ) );
-$saved = Reminders::save( array( 'enabled' => '1', 'offsets' => '72, 2;24 9999', 'subject' => 'S {event}', 'body' => "Zeile 1\nZeile 2" ) );
-check( 'offsets parsed, bounded and sorted; multi-line body kept', ! is_wp_error( $saved ) && array( 2, 24, 72 ) === Reminders::config()['offsets'] && "Zeile 1\nZeile 2" === Reminders::config()['body'] );
+check( 'SET-PC-01: an offset outside 1–720 hours is reported, not dropped', is_wp_error( Reminders::save( array( 'enabled' => '1', 'offsets' => '72, 2;24 9999', 'subject' => 'S {event}', 'body' => 'x' ) ) ) );
+$saved = Reminders::save( array( 'enabled' => '1', 'offsets' => '72, 2;24 24', 'subject' => 'S {event}', 'body' => "Zeile 1\nZeile 2" ) );
+check( 'offsets parsed, de-duplicated and sorted; multi-line body kept', ! is_wp_error( $saved ) && array( 2, 24, 72 ) === Reminders::config()['offsets'] && "Zeile 1\nZeile 2" === Reminders::config()['body'] );
 // Leave reminders off for later test files.
 Settings::update( array( 'reminders' => array( 'enabled' => 0, 'offsets' => array( 24 ), 'subject' => 'x', 'body' => 'y', 'sms' => 0, 'sms_body' => '' ) ) );

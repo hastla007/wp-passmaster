@@ -124,9 +124,12 @@ final class AdminPage {
 			case 'settings':
 				$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'settlement_prefix', 10 ) );
 				$self_billing = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'self_billing_prefix', 10 ) );
-				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => max( 1, min( 100000, Forms::int( $in, 'rate_limit', 120 ) ) ), 'write_rate_limit' => max( 1, min( 100000, Forms::int( $in, 'write_rate_limit', 30 ) ) ) );
-				Settings::update( array( 'partners' => $values, 'partner_negative_balance' => Forms::choice( $in, 'partner_negative_balance', array( 'carry', 'invoice' ), 'carry' ) ) );
-				return $values;
+				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => $in['rate_limit'] ?? 120, 'write_rate_limit' => $in['write_rate_limit'] ?? 30 );
+				// SET-PC-01: limits and the choice are checked by the settings register (reported, not clamped).
+				$checked = \PassCaptain\SettingsSchema::check_many( array( 'partners' => $values, 'partner_negative_balance' => $in['partner_negative_balance'] ?? 'carry' ) );
+				if ( is_wp_error( $checked ) ) { return $checked; }
+				Settings::update( $checked );
+				return $checked['partners'];
 			case 'save_price':
 				$raw = trim( (string) ( is_scalar( $in['price'] ?? '' ) ? $in['price'] : '' ) );
 				$price = '' === $raw ? null : Forms::parse_money( $raw, 2 );

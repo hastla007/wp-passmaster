@@ -161,7 +161,7 @@ final class Sms {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'sms' => array( 'type' => 'group', 'label' => __( 'SMS', 'pass-captain' ), 'help' => __( 'SMS-Anbieter, Einwilligungstext, erlaubte Vorwahlen, Nachrichtentexte und Kostenbudget.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
+			'sms' => array( 'type' => 'group', 'label' => __( 'SMS', 'pass-captain' ), 'help' => __( 'SMS-Anbieter, Einwilligungstext, erlaubte Vorwahlen, Nachrichtentexte und Kostenbudget.', 'pass-captain' ), 'page' => 'wpcap-sms', 'fields' => array( 'budget_warn_percent' => array( 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => __( 'Warnung ab (Prozent)', 'pass-captain' ) ), 'http_content_type' => array( 'type' => 'choice', 'options' => array( 'json' => 'JSON', 'form' => 'Form' ), 'label' => __( 'SMS', 'pass-captain' ) ) ) ),
 			'twilio_account_sid' => array( 'type' => 'secret', 'label' => __( 'Twilio Account SID', 'pass-captain' ), 'help' => __( 'Kennung des Twilio-Kontos; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
 			'twilio_auth_token' => array( 'type' => 'secret', 'label' => __( 'Twilio Auth Token', 'pass-captain' ), 'help' => __( 'Zugangsschlüssel des Twilio-Kontos; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
 			'sms_http_secret' => array( 'type' => 'secret', 'label' => __( 'Zugangsdaten des SMS-Gateways', 'pass-captain' ), 'help' => __( 'Zugangsdaten für den HTTP-SMS-Anbieter; werden verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-sms' ),
@@ -493,7 +493,7 @@ final class Sms {
 			'twilio_from' => preg_replace( '/[^A-Za-z0-9+ ]/', '', Forms::text( $in, 'twilio_from', 34 ) ),
 			'http_endpoint' => esc_url_raw( $endpoint ),
 			'http_auth_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_auth_header', 64 ) ),
-			'http_content_type' => Forms::choice( $in, 'http_content_type', array( 'json', 'form' ), 'json' ),
+			'http_content_type' => is_scalar( $in['http_content_type'] ?? null ) && '' !== (string) $in['http_content_type'] ? (string) $in['http_content_type'] : 'json',
 			'http_body_template' => mb_substr( is_scalar( $in['http_body_template'] ?? null ) ? trim( (string) $in['http_body_template'] ) : '', 0, 2000 ),
 			'cancel_body' => Forms::textarea( $in, 'cancel_body', 640 ),
 			'reschedule_body' => Forms::textarea( $in, 'reschedule_body', 640 ),
@@ -504,9 +504,11 @@ final class Sms {
 			'prices' => Costs::sanitize_prices( is_scalar( $in['prices'] ?? null ) ? (string) $in['prices'] : '' ),
 			'price_default' => self::amount_input( $in, 'price_default' ),
 			'budget_monthly' => self::amount_input( $in, 'budget_monthly' ),
-			'budget_warn_percent' => max( 1, min( 100, Forms::int( $in, 'budget_warn_percent', 80 ) ) ),
+			'budget_warn_percent' => $in['budget_warn_percent'] ?? 80,
 			'budget_hard_stop' => Forms::flag( $in, 'budget_hard_stop' ) ? 1 : 0,
 		);
+		$values = \PassCaptain\SettingsSchema::check_group( 'sms', $values ); // SET-PC-01: reported, not clamped.
+		if ( is_wp_error( $values ) ) { return $values; }
 		$update = array( 'sms' => $values );
 		foreach ( array( 'twilio_auth_token', 'sms_http_secret', 'sms_http_webhook_secret' ) as $secret ) {
 			if ( Forms::flag( $in, $secret . '__clear' ) ) { $update[ $secret ] = ''; } elseif ( '' !== trim( (string) ( $in[ $secret ] ?? '' ) ) ) { $update[ $secret ] = trim( sanitize_text_field( (string) $in[ $secret ] ) ); }

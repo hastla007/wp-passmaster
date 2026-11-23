@@ -108,8 +108,10 @@ final class RulesPage {
 	/** Module settings (manage_options): max. age of offline scans evaluated at device time. */
 	public static function save_settings( array $in ) {
 		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
-		$hours = min( 168, Forms::int( $in, 'offline_max_age_hours', 12 ) );
-		\PassCaptain\Settings::update( array( 'admission' => array_merge( Policies::settings(), array( 'offline_max_age_hours' => $hours ) ) ) );
+		$checked = \PassCaptain\SettingsSchema::check_group( 'admission', array( 'offline_max_age_hours' => $in['offline_max_age_hours'] ?? 12 ) ); // SET-PC-01
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$hours = $checked['offline_max_age_hours'];
+		\PassCaptain\Settings::update( array( 'admission' => array_merge( Policies::settings(), $checked ) ) );
 		Audit::record( 'admission_settings_saved', 'settings', 0, array( 'offline_max_age_hours' => $hours ) );
 		return array( 'offline_max_age_hours' => $hours );
 	}

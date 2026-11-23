@@ -30,7 +30,7 @@ final class Exchange {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'exchange' => array( 'type' => 'group', 'label' => __( 'Umtausch', 'pass-captain' ), 'help' => __( 'Ob Tickets umgetauscht werden dürfen, im Bestellportal bis wann und wie oft, mit welcher Gebühr und was mit Preisunterschieden geschieht.', 'pass-captain' ), 'page' => 'wpcap-exchange' ),
+			'exchange' => array( 'type' => 'group', 'label' => __( 'Umtausch', 'pass-captain' ), 'help' => __( 'Ob Tickets umgetauscht werden dürfen, im Bestellportal bis wann und wie oft, mit welcher Gebühr und was mit Preisunterschieden geschieht.', 'pass-captain' ), 'page' => 'wpcap-exchange', 'fields' => array( 'portal_hours' => array( 'type' => 'int', 'min' => 0, 'max' => 8760, 'label' => __( 'Frist (Stunden vor Beginn)', 'pass-captain' ) ), 'portal_max_per_ticket' => array( 'type' => 'int', 'min' => 0, 'max' => 100, 'label' => __( 'Höchstens Umtausche pro Ticket (Selbstbedienung)', 'pass-captain' ) ), 'fee_minor' => array( 'type' => 'int', 'min' => 0, 'max' => 100000000, 'label' => __( 'Umtauschgebühr (brutto)', 'pass-captain' ) ), 'refund_policy' => array( 'type' => 'choice', 'options' => array( 'refund' => 'refund', 'none' => 'none' ), 'label' => __( 'Umtausch', 'pass-captain' ) ) ) ),
 		);
 	}
 

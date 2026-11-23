@@ -187,7 +187,8 @@ check( 'e-mail also removed after the final failed attempt', 'failed' === $bd->s
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_webhook_deliveries SET updated_at=%s WHERE status IN ('succeeded','failed')", gmdate( 'Y-m-d H:i:s', time() - 31 * 86400 ) ) );
 $pending_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_webhook_deliveries WHERE status='pending'" );
 check( 'final deliveries older than the retention period are purged', Dispatcher::purge_old() > 0 && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_webhook_deliveries WHERE status IN ('succeeded','failed')" ) && $pending_before === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_webhook_deliveries WHERE status='pending'" ) );
-check( 'retention setting is bounded', array( 'retention_days' => 365 ) === Webhooks::admin_action( array( 'do' => 'settings', 'retention_days' => '9999' ) ) && 365 === Dispatcher::retention_days() );
+check( 'SET-PC-01: retention outside 1–365 days is reported and not stored', is_wp_error( Webhooks::admin_action( array( 'do' => 'settings', 'retention_days' => '9999' ) ) ) && 30 === Dispatcher::retention_days() );
+check( 'retention setting is stored within its limits', array( 'retention_days' => 365 ) === Webhooks::admin_action( array( 'do' => 'settings', 'retention_days' => '365' ) ) && 365 === Dispatcher::retention_days() );
 Webhooks::admin_action( array( 'do' => 'settings', 'retention_days' => '30' ) );
 $erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
 check( 'webhook eraser registered', isset( $erasers['wpcap-webhooks'] ) );

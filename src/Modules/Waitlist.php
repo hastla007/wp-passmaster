@@ -33,7 +33,7 @@ final class Waitlist {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'waitlist' => array( 'type' => 'group', 'label' => __( 'Warteliste', 'pass-captain' ), 'help' => __( 'Automatische Angebote, Gültigkeit eines Angebots, Reihenfolge, Benachrichtigungen und E-Mail-Bestätigung (Double-Opt-in).', 'pass-captain' ), 'page' => 'wpcap-waitlist' ),
+			'waitlist' => array( 'type' => 'group', 'label' => __( 'Warteliste', 'pass-captain' ), 'help' => __( 'Automatische Angebote, Gültigkeit eines Angebots, Reihenfolge, Benachrichtigungen und E-Mail-Bestätigung (Double-Opt-in).', 'pass-captain' ), 'page' => 'wpcap-waitlist', 'fields' => array( 'offer_hours' => array( 'type' => 'int', 'min' => 1, 'max' => 336, 'label' => __( 'Gültigkeit eines Angebots (Stunden)', 'pass-captain' ) ), 'max_offers_per_run' => array( 'type' => 'int', 'min' => 1, 'max' => 100, 'label' => __( 'Höchstens Angebote pro Durchlauf', 'pass-captain' ) ), 'confirm_hours' => array( 'type' => 'int', 'min' => 1, 'max' => 168, 'label' => __( 'Gültigkeit des Bestätigungslinks (Stunden)', 'pass-captain' ) ) ) ),
 		);
 	}
 

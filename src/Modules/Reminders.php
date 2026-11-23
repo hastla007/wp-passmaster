@@ -164,7 +164,7 @@ final class Reminders {
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
-			'reminders' => array( 'type' => 'group', 'label' => __( 'Erinnerungen', 'pass-captain' ), 'help' => __( 'Erinnerungsmails und -SMS vor dem Termin: Zeitpunkte, Betreff und Text je Sprache.', 'pass-captain' ), 'page' => 'wpcap-reminders' ),
+			'reminders' => array( 'type' => 'group', 'label' => __( 'Erinnerungen', 'pass-captain' ), 'help' => __( 'Erinnerungsmails und -SMS vor dem Termin: Zeitpunkte, Betreff und Text je Sprache.', 'pass-captain' ), 'page' => 'wpcap-reminders', 'fields' => array( 'offsets' => array( 'type' => 'list', 'item' => array( 'type' => 'int', 'min' => 1, 'max' => 720, 'label' => __( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) ), 'max_items' => 5, 'label' => __( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) ) ) ),
 		);
 	}
 
@@ -429,7 +429,11 @@ final class Reminders {
 
 	public static function save( array $in ) {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
-		$offsets = array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', (string) ( is_scalar( $in['offsets'] ?? null ) ? $in['offsets'] : '' ) ) ), static function ( $h ) { return $h >= 1 && $h <= 720; } ) ) );
+		// SET-PC-01: every point in time is checked by the settings register (reported, not dropped).
+		$offsets = array_values( array_unique( preg_split( '/[\s,;]+/', trim( (string) ( is_scalar( $in['offsets'] ?? null ) ? $in['offsets'] : '' ) ), -1, PREG_SPLIT_NO_EMPTY ) ) );
+		$checked = \PassCaptain\SettingsSchema::check_group( 'reminders', array( 'offsets' => $offsets ) );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$offsets = array_values( array_unique( $checked['offsets'] ) );
 		sort( $offsets );
 		$values = array(
 			'enabled' => Forms::flag( $in, 'enabled' ) ? 1 : 0,

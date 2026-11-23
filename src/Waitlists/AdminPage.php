@@ -86,14 +86,17 @@ final class AdminPage {
 		if ( ! current_user_can( self::SETTINGS_CAP ) ) { return Forms::forbidden(); }
 		$values = array(
 			'auto_offers' => Forms::flag( $in, 'auto_offers' ) ? 1 : 0,
-			'offer_hours' => max( 1, min( 336, Forms::int( $in, 'offer_hours', 24 ) ) ),
-			'max_offers_per_run' => max( 1, min( 100, Forms::int( $in, 'max_offers_per_run', 10 ) ) ),
+			'offer_hours' => $in['offer_hours'] ?? 24,
+			'max_offers_per_run' => $in['max_offers_per_run'] ?? 10,
 			'strict_fifo' => Forms::flag( $in, 'strict_fifo' ) ? 1 : 0,
 			'close_mail' => Forms::flag( $in, 'close_mail' ) ? 1 : 0,
 			'change_mail' => Forms::flag( $in, 'change_mail' ) ? 1 : 0,
 			'double_opt_in' => Forms::flag( $in, 'double_opt_in' ) ? 1 : 0,
-			'confirm_hours' => max( 1, min( 168, Forms::int( $in, 'confirm_hours', 48 ) ) ),
+			'confirm_hours' => $in['confirm_hours'] ?? 48,
 		);
+		// SET-PC-01: numbers are checked by the settings register (reported, not clamped).
+		$values = \PassCaptain\SettingsSchema::check_group( 'waitlist', $values );
+		if ( is_wp_error( $values ) ) { return $values; }
 		Settings::update( array( 'waitlist' => $values ) );
 		return array( 'saved' => $values );
 	}

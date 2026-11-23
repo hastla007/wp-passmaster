@@ -124,11 +124,13 @@ final class AdminPage {
 		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
 		$before = Module::config();
 		$new = array(
-			'auto_release_hours' => min( 8760, Forms::int( $in, 'auto_release_hours' ) ),
+			'auto_release_hours' => $in['auto_release_hours'] ?? 0,
 			'buyer_limit_by_user' => Forms::flag( $in, 'buyer_limit_by_user' ) ? 1 : 0,
 			'buyer_limit_strip_plus' => Forms::flag( $in, 'buyer_limit_strip_plus' ) ? 1 : 0,
 			'buyer_limit_gmail_dots' => Forms::flag( $in, 'buyer_limit_gmail_dots' ) ? 1 : 0,
 		);
+		$new = \PassCaptain\SettingsSchema::check_group( 'allocations', $new ); // SET-PC-01: reported, not clamped.
+		if ( is_wp_error( $new ) ) { return $new; }
 		Settings::update( array( 'allocations' => $new ) );
 		if ( (int) $before['buyer_limit_strip_plus'] !== $new['buyer_limit_strip_plus'] || (int) $before['buyer_limit_gmail_dots'] !== $new['buyer_limit_gmail_dots'] ) {
 			// A484: other buyer keys from now on – merge the existing orders into the rows of the new keys.
