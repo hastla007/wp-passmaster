@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SettingsSchema {
 	/** Entry types the register knows (form field types of Admin\SettingsPage plus group). */
-	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'prefix', 'providers', 'modules', 'list', 'group' );
+	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'prefix', 'providers', 'modules', 'list', 'group' );
 
 	/**
 	 * Settings whose value has legal weight (texts with paragraphs of law, invoice data, retention, tax):
@@ -236,6 +236,23 @@ final class SettingsSchema {
 					return new \WP_Error( 'wpcap_setting_email', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $label ) );
 				}
 				return '' === $email ? '' : sanitize_email( $email );
+			case 'iban':
+				// SET-PC-28: checksum (ISO 13616, mod 97); stored without spaces, empty clears the field.
+				$raw = is_scalar( $value ) ? trim( (string) $value ) : '';
+				if ( '' === $raw ) { return ''; }
+				$iban = PayoutAccount::normalize_iban( $raw );
+				if ( '' === $iban ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_setting_iban', sprintf( __( '„%s“ ist keine gültige IBAN (Prüfziffer stimmt nicht).', 'pass-captain' ), $label ) );
+				}
+				return $iban;
+			case 'bic':
+				$bic = strtoupper( preg_replace( '/\s+/', '', is_scalar( $value ) ? (string) $value : '' ) );
+				if ( '' !== $bic && ! preg_match( '/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/', $bic ) ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_setting_bic', sprintf( __( '„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX).', 'pass-captain' ), $label ) );
+				}
+				return $bic;
 			case 'html':
 				return is_scalar( $value ) ? wp_kses_post( (string) $value ) : '';
 			case 'textarea':

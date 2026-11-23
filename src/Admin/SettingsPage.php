@@ -64,7 +64,7 @@ final class SettingsPage {
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120, 'description' => __( 'So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei.', 'pass-captain' ) ),
 					'occurrence_default_duration_hours' => array( 'type' => 'int', 'label' => __( 'Standarddauer von Terminen ohne Ende (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 168, 'description' => __( 'Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen.', 'pass-captain' ) ),
-					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
+					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“.', 'pass-captain' ) ),
 					'late_payment_auto_refund' => array( 'type' => 'bool', 'label' => __( 'Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten', 'pass-captain' ), 'description' => __( 'Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen.', 'pass-captain' ) ),
 					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5, 'description' => __( 'So viele Rabattcodes darf eine Person in einer Bestellung eingeben.', 'pass-captain' ) ),
 					'campaign_stacking' => array(
@@ -76,7 +76,7 @@ final class SettingsPage {
 						),
 						'description' => __( 'Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein.', 'pass-captain' ),
 					),
-					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ) ),
+					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert.', 'pass-captain' ) ),
 				),
 			),
 			'network' => array(
@@ -123,7 +123,7 @@ final class SettingsPage {
 				'title' => __( 'Eventseiten', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
-					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
+					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'description' => __( 'Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
 					'event_base' => array( 'type' => 'text', 'label' => __( 'Adress-Basis der Eventseiten', 'pass-captain' ), 'description' => __( 'Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_base' ) ),
 				),
 			),
@@ -131,11 +131,11 @@ final class SettingsPage {
 				'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 				'tab' => 'admission',
 				'fields' => array(
-					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ) ),
+					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ), 'description' => __( 'Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst.', 'pass-captain' ) ),
 					'signed_qr' => array( 'type' => 'bool', 'label' => __( 'Signierte QR-Codes ausgeben (PC1, Ed25519)', 'pass-captain' ), 'description' => __( 'Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können.', 'pass-captain' ) ),
 					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden.', 'pass-captain' ) ),
 					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'pass-captain' ) ),
-					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ) ),
+					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ), 'description' => __( 'Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn.', 'pass-captain' ) ),
 					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
 					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
 				),
@@ -154,8 +154,8 @@ final class SettingsPage {
 				'fields' => array(
 					'manual_instructions' => array( 'type' => 'textarea', 'label' => __( 'Zahlungshinweis', 'pass-captain' ), 'description' => __( 'Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten.', 'pass-captain' ) ),
 					'bank_recipient' => array( 'type' => 'text', 'label' => __( 'Überweisung: Empfänger (Kontoinhaber)', 'pass-captain' ), 'description' => __( 'Leer = Name / Firma des Rechnungsstellers.', 'pass-captain' ) ),
-					'bank_iban' => array( 'type' => 'text', 'label' => __( 'Überweisung: IBAN', 'pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'pass-captain' ) ),
-					'bank_bic' => array( 'type' => 'text', 'label' => __( 'Überweisung: BIC', 'pass-captain' ), 'description' => __( 'BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode.', 'pass-captain' ) ),
+					'bank_iban' => array( 'type' => 'iban', 'label' => __( 'Überweisung: IBAN', 'pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'pass-captain' ) ),
+					'bank_bic' => array( 'type' => 'bic', 'label' => __( 'Überweisung: BIC', 'pass-captain' ), 'description' => __( 'BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode.', 'pass-captain' ) ),
 					'manual_hold_hours' => array( 'type' => 'int', 'label' => __( 'Reservierung bei manueller Zahlung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Endet spätestens mit Beginn des (ersten) Termins.', 'pass-captain' ) ),
 					'manual_hold_max_percent' => array( 'type' => 'int', 'label' => __( 'Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren', 'pass-captain' ), 'min' => 0, 'max' => 100, 'description' => __( 'Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze.', 'pass-captain' ) ),
 					'manual_cutoff_hours' => array( 'type' => 'int', 'label' => __( 'Überweisung nur bis … Stunden vor Beginn anbieten', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht.', 'pass-captain' ) ),
@@ -167,7 +167,7 @@ final class SettingsPage {
 				'provider' => 'stripe',
 				'webhook' => 'stripe',
 				'fields' => array(
-					'stripe_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'test' => __( 'Test', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
+					'stripe_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'test' => __( 'Test', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ), 'description' => __( '„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind.', 'pass-captain' ) ),
 					'stripe_secret_key' => array( 'type' => 'secret', 'label' => __( 'Geheimer API-Schlüssel (Secret Key)', 'pass-captain' ), 'description' => __( 'Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…).', 'pass-captain' ) ),
 					'stripe_webhook_secret' => array( 'type' => 'secret', 'label' => __( 'Webhook-Signaturgeheimnis (Signing Secret)', 'pass-captain' ), 'description' => __( 'Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
 				),
@@ -178,7 +178,7 @@ final class SettingsPage {
 				'provider' => 'paypal',
 				'webhook' => 'paypal',
 				'fields' => array(
-					'paypal_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'sandbox' => __( 'Sandbox', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
+					'paypal_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'sandbox' => __( 'Sandbox', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ), 'description' => __( '„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind.', 'pass-captain' ) ),
 					'paypal_client_id' => array( 'type' => 'text', 'label' => __( 'Client-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus).', 'pass-captain' ) ),
 					'paypal_client_secret' => array( 'type' => 'secret', 'label' => __( 'Client-Geheimnis (Secret)', 'pass-captain' ), 'description' => __( 'Steht in derselben App unter der Client-ID.', 'pass-captain' ) ),
 					'paypal_webhook_id' => array( 'type' => 'text', 'label' => __( 'Webhook-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
@@ -202,7 +202,7 @@ final class SettingsPage {
 				'fields' => array(
 					'refund_approval_threshold' => array( 'type' => 'money', 'label' => __( 'Zweite Freigabe ab Betrag', 'pass-captain' ), 'description' => __( '0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00.', 'pass-captain' ) ),
 					'refund_four_eyes_approvers' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip auch für Freigebende', 'pass-captain' ), 'description' => __( 'Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person.', 'pass-captain' ) ),
-					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'pass-captain' ) ),
+					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'pass-captain' ), 'description' => __( 'Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts.', 'pass-captain' ) ),
 					'auto_refund_unmatched_payments' => array( 'type' => 'bool', 'label' => __( 'Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter.', 'pass-captain' ) ),
 					'reschedule_refund_request' => array( 'type' => 'bool', 'label' => __( 'Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben', 'pass-captain' ), 'description' => __( 'Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“.', 'pass-captain' ) ),
 					'reschedule_refund_hours' => array( 'type' => 'int', 'label' => __( 'Antragsfrist: Stunden vor dem neuen Termin', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn des neuen Termins.', 'pass-captain' ) ),
@@ -307,13 +307,13 @@ final class SettingsPage {
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ), 'description' => __( 'Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'pass-captain' ) ),
 					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
-					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ) ),
+					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam.', 'pass-captain' ) ),
 					'seller_small_business' => array( 'type' => 'bool', 'label' => __( 'Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)', 'pass-captain' ), 'description' => __( 'Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen).', 'pass-captain' ) ),
 					'seller_small_business_note' => array( 'type' => 'text', 'label' => __( 'Kleinunternehmer-Hinweis (leer = Standardtext für das Land)', 'pass-captain' ), 'description' => __( 'DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“', 'pass-captain' ) ),
 					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird.', 'pass-captain' ) ),
 					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'pass-captain' ), 'description' => __( 'Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die Nummer von Storno- und Korrekturbelegen.', 'pass-captain' ) ),
-					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
+					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ), 'description' => __( 'Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab.', 'pass-captain' ) ),
 					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts.', 'pass-captain' ) ),
 					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ) ),
 				),
@@ -582,6 +582,8 @@ final class SettingsPage {
 					case 'int':
 					case 'money':
 					case 'email':
+					case 'iban':
+					case 'bic':
 						// SET-PC-01: checked by the settings register, which reports instead of clamping.
 						if ( 'int' === $def['type'] && ( null === $raw || '' === $raw ) ) { break; }
 						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );

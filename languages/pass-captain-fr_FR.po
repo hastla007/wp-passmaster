@@ -206,8 +206,8 @@ msgstr "Clé API révoquée."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:752
-#: src/Admin/SettingsPage.php:784
+#: src/Admin/SettingsPage.php:754
+#: src/Admin/SettingsPage.php:786
 #: src/Admin/StatusPage.php:242
 #: src/Admin/TaxPage.php:75
 #: src/Admin/TicketsPage.php:568
@@ -1759,7 +1759,7 @@ msgstr "Limite atteinte"
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:1010
+#: src/Admin/SettingsPage.php:1012
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
@@ -2776,7 +2776,7 @@ msgstr "Paiements en attente"
 #: src/Admin/Dashboard.php:98
 #: src/Admin/Menu.php:117
 #: src/Admin/SettingsPage.php:144
-#: src/Admin/SettingsPage.php:912
+#: src/Admin/SettingsPage.php:914
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -9045,13 +9045,13 @@ msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestä
 msgstr "Affiche les CGV/conditions de participation lors du paiement et exige leur acceptation. Sans cette option, les CGV n’apparaissent pas lors du paiement (les informations consommateur toujours)."
 
 #: src/Admin/SettingsPage.php:192
-#: src/Admin/SettingsPage.php:970
+#: src/Admin/SettingsPage.php:972
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr "CGV / Conditions de participation"
 
 #: src/Admin/SettingsPage.php:193
-#: src/Admin/SettingsPage.php:970
+#: src/Admin/SettingsPage.php:972
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informations consommateur (p. ex. information sur le droit de rétractation)"
 
@@ -9551,15 +9551,15 @@ msgstr "« %s » n’est pas un montant valide."
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "« %s » n’est pas une adresse e-mail valide."
 
-#: src/Admin/SettingsPage.php:635
+#: src/Admin/SettingsPage.php:637
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "« Supprimer toutes les données lors de la suppression de l’extension » n’a pas été activé : saisissez LÖSCHEN ou DELETE pour confirmer."
 
-#: src/Admin/SettingsPage.php:685
+#: src/Admin/SettingsPage.php:687
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "L’acceptation lors du paiement est active, mais aucun texte de CGV n’est enregistré pour la langue par défaut. Les acheteurs devraient accepter des conditions qu’ils ne voient pas – veuillez saisir les CGV/conditions de participation."
 
-#: src/Admin/SettingsPage.php:728
+#: src/Admin/SettingsPage.php:730
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
 #: src/BoxOffice/Page.php:560
@@ -9572,147 +9572,147 @@ msgstr "L’acceptation lors du paiement est active, mais aucun texte de CGV n�
 msgid "Einstellungen gespeichert."
 msgstr "Réglages enregistrés."
 
-#: src/Admin/SettingsPage.php:764
+#: src/Admin/SettingsPage.php:766
 msgid "Pass Captain Einstellungen"
 msgstr "Réglages de Pass Captain"
 
-#: src/Admin/SettingsPage.php:771
+#: src/Admin/SettingsPage.php:773
 msgid "Einstellungsbereiche"
 msgstr "Sections des réglages"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:802
+#: src/Admin/SettingsPage.php:804
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "Les textes suivants s’appliquent à la langue par défaut (%s) et à toute langue sans version propre."
 
-#: src/Admin/SettingsPage.php:814
+#: src/Admin/SettingsPage.php:816
 #: src/Partners/AdminPage.php:289
 msgid "Einstellungen speichern"
 msgstr "Enregistrer les réglages"
 
-#: src/Admin/SettingsPage.php:854
+#: src/Admin/SettingsPage.php:856
 msgid "Webhook-URL:"
 msgstr "URL du webhook :"
 
-#: src/Admin/SettingsPage.php:856
+#: src/Admin/SettingsPage.php:858
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "Dans l’application PayPal, sous « Webhooks », créez un webhook avec cette URL et ces événements ; saisissez ci-dessous le Webhook ID affiché :"
 
-#: src/Admin/SettingsPage.php:856
+#: src/Admin/SettingsPage.php:858
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "Dans le tableau de bord Stripe, sous Développeurs → Webhooks, créez un point de terminaison avec cette URL et ces événements ; saisissez ci-dessous le secret de signature affiché :"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:864
+#: src/Admin/SettingsPage.php:866
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Pas encore entièrement configuré. Éléments manquants : %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:865
+#: src/Admin/SettingsPage.php:867
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s ne sera proposé lors du paiement qu’ensuite."
 
-#: src/Admin/SettingsPage.php:872
-#: src/Admin/SettingsPage.php:876
+#: src/Admin/SettingsPage.php:874
+#: src/Admin/SettingsPage.php:878
 msgid "Verbindung testen"
 msgstr "Tester la connexion"
 
-#: src/Admin/SettingsPage.php:873
+#: src/Admin/SettingsPage.php:875
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Vérifie avec les identifiants enregistrés la connexion auprès du prestataire et si le webhook est configuré avec cette URL et tous les événements nécessaires. Rien n’est modifié ; enregistrez d’abord."
 
-#: src/Admin/SettingsPage.php:890
+#: src/Admin/SettingsPage.php:892
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Aucun test de connexion n’existe pour ce mode de paiement."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:940
+#: src/Admin/SettingsPage.php:942
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Proposer %s lors du paiement"
 
-#: src/Admin/SettingsPage.php:942
-#: src/Admin/SettingsPage.php:1020
+#: src/Admin/SettingsPage.php:944
+#: src/Admin/SettingsPage.php:1022
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(configuration incomplète)"
 
-#: src/Admin/SettingsPage.php:951
+#: src/Admin/SettingsPage.php:953
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Mode test actif : aucun paiement réel n’est encaissé. Les acheteurs voient la mention « Mode test » lors du paiement. Pour vendre, passez en « Live » et renseignez les identifiants live."
 
-#: src/Admin/SettingsPage.php:954
+#: src/Admin/SettingsPage.php:956
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "Le virement n’est proposé lors du paiement que lorsque le bénéficiaire (ou l’émetteur des factures) et l’IBAN ou une instruction de paiement sont renseignés."
 
-#: src/Admin/SettingsPage.php:963
-#: src/SettingsSchema.php:319
+#: src/Admin/SettingsPage.php:965
+#: src/SettingsSchema.php:336
 msgid "Rechtstexte je Sprache"
 msgstr "Textes juridiques par langue"
 
-#: src/Admin/SettingsPage.php:964
+#: src/Admin/SettingsPage.php:966
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Les acheteurs voient les textes dans leur langue (langue du site ou de WPML/Polylang). Les champs vides reprennent le texte de la langue par défaut. Chaque langue possède sa propre version, enregistrée avec la commande."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:976
+#: src/Admin/SettingsPage.php:978
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vide : le texte de %s s’applique."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:983
+#: src/Admin/SettingsPage.php:985
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Version actuelle pour %1$s : %2$s"
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:991
 msgid "Archivierte Fassungen"
 msgstr "Versions archivées"
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:991
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Chaque version qui a été en vigueur reste enregistrée sans modification. Le récapitulatif de la commande indique quelle version s’appliquait à la commande, et son texte peut y être affiché."
 
-#: src/Admin/SettingsPage.php:990
+#: src/Admin/SettingsPage.php:992
 msgid "Fassung"
 msgstr "Version"
 
-#: src/Admin/SettingsPage.php:990
+#: src/Admin/SettingsPage.php:992
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Langue"
 
-#: src/Admin/SettingsPage.php:990
+#: src/Admin/SettingsPage.php:992
 msgid "Archiviert am"
 msgstr "Archivée le"
 
-#: src/Admin/SettingsPage.php:998
+#: src/Admin/SettingsPage.php:1000
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Ajouter une autre langue (locale, p. ex. en_US) :"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1026
+#: src/Admin/SettingsPage.php:1028
 #, php-format
 msgid "%s einrichten"
 msgstr "Configurer %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:1050
+#: src/Admin/SettingsPage.php:1052
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Version actuelle : %s (enregistrée avec chaque commande)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:1076
+#: src/Admin/SettingsPage.php:1078
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Remplacé par %s (wp-config.php ou variable d’environnement) ; la valeur enregistrée ici n’est pas utilisée."
 
-#: src/Admin/SettingsPage.php:1082
+#: src/Admin/SettingsPage.php:1084
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Saisissez LÖSCHEN ou DELETE pour activer :"
 
@@ -33947,33 +33947,85 @@ msgid "„%s“: Dieser Wert steht nicht zur Auswahl."
 msgstr "« %s » : cette valeur ne fait pas partie des choix possibles."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:251
+#: src/SettingsSchema.php:268
 #, php-format
 msgid "„%s“ erwartet eine Liste von Werten."
 msgstr "« %s » attend une liste de valeurs."
 
-#: src/SettingsSchema.php:320
+#: src/SettingsSchema.php:337
 msgid "Übersetzungen von AGB und Verbraucherinformationen je Sprache; bearbeitet im Reiter „Rechtliches“."
 msgstr "Traductions des CGV et des informations consommateurs par langue ; modifiées dans l’onglet « Mentions légales »."
 
-#: src/SettingsSchema.php:328
+#: src/SettingsSchema.php:345
 msgid "Zahlungsstatus nachfragen nach (Minuten)"
 msgstr "Vérifier le statut du paiement après (minutes)"
 
-#: src/SettingsSchema.php:329
+#: src/SettingsSchema.php:346
 msgid "Nach dieser Zeit fragt Pass Captain den Zahlungsanbieter selbst nach dem Status, falls keine Benachrichtigung (Webhook) eingegangen ist."
 msgstr "Passé ce délai, Pass Captain interroge lui-même le prestataire de paiement sur le statut si aucune notification (Webhook) n’a été reçue."
 
-#: src/SettingsSchema.php:333
+#: src/SettingsSchema.php:350
 msgid "Header der Client-Adresse (intern)"
 msgstr "En-tête de l’adresse client (interne)"
 
-#: src/SettingsSchema.php:334
+#: src/SettingsSchema.php:351
 msgid "Wird aus „Header mit der Client-Adresse“ abgeleitet und nicht direkt bearbeitet."
 msgstr "Dérivé de « En-tête contenant l’adresse client » et non modifiable directement."
 
 #. translators: 1: field label, 2: largest number of values
-#: src/SettingsSchema.php:256
+#: src/SettingsSchema.php:273
 #, php-format
 msgid "„%1$s“: höchstens %2$d Werte."
 msgstr "« %1$s » : %2$d valeurs au maximum."
+
+#: src/Admin/SettingsPage.php:67
+msgid "Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“."
+msgstr "Si tu annules une date, Pass Captain lance immédiatement le remboursement des commandes payées. Sans cette option, tu rembourses toi-même sous « Commandes »."
+
+#: src/Admin/SettingsPage.php:79
+msgid "Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert."
+msgstr "Recommandé si plusieurs personnes attribuent des invitations : chaque validation nécessite une deuxième personne et est journalisée."
+
+#: src/Admin/SettingsPage.php:126
+msgid "Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst."
+msgstr "Chaque événement reçoit sa propre adresse, reconnue comme événement par les moteurs de recherche. Désactive cette option si tu n’affiches les événements que par des blocs ou des shortcodes."
+
+#: src/Admin/SettingsPage.php:134
+msgid "Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst."
+msgstr "Affiche le nom figurant sur le billet à l’entrée, pour que le personnel puisse le comparer à une pièce d’identité. Pour la protection des données, active-le seulement si nécessaire."
+
+#: src/Admin/SettingsPage.php:138
+msgid "Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn."
+msgstr "S’applique aux types de billets sans règle propre : entrée à partir de « Ouverture de l’entrée » avant le début jusqu’à « Fermeture de l’entrée » après le début."
+
+#: src/Admin/SettingsPage.php:170
+msgid "„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind."
+msgstr "« Test » utilise les clés de test de Stripe ; aucun argent n’est versé. Ne passe en « Live » qu’une fois les clés live saisies."
+
+#: src/Admin/SettingsPage.php:181
+msgid "„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind."
+msgstr "« Sandbox » utilise l’environnement de test de PayPal ; aucun argent n’est versé. Ne passe en « Live » qu’une fois les identifiants live saisis."
+
+#: src/Admin/SettingsPage.php:205
+msgid "Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts."
+msgstr "Toute personne qui lance un remboursement doit en plus se connecter avec un second facteur. Protège contre l’utilisation d’un mot de passe volé."
+
+#: src/Admin/SettingsPage.php:310
+msgid "Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam."
+msgstr "Recommandé si plusieurs personnes gèrent les profils fiscaux : un profil nouveau ou modifié ne prend effet qu’après validation par une deuxième personne."
+
+#: src/Admin/SettingsPage.php:316
+msgid "Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab."
+msgstr "Crée après chaque commande payée une facture numérotée en continu et la joint au courriel de confirmation. Vérification juridique : l’obligation d’émettre des factures dépend du pays et de la clientèle."
+
+#. translators: %s: field label
+#: src/SettingsSchema.php:246
+#, php-format
+msgid "„%s“ ist keine gültige IBAN (Prüfziffer stimmt nicht)."
+msgstr "« %s » n’est pas un IBAN valide (la clé de contrôle ne correspond pas)."
+
+#. translators: %s: field label
+#: src/SettingsSchema.php:253
+#, php-format
+msgid "„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX)."
+msgstr "« %s » n’est pas un BIC valide (8 ou 11 caractères, p. ex. GIBAATWWXXX)."
