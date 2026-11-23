@@ -34,10 +34,13 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 `{consumer_info}` und `{terms}` setzen die Texte „Verbraucherinformationen“ und „AGB / Teilnahmebedingungen“
 aus *Einstellungen → Rechtstexte* mit Überschrift ein (Vertragsbestätigung auf einem dauerhaften
 Datenträger, vgl. § 312f Abs. 2 BGB / § 7 Abs. 3 FAGG); ist ein Text leer, bleibt der Platzhalter leer.
-Die Standardtexte von `tickets` und `order_access` enthalten beide Platzhalter (ohne gepflegte Texte
-ändert sich nichts). Eigene Vorlagen müssen sie selbst aufnehmen. Ob das im Einzelfall genügt (z. B. AGB
-zusätzlich als PDF), ist rechtlich zu prüfen. `{contract_texts}` setzt dagegen die bei der Bestellung
-archivierte Fassung (mit Fassungskennung) ein.
+`{contract_texts}` setzt dagegen die bei der Bestellung archivierte Fassung (mit Fassungskennung) ein; die
+Standardtexte von `tickets` und `order_access` enthalten nur diesen Platzhalter, damit die Texte nicht doppelt
+erscheinen (ohne gepflegte Texte bleibt er leer). Eigene Vorlagen müssen einen der Platzhalter selbst
+aufnehmen. Wie `{order_items}` und `{payment_instructions}` bringen `{consumer_info}`, `{terms}` und
+`{contract_texts}` ihre Leerzeile am Ende selbst mit (in HTML-Mails einen eigenen Block); Text direkt
+danach beginnt einen neuen Absatz. Ob das im Einzelfall genügt (z. B. AGB zusätzlich als PDF), ist
+rechtlich zu prüfen.
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`), `{site_url}` sowie `{terms_text}` und `{consumer_info_text}` zur Verfügung. Die Rechtstexte erscheinen in der Sprache der Mail (Locale der Bestellung) und fallen je Text auf die Standardsprache zurück, wenn für diese Sprache keine eigene Fassung gepflegt ist (**Einstellungen → Rechtstexte**). Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 

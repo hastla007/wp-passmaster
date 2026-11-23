@@ -137,10 +137,15 @@ final class LegalVersions {
 		return self::block( '3f2a9c1e5b7d4a6f', __( 'Bedingungen', 'pass-captain' ) . "\n…\n\n", '<h3>' . esc_html__( 'Bedingungen', 'pass-captain' ) . '</h3><p>…</p>' );
 	}
 
-	/** {contract_texts} value: version line and texts, starting with a blank line (follows the ticket list). */
+	/**
+	 * {contract_texts} value: version line and texts. Like {order_items} and {payment_instructions} the
+	 * block brings its own trailing blank line (HTML: its own block element) and no leading one – the
+	 * ticket list and the ordered lines before it end with a blank line, and text after it (order access
+	 * mail: "Bewahre diesen Link …") starts on a new paragraph.
+	 */
 	private static function block( $version, $text, $html ) {
 		/* translators: %s: version identifier of the legal texts */
 		$line = sprintf( __( 'Diese Texte galten bei deiner Bestellung (Fassung %s).', 'pass-captain' ), $version );
-		return Mail\Mailer::block( "\n\n" . $line . "\n\n" . rtrim( $text ) . "\n", '<p>' . esc_html( $line ) . '</p>' . $html );
+		return Mail\Mailer::block( $line . "\n\n" . rtrim( $text ) . "\n\n", '<div style="margin:0 0 16px"><p>' . esc_html( $line ) . '</p>' . $html . '</div>' );
 	}
 }
