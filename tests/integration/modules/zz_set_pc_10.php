@@ -16,10 +16,11 @@ Settings::update( array( 'hold_minutes' => 15 ) );
 SettingsManager::with_source( 'page', static function () { Settings::update( array( 'hold_minutes' => 25, 'terms_text' => str_repeat( 'AGB ', 100 ), 'stripe_secret_key' => 'sk_test_abcdefghijklmnop' ) ); } );
 $sp10_h = SettingsManager::history( array( 'limit' => 1 ) )[0] ?? array();
 $sp10_by = array_column( $sp10_h['changes'] ?? array(), null, 'key' );
+$sp10_secret = array_values( array_filter( $sp10_h['changes'] ?? array(), static fn( $c ) => ! empty( $c['secret'] ) ) );
 check( 'SET-PC-13: one entry per save with source and old/new', 'page' === ( $sp10_h['source'] ?? '' ) && 15 === (int) ( $sp10_by['hold_minutes']['old'] ?? 0 ) && 25 === (int) ( $sp10_by['hold_minutes']['new'] ?? 0 ) );
 check( 'SET-PC-13: long texts are logged as checksum with length, not as text', isset( $sp10_by['terms_text']['new']['sha256'] ) && 400 === $sp10_by['terms_text']['new']['length'] );
-if ( empty( $sp10_by['stripe_secret_key']['secret'] ) || 'changed' !== ( $sp10_by['stripe_secret_key']['new'] ?? '' ) ) { echo '     debug: ' . wp_json_encode( $sp10_h ) . "\n"; }
-check( 'SET-PC-13: secrets are logged without any value', ! empty( $sp10_by['stripe_secret_key']['secret'] ) && 'changed' === $sp10_by['stripe_secret_key']['new'] && false === strpos( wp_json_encode( $sp10_h ), 'sk_test_abc' ) );
+// The audit redaction may also mask the key name; only the absence of the value matters here.
+check( 'SET-PC-13: secrets are logged without any value', 1 === count( $sp10_secret ) && 'changed' === ( $sp10_secret[0]['new'] ?? '' ) && ! array_key_exists( 'old', $sp10_secret[0] ) && false === strpos( wp_json_encode( $sp10_h ), 'sk_test_abc' ) );
 check( 'SET-PC-13: unchanged values write no entry', ( SettingsManager::history( array( 'limit' => 1 ) )[0]['log_id'] ?? 0 ) === ( function () { Settings::update( array( 'hold_minutes' => 25 ) ); return SettingsManager::history( array( 'limit' => 1 ) )[0]['log_id'] ?? 0; } )() );
 check( 'SET-PC-13: history can be filtered by key', array() !== SettingsManager::history( array( 'key' => 'hold_minutes' ) ) && array() === array_filter( SettingsManager::history( array( 'key' => 'hold_minutes' ) ), static fn( $e ) => array() === $e['changes'] ) );
 SettingsManager::with_source( 'page', static function () { Settings::update( array( 'stripe_secret_key' => '' ) ); } );

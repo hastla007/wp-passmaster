@@ -736,6 +736,7 @@ final class SettingsPage {
 						}
 						break;
 					default:
+						if ( null === $raw ) { break; } // Not in the form: keep the stored value.
 						$values[ $key ] = Forms::text( $in, $key, 'trusted_proxies' === $key ? 1000 : 190 );
 				}
 				// Deleting all data on uninstall (incl. invoices, credit notes and fiscal records) needs a typed confirmation.

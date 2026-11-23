@@ -12,6 +12,7 @@ $pp_saved = get_option( Settings::OPTION, array() );
 Settings::update( array( 'billing_required_threshold_minor' => 25000, 'refund_approval_threshold' => 15000 ) );
 $pp_doc = SettingsManager::export();
 $pp_prev = SettingsManager::preview( wp_json_encode( $pp_doc ) );
+if ( 0 !== $pp_prev['changes'] || 0 !== $pp_prev['errors'] ) { echo '     debug: ' . wp_json_encode( array_filter( (array) ( $pp_prev['rows'] ?? $pp_prev ), static fn( $r ) => ! is_array( $r ) || ! empty( $r['changed'] ) || ! empty( $r['error'] ) ) ) . "\n"; }
 check( 'P1-1: an unchanged export has no changes in the preview (money stays in minor units)', 0 === $pp_prev['changes'] && 0 === $pp_prev['errors'] );
 Settings::update( array( 'billing_required_threshold_minor' => 100 ) );
 SettingsManager::import( wp_json_encode( $pp_doc ) );

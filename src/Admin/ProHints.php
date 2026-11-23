@@ -75,6 +75,7 @@ final class ProHints {
 	}
 
 	public static function handle_hide() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( self::ACTION );
 		$in = Forms::post();
 		self::hide( (string) ( $in['hint'] ?? '' ) );
