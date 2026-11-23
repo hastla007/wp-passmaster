@@ -67,3 +67,53 @@ test('a blocked checkout (payload error) fires no begin_checkout', () => {
 	env.document.dispatchEvent(new env.window.CustomEvent('wpcap:checkout-payload', { detail: { form, payload: {}, error: 'Sitzplatz fehlt' } }));
 	assert.equal(events.filter((e) => e.event === 'begin_checkout').length, 0);
 });
+
+/** Page with one ticket type in the given currency (price in minor units) and optional checkout config. */
+function currencyPage(currency, priceMinor, checkoutConfig) {
+	const win = { sessionStorage: storage() };
+	if (checkoutConfig) win.WPCAP_CHECKOUT = checkoutConfig;
+	const env = load('assets/tracking.js', {
+		url: 'https://example.test/tickets/',
+		window: win,
+		setup(doc, h) {
+			doc.body.appendChild(h('form.wpcap-checkout-form', [
+				h('input.wpcap-qty#q1', { type: 'number', value: '0', 'data-type': '21', 'data-price': String(priceMinor), 'data-currency': currency, 'data-name': 'Standard' }),
+			]));
+		},
+	});
+	const events = [];
+	env.document.addEventListener('wpcap:track', (e) => events.push(e.detail));
+	env.exports.init(env.window);
+	return { env, events };
+}
+
+test('TODO L892/L915: values use the minor unit of the currency, never a fixed /100 (JPY 0, KWD 3 decimals)', () => {
+	const jpy = currencyPage('JPY', 2500);
+	assert.equal(jpy.events[0].items[0].price, 2500, 'JPY has no minor unit: 2500 yen stay 2500');
+	const q = jpy.env.document.getElementById('q1');
+	q.value = '2'; q.dispatchEvent(new Event('input', { bubbles: true }));
+	assert.equal(jpy.events[1].value, 5000);
+	const form = jpy.env.document.querySelector('.wpcap-checkout-form');
+	jpy.env.document.dispatchEvent(new jpy.env.window.CustomEvent('wpcap:checkout-complete', { detail: { form, order: { reference: 'AB12-CD34', total_minor: 5000, currency: 'JPY' } } }));
+	assert.equal(jpy.events.find((e) => e.event === 'purchase').value, 5000);
+
+	const kwd = currencyPage('KWD', 12345);
+	assert.equal(kwd.events[0].items[0].price, 12.345, '12345 fils = 12.345 KWD');
+	const k = kwd.env.document.getElementById('q1');
+	k.value = '3'; k.dispatchEvent(new Event('input', { bubbles: true }));
+	assert.equal(kwd.events[1].value, 37.035, 'total rounded to three decimals, no float noise');
+
+	const eur = currencyPage('EUR', 1999);
+	assert.equal(eur.events[0].items[0].price, 19.99);
+});
+
+test('TODO L915: the checkout configuration (wpcap_currency_decimals) wins over the built-in ISO table', () => {
+	const { events, env } = currencyPage('XTS', 12345, { money: { decimals: { XTS: 3 } } });
+	assert.equal(events[0].items[0].price, 12.345);
+	assert.equal(env.exports.decimals('xts'), 3, 'lower-case codes are normalised');
+	const fallback = currencyPage('OMR', 1000);
+	assert.equal(fallback.env.exports.decimals('OMR'), 3);
+	assert.equal(fallback.env.exports.decimals('BHD'), 3);
+	assert.equal(fallback.env.exports.decimals('ISK'), 0);
+	assert.equal(fallback.env.exports.decimals('CHF'), 2);
+});
