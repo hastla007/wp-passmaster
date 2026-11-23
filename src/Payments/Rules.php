@@ -5,7 +5,8 @@
  * Setting payment_rules, one rule per line:
  *   <provider> | events=12,15 | min=10,00 | max=500 | countries=DE,AT
  * Every condition is optional; a method without a rule is allowed everywhere. Several lines for the same
- * method are alternatives (one matching line allows it). Amounts are in the order currency (major units).
+ * method are alternatives (one matching line allows it). Amounts are in the order currency (major units,
+ * read with that currency's decimals, e.g. 0 for JPY, 3 for KWD).
  * The event card hides methods that cannot apply to its event; the checkout checks the finished order
  * (amount, events, billing country) and refuses a method whose rules do not match.
  *
@@ -44,9 +45,9 @@ final class Rules {
 				} elseif ( 'countries' === $key ) {
 					$rule['countries'] = array_values( array_filter( array_map( static function ( $c ) { $c = strtoupper( trim( $c ) ); return preg_match( '/^[A-Z]{2}$/', $c ) ? $c : ''; }, preg_split( '/[\s,;]+/', $value ) ) ) );
 				} else {
-					$minor = \PassCaptain\Admin\Forms::parse_money( $value, 2 );
-					if ( null === $minor ) { return self::error( $n ); }
-					$rule[ $key ] = (int) $minor;
+					// Syntax check only; the amount is read in the order currency (decimals) when the rule is applied.
+					if ( null === \PassCaptain\Admin\Forms::parse_money( $value, 3 ) ) { return self::error( $n ); }
+					$rule[ $key ] = $value;
 				}
 			}
 			$rules[ $provider ][] = $rule;
@@ -89,7 +90,16 @@ final class Rules {
 		$events = array_map( 'intval', (array) ( $context['event_ids'] ?? array() ) );
 		$total = isset( $context['total_minor'] ) ? (int) $context['total_minor'] : null;
 		$country = strtoupper( (string) ( $context['country'] ?? '' ) );
+		$decimals = \PassCaptain\Admin\Forms::currency_decimals( (string) ( $context['currency'] ?? '' ) );
+		$amount = static function ( $value ) use ( $decimals ) {
+			if ( null === $value ) { return null; }
+			if ( is_int( $value ) ) { return $value; } // Filtered rules may already carry minor units.
+			$minor = \PassCaptain\Admin\Forms::parse_money( (string) $value, $decimals );
+			return null === $minor ? null : (int) $minor;
+		};
 		foreach ( $rules[ $provider ] as $rule ) {
+			$rule['min'] = $amount( $rule['min'] );
+			$rule['max'] = $amount( $rule['max'] );
 			if ( $rule['events'] && $events && array_diff( $events, $rule['events'] ) ) { continue; }
 			if ( null !== $total && null !== $rule['min'] && $total < $rule['min'] ) { continue; }
 			if ( null !== $total && null !== $rule['max'] && $total > $rule['max'] ) { continue; }
@@ -114,6 +124,6 @@ final class Rules {
 		if ( ! $order ) { return array(); }
 		$events = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items i JOIN {$wpdb->prefix}wpcap_ticket_types t ON t.ticket_type_id=i.ticket_type_id JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=t.occurrence_id WHERE i.order_id=%d", (int) $order_id ) ) );
 		$billing = \PassCaptain\Billing::for_order( $order );
-		return array( 'event_ids' => $events, 'total_minor' => (int) $order->total_minor, 'country' => (string) ( $billing['country'] ?? '' ) );
+		return array( 'event_ids' => $events, 'total_minor' => (int) $order->total_minor, 'currency' => (string) $order->currency, 'country' => (string) ( $billing['country'] ?? '' ) );
 	}
 }

@@ -81,6 +81,8 @@ final class SettingsManager {
 			$key = (string) $key;
 			if ( 'client_ip_header' === $key ) { continue; } // Derived from trusted_proxy_header.
 			if ( Settings::is_secret( $key ) ) { continue; }
+			$schema_entry = SettingsSchema::get( $key );
+			if ( $schema_entry && $schema_entry['secret'] ) { $secrets[ $key ] = '' === (string) ( is_scalar( $new ) ? $new : '' ); continue; } // Logged without value.
 			$old = $before[ $key ] ?? null;
 			if ( self::same( $old, $new ) ) { continue; }
 			$changes[] = array( 'key' => $key, 'old' => self::log_value( $key, $old ), 'new' => self::log_value( $key, $new ) );
@@ -323,10 +325,10 @@ final class SettingsManager {
 			return is_wp_error( $checked ) ? $checked : array_merge( is_array( $current[ $key ] ?? null ) ? $current[ $key ] : array(), $checked );
 		}
 		if ( null !== $entry && in_array( $entry['type'], array( 'providers', 'modules', 'list' ), true ) && is_array( $value ) ) {
-			return SettingsSchema::validate( $key, array_values( array_filter( $value, 'is_scalar' ) ) );
+			return SettingsSchema::validate_complete( $key, array_values( array_filter( $value, 'is_scalar' ) ) );
 		}
 		if ( null !== $entry && 'bool' === $entry['type'] ) { return empty( $value ) ? 0 : 1; }
-		return SettingsSchema::validate( $key, $value );
+		return SettingsSchema::validate_complete( $key, $value );
 	}
 
 	/**

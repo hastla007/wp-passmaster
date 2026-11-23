@@ -903,7 +903,7 @@ final class OrderAdapter {
 	private static function hold_minutes() {
 		$minutes = max( Orders::HOLD_MINUTES, absint( get_option( 'woocommerce_hold_stock_minutes', 60 ) ) );
 		$own = absint( \PassCaptain\Settings::get( 'woo_hold_minutes', 0 ) ); // SET-PC-29: 0 = automatic.
-		if ( $own > 0 ) { $minutes = $own; }
+		if ( $own > 0 ) { $minutes = max( $own, $minutes ); } // Only longer: never shorter than WooCommerce's "hold stock" (late payments).
 		return (int) apply_filters( 'wpcap_woocommerce_hold_minutes', $minutes );
 	}
 

@@ -151,7 +151,7 @@ final class CountryPresets {
 				$checked = SettingsSchema::check_group( $key, $value );
 				$new = is_wp_error( $checked ) ? $value : array_merge( is_array( $current[ $key ] ?? null ) ? $current[ $key ] : array(), $checked );
 			} else {
-				$checked = SettingsSchema::validate( $key, $value );
+				$checked = SettingsSchema::validate_complete( $key, $value );
 				$new = is_wp_error( $checked ) ? $value : $checked;
 			}
 			if ( ! is_wp_error( $checked ) && wp_json_encode( $current[ $key ] ?? null ) === wp_json_encode( $new ) ) { continue; }

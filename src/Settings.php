@@ -320,7 +320,10 @@ final class Settings {
 			}
 		}
 		$stored = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
-		$merged = array_merge( $stored, $values );
+		// SET-PC-11: persist only keys that are stored or saved now, so reset keys keep following their defaults.
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? array_diff_key( $raw, array_flip( Secrets::KEYS ) ) : array();
+		$merged = array_merge( $raw, $values );
 		$merged['delete_data_on_uninstall'] = 0; // Never in the old key (see UNINSTALL_POLICY).
 		update_option( self::OPTION, $merged, true ); // Autoloaded (PERF-11): read on every request; no plaintext secrets inside.
 		self::$all = null;
@@ -341,6 +344,8 @@ final class Settings {
 	 */
 	public static function forget( array $keys, array $defaults = array() ) {
 		$keys = array_values( array_diff( array_map( 'strval', $keys ), self::secret_keys(), array( 'delete_data_on_uninstall' ) ) );
+		// The derived client_ip_header follows trusted_proxy_header (otherwise the old header would stay trusted).
+		if ( in_array( 'trusted_proxy_header', $keys, true ) ) { $keys[] = 'client_ip_header'; }
 		$stored = get_option( self::OPTION, array() );
 		$stored = is_array( $stored ) ? $stored : array();
 		$before = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );

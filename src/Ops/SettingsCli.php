@@ -86,7 +86,9 @@ final class SettingsCli {
 		if ( 'bool' === $entry['type'] && is_string( $value ) ) {
 			$value = in_array( strtolower( $value ), array( '1', 'yes', 'on', 'true', 'ja' ), true ) ? 1 : 0;
 		}
-		$checked = 'group' === $entry['type'] && is_array( $value ) ? SettingsSchema::check_group( $key, $value ) : SettingsSchema::validate( $key, $value );
+		// Money values are read and written in minor units on the CLI (as "get" prints them).
+		if ( 'money' === $entry['type'] && is_string( $value ) && preg_match( '/^\d+$/', trim( $value ) ) ) { $value = (int) trim( $value ); }
+		$checked = 'group' === $entry['type'] && is_array( $value ) ? SettingsSchema::check_group( $key, $value ) : SettingsSchema::validate_complete( $key, $value );
 		if ( is_wp_error( $checked ) ) { return $checked; }
 		if ( 'group' === $entry['type'] ) {
 			$current = Settings::get( $key );

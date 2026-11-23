@@ -198,6 +198,24 @@ final class SettingsSchema {
 		return $errors ? new \WP_Error( 'wpcap_setting_invalid', implode( ' ', $errors ), array( 'messages' => $errors ) ) : $out;
 	}
 
+	/**
+	 * Full check outside the settings screen (import, presets, WP-CLI): validate() plus the field's own
+	 * sanitize callback, as the settings screen applies it.
+	 *
+	 * @return mixed|\WP_Error
+	 */
+	public static function validate_complete( $key, $value ) {
+		$checked = self::validate( $key, $value );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$entry = self::get( $key );
+		if ( $entry && $entry['sanitize'] ) {
+			$clean = call_user_func( $entry['sanitize'], $checked, Settings::get( $key ) );
+			if ( is_wp_error( $clean ) ) { return $clean; }
+			$checked = $clean;
+		}
+		return $checked;
+	}
+
 	/** Checks one value against a (sub-)entry; see validate(). */
 	private static function check_value( array $entry, $value, $key ) {
 		$label = '' !== $entry['label'] ? $entry['label'] : (string) $key;
@@ -223,6 +241,14 @@ final class SettingsSchema {
 				}
 				return $value;
 			case 'money':
+				// Values already in minor units (export/import, presets, CLI) come as integers; form input is text.
+				if ( is_int( $value ) ) {
+					if ( $value < 0 ) {
+						/* translators: %s: field label */
+						return new \WP_Error( 'wpcap_setting_money', sprintf( __( '„%s“ ist kein gültiger Betrag.', 'pass-captain' ), $label ) );
+					}
+					return $value;
+				}
 				$parsed = Admin\Forms::parse_money( is_scalar( $value ) && '' !== trim( (string) $value ) ? $value : '0', 2 );
 				if ( null === $parsed ) {
 					/* translators: %s: field label */
@@ -293,6 +319,10 @@ final class SettingsSchema {
 					}
 				}
 				return implode( ',', $codes );
+			case 'prefix':
+				// Same normalisation as the settings screen: A–Z, 0–9 and "-", upper case, at most 10 characters.
+				$prefix = strtoupper( preg_replace( '/[^A-Za-z0-9\-]/', '', is_scalar( $value ) ? (string) $value : '' ) );
+				return '' !== $prefix ? substr( $prefix, 0, 10 ) : (string) ( $entry['default'] ?? '' );
 			case 'html':
 				return is_scalar( $value ) ? wp_kses_post( (string) $value ) : '';
 			case 'textarea':
@@ -351,6 +381,7 @@ final class SettingsSchema {
 			'module' => (string) ( $def['module'] ?? '' ),
 			'internal' => ! empty( $def['internal'] ),
 			'fields' => 'group' === $type && is_array( $def['fields'] ?? null ) ? $def['fields'] : array(),
+			'sanitize' => isset( $def['sanitize'] ) && is_callable( $def['sanitize'] ) ? $def['sanitize'] : null,
 			'item' => 'list' === $type && is_array( $def['item'] ?? null ) ? $def['item'] : array(),
 			'max_items' => 'list' === $type ? (int) ( $def['max_items'] ?? 0 ) : 0,
 		);

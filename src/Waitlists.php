@@ -947,7 +947,7 @@ final class Waitlists {
 		// the payment window of the chosen method (never shortened).
 		$minutes = self::ACCEPT_GUARD_MINUTES;
 		if ( $paid ) {
-			$enabled = Payments\Registry::enabled( $order->currency );
+			$enabled = Payments\Rules::filter( Payments\Registry::enabled( $order->currency ), Payments\Rules::order_context( (int) $order->order_id ) ); // SET-PC-40
 			$wanted = sanitize_key( $args['provider'] ?? '' );
 			$gateway = $enabled[ $wanted ] ?? ( $enabled['manual'] ?? ( $enabled ? reset( $enabled ) : null ) );
 			if ( ! $gateway ) { return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) ); }
