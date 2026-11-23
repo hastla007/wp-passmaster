@@ -63,6 +63,10 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Saalplan mobil (A090):** Sitzformen je Kategorie, Zustandszeichen, große Sitze, Pinch-Zoom und Verschieben, Liste als gleichwertige Ansicht.
 - **Mobile-API 1.2 (A687):** Sammel-Ein-/Auslass (`/app/scan/batch`), Versionsauskunft `/app/info`, Versions-Header für Mindestversionen von Kern und App.
 - **Scanner-Geräte (A688):** Ablauf des Offline-Pakets sichtbar; Sammel-Check-in/-out in der Ticketliste mit Bestätigung, Ergebnisbericht und idempotentem Wiederholen.
+- **Servicegebühr (A425, Schema 3.18.3):** Vorverkaufs-/Servicegebühr je Ticket (Einstellung oder je Ticketart) und je Bestellung, standardmäßig aus; eigene Position mit dem Steuersatz der Ticketposition in Checkout, Bestellmail, Portal, Rechnung, Fiskalbeleg und Umsatzbericht; Erstattung nach den bestehenden Regeln.
+- **Sprachauswahl (A165):** Die Sprachauswahl im Checkout wirkt (Feld `buyer_locale`) und bestimmt die Sprache von Mails, Tickets und Portal; Rechtstexte bleiben in der angezeigten Fassung. Neue Prüfung, dass alle Texte der Frontend-Skripte übersetzbar sind.
+- **Multisite (A162):** Netzwerkübersicht seitenweise mit kommenden Terminen, Netzwerkbericht für einen frei wählbaren Zeitraum je Website und Währung als Tabelle und CSV.
+- **Tests (A321):** Browser-Tests unter realeren Bedingungen: 320 px/400 % Zoom, Dark Mode, RTL, Live-Regionen, Proxy-Fehlerseite, zwei Shortcodes, Zurück/Vor.
 - **Entscheidung 17 (endgültig):** Die Connectoren BoatingSchool und LearnBoating sind eigene, nicht verkaufte Projektprodukte mit eigenem Produktschlüssel, nicht Teil von Pass Captain Pro (Doku angepasst).
 
 ### Behobene Fehler aus der Zusammenführung

@@ -367,13 +367,13 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - Zeitraum, Erstattungen, Bestand, CSV mit Cap-Scope da (src/Reports/Data.php:73,154,335; Page.php:14); fehlen Vergleichsfilter, Kampagnen- und Teilnehmerdaten
 - [x] **A161** Entwickler-API-Schlüssel administrierbar machen — _TEILWEISE_ (TODO L244; Kernprodukt und Admin-Bedienung)
   - Erstellen/einmalig anzeigen/Widerruf per REST (src/DeveloperKeys.php:8,41); keine Admin-UI, Ablauf nur bei Anlage, Ratenlimit fest 600/min (:35), nur 2 Scopes
-- [ ] **A162** Multisite-Netzwerkverwaltung, netzwerkweite Berichte, Cross-Site-Tests — _TEILWEISE_ (TODO L245; Kernprodukt und Admin-Bedienung)
+- [x] **A162** Multisite-Netzwerkverwaltung, netzwerkweite Berichte, Cross-Site-Tests — _TEILWEISE_ (TODO L245; Kernprodukt und Admin-Bedienung)
   - Netzwerkaktivierung/Site-Anlage/Löschung da (src/Plugin.php:30-138, uninstall.php:53); keine Netzwerk-Admin-Seite, keine Netzwerkberichte, keine Cross-Site-Tests
 - [x] **A163** Job-Queue-Handler und Admin-Ansicht für Rückstände/Dead-Letter — _TEILWEISE_ (TODO L249; Hintergrunddienste, Übersetzungen und Integrationen)
   - Queue mit Retry/Dead-Letter (src/Jobs.php:23-57), Handler nur Wallet/Voucher; keine Admin-Ansicht und kein kontrolliertes Wiederholen
 - [x] **A164** Betriebsüberwachung für Cron, Mail, SMS, Webhook, Jobs — _OFFEN_ (TODO L250; Hintergrunddienste, Übersetzungen und Integrationen)
   - Kein Monitoring, keine Site-Health-Tests oder Rückstandswarnungen im Code gefunden
-- [ ] **A165** Käufer-Sprachauswahl, Übersetzungen, Übersetzungsverwaltung, String-Prüfung — _TEILWEISE_ (TODO L251; Hintergrunddienste, Übersetzungen und Integrationen)
+- [x] **A165** *Admin-Übersetzungsverwaltung offen.* Käufer-Sprachauswahl, Übersetzungen, Übersetzungsverwaltung, String-Prüfung — _TEILWEISE_ (TODO L251; Hintergrunddienste, Übersetzungen und Integrationen)
   - Mails in Bestell-Locale (src/Orders.php:239, src/Mail/Admin.php:30), 5 Sprachdateien; keine Käufer-Sprachauswahl, Event-Übersetzung nur REST, keine automatische String-Vollständigkeitsprüfung
 - [x] **A166** Konkrete CRM-/Kalender-/Buchhaltungsadapter mit Mapping und Sync — _OFFEN_ (TODO L252; Hintergrunddienste, Übersetzungen und Integrationen)
   - Nur Vertrag/Registry (src/Integrations/ConnectorInterface.php, ConnectorRegistry.php), keine konkreten Adapter, kein Mapping-UI
@@ -721,7 +721,7 @@ Gesamt: 262 Aufgaben.
   - assets/offline-scanner/app.css:8, 34: --warn/--ok für Text abdunkeln
 - [x] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L666; Audit Runde 4)
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
-- [ ] **A321** [WICHTIG] A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4)
+- [ ] **A321** [WICHTIG] *Teilweise erledigt 23.11.: tests/e2e/conditions.test.js; weitere Widgets offen.* A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4)
   - tests/a11y/run.js, keyboard.js: Kalender, Saalplan, Portal-Dialoge, PWA, Kasse, Mobile/Reflow 320 px/400 %, Dark Mode, RTL, Live-Regionen, Nicht-JSON-Fehler, Tastatur-Scanner, bfcache, mehrere Shortcodes
 - [x] **A322** [WICHTIG] Checkout-Fehler ohne Spur verschluckt — _R2 Support_ (TODO L668; Audit Runde 4)
   - src/Orders.php:319–347 (catch Throwable): Zentrales Fehlerprotokoll (Klasse, Code, Datei:Zeile, last_error) + Fehler-ID für Käufer
@@ -945,7 +945,7 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/GoogleProvider.php:124–136: Cache-Schlüssel aus client_email/token_uri, 403 löscht Token
 - [x] **A424** [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — _R2 Eigen_ (TODO L770; Audit Runde 4)
   - src/Mail/Types.php, Orders.php:241, OrderPortal.php:137: Rechnung als PDF an Mail/eigene Mail, Admin-Button
-- [ ] **A425** [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — _R2 Eigen_ (TODO L771; Audit Runde 4)
+- [x] **A425** [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — _R2 Eigen_ (TODO L771; Audit Runde 4)
   - src/Orders.php:178–203: Gebühr je Ticket/Bestellung als Position mit Steuersatz und Erstattungsregel
 - [x] **A426** [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — _R2 Eigen_ (TODO L772; Audit Runde 4)
   - src/Admin/Menu.php:14–60: „Event duplizieren (als Entwurf)“ mit Ticketarten, Feldern, Regeln

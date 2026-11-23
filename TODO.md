@@ -433,7 +433,7 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 - [ ] Automatische Preisregeln für Frühbucher, Last-Minute und Nachfrage mit Regeln zu Käuferlimits, Stapelbarkeit, Verkaufsfenstern und nachvollziehbaren Preis-Snapshots fertigstellen.
 - [ ] Veranstalterberichte um Zeitraum-/Vergleichsfilter, Bestand, Erstattungen, Kampagnen und Teilnehmerdaten erweitern; rollenbeschränkte CSV-Exporte ergänzen.
 - [x] Entwickler-API-Schlüssel administrierbar machen: erstellen, einmalig anzeigen, widerrufen, Ablauf/Ratenlimits verwalten und die vorgesehenen Read-only-Endpunkte erweitern.
-- [ ] Multisite-Netzwerkverwaltung und netzwerkweite Berichte ergänzen; Site-Isolation, Aktivierung, Löschung und Migration durch Cross-Site-Tests absichern.
+- [x] Multisite-Netzwerkverwaltung und netzwerkweite Berichte ergänzen; Site-Isolation, Aktivierung, Löschung und Migration durch Cross-Site-Tests absichern. *Erledigt 23.11.2026: Netzwerkübersicht seitenweise mit kommenden Terminen, Netzwerkbericht für frei wählbaren Zeitraum als Tabelle und CSV (A162, Test `zzzzzz_a162_network`); Isolationstests bestanden bereits.*
 
 ### Hintergrunddienste, Übersetzungen und Integrationen
 
@@ -444,7 +444,7 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 - Native Scanner-Apps: zusammengeführt in PASS-FE-10 (eine Aufgabe, Priorität P2, Entscheidung E-07).
 - [x] Job-Queue-Handler für geplante Nachrichten, Erinnerungen und sonstige Jobs vervollständigen; Admin-Ansicht für Rückstände, Fehlversuche und Dead-Letter-Jobs mit kontrolliertem Wiederholen ergänzen.
 - [x] Betriebsüberwachung für WP-Cron/Action Scheduler, Mail-, SMS-, Webhook- und Job-Rückstände einrichten; ausbleibende Ausführung oder dauerhaft fehlerhafte Jobs müssen erkennbar sein.
-- [ ] Käufer-Sprachauswahl sowie Übersetzungen für E-Mails, Tickets und Käuferansichten ergänzen; Übersetzungsverwaltung im Admin und vollständige String-Prüfung für alle unterstützten Sprachen hinzufügen.
+- [ ] Käufer-Sprachauswahl sowie Übersetzungen für E-Mails, Tickets und Käuferansichten ergänzen; Übersetzungsverwaltung im Admin und vollständige String-Prüfung für alle unterstützten Sprachen hinzufügen. *Stand 23.11.2026: Sprachauswahl im Checkout wirkt (`buyer_locale`), Prüfung aller Frontend-Textschlüssel in `consistency.php` (A165, Test `zz_a165`). Offen: Übersetzungsverwaltung im Admin.*
 - [x] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen. *(umgesetzt im zusammengeführten Stand, siehe den abgehakten gleichlautenden Eintrag oben; doppelt durch die Zusammenführung)*
 - [ ] Native Scanner-Apps selbst entwickeln oder explizit als separates Produkt/Projekt ausweisen; die Mobile-REST-API allein ist keine Scanner-App.
 
@@ -907,7 +907,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] Dunkle Themes: Kontrast 1,1–2,6:1 (Kalender, Fehlertexte) — assets/calendar/calendar.css, assets/public.css (A318, R2 Frontend)
 - [x] [WICHTIG] Kontrast PWA-Status unter 4,5:1 — assets/offline-scanner/app.css:8, 34 (A319, R2 Frontend)
 - [x] [WICHTIG] Druck-/Belegseiten mit festem lang="de" — src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297 (A320, R2 Frontend)
-- [ ] [WICHTIG] A11y-/E2E-Tests decken reale Bedingungen nicht ab — tests/a11y/run.js, keyboard.js (A321, R2 Frontend)
+- [ ] [WICHTIG] A11y-/E2E-Tests decken reale Bedingungen nicht ab — tests/a11y/run.js, keyboard.js (A321, R2 Frontend) *Stand 23.11.2026: Neue Browser-Tests `tests/e2e/conditions.test.js` (320 px/400 %, Dark Mode, RTL, Live-Regionen, Proxy-502, zwei Shortcodes, Zurück/Vor; A321). Offen: Kalender, Saalplan, Portal-Dialoge, Kasse und PWA unter diesen Bedingungen, echtes RTL-Sprachpaket, HID-Scanner.*
 - [x] [WICHTIG] Checkout-Fehler ohne Spur verschluckt — src/Orders.php:319–347 (catch Throwable) (A322, R2 Support)
 - [x] [WICHTIG] Webhook-Abstürze und Signaturfehler hinterlassen keine Spur — src/Payments/Webhooks.php:18–22, :71–73 (A323, R2 Support)
 - [x] [WICHTIG] Zahlungsstart-Fehler mit Rohtext an Käufer statt an Admin — src/Rest/Controller.php:373–375, StripeGateway.php:286/293, PayPalGateway.php:364/370/412 (A324, R2 Support)
@@ -1011,7 +1011,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [OPTIMIERUNG] Wallet-Sync „alles oder nichts“, 429 nicht gesondert — src/WalletPasses/Service.php:321–388 (A422, R2 API)
 - [x] [OPTIMIERUNG] Google-Wallet-Token nicht an Zugangsdaten gebunden — src/WalletPasses/GoogleProvider.php:124–136 (A423, R2 API)
 - [x] [OPTIMIERUNG] Fehlend: Rechnung/Bestelllink erneut senden; Portalzugang nur 30 Tage — src/Mail/Types.php, Orders.php:241, OrderPortal.php:137 (A424, R2 Eigen) – erledigt: Admin „Bestelllink erneut senden“ (bisheriger Link gilt bis zur ersten Nutzung des neuen, Audit `order_link_resent`); Rechnung reist mit „Tickets erneut senden (Codes behalten)“; Portalzugang `Orders::access_until()` = 30 Tage (Filter `wpcap_order_access_days`), mindestens bis 30 Tage nach dem letzten Termin; Test `zz_a424`
-- [ ] [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — src/Orders.php:178–203 (A425, R2 Eigen)
+- [x] [OPTIMIERUNG] Fehlend: Vorverkaufs-/Servicegebühr — src/Orders.php:178–203 (A425, R2 Eigen) *Erledigt 23.11.2026: Servicegebühr je Ticket/Ticketart und je Bestellung, standardmäßig aus, eigene Position mit dem Steuersatz der Ticketposition (A425, Tests `zz_a425`, `zzzzzz_a425_fiscal`). Braucht: Entscheidung Preisangabe (Gesamtpreis), Steuersatz, Erstattung bei Absage, Zuordnung in Partnerabrechnungen.*
 - [ ] [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — src/Admin/Menu.php:14–60 (A426, R2 Eigen)
 
 ## Audit Runde 4 – Nachtrag Datenbank & Performance (13.11.2026)
