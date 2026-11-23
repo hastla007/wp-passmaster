@@ -1512,13 +1512,13 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A700** [ENTSCHEIDUNG] CONCEPT.md heißt durchgehend „Ticket Captain“ – auf „Pass Captain“ umstellen? — _Konzept 15.11._ (TODO L202; Konzept/Roadmap 2026-11-15)
   - (umgesetzt im zusammengeführten Stand, siehe TODO.md R16-12: `CONCEPT.md` verwendet „Pass Captain“, der frühere Arbeitstitel ist als historisch gekennzeichnet)
 
-## Phase 13 – Entscheidung 17: Connectoren BoatingSchool und LearnBoating in Pass Captain Pro (16.11.2026)
+## Phase 13 – Entscheidung 17: Connectoren BoatingSchool und LearnBoating als eigene Projektprodukte (endgültig 16.11.2026)
 
 Quelle: TODO.md Abschnitt C. Der Kern bleibt frei und ohne Lizenzprüfung; nur A701 und A705 betreffen dieses Repository direkt.
 
-- [x] **A701** [WICHTIG] Doku auf Entscheidung 17 umstellen: BoatingSchool-/LearnBoating-Connectoren sind Teil von Pass Captain Pro, separat installiert, lizenzpflichtig (CONCEPT, FREE-PREMIUM, EXTENSIONS/CONTRACTS, ROADMAP) — _Entscheidung 17_ (TODO L224; Entscheidung 17, 16.11.2026)
-- [ ] **A702** [ENTSCHEIDUNG] Lizenzmodell der Connectoren: eigener Produktschlüssel je Connector oder Rechteschlüssel in pass-captain-pro; Eintrag in wp-license (ENTITLEMENTS, Katalog, Tarife) — _Entscheidung 17_ (TODO L225; Entscheidung 17, 16.11.2026)
-- [ ] **A703** [ENTSCHEIDUNG] Kundenfreigabe: Connectoren nur für freigegebene Kunden lizenzierbar oder für alle Pro-Kunden; Freigabe/Entzug/Protokoll im Lizenzserver — _Entscheidung 17_ (TODO L226; Entscheidung 17, 16.11.2026)
+- [x] **A701** [WICHTIG] Doku auf Entscheidung 17 umstellen: BoatingSchool-/LearnBoating-Connectoren sind eigene, lizenzpflichtige Projektprodukte (nicht Teil von Pro), separat installiert (CONCEPT, FREE-PREMIUM, EXTENSIONS/CONTRACTS, ROADMAP) — _Entscheidung 17_ (TODO L224; Entscheidung 17, 16.11.2026)
+- [x] **A702** [ENTSCHEIDUNG] *Entschieden: eigener Produktschlüssel je Connector, nicht Teil von Pro (E17 endgültig).* Lizenzmodell der Connectoren: eigener Produktschlüssel je Connector oder Rechteschlüssel in pass-captain-pro; Eintrag in wp-license (ENTITLEMENTS, Katalog, Tarife) — _Entscheidung 17_ (TODO L225; Entscheidung 17, 16.11.2026)
+- [x] **A703** [ENTSCHEIDUNG] *Entfällt: eigene Projekte, keine Kundenfreigabe (E17 endgültig).* Kundenfreigabe: Connectoren nur für freigegebene Kunden lizenzierbar oder für alle Pro-Kunden; Freigabe/Entzug/Protokoll im Lizenzserver — _Entscheidung 17_ (TODO L226; Entscheidung 17, 16.11.2026)
 - [ ] **A704** [WICHTIG] Plugin-Gerüst je Connector (Repo/Slug/Textdomain, Requires Plugins, WPLC-Client mit Lizenz und Updater) – außerhalb dieses Repos — _Entscheidung 17_ (TODO L227; Entscheidung 17, 16.11.2026)
 - [ ] **A705** [WICHTIG] Kern-Andockpunkte für die Connectoren fertigstellen: Connector-Vertrag stellt Ereignisse wirklich zu (A530), Ereignisse Kauf/Gutschein→Ticket/Erstattung/Einlass ohne PII, Vertragsversion, Suite-Status ohne Lizenzstatus — _Entscheidung 17_ (TODO L228; Entscheidung 17, 16.11.2026)
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `src/Integrations/ConnectorEvents.php` (Zustellung über die Job-Queue, Ereignisse Kauf/Erstattung/Einlass ohne PII, Payload-Version) und `src/Admin/SuiteStatus.php` (A670); offen: eigenes Ereignis „Gutschein eingelöst → Ticket“ und der Stub-Connector-Test (A708).

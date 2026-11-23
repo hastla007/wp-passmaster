@@ -697,9 +697,9 @@ Audit-Log: `pos_device_payment_started`, `…_confirmed` (mit Quelle `poll`, `we
 `…_conflict`, `…_late`, `pos_device_amount_mismatch`. `confirm_device_payment()` prüft keine Benutzerrechte (Webhook-Kontext) – das Add-on muss
 die Herkunft (Signatur) prüfen, bevor es bestätigt.
 
-## Connectoren BoatingSchool und LearnBoating (Pass Captain Pro)
+## Connectoren BoatingSchool und LearnBoating (eigene Projektprodukte)
 
-Die Connectoren zu BoatingSchool und LearnBoating sind eigene Plugins von Pass Captain Pro (Entscheidung 17, 16.11.2026): getrennt installiert, nur mit gültiger Lizenz. Sie docken ausschließlich über den Connector-Vertrag an (Registrierung über `wp_pass_captain_connectors_v1`, Ausführung nur nach Freigabe in `wpcap_enabled_connectors`), lesen keine Kerntabellen direkt und bringen Lizenzclient und Updater selbst mit. Regeln wie „Kauf oder Gutscheineinlösung löst Kurszugang, Ticket oder beides aus“ liegen im Connector. Fehlt die Lizenz, stoppt nur dessen Synchronisierung; Verkauf, Tickets und Einlass im Kern laufen weiter. Offene Punkte: [FREE-PREMIUM.md](FREE-PREMIUM.md#connectoren-boatingschool-und-learnboating-entscheidung-17-16112026), TODO.md Abschnitt C.
+Die Connectoren zu BoatingSchool und LearnBoating sind eigene Projektprodukte (Entscheidung 17, endgültig 16.11.2026): je Connector ein Plugin mit eigenem Produktschlüssel und Präfix, getrennt installiert, nur mit gültiger Lizenz, nicht Teil von Pass Captain Pro. Sie docken ausschließlich über den Connector-Vertrag an (Registrierung über `wp_pass_captain_connectors_v1`, Ausführung nur nach Freigabe in `wpcap_enabled_connectors`), lesen keine Kerntabellen direkt und bringen Lizenzclient und Updater selbst mit. Regeln wie „Kauf oder Gutscheineinlösung löst Kurszugang, Ticket oder beides aus“ liegen im Connector. Fehlt die Lizenz, stoppt nur dessen Synchronisierung; Verkauf, Tickets und Einlass im Kern laufen weiter. Details: [FREE-PREMIUM.md](FREE-PREMIUM.md#connectoren-boatingschool-und-learnboating-entscheidung-17-endgültig-16112026), TODO.md Abschnitt C.
 
 ## Affiliate Captain
 

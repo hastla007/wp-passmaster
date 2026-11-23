@@ -21,7 +21,7 @@ Pass Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheinein
 - WooCommerce optional unterstützen und dieselben öffentlichen Ticketdienste auch für andere Shop- und Buchungssysteme anbieten.
 - Datenschutzminimierung und konfigurierbare DACH-Verkaufs-, Steuer- und Verbraucherinformationen unterstützen.
 - Voucher Captain bei gemeinsamer Installation direkt integrieren.
-- Die Verbindungen zu BoatingSchool und LearnBoating (Kursplattformen) als eigene Connector-Plugins von Pass Captain Pro führen: separat installiert, nur mit gültiger Lizenz (Entscheidung 17, 16.11.2026). Der Kern bleibt frei und liefert nur den versionierten Connector-Vertrag.
+- Die Verbindungen zu BoatingSchool und LearnBoating (Kursplattformen) als eigene Connector-Plugins führen: je Connector ein eigenes, nicht verkauftes Projektprodukt mit eigenem Produktschlüssel und Präfix, separat installiert, nur mit gültiger Lizenz – nicht Teil von Pass Captain Pro (Entscheidung 17, endgültig 16.11.2026). Der Kern bleibt frei und liefert nur den versionierten Connector-Vertrag.
 
 Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pauschale Rechts- oder Steuerkonformität: Betreiber müssen die für ihr Land und ihr Angebot geltenden Einstellungen mit Rechts- und Steuerberatung festlegen.
 
@@ -34,11 +34,11 @@ Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pa
 | Commerce-Adapter | Optionale Anbindung an WooCommerce oder andere Shop-/Buchungssysteme |
 | Voucher Captain | Gutscheine, Geschenkguthaben und Rabattcodes |
 | Native Voucher-/Pass-Integration | Ist beides installiert, kann die bestätigte Einlösung eines Gutscheins die Ticketausstellung auslösen |
-| Connectoren BoatingSchool und LearnBoating (Pass Captain Pro) | Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen; je ein eigenes Plugin, separat installiert, lizenzpflichtig (Entscheidung 17) |
+| Connectoren BoatingSchool und LearnBoating (eigene Projektprodukte) | Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen; je ein eigenes Plugin mit eigenem Produktschlüssel und Präfix, separat installiert, lizenzpflichtig, nicht Teil von Pro (Entscheidung 17, endgültig 16.11.2026) |
 
 Voucher Captain und Pass Captain bleiben eigenständige Produkte. Ihre direkte Integration benötigt kein drittes Connector-Plugin. Ein gemeinsamer, versionierter PHP-Vertrag verbindet die Plugins; direkte Zugriffe auf interne Klassen oder Tabellen des jeweils anderen Plugins sind ausgeschlossen.
 
-Die Connectoren für BoatingSchool und LearnBoating sind dagegen eigene Plugins, die zu Pass Captain Pro gehören (Entscheidung 17, 16.11.2026): Sie werden getrennt installiert und laufen nur mit gültiger Lizenz; die Lizenzprüfung liegt ausschließlich im Connector, nie im Kern. Ein Connector kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Kursregeln kommen nicht in den Kern; er stellt nur Ereignisse und Befehle über den versionierten Connector-Vertrag bereit. Läuft die Lizenz ab, stoppt nur die weitere Synchronisierung – ausgegebene Tickets und Kurszugänge bleiben gültig. Offen (TODO.md Abschnitt C): Produkt- bzw. Rechteschlüssel und Umfang der Kundenfreigabe.
+Die Connectoren für BoatingSchool und LearnBoating sind dagegen eigene Projektprodukte (Entscheidung 17, endgültig 16.11.2026): je Connector ein nicht verkauftes Produkt auf dem Lizenzserver des Inhabers mit eigenem Produktschlüssel (= Ordner = Textdomain) und eigenem Präfix, getrennt installiert, Code im Projekt-Repository, nur mit gültiger Lizenz; nicht Teil von Pass Captain Pro. Die Lizenzprüfung liegt ausschließlich im Connector, nie im Kern. Ein Connector kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Kursregeln kommen nicht in den Kern; er stellt nur Ereignisse und Befehle über den versionierten Connector-Vertrag bereit. Läuft die Lizenz ab, stoppt nur die weitere Synchronisierung – ausgegebene Tickets und Kurszugänge bleiben gültig.
 
 ### Zuständigkeitsgrenze zu Voucher Captain
 
