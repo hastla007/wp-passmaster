@@ -1,6 +1,8 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht – Zusammenführung
+## 1.6.0 – 2026-11-23
+
+Version 1.6.0 ist die erste veröffentlichte Version nach 1.4.0: Die als 1.5.0 vorbereiteten Änderungen (Abschnitt unten) wurden nicht einzeln veröffentlicht und sind vollständig enthalten (Entscheidung der Inhaberin vom 23.11.2026).
 
 Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Version 1.5.0, Abschnitt unten) und die Linie `claude/woocommerce-ticket-plugin-8q4m8q` mit ihrer Arbeitsliste (A001–A709). Der zusammengeführte Stand enthält die Funktionen beider Linien, darunter Review- und Workflow-Verträge, Ticketumtausch im Bestellportal, Ticket-PDF im Portal ohne neuen Code und PDFs mit eingebetteter Unicode-Schrift.
 

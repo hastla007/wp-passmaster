@@ -47,8 +47,8 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 |---|---|---|
 | 1.0.0 (nachträglich benannt, Konstante fehlt) | bis 1.4.0 | die Erweiterungspunkte mit „seit“ kleiner als 1.5.0 |
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
-| 1.2.0 | 1.5.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
-| 1.3.0 | 1.5.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
+| 1.2.0 | 1.6.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
+| 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )

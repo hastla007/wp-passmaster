@@ -4,7 +4,7 @@ Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -127,6 +127,12 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 
 == Changelog ==
 
+= 1.6.0 =
+* First release after 1.4.0; includes everything prepared as 1.5.0 (below), which was not published separately.
+* Form Captain adapter (form per event, signed event context, explicit hand-over as a request), read API for the state of orders, tickets, refunds, dates and events (`wpcap_get_*_state()`, extension contract 1.3.0), connector contract 1.1.0.
+* Optional presale/service fee, buyer language choice, print template design (logo, colours, accessible starter templates), configurable wording, mobile seat map, batch check-in in the app API and the ticket list, network report for multisite.
+* Order list with bulk "confirm payment", block names `pass-captain/*` (old names keep working), GitHub Actions pinned by SHA.
+
 = 1.5.0 =
 * Optional "Workflow Captain" box on the system status page (adapter state, contract version, active workflows, events per state, last correlation ID, links) when Workflow Captain is active.
 * Extension points for add-ons (admin menu, invoices, branding, checkout gate, API scopes, card terminal devices) with the contract version constant `WPCAP_CONTRACT_VERSION`. Read API for the state of orders, tickets, refunds, dates and events without personal data (`wpcap_get_order_state()` and siblings, contract 1.3.0).
@@ -157,6 +163,9 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 The full change log is in CHANGELOG.md in the source repository.
 
 == Upgrade Notice ==
+
+= 1.6.0 =
+Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Schema 3.18.3 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database before updating.
 
 = 1.5.0 =
 Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Schema 3.18 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database and read CHANGELOG.md first.
