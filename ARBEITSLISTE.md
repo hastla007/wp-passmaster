@@ -676,7 +676,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A298** [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — _R1 UX_ (TODO L644; Audit Runde 4)
   - src/Admin/SettingsPage.php:603, ManualGateway.php:12: wp_editor für Rechtstexte; online nur „Überweisung“
   - Erledigt: HTML-Rechtstexte der Einstellungen mit `wp_editor` (ohne Medien, Label passend, Filter `wpcap_settings_rich_editor`); der manuelle Zahlungsweg heißt online „Überweisung“ (kein „Zahlung vor Ort“ mehr). Test zz_a298.
-- [ ] **A299** [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — _R1 UX_ (TODO L645; Audit Runde 4)
+- [ ] **A299** [WICHTIG] *Teilweise erledigt 23.11.: Mollie-Doppelweg entfernt; Überschneidung Wochenwiederholung/Serienmodul ist Produktentscheidung.* 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — _R1 UX_ (TODO L645; Audit Runde 4)
   - src/Admin/Menu.php:197–226, Modules.php:60–63: Seite „Funktionen“ (Module an/aus), schlanke Grundausstattung; Doppelungen Serien/Mollie/Scanner auflösen
   - Teilweise erledigt: Module lassen sich unter Einstellungen → Allgemein → Funktionen abschalten (Einstellung `disabled_modules`, ausgewertet in `Modules::enabled()`, Daten bleiben); doppelte Seiten für Wartelisten/API-Schlüssel/Status sind seit N02/N04 zusammengelegt. Offen: weitere Wege zu Serien/Mollie/Scanner prüfen. Test zz_a299.
 - [x] **A300** [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) — _R1 Release_ (TODO L646; Audit Runde 4)
@@ -685,7 +685,7 @@ Gesamt: 262 Aufgaben.
   - src/Secrets.php:59, :435–437: Nur auf Plugin-Seiten/Site Health, per User-Meta wegklickbar
 - [x] **A302** [WICHTIG] Inline-<script>/<style> per echo — _R1 Release_ (TODO L648; Audit Runde 4)
   - src/Admin/Menu.php:88/91/263, BoxOffice/Page.php:146, Mail/Admin.php:290, OrderPortal.php:141, Exchange/Portal.php:204: wp_add_inline_script/style an registrierten Handles (PCP, CSP)
-- [ ] **A303** [WICHTIG] Präfix wp_ in Shortcodes/Hooks und Block-Namespace wp-pass-captain/* (A104 abgehakt) — _R1 Release_ (TODO L649; Audit Runde 4)
+- [x] **A303** [WICHTIG] Präfix wp_ in Shortcodes/Hooks und Block-Namespace wp-pass-captain/* (A104 abgehakt) — _R1 Release_ (TODO L649; Audit Runde 4)
   - src/Plugin.php:73/75, Modules/Calendar.php:24, WalletPasses/Service.php:20, Vouchers/TicketService.php, block.json: pass_captain_* bzw. pass-captain/* als Hauptnamen, alte als deprecated Aliase (Blöcke mit Transform/Deprecation)
 - [ ] **A304** [WICHTIG] Deutsche Quellsprache vs. translate.wordpress.org (Entscheidung) — _R1 Release_ (TODO L650; Audit Runde 4)
   - languages/pass-captain.pot, readme.txt: Release-Blocker entscheiden: englische Quellstrings + de_DE.po, englische Readme
@@ -849,7 +849,7 @@ Gesamt: 262 Aufgaben.
   - src/Invoices.php:790–805, Reports/Page.php:135: Konten in Einstellungen, SKR03/SKR04/AT benennen
 - [x] **A381** [OPTIMIERUNG] Destruktive Aktionen ohne Bestätigung (Zeitfenster löschen, Personal entfernen) — _R1 UX_ (TODO L727; Audit Runde 4)
   - src/Admin/ServiceSlotsPage.php:412–415, EventsPage.php:945: Einheitlich bestätigen
-- [ ] **A382** [OPTIMIERUNG] load_plugin_textdomain für wp.org überflüssig (PCP) — _R1 Release_ (TODO L728; Audit Runde 4)
+- [x] **A382** [OPTIMIERUNG] load_plugin_textdomain für wp.org überflüssig (PCP) — _R1 Release_ (TODO L728; Audit Runde 4)
   - pass-captain.php:83: Auf init bzw. Fallback nur für gebündelte .mo
 - [x] **A383** [OPTIMIERUNG] Plurale mit „(e)/(s)“ und zusammengesetzte Sätze — _R1 Release_ (TODO L729; Audit Runde 4)
   - src/PublicEvents.php:50/103/106, OrderAdapter.php:915, GuestLists/Page.php:123, Modules/Sms.php:473, TicketPage.php:58: _n() mit sprintf
@@ -864,7 +864,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A388** [OPTIMIERUNG] Offline-Scanner-PWA nur de/en — _R1 Release_ (TODO L734; Audit Runde 4)
   - assets/offline-scanner/i18n.js:12: Kataloge fr/it/es/nl oder JSON aus .mo erzeugen
   - (umgesetzt im zusammengeführten Stand, siehe `GET /app/offline/i18n` in `src/OfflineScanner/Rest.php`: die PWA lädt ihre Texte für jede mitgelieferte Sprache (Deutsch und die fünf Übersetzungen) aus den Sprachdateien des Plugins)
-- [ ] **A389** [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — _R1 Release_ (TODO L735; Audit Runde 4)
+- [x] **A389** [OPTIMIERUNG] Readme-Changelog ohne Inhalt, Umbenennung fehlt — _R1 Release_ (TODO L735; Audit Runde 4)
   - readme.txt:53–66: Je Version die wichtigsten Änderungen direkt in readme.txt
 - [x] **A390** [OPTIMIERUNG] Kein RTL (dir, logische CSS-Eigenschaften) — _R2 Frontend_ (TODO L736; Audit Runde 4)
   - src/TicketPage.php:58, OrderPortal.php:116, Waitlists.php:1064, Invoices.php:536, public.css, picker.css: dir per is_rtl(), padding-inline etc.
@@ -892,7 +892,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
   - src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen): Alerts::raise() mit Empfänger-Filter, Mailer, dauerhaftem Admin-Hinweis
   - Erledigt: `src/Alerts.php` – alle 20 direkten `wp_mail( admin_email )`-Stellen plus Fiskal-, SMS-Budget- und Service-Personal-Empfänger laufen über `Alerts::raise()`/`recipients()`; Einstellung „Betriebsalarme an“ (`alert_email`), Filter `wpcap_alert_recipients`/`wpcap_alert_send`, Action `wpcap_alert`, Absender über `Mailer::send_plain`, die letzten 30 Alarme im Systemstatus; Test zz_a400 (inkl. Quellscan: kein `wp_mail( get_option( 'admin_email' ) …` mehr).
-- [ ] **A401** [OPTIMIERUNG] Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
+- [ ] **A401** [OPTIMIERUNG] *Teilweise erledigt 23.11.: register_routes und install aufgeteilt; Orders::create offen.* Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
   - src/Installer.php:17, Orders.php:23, Rest/Controller.php:20: Schema je Modul auslagern, Routen je Ressource, create() zerlegen
 - [ ] **A402** [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — _R2 Support_ (TODO L748; Audit Runde 4)
   - 206/224 Klassen: Fassade PassCaptain\Api mit @api/SemVer, Rest @internal
@@ -916,7 +916,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:169: „Kostenlos anmelden“, „kostenlos“
 - [x] **A410** [OPTIMIERUNG] Wartelisten-Anmeldung nennt keine Frist; max vom ersten Typ — _R2 UX_ (TODO L756; Audit Runde 4)
   - templates/event-card.php:177/190: offer_hours einsetzen, max per JS
-- [ ] **A411** [OPTIMIERUNG] Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4)
+- [ ] **A411** [OPTIMIERUNG] *Teilweise erledigt 23.11.: Bestellliste als WP_List_Table erledigt; Tickets und Events offen.* Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4)
   - src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732: WP_List_Table, Bulk „Zahlung bestätigen“, Leerzustand mit „Filter zurücksetzen“
 - [x] **A412** [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — _R2 UX_ (TODO L758; Audit Runde 4)
   - src/Exchange/AdminPage.php:138: Website-Zeitzone, Kanal übersetzen, order_reference
@@ -1441,7 +1441,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
   - Bei transfer_count > 0 für den Käufer weglassen.
 - [x] **A652** [OPTIMIERUNG] Mail an Vorbesitzer enthält ticket_link mit neuem Code; Queue-Fallback nutzt Nutzlast als Vorlage — _Sicherheitsaudit 14.11. #25_ (TODO L1103; Sicherheitsaudit 2026-11-14)
   - Eigenes Variablen-Array ohne Link, Queue-Fallback entfernen.
-- [ ] **A653** [OPTIMIERUNG] CI/Release: Actions per SHA pinnen, permissions, persist-credentials, Composer-Flags — _Sicherheitsaudit 14.11. #27_ (TODO L1105; Sicherheitsaudit 2026-11-14)
+- [x] **A653** [OPTIMIERUNG] CI/Release: Actions per SHA pinnen, permissions, persist-credentials, Composer-Flags — _Sicherheitsaudit 14.11. #27_ (TODO L1105; Sicherheitsaudit 2026-11-14)
   - Teilweise erledigt 16.11.: `persist-credentials: false` an allen Checkouts (außer Release, das danach `git fetch` braucht), `permissions: contents: read` in allen Workflows. Offen: Actions per Commit-SHA pinnen (SHAs aus den Action-Repos ermitteln; ohne Netzwerkzugriff hier nicht möglich), Composer-Flags prüfen.
   - SHA-Pinning, permissions: contents: read, persist-credentials: false, composer --no-scripts --no-plugins, optional Attestierung.
 - [x] **A654** [OPTIMIERUNG] WooCommerce: „Kauf auf Rechnung“-Gateways geben Tickets vor Geldeingang aus — _Sicherheitsaudit 14.11. #28_ (TODO L1106; Sicherheitsaudit 2026-11-14)
@@ -1453,7 +1453,7 @@ Abgleich jedes Befunds mit dem Branch-Stand; erledigt: #1, #3, #26 (in TODO.md a
 - [x] **A657** [OPTIMIERUNG] Integrationstests für Audit-Befunde (Mehrtypen-Kapazität, späte Gutscheinzahlung, CSV-\", Undo außerhalb Bereich) — _Sicherheitsaudit 14.11. #31_ (TODO L1112; Sicherheitsaudit 2026-11-14)
   - Umgesetzt im zusammengeführten Stand (Abgleich 16.11.), siehe `p3_performance.php` (Mehrtypen-Kapazität), `zz_a632.php` (späte Gutscheinzahlung), `reports.php`/`zz_a497.php` (CSV), `zz_a119.php`/`zz_a547.php` (Undo), `zzzzz_w9_access.php`.
   - Die vier Regressionstests ergänzen.
-- [ ] **A658** [OPTIMIERUNG] Lieferkette: jsQR-Herkunft/Prüfsumme, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection — _Sicherheitsaudit 14.11. #32_ (TODO L1113; Sicherheitsaudit 2026-11-14)
+- [ ] **A658** [OPTIMIERUNG] *Teilweise erledigt 23.11.: jsQR-Herkunft und Saalplan-Editor erledigt; Zahlungslebensdauern und Branch-Protection offen.* Lieferkette: jsQR-Herkunft/Prüfsumme, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection — _Sicherheitsaudit 14.11. #32_ (TODO L1113; Sicherheitsaudit 2026-11-14)
   - Teilweise erledigt 16.11.: `assets/vendor/jsqr/SOURCE.txt` mit Herkunft, Lizenz und SHA-256, geprüft in `tests/consistency.php`. Offen: Version aus dem npm-Paket nachtragen, Seating-Editor-Senken, Zahlungslebensdauern, Branch-Protection (Repository-Einstellung).
   - jsQR wie tweetnacl mit SOURCE.txt, editor.js auf HTML-Senken prüfen, PayPal/Mollie-Lebensdauern dokumentieren, Branch-Protection empfehlen.
 

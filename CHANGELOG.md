@@ -50,6 +50,14 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Zeit:** 66 weitere Dateien lesen die Zeit über `Clock`.
 - **Suite-Ereignisse (PC-1–PC-3, PC-6):** `docs/HOOKS.md` nennt je Action die Version, seit der sie feuert, ob sie nach dem Commit feuert und die möglichen Werte von `$reason`; Termin verschieben oder absagen im Admin löst die Actions nur nach erfolgreichem Schreiben aus.
 - **Connector-Vertrag 1.1.0 (A705/A708):** neue Ereignisse `voucher_redeemed` und `ticket_revoked`, Gründe nur als Code, Payload-Feld `contract_version`; der Suite-Status listet registrierte Connectoren mit Version und Freigabe – ohne Lizenzstatus.
+- **Übersetzungen (A382):** Laden per Just-in-time (Sprachpaket vor mitgelieferter .mo), kein `load_plugin_textdomain()` mehr.
+- **readme.txt (A389):** Der Changelog nennt je Version die wichtigsten Änderungen.
+- **Namen (A303):** Blöcke heißen `pass-captain/events` und `pass-captain/calendar`; alte `wp-pass-captain/*`-Blöcke funktionieren weiter und werden im Editor umgestellt, `[wp_pass_captain_*]`-Shortcodes gelten als veraltet.
+- **Menü (A299):** Mollie wird nur noch unter Einstellungen → Zahlungsarten eingerichtet.
+- **CI (A653):** GitHub Actions per Commit-SHA gepinnt, Composer ohne Skripte bzw. Plugins in Produktionsinstallationen.
+- **Lieferkette (A658):** jsQR-Herkunft mit Version und npm-Prüfsumme belegt; der Saalplan-Editor setzt keine Handler-/Link-Attribute und nur gültige Farben.
+- **Bestellliste (A411):** Sammelaktion „Zahlung bestätigen“, Sortierung, Ansichten, Bildschirmoption und „Filter zurücksetzen“.
+- **Code (A401):** REST-Routen und Datenbankschema in kleinere Methoden aufgeteilt, ohne Verhaltensänderung.
 - **Entscheidung 17 (endgültig):** Die Connectoren BoatingSchool und LearnBoating sind eigene, nicht verkaufte Projektprodukte mit eigenem Produktschlüssel, nicht Teil von Pass Captain Pro (Doku angepasst).
 
 ### Behobene Fehler aus der Zusammenführung
