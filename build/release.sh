@@ -38,7 +38,7 @@ git -C "${ROOT}" archive --format=tar "${REF}" | tar -x -C "${WORK}/src"
 if [ -f "${WORK}/src/composer.json" ]; then
 	# Fixed autoloader class suffix (otherwise derived from a random value in some Composer versions).
 	composer config --working-dir="${WORK}/src" autoloader-suffix "WpcapRelease" >/dev/null
-	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
+	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress --no-scripts --no-plugins
 	# A511: no Composer platform check in the ZIP – on a too old PHP it would end every request with a
 	# fatal error; pass-captain.php checks the versions itself and only shows an admin notice.
 	# Only enforced for trees whose composer.json opts out of the check: an older release (e.g. the

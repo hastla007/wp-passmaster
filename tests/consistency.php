@@ -36,6 +36,33 @@ foreach ( preg_split( '/^(?== \d+\.\d+\.\d+ =)/m', $readme_log ) as $entry ) {
 }
 $check( 'A389 readme changelog entries list their main changes (>= 3 bullets)' . ( $thin ? ' - too short: ' . implode( ', ', $thin ) : '' ), '' !== $readme_log && ! $thin );
 $check( 'A389 readme changelog names the rename to "Pass Captain"', false !== strpos( $readme_log, 'Renamed to "Pass Captain"' ) );
+// A653: GitHub Actions pinned to a full commit SHA (with the version as comment, Dependabot updates both),
+// explicit top-level permissions, checkouts without persisted credentials (release: documented exception for
+// its `git fetch`), Composer without install scripts and production installs without plugins.
+$wf_problems = array();
+foreach ( (array) glob( $root . '/.github/workflows/*.yml' ) as $wf_file ) {
+	$wf = (string) file_get_contents( $wf_file );
+	$wf_name = basename( $wf_file );
+	if ( ! preg_match( '/^permissions:/m', $wf ) ) { $wf_problems[] = "$wf_name: no top-level permissions"; }
+	preg_match_all( '/uses:\s*(\S+)([^\n]*)/', $wf, $wf_uses, PREG_SET_ORDER );
+	foreach ( $wf_uses as $u ) {
+		if ( str_starts_with( $u[1], './' ) ) { continue; }
+		if ( ! preg_match( '/^[\w.-]+\/[\w.\/-]+@[0-9a-f]{40}$/', $u[1] ) || ! preg_match( '/^\s*#\s*v?\d+(\.\d+)*/', $u[2] ) ) { $wf_problems[] = "$wf_name: not pinned by SHA with version comment: {$u[1]}"; }
+	}
+	foreach ( preg_split( '/\n(?=\s*- )/', $wf ) as $step ) {
+		if ( ! preg_match( '/uses:\s*actions\/checkout@/', $step ) ) { continue; }
+		$persist = preg_match( '/persist-credentials:\s*(\w+)/', $step, $pm ) ? $pm[1] : '';
+		if ( 'false' !== $persist && ! ( 'release.yml' === $wf_name && 'true' === $persist ) ) { $wf_problems[] = "$wf_name: checkout without persist-credentials: false"; }
+	}
+	preg_match_all( '/composer install[^\n]*/', $wf, $wf_ci );
+	foreach ( $wf_ci[0] as $c ) {
+		if ( false === strpos( $c, '--no-scripts' ) || ( false !== strpos( $c, '--no-dev' ) && false === strpos( $c, '--no-plugins' ) ) ) { $wf_problems[] = "$wf_name: $c"; }
+	}
+}
+foreach ( array( 'build/release.sh', 'build/ci-install-test.sh' ) as $wf_script ) {
+	if ( ! preg_match( '/composer install [^\n]*--no-dev[^\n]*--no-scripts --no-plugins/', (string) file_get_contents( $root . '/' . $wf_script ) ) ) { $wf_problems[] = "$wf_script: production composer install without --no-scripts --no-plugins"; }
+}
+$check( 'A653 workflows: actions pinned by SHA, permissions, persist-credentials, composer flags' . ( $wf_problems ? ' - ' . implode( '; ', $wf_problems ) : '' ), ! $wf_problems );
 // Documentation links in README.md point to existing files.
 preg_match_all( '/\]\((docs\/[^)#]+)\)/', (string) file_get_contents( $root . '/README.md' ), $links );
 $broken = array_filter( array_unique( $links[1] ), static fn( $l ) => ! file_exists( $root . '/' . $l ) );

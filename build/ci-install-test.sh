@@ -177,7 +177,7 @@ build_ref_zip() {
 	git -C "${ROOT}" archive --format=tar "${ref}" | tar -x -C "${src}"
 	slug="$(cd "${src}" && ls ./*pass-captain.php | head -n1 | sed 's|^\./||; s|\.php$||')"
 	[ -n "${slug}" ] || { echo "no main plugin file in ${ref}" >&2; return 1; }
-	composer install --working-dir="${src}" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress --quiet >&2
+	composer install --working-dir="${src}" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress --no-scripts --no-plugins --quiet >&2
 	mkdir -p "${pkg}/${slug}"
 	rsync -a --exclude-from="${src}/.distignore" "${src}/" "${pkg}/${slug}/"
 	(cd "${pkg}" && zip -qr -X "${out}" "${slug}")

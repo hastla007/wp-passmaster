@@ -41,18 +41,18 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl
           coverage: none
       - name: Plugin dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist
+        run: composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-plugins
       - name: Install WordPress ${{ matrix.wp }}
         run: |
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
@@ -116,10 +116,10 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer:v2, wp-cli
@@ -139,7 +139,7 @@ jobs:
         run: |
           wp --path="$RUNNER_TEMP/pcp" plugin check pass-captain --format=json --categories=plugin_repo > "$RUNNER_TEMP/pcp-result.txt"
           php tests/plugin-check/compare.php "$RUNNER_TEMP/pcp-result.txt" tests/plugin-check/baseline.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: plugin-check-result
@@ -167,17 +167,17 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl, intl
           coverage: none
       - name: Plugin dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist
+        run: composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-plugins
       - name: Install WordPress, WooCommerce ${{ matrix.wc }} and the plugin
         run: |
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
@@ -221,20 +221,20 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer:v2, wp-cli
           extensions: mbstring, mysqli, gd, zip, sodium, curl
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: Plugin dependencies
-        run: composer install --no-dev --no-interaction --prefer-dist
+        run: composer install --no-dev --no-interaction --prefer-dist --no-scripts --no-plugins
       - name: Install WordPress (German) with the plugin
         run: |
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
@@ -266,7 +266,7 @@ jobs:
           WPCAP_A11Y_USER: admin
           WPCAP_A11Y_PASS: admin
         run: cd tests/a11y && node keyboard.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: a11y-report

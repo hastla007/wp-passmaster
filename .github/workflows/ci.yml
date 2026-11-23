@@ -26,10 +26,10 @@ jobs:
       matrix:
         php: ['8.5', '8.6']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           tools: composer:v2, wp-cli
@@ -38,7 +38,7 @@ jobs:
       - name: Validate Composer metadata
         run: composer validate --no-check-publish
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-scripts
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: SQL table prefixes, no hard-coded wp_, no direct WooCommerce order table queries (docs/TESTING.md)
@@ -54,7 +54,7 @@ jobs:
         run: |
           wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: JavaScript lint (ESLint, all own scripts) and unit tests (node:test, tests/js)
@@ -75,17 +75,17 @@ jobs:
     # frozen baselines (new findings fail), known vulnerabilities in Composer packages, version consistency.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: composer:${{ env.COMPOSER_VERSION }}
           extensions: mbstring
           coverage: none
       - name: Install dependencies (incl. dev tools)
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
       - name: Version and requirement consistency
         run: bash build/check-versions.sh
       - name: PHP_CodeSniffer (WordPress Coding Standards, PHPCompatibilityWP) against phpcs-baseline.json
@@ -102,10 +102,10 @@ jobs:
     # client, entitlement checks, an "Update URI" header or own update hooks appear in the shipped files.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           coverage: none
@@ -124,12 +124,12 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           fetch-depth: 0
       - name: gitleaks (git history)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -137,7 +137,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
       - name: Dependency review (pull requests)
         if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: moderate
 
@@ -181,11 +181,11 @@ jobs:
           --health-cmd="${{ matrix.db.health }}"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           fetch-depth: 0   # tags v* and history: the upgrade tests install every previous version
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, mysqli, gd, zip, sodium, openssl, curl
@@ -194,7 +194,7 @@ jobs:
       - name: Server versions
         run: php -r 'echo "PHP ", PHP_VERSION, PHP_EOL; $m = new mysqli("127.0.0.1", "wp", "wp", "wp"); echo "DB  ", $m->server_info, PHP_EOL;'
       - name: Shipped Composer dependencies (as in the release ZIP; QR encoder)
-        run: composer install --no-dev --no-interaction --prefer-dist --no-progress
+        run: composer install --no-dev --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
       - name: Integration tests (orders, WooCommerce adapter, modules)
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
@@ -251,15 +251,15 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: Install Playwright ${{ env.PLAYWRIGHT_VERSION }} + ${{ matrix.browser }}
@@ -291,7 +291,7 @@ jobs:
           tests/ci/browser-tests.sh e2e ${{ matrix.files }}
       - name: Upload E2E failure screenshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-artifacts-${{ matrix.slug }}
           path: tests/e2e/artifacts/
@@ -301,14 +301,14 @@ jobs:
     # A120: automated part of the PWA acceptance (installability, service worker, offline start).
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           coverage: none
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
       - name: Install Playwright (Chromium)
@@ -320,10 +320,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [php, static, integration, license-guard, secrets, browser, pwa]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           # wp-cli: script translations (wp i18n make-json) in build/release.sh.
@@ -364,7 +364,7 @@ jobs:
           echo "a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
           "$RUNNER_TEMP/gitleaks" dir --no-banner --redact --config .gitleaks.toml build/unpacked
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: pass-captain
           path: |
@@ -407,18 +407,18 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           # The update leg builds the previous release from its commit.
           fetch-depth: ${{ matrix.upgrade_from && '0' || '1' }}
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           tools: composer:${{ env.COMPOSER_VERSION }}
           extensions: mbstring, mysqli, gd, zip, sodium, openssl, intl
           coverage: none
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: pass-captain
           path: build/dist
@@ -455,14 +455,14 @@ jobs:
           --health-cmd="healthcheck.sh --connect --innodb_initialized"
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: pass-captain
           path: build/dist
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.5'
           tools: wp-cli
@@ -480,7 +480,7 @@ jobs:
         run: |
           wp --path="$RUNNER_TEMP/pcp" plugin check pass-captain --format=json --categories=plugin_repo > "$RUNNER_TEMP/pcp-latest.txt"
           php tests/plugin-check/compare.php "$RUNNER_TEMP/pcp-latest.txt" tests/plugin-check/baseline.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
           name: plugin-check-latest-result

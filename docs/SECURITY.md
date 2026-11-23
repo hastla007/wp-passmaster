@@ -278,8 +278,18 @@ die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
 - Mitgelieferte Fremdbibliotheken ohne Composer (`assets/vendor/`, z. B. jsQR) werden bei jedem Minor-
   Release auf neue Versionen und Advisories geprüft.
 - Kadenz: monatlich Composer- und GitHub-Actions-Abhängigkeiten aktualisieren (Pinning beibehalten,
-  `composer.lock` committen, reproduzierbaren Build prüfen), Sicherheitsupdates sofort. Ein automatischer
-  Update-Bot (Dependabot o. ä.) ist nicht eingerichtet – Entscheidung offen.
+  `composer.lock` committen, reproduzierbaren Build prüfen), Sicherheitsupdates sofort. Dependabot
+  (`.github/dependabot.yml`) schlägt wöchentlich Updates für Composer, npm und GitHub Actions vor.
+- **CI/Release-Härtung (A653):** Alle GitHub Actions sind per vollständigem Commit-SHA gepinnt, die
+  Version steht als Kommentar dahinter (`uses: actions/checkout@<sha> # v4.4.0`; Dependabot aktualisiert
+  SHA und Kommentar gemeinsam). Jeder Workflow setzt `permissions` auf Workflow-Ebene (`contents: read`,
+  Release `{}` mit `contents: write` nur im Release-Job). Checkouts laufen mit `persist-credentials: false`;
+  einzige Ausnahme ist der Release-Job, der danach `git fetch origin main` braucht. `composer install` läuft
+  überall mit `--no-scripts`; Produktionsinstallationen (`--no-dev`: Release-ZIP, Paket-/Installationstests,
+  WordPress-Matrix, Drills, Last) zusätzlich mit `--no-plugins` (Entwicklungsinstallationen brauchen die in
+  `allow-plugins` freigegebenen Plugins für PHPCS-Standards und PHPStan-Erweiterungen). Geprüft in
+  `tests/consistency.php`. Offen (Repository-Einstellung, nicht im Code): Build-Attestierung
+  (`actions/attest-build-provenance`) für das Release-ZIP.
 
 ### Kompatibilitätsprüfungen
 

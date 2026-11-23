@@ -51,7 +51,7 @@ jobs:
       # The commit to release: the one CI tested for workflow_run, else the triggering commit.
       RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # Kept: the job runs `git fetch origin main` after checkout (private repository needs the token).
           persist-credentials: true
@@ -94,7 +94,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA" || { echo "::error::Checked out $(git rev-parse HEAD), expected $RELEASE_SHA"; exit 1; }
           bash build/verify-release.sh "$TAG" "$RELEASE_SHA"
 
-      - uses: shivammathur/setup-php@v2
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         if: env.SKIP == ''
         with:
           php-version: '8.5'
