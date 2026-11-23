@@ -1485,6 +1485,29 @@ als „?“ gedruckt. Ein Stapeldruck, der vor dem Update begonnen wurde, wird i
 gerendert; neue Stapel merken sich die verwendeten Zeichen je Block in einer Datei `batch-….glyphs` neben dem PDF
 (wird mit dem Fertigstellen gelöscht).
 
+### Ticketdesign: Logo, Farben, Startvorlagen (A685)
+
+Jede Druckvorlage (Druck & Listen → Vorlagen) hat unter **Gestaltung** drei Felder; sie gelten für den Stapeldruck
+und – bei der Ticketvorlage – auch für die Ticket-PDFs in Mail, Bestellportal und Admin:
+
+- **Logo** (Mediathek-ID eines JPEG- oder PNG-Bildes, höchstens 1 MB): auf dem Ticket oben links (bis 60 × 16 mm),
+  auf dem Badge oben mittig, auf Namensschildern oben links klein und auf dem Einlassband rechts neben der
+  Klebelasche. Das Bild wird je Seite eingebettet (JPEG unverändert, PNG ohne Transparenz mit seinen komprimierten
+  Daten; PNG mit Transparenz oder Palette wird mit GD auf Weiß gerechnet). Ein Bild, das nicht gelesen werden kann,
+  wird beim Speichern abgelehnt; fehlt es später (gelöscht), druckt die Vorlage ohne Logo. Eigene Quelle: Filter
+  `wpcap_print_logo_file`.
+- **Akzentfarbe** (fette Zeilen) und **Textfarbe** (übrige Zeilen) als `#RRGGBB`, leer = Schwarz. Beide brauchen auf
+  Weiß einen Kontrast von mindestens **4,5:1** (WCAG 2.2, 1.4.3); hellere Farben lehnt das Speichern mit dem
+  gemessenen Wert ab. Ebenso abgelehnt wird Schrift unter 6 pt. QR-Codes bleiben immer schwarz auf Weiß.
+- Gespeichert wird die Gestaltung als Kopfzeilen der Vorlage (`@logo|123`, `@accent|#1f3a68`, `@text|#1a1a1a`); sie
+  werden nie gedruckt, Vorlagen ohne diese Zeilen drucken unverändert.
+
+**Barrierearme Startvorlagen** (Formular „Als neue Vorlage anlegen“): Ticket „Klar“ (Schwarz auf Weiß, ab 13 pt),
+Ticket „Großdruck“ (alle Angaben ab 16 pt, Kernangaben fett), Ticket „Akzent“ (Dunkelblau, Kontrast über 10:1, Platz
+für das Logo), Badge „Name groß“ (26 pt) und Namensschild „Name groß“ (20 pt). Alle Ticket-Startvorlagen drucken den
+Hilfscode unter dem QR-Code. Die angelegte Vorlage lässt sich danach wie jede andere bearbeiten und einem Event
+zuordnen.
+
 ## Stapeldruck mit neuen Ticketcodes (Hintergrundjob, A427)
 
 Ticketcodes sind nur als Hash gespeichert; ein Stapeldruck mit QR-Code braucht deshalb neue Codes. Früher wurden

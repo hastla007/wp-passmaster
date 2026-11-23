@@ -11,6 +11,11 @@
  * admin (TicketPdf), so the template selected for an event applies there too. On the ticket layout
  * the full code is printed under the QR code, a line with {help_code} gets the help-code caption
  * above it, and items may carry a page header (`_title`) and footer (`_footer`).
+ *
+ * A685 design lines (start with "@", never printed): "@logo|<media id>" (JPEG/PNG of the media library,
+ * printed at the top; on wristbands next to the adhesive tab), "@accent|#RRGGBB" (colour of bold lines) and
+ * "@text|#RRGGBB" (colour of the other lines). Both colours need a contrast of at least 4.5:1 on white
+ * (WCAG 2.2, 1.4.3); save_template() refuses lower values. starters() offers accessible starting points.
  */
 namespace PassCaptain\Printing;
 
@@ -22,6 +27,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Templates {
 	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband' );
 	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{help_code}', '{qr}', '{admission_notice}' );
+
+	/** A685: design lines of a template body. */
+	const DESIGN_KEYS = array( 'logo', 'accent', 'text' );
+
+	/** A685: minimum contrast of template colours on white (WCAG 2.2 AA, normal text). */
+	const MIN_CONTRAST = 4.5;
+
+	/** @var array<int,array|null> Logos loaded in this request: media id => image (PdfWriter::load_image()). */
+	private static $logos = array();
 
 	public static function kind_labels() {
 		return array(
@@ -58,7 +72,7 @@ final class Templates {
 		$out = array();
 		foreach ( preg_split( '/\n/', (string) $body ) as $line ) {
 			$line = trim( $line );
-			if ( '' === $line ) { continue; }
+			if ( '' === $line || '@' === substr( $line, 0, 1 ) ) { continue; } // A685: design lines are no content.
 			if ( '{qr}' === $line ) { $out[] = array( 'qr' => true ); continue; }
 			$bold = false;
 			$size = 12.0;
@@ -85,6 +99,168 @@ final class Templates {
 		$text = strtr( (string) $text, $map );
 		$text = trim( preg_replace( '/\s+/u', ' ', $text ) );
 		return (string) preg_replace( '/^[\s·\-|,\/]+|[\s·\-|,\/]+$/u', '', $text );
+	}
+
+	/**
+	 * A685: design of a template body (its "@" lines): logo (media id, 0 = none), accent and text colour
+	 * (#rrggbb or '' for black). Unknown or malformed design lines are ignored.
+	 *
+	 * @return array{logo:int,accent:string,text:string}
+	 */
+	public static function design( $body ) {
+		$design = array( 'logo' => 0, 'accent' => '', 'text' => '' );
+		foreach ( preg_split( '/\r\n|\r|\n/', (string) $body ) as $line ) {
+			if ( ! preg_match( '/^@(logo|accent|text)\|\s*(.+?)\s*$/i', trim( $line ), $m ) ) { continue; }
+			$key = strtolower( $m[1] );
+			if ( 'logo' === $key ) {
+				$design['logo'] = absint( $m[2] );
+			} elseif ( preg_match( '/^#?([0-9a-f]{6})$/i', $m[2], $c ) ) {
+				$design[ $key ] = '#' . strtolower( $c[1] );
+			}
+		}
+		return $design;
+	}
+
+	/**
+	 * A685: splits a body into its content lines and its design (for the edit form).
+	 *
+	 * @return array{0:string,1:array{logo:int,accent:string,text:string}}
+	 */
+	public static function split( $body ) {
+		$content = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', (string) $body ) as $line ) {
+			if ( '@' !== substr( trim( $line ), 0, 1 ) ) { $content[] = $line; }
+		}
+		return array( trim( implode( "\n", $content ) ), self::design( $body ) );
+	}
+
+	/** A685: content lines plus design lines (empty values are left out). */
+	public static function compose( $content, array $design ) {
+		$lines = array();
+		$design = array_merge( array( 'logo' => 0, 'accent' => '', 'text' => '' ), $design );
+		if ( absint( $design['logo'] ) ) { $lines[] = '@logo|' . absint( $design['logo'] ); }
+		foreach ( array( 'accent', 'text' ) as $key ) {
+			if ( preg_match( '/^#?([0-9a-f]{6})$/i', trim( (string) $design[ $key ] ), $m ) ) { $lines[] = '@' . $key . '|#' . strtolower( $m[1] ); }
+		}
+		list( $content ) = self::split( (string) $content );
+		return implode( "\n", array_merge( $lines, '' !== $content ? array( $content ) : array() ) );
+	}
+
+	/** A685: WCAG contrast ratio of two #rrggbb colours (1 … 21). */
+	public static function contrast( $a, $b = '#ffffff' ) {
+		$lum = static function ( $hex ) {
+			$rgb = PdfWriter::rgb( (string) $hex );
+			if ( ! $rgb ) { return 0.0; }
+			$lin = array_map( static function ( $c ) { return $c <= 0.04045 ? $c / 12.92 : pow( ( $c + 0.055 ) / 1.055, 2.4 ); }, $rgb );
+			return 0.2126 * $lin[0] + 0.7152 * $lin[1] + 0.0722 * $lin[2];
+		};
+		$l1 = $lum( $a );
+		$l2 = $lum( $b );
+		return round( ( max( $l1, $l2 ) + 0.05 ) / ( min( $l1, $l2 ) + 0.05 ), 2 );
+	}
+
+	/**
+	 * A685: problems of a body's design: colours below MIN_CONTRAST on white, a logo that is no readable
+	 * JPEG/PNG of the media library, and text smaller than 6 pt. Empty when everything is fine.
+	 *
+	 * @return string[] Messages.
+	 */
+	public static function design_problems( $body ) {
+		$design = self::design( $body );
+		$problems = array();
+		$names = array( 'accent' => __( 'Akzentfarbe', 'pass-captain' ), 'text' => __( 'Textfarbe', 'pass-captain' ) );
+		foreach ( $names as $key => $label ) {
+			if ( '' === $design[ $key ] ) { continue; }
+			$ratio = self::contrast( $design[ $key ] );
+			if ( $ratio < self::MIN_CONTRAST ) {
+				/* translators: 1: colour name, 2: colour value, 3: contrast ratio, 4: minimum ratio */
+				$problems[] = sprintf( __( '%1$s %2$s hat auf Weiß nur einen Kontrast von %3$s:1 (mindestens %4$s:1). Bitte eine dunklere Farbe wählen.', 'pass-captain' ), $label, $design[ $key ], number_format( $ratio, 1, ',', '' ), number_format( self::MIN_CONTRAST, 1, ',', '' ) );
+			}
+		}
+		if ( $design['logo'] && ! self::logo( $design['logo'] ) ) {
+			$problems[] = __( 'Das Logo muss ein JPEG- oder PNG-Bild aus der Mediathek sein (höchstens 1 MB).', 'pass-captain' );
+		}
+		foreach ( self::parse( $body ) as $line ) {
+			if ( ! $line['qr'] && $line['size'] < 6 ) {
+				$problems[] = __( 'Schrift unter 6 pt ist kaum lesbar. Bitte mindestens 6 pt verwenden (für Tickets 10 pt und mehr).', 'pass-captain' );
+				break;
+			}
+		}
+		return $problems;
+	}
+
+	/** A685: logo image of a media id (PdfWriter::load_image(), cached per request) or null. */
+	public static function logo( $attachment_id ) {
+		$attachment_id = absint( $attachment_id );
+		if ( ! $attachment_id ) { return null; }
+		if ( ! array_key_exists( $attachment_id, self::$logos ) ) {
+			$file = function_exists( 'get_attached_file' ) ? (string) get_attached_file( $attachment_id ) : '';
+			/**
+			 * A685: file of a print template logo (media id); '' = no logo.
+			 *
+			 * @param string $file          Local file.
+			 * @param int    $attachment_id Media id.
+			 */
+			$file = (string) apply_filters( 'wpcap_print_logo_file', $file, $attachment_id );
+			self::$logos[ $attachment_id ] = PdfWriter::load_image( $file );
+		}
+		return self::$logos[ $attachment_id ];
+	}
+
+	/** Forgets loaded logos (tests, after a media file changed). */
+	public static function reset_logos() {
+		self::$logos = array();
+	}
+
+	/**
+	 * A685: accessible starter templates – large type (ticket text 13 pt and more, names on badges 20 pt and
+	 * more), strong contrast, the essential details first and the help code under the QR code.
+	 *
+	 * @return array<string,array{label:string,kind:string,body:string,description:string}>
+	 */
+	public static function starters() {
+		return array(
+			'ticket_clear'  => array(
+				'label'       => __( 'Ticket „Klar“', 'pass-captain' ),
+				'kind'        => 'ticket',
+				'description' => __( 'Schwarz auf Weiß, große Schrift, Datum und Ort direkt unter dem Eventnamen.', 'pass-captain' ),
+				'body'        => "*24|{event}\n*16|{date}\n14|{location}\n14|{ticket_category}\n14|{attendee_name}\n14|{seat_label}\n*13|{admission_notice}\n{qr}\n*16|{help_code}",
+			),
+			'ticket_large'  => array(
+				'label'       => __( 'Ticket „Großdruck“', 'pass-captain' ),
+				'kind'        => 'ticket',
+				'description' => __( 'Für Menschen mit Sehbeeinträchtigung: alle Angaben ab 16 pt, Kernangaben fett.', 'pass-captain' ),
+				'body'        => "*30|{event}\n*20|{date}\n*18|{location}\n18|{ticket_category}\n*18|{attendee_name}\n*18|{seat_label}\n*16|{admission_notice}\n{qr}\n*20|{help_code}",
+			),
+			'ticket_accent' => array(
+				'label'       => __( 'Ticket „Akzent“', 'pass-captain' ),
+				'kind'        => 'ticket',
+				'description' => __( 'Überschriften in Dunkelblau (Kontrast über 10:1 auf Weiß); das Logo in der Vorlage ergänzen.', 'pass-captain' ),
+				'body'        => "@accent|#1f3a68\n@text|#1a1a1a\n*24|{event}\n*15|{date}\n13|{location}\n13|{ticket_category}\n13|{attendee_name}\n13|{seat_label}\n*13|{admission_notice}\n{qr}\n*15|{help_code}",
+			),
+			'badge_large'   => array(
+				'label'       => __( 'Badge „Name groß“', 'pass-captain' ),
+				'kind'        => 'badge',
+				'description' => __( 'Name in 26 pt fett, auf Abstand lesbar; Ticketart darunter.', 'pass-captain' ),
+				'body'        => "*26|{attendee_name}\n*14|{ticket_category}\n12|{event}\n{qr}",
+			),
+			'nametag_large' => array(
+				'label'       => __( 'Namensschild „Name groß“', 'pass-captain' ),
+				'kind'        => 'nametag',
+				'description' => __( 'Name in 20 pt fett, Ticketart in 11 pt.', 'pass-captain' ),
+				'body'        => "*20|{attendee_name}\n11|{ticket_category}\n{qr}",
+			),
+		);
+	}
+
+	/** A685: creates a template from a starter (permission checked like save_template()). */
+	public static function create_from_starter( $starter, $name, $owner_event_id = 0 ) {
+		$starters = self::starters();
+		if ( ! isset( $starters[ $starter ] ) ) {
+			return new \WP_Error( 'wpcap_print_starter', __( 'Unbekannte Startvorlage.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$name = '' !== trim( (string) $name ) ? $name : $starters[ $starter ]['label'];
+		return self::save_template( 0, $name, $starters[ $starter ]['kind'], $starters[ $starter ]['body'], $owner_event_id );
 	}
 
 	/**
@@ -123,7 +299,10 @@ final class Templates {
 	 */
 	public static function pages( $kind, array $items, $body = '', ?PdfWriter $pdf = null ) {
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
-		$lines = self::parse( '' !== $body ? $body : self::default_body( $kind ) );
+		$body = '' !== $body ? $body : self::default_body( $kind );
+		$lines = self::parse( $body );
+		$design = self::design( $body );
+		$logo = $design['logo'] ? self::logo( $design['logo'] ) : null;
 		if ( ! $pdf ) {
 			$pdf = new PdfWriter();
 			if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
@@ -140,7 +319,9 @@ final class Templates {
 				$x = $left + ( $slot % 2 ) * $w;
 				$y = $top - ( intdiv( $slot, 2 ) + 1 ) * $h;
 				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
-				self::cell( $pdf, $lines, $item, $x, $y, $w, $h, 'center', 'right' );
+				// A685: logo in the top left corner of the label.
+				$logo_h = $logo && $pdf->image( $x + 8, $y + $h - 8 - 9 * $mm, 30 * $mm, 9 * $mm, $logo, 'left' ) ? 10 * $mm : 0;
+				self::cell( $pdf, $lines, $item, $x, $y, $w, $h - $logo_h, 'center', 'right', 8, false, $design );
 			}
 			return $pdf;
 		}
@@ -155,7 +336,9 @@ final class Templates {
 			if ( 'wristband' === $kind ) {
 				// Adhesive tab on the left end stays empty.
 				$pdf->line( 40 * $mm, 0, 40 * $mm, $ph, 0.8 );
-				self::cell( $pdf, $lines, $item, 40 * $mm, 0, $pw - 40 * $mm, $ph, $align, $qr_mode );
+				// A685: logo right of the adhesive tab.
+				$logo_w = $logo && $pdf->image( 42 * $mm, 2 * $mm, 24 * $mm, $ph - 4 * $mm, $logo, 'left' ) ? 26 * $mm : 0;
+				self::cell( $pdf, $lines, $item, 40 * $mm + $logo_w, 0, $pw - 40 * $mm - $logo_w, $ph, $align, $qr_mode, 8, false, $design );
 				continue;
 			}
 			if ( 'ticket' === $kind ) {
@@ -164,13 +347,19 @@ final class Templates {
 				$footer = '' !== (string) ( $item['_footer'] ?? '' ) ? array_slice( PdfWriter::wrap( (string) $item['_footer'], 8, $pw - 2 * $pad ), 0, 3 ) : array();
 				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, 22 + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
 			}
-			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0, 'ticket' === $kind );
+			// A685: logo at the top (ticket: left, badge: centred).
+			$logo_h = 0;
+			if ( $logo ) {
+				$box = 'ticket' === $kind ? array( 60 * $mm, 16 * $mm, 'left' ) : array( $pw - 2 * $pad, 14 * $mm, 'center' );
+				if ( $pdf->image( $pad, $ph - $pad - $box[1], $box[0], $box[1], $logo, $box[2] ) ) { $logo_h = $box[1] + 3 * $mm; }
+			}
+			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad - $logo_h, $align, $qr_mode, 0, 'ticket' === $kind, $design );
 		}
 		return $pdf;
 	}
 
 	/** Lays out one item inside a box. $qr_mode: flow (below the text) or right (square at the right edge). */
-	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8, $full = false ) {
+	private static function cell( PdfWriter $pdf, array $lines, array $item, $x, $y, $w, $h, $align, $qr_mode, $inner = 8, $full = false, array $design = array() ) {
 		$x += $inner;
 		$y += $inner;
 		$w -= 2 * $inner;
@@ -223,11 +412,14 @@ final class Templates {
 			// being cut; labels (badges, name tags) keep one line.
 			$parts = $full ? PdfWriter::wrap( $text, $size, $text_w, $line['bold'], 2 ) : array( PdfWriter::fit( $text, $size, $text_w, $line['bold'] ) );
 			if ( $cursor - $size * 1.25 < $y - 0.5 ) { break; }
+			// A685: bold lines in the accent colour, the others in the text colour (both default black).
+			$pdf->set_color( $line['bold'] && '' !== (string) ( $design['accent'] ?? '' ) ? $design['accent'] : ( (string) ( $design['text'] ?? '' ) ?: null ) );
 			foreach ( $parts as $index => $part ) {
 				if ( $index > 0 && $cursor - $size * 1.25 < $y - 0.5 ) { break; }
 				$cursor -= $size * 1.2;
 				$pdf->text( $anchor, $cursor, $size, $part, $line['bold'], 'center' === $align ? 'center' : 'left' );
 			}
+			$pdf->set_color( null );
 			$cursor -= $size * 0.25;
 		}
 	}
@@ -289,6 +481,10 @@ final class Templates {
 		$body = self::sanitize_body( $body );
 		if ( '' === $name || ! in_array( $kind, self::KINDS, true ) || '' === $body ) {
 			return new \WP_Error( 'wpcap_print_template_invalid', __( 'Bitte Name, Layout und Inhalt angeben.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$problems = self::design_problems( $body );
+		if ( $problems ) {
+			return new \WP_Error( 'wpcap_print_template_design', implode( ' ', $problems ), array( 'status' => 400 ) );
 		}
 		$data = array( 'name' => $name, 'kind' => $kind, 'body' => $body, 'status' => 'active', 'updated_at' => \PassCaptain\Clock::mysql() );
 		$forbidden = new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Vorlage.', 'pass-captain' ), array( 'status' => 403 ) );

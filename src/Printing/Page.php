@@ -165,9 +165,34 @@ final class Page {
 		<p><label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="name" required value="<?php echo esc_attr( $edit ? $edit->name : '' ); ?>"></label>
 		<label><?php esc_html_e( 'Layout', 'pass-captain' ); ?> <?php Forms::select( 'kind', $labels, $edit ? $edit->kind : 'badge' ); ?></label>
 		<?php if ( ! $edit ) : ?><label><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ), array( absint( Forms::query_arg( 'event_id', 0 ) ) ) ), (string) absint( Forms::query_arg( 'event_id', 0 ) ) ); ?></label><?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?><?php endif; ?></p>
-		<p><textarea name="body" rows="8" cols="70" class="code" aria-label="<?php esc_attr_e( 'Vorlagentext', 'pass-captain' ); ?>" aria-describedby="wpcap-print-body-help"><?php echo esc_html( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?></textarea></p>
+		<?php list( $edit_content, $edit_design ) = Templates::split( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?>
+		<p><textarea name="body" rows="8" cols="70" class="code" aria-label="<?php esc_attr_e( 'Vorlagentext', 'pass-captain' ); ?>" aria-describedby="wpcap-print-body-help"><?php echo esc_html( $edit_content ); ?></textarea></p>
 		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?></p>
+		<fieldset><legend><?php esc_html_e( 'Gestaltung', 'pass-captain' ); ?></legend>
+		<p><label><?php esc_html_e( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ); ?> <input type="number" name="logo" min="0" step="1" class="small-text" value="<?php echo esc_attr( $edit_design['logo'] ? (string) $edit_design['logo'] : '' ); ?>"></label>
+		<label><?php esc_html_e( 'Akzentfarbe (fette Zeilen)', 'pass-captain' ); ?> <input type="text" name="accent" pattern="#?[0-9A-Fa-f]{6}" maxlength="7" class="small-text" placeholder="#1f3a68" value="<?php echo esc_attr( $edit_design['accent'] ); ?>"></label>
+		<label><?php esc_html_e( 'Textfarbe', 'pass-captain' ); ?> <input type="text" name="text_color" pattern="#?[0-9A-Fa-f]{6}" maxlength="7" class="small-text" placeholder="#1a1a1a" value="<?php echo esc_attr( $edit_design['text'] ); ?>"></label></p>
+		<p class="description">
+		<?php
+		/* translators: %s: minimum contrast ratio such as 4,5 */
+		echo esc_html( sprintf( __( 'Leer = Schwarz. Farben brauchen auf Weiß einen Kontrast von mindestens %s:1, sonst wird die Vorlage nicht gespeichert. Die Mediathek-ID steht in der Adresse des Bildes (post=…).', 'pass-captain' ), number_format( Templates::MIN_CONTRAST, 1, ',', '' ) ) );
+		?>
+		</p></fieldset>
 		<p><button class="button button-primary"><?php esc_html_e( 'Vorlage speichern', 'pass-captain' ); ?></button></p></form>
+
+		<?php if ( ! $edit ) : ?>
+		<h3><?php esc_html_e( 'Barrierearme Startvorlagen', 'pass-captain' ); ?></h3>
+		<ul class="ul-disc">
+		<?php foreach ( Templates::starters() as $starter ) : ?>
+			<li><strong><?php echo esc_html( $starter['label'] ); ?></strong> (<?php echo esc_html( $labels[ $starter['kind'] ] ?? $starter['kind'] ); ?>): <?php echo esc_html( $starter['description'] ); ?></li>
+		<?php endforeach; ?>
+		</ul>
+		<?php Forms::open_form( 'wpcap_print_starter' ); ?>
+		<p><label><?php esc_html_e( 'Startvorlage', 'pass-captain' ); ?> <?php Forms::select( 'starter', array_map( static function ( $s ) { return $s['label']; }, Templates::starters() ), 'ticket_clear' ); ?></label>
+		<label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="name" maxlength="190"></label>
+		<label><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ) ), '' ); ?></label>
+		<button class="button"><?php esc_html_e( 'Als neue Vorlage anlegen', 'pass-captain' ); ?></button></p></form>
+		<?php endif; ?>
 
 		<h3><?php esc_html_e( 'Vorlage pro Event', 'pass-captain' ); ?></h3>
 		<?php Forms::open_form( 'wpcap_print_assign' ); ?>
@@ -196,8 +221,23 @@ final class Page {
 		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_save_template' );
 		$in = Forms::post();
-		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), is_scalar( $in['body'] ?? '' ) ? (string) ( $in['body'] ?? '' ) : '', Forms::int( $in, 'owner_event_id' ) );
+		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), self::posted_body( $in ), Forms::int( $in, 'owner_event_id' ) );
 		Forms::finish( $result, __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/** A685: template body from the form – the text plus the design fields (logo, accent and text colour). */
+	public static function posted_body( array $in ) {
+		$content = is_scalar( $in['body'] ?? '' ) ? (string) ( $in['body'] ?? '' ) : '';
+		return Templates::compose( $content, array( 'logo' => Forms::int( $in, 'logo' ), 'accent' => Forms::text( $in, 'accent', 7 ), 'text' => Forms::text( $in, 'text_color', 7 ) ) );
+	}
+
+	/** A685: creates a template from an accessible starter template. */
+	public static function handle_starter() {
+		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		Forms::verify( 'wpcap_print_starter' );
+		$in = Forms::post();
+		$result = Templates::create_from_starter( Forms::choice( $in, 'starter', array_keys( Templates::starters() ), 'ticket_clear' ), Forms::text( $in, 'name' ), Forms::int( $in, 'owner_event_id' ) );
+		Forms::finish( $result, __( 'Vorlage aus der Startvorlage angelegt.', 'pass-captain' ), is_wp_error( $result ) ? Forms::page_url( self::SLUG ) : Forms::page_url( self::SLUG, array( 'template_id' => (int) $result ) ) );
 	}
 
 	public static function handle_assign() {

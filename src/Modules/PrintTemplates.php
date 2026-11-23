@@ -79,6 +79,7 @@ final class PrintTemplates {
 	public static function admin_handlers() {
 		return array(
 			'wpcap_print_save_template' => array( Page::class, 'handle_save_template' ),
+			'wpcap_print_starter'       => array( Page::class, 'handle_starter' ),
 			'wpcap_print_assign'        => array( Page::class, 'handle_assign' ),
 			'wpcap_print_batch'         => array( Page::class, 'handle_batch' ),
 			'wpcap_print_batch_download' => array( Page::class, 'handle_batch_download' ),

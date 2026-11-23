@@ -231,7 +231,7 @@ $pm_admin = array(
 	'wpcap_offline_save_rules' => 'wpcap_manage_events', 'wpcap_offline_assign' => 'wpcap_manage_events', 'wpcap_offline_unassign' => 'wpcap_manage_events',
 	'wpcap_offline_rotate_key' => 'manage_options', 'wpcap_qr_rotate_key' => 'manage_options',
 	'wpcap_partner_action' => 'manage_options', 'wpcap_partner_settlement_doc' => 'wpcap_view_finance',
-	'wpcap_print_save_template' => 'manage_options', 'wpcap_print_assign' => 'wpcap_manage_events', 'wpcap_print_batch' => 'wpcap_manage_orders',
+	'wpcap_print_save_template' => 'manage_options', 'wpcap_print_starter' => 'wpcap_manage_events', 'wpcap_print_assign' => 'wpcap_manage_events', 'wpcap_print_batch' => 'wpcap_manage_orders',
 	'wpcap_attendee_list' => 'wpcap_manage_orders', 'wpcap_print_settings' => 'manage_options', 'wpcap_invoice_pdf' => 'wpcap_view_finance',
 	'wpcap_reminders_save' => 'manage_options', 'wpcap_reports_csv' => 'wpcap_view_reports',
 	'wpcap_seating_create' => 'wpcap_manage_events', 'wpcap_seating_save' => 'wpcap_manage_events', 'wpcap_seating_link' => 'wpcap_manage_events', 'wpcap_seating_unlink' => 'wpcap_manage_events',

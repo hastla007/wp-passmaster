@@ -4,8 +4,9 @@
  * mails, portal and admin, print layouts (tickets, badges, name tags, wristbands) and invoices.
  *
  * Pages may have any size (points; 1 mm = 2.8346 pt). Supports text in two fonts (regular /F1,
- * bold /F2), filled and stroked rectangles, lines and vector QR codes (matrix from
- * TicketPdf::qr_matrix).
+ * bold /F2), filled and stroked rectangles, lines, vector QR codes (matrix from
+ * TicketPdf::qr_matrix), text and fill colours (A685, set_color()/fill_rgb()) and logos as inline
+ * images (A685, image(); JPEG and PNG, see load_image()).
  *
  * Text is UTF-8: the bundled DejaVu Sans / DejaVu Sans Bold (assets/fonts, filter `wpcap_pdf_fonts`
  * for other TrueType fonts) are embedded as subsets with only the glyphs the document uses
@@ -57,6 +58,11 @@ final class PdfWriter {
 	private $next = self::FIRST_PAGE_ID;
 	private $flushed = 0;
 	private $lang = '';
+	/** @var float[]|null Text colour (r, g, b in 0..1) or null for black (A685). */
+	private $rgb = null;
+
+	/** Largest logo file read by load_image() (bytes). */
+	const IMAGE_MAX_BYTES = 1048576;
 
 	/** @var array|null Loaded fonts: F1/F2 => TrueTypeFont|null; null = not loaded yet. */
 	private static $fonts = null;
@@ -206,13 +212,142 @@ final class PdfWriter {
 		$font = $bold ? 'F2' : 'F1';
 		$string = $this->unicode ? $this->encode( $font, $text ) : '(' . self::escape( $text ) . ')';
 		$fonts = $this->unicode ? self::fonts() : array();
+		$colour = $this->rgb ? vsprintf( '%1$.3F %2$.3F %3$.3F rg %1$.3F %2$.3F %3$.3F RG ', $this->rgb ) : '';
 		if ( $bold && $fonts && $fonts['F1'] === $fonts['F2'] ) {
 			// No bold font file: fill and stroke the outline (text state reset by Q).
-			$this->op( sprintf( 'q BT /F2 %.2F Tf 2 Tr %.2F w %.2F %.2F Td %s Tj ET Q', $size, $size * 0.03, $x, $y, $string ) );
+			$this->op( sprintf( 'q %sBT /F2 %.2F Tf 2 Tr %.2F w %.2F %.2F Td %s Tj ET Q', $colour, $size, $size * 0.03, $x, $y, $string ) );
+			return $this;
+		}
+		if ( '' !== $colour ) {
+			$this->op( sprintf( 'q %sBT /%s %.2F Tf %.2F %.2F Td %s Tj ET Q', $colour, $font, $size, $x, $y, $string ) );
 			return $this;
 		}
 		$this->op( sprintf( 'BT /%s %.2F Tf %.2F %.2F Td %s Tj ET', $font, $size, $x, $y, $string ) );
 		return $this;
+	}
+
+	/**
+	 * A685: colour of the following text (r, g, b in 0..1, or a #RRGGBB string); null = black.
+	 *
+	 * @param float[]|string|null $rgb Colour.
+	 */
+	public function set_color( $rgb ) {
+		$this->rgb = self::rgb( $rgb );
+		return $this;
+	}
+
+	/** Colour as three floats 0..1 from #RRGGBB or an array; null for anything else. */
+	public static function rgb( $value ) {
+		if ( is_string( $value ) && preg_match( '/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i', trim( $value ), $m ) ) {
+			return array( hexdec( $m[1] ) / 255.0, hexdec( $m[2] ) / 255.0, hexdec( $m[3] ) / 255.0 );
+		}
+		if ( is_array( $value ) && 3 === count( $value ) ) {
+			return array_map( static function ( $c ) { return max( 0.0, min( 1.0, (float) $c ) ); }, array_values( $value ) );
+		}
+		return null;
+	}
+
+	/** A685: filled rectangle in a colour (#RRGGBB or r, g, b in 0..1). */
+	public function fill_rgb( $x, $y, $w, $h, $rgb ) {
+		$rgb = self::rgb( $rgb );
+		if ( ! $rgb ) { return $this; }
+		$this->op( vsprintf( 'q %.3F %.3F %.3F rg %.2F %.2F %.2F %.2F re f Q', array_merge( $rgb, array( $x, $y, $w, $h ) ) ) );
+		return $this;
+	}
+
+	/**
+	 * A685: reads a logo for image(): JPEG (baseline or progressive, grey/RGB/CMYK) as it is, PNG with 8 bit
+	 * grey or RGB without interlacing as its compressed data; other PNGs (transparency, palette) are
+	 * flattened onto white with GD when available. Null for anything else, for files larger than
+	 * IMAGE_MAX_BYTES and when the file cannot be read.
+	 *
+	 * @return array{w:int,h:int,cs:string,bpc:int,filter:string,parms:string,data:string}|null
+	 */
+	public static function load_image( $path ) {
+		$path = (string) $path;
+		if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) { return null; }
+		$size = (int) filesize( $path );
+		if ( $size < 8 || $size > self::IMAGE_MAX_BYTES ) { return null; }
+		$bytes = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local media file.
+		return self::parse_image( $bytes );
+	}
+
+	/** Like load_image() for image bytes. */
+	public static function parse_image( $bytes ) {
+		$bytes = (string) $bytes;
+		if ( "\xFF\xD8" === substr( $bytes, 0, 2 ) ) { return self::parse_jpeg( $bytes ); }
+		if ( "\x89PNG\r\n\x1A\n" === substr( $bytes, 0, 8 ) ) { return self::parse_png( $bytes ); }
+		return null;
+	}
+
+	private static function parse_jpeg( $bytes ) {
+		$len = strlen( $bytes );
+		$pos = 2;
+		while ( $pos + 9 < $len ) {
+			if ( "\xFF" !== $bytes[ $pos ] ) { return null; }
+			$marker = ord( $bytes[ $pos + 1 ] );
+			if ( 0xD8 === $marker || 0x01 === $marker || ( $marker >= 0xD0 && $marker <= 0xD7 ) ) { $pos += 2; continue; }
+			$segment = unpack( 'n', substr( $bytes, $pos + 2, 2 ) )[1];
+			// SOF0..SOF15 without DHT (C4), JPG (C8) and DAC (CC).
+			if ( $marker >= 0xC0 && $marker <= 0xCF && ! in_array( $marker, array( 0xC4, 0xC8, 0xCC ), true ) ) {
+				$info = unpack( 'Cbpc/nh/nw/Cn', substr( $bytes, $pos + 4, 6 ) );
+				$spaces = array( 1 => 'G', 3 => 'RGB', 4 => 'CMYK' );
+				if ( ! isset( $spaces[ $info['n'] ] ) || $info['w'] < 1 || $info['h'] < 1 ) { return null; }
+				return array( 'w' => (int) $info['w'], 'h' => (int) $info['h'], 'cs' => $spaces[ $info['n'] ], 'bpc' => 8, 'filter' => 'DCT', 'parms' => '', 'data' => $bytes );
+			}
+			$pos += 2 + $segment;
+		}
+		return null;
+	}
+
+	private static function parse_png( $bytes ) {
+		$ihdr = unpack( 'Nw/Nh/Cdepth/Ctype/Ccomp/Cfilter/Cinterlace', substr( $bytes, 16, 13 ) );
+		if ( ! $ihdr || $ihdr['w'] < 1 || $ihdr['h'] < 1 ) { return null; }
+		if ( 8 === $ihdr['depth'] && in_array( $ihdr['type'], array( 0, 2 ), true ) && 0 === $ihdr['interlace'] ) {
+			$data = '';
+			$pos = 8;
+			$len = strlen( $bytes );
+			while ( $pos + 8 <= $len ) {
+				$chunk = unpack( 'N', substr( $bytes, $pos, 4 ) )[1];
+				$type = substr( $bytes, $pos + 4, 4 );
+				if ( 'IDAT' === $type ) { $data .= substr( $bytes, $pos + 8, $chunk ); }
+				if ( 'IEND' === $type ) { break; }
+				$pos += 12 + $chunk;
+			}
+			if ( '' === $data ) { return null; }
+			$colors = 2 === $ihdr['type'] ? 3 : 1;
+			return array( 'w' => (int) $ihdr['w'], 'h' => (int) $ihdr['h'], 'cs' => 3 === $colors ? 'RGB' : 'G', 'bpc' => 8, 'filter' => 'Fl', 'parms' => sprintf( ' /DP [null << /Predictor 15 /Colors %d /BitsPerComponent 8 /Columns %d >>]', $colors, (int) $ihdr['w'] ), 'data' => $data );
+		}
+		// Transparency or palette: flattened onto white and re-encoded as JPEG (GD).
+		if ( ! function_exists( 'imagecreatefromstring' ) || ! function_exists( 'imagejpeg' ) || $ihdr['w'] * $ihdr['h'] > 4000000 ) { return null; }
+		$src = @imagecreatefromstring( $bytes ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- broken files give false.
+		if ( ! $src ) { return null; }
+		$w = imagesx( $src );
+		$h = imagesy( $src );
+		$canvas = imagecreatetruecolor( $w, $h );
+		imagefill( $canvas, 0, 0, (int) imagecolorallocate( $canvas, 255, 255, 255 ) );
+		imagecopy( $canvas, $src, 0, 0, 0, 0, $w, $h );
+		ob_start();
+		imagejpeg( $canvas, null, 92 );
+		$jpeg = (string) ob_get_clean();
+		return self::parse_jpeg( $jpeg );
+	}
+
+	/**
+	 * A685: draws an image from load_image() into the box ($x, $y, $w, $h) keeping its aspect ratio
+	 * (centred, or left-aligned with $align 'left'); returns the drawn [width, height] or null. Inline
+	 * image (hex encoded) – a logo is small and every page carries its own copy, so no shared object
+	 * is needed and the streamed and batch files keep their two objects per page.
+	 */
+	public function image( $x, $y, $w, $h, $img, $align = 'center' ) {
+		if ( ! is_array( $img ) || empty( $img['w'] ) || empty( $img['h'] ) || $w <= 0 || $h <= 0 ) { return null; }
+		$scale = min( $w / $img['w'], $h / $img['h'] );
+		$dw = $img['w'] * $scale;
+		$dh = $img['h'] * $scale;
+		$dx = 'left' === $align ? $x : ( 'right' === $align ? $x + $w - $dw : $x + ( $w - $dw ) / 2 );
+		$dy = $y + ( $h - $dh ) / 2;
+		$this->op( sprintf( "q %.2F 0 0 %.2F %.2F %.2F cm\nBI /W %d /H %d /CS /%s /BPC %d /F [/AHx /%s]%s\nID\n%s>\nEI Q", $dw, $dh, $dx, $dy, $img['w'], $img['h'], $img['cs'], $img['bpc'], $img['filter'], $img['parms'], chunk_split( bin2hex( $img['data'] ), 128, "\n" ) ) );
+		return array( $dw, $dh );
 	}
 
 	/** Hex string of glyph ids for the embedded font; records the glyphs for the subset. */
