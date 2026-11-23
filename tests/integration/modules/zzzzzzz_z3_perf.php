@@ -149,7 +149,7 @@ foreach ( Z3Modules::MANIFEST as $name => $listed ) {
 check( 'contract: MANIFEST lists exactly the module methods each class implements' . ( $z3_mismatch ? ': ' . implode( ', ', $z3_mismatch ) : '' ), array() === $z3_mismatch );
 $z3_mod_src = file_get_contents( WPCAP_PATH . 'src/Modules.php' );
 // Merged line: 24 bundled modules (both development lines), all from the static manifest.
-check( 'Modules::classes() needs no glob() directory scan', false === strpos( $z3_mod_src, 'glob( ' ) && count( Z3Modules::MANIFEST ) === count( Z3Modules::bundled() ) && 24 === count( Z3Modules::bundled() ) );
+check( 'Modules::classes() needs no glob() directory scan', false === strpos( $z3_mod_src, 'glob( ' ) && count( Z3Modules::MANIFEST ) === count( Z3Modules::bundled() ) && 25 === count( Z3Modules::bundled() ) );
 $z3_boot = json_decode( (string) shell_exec( $z3_worker . ' boot' ), true );
 $z3_boot_files = (array) ( $z3_boot['files'] ?? array() );
 $z3_boot_modules = array_filter( $z3_boot_files, static fn( $f ) => 0 === strpos( $f, 'src/Modules/' ) );

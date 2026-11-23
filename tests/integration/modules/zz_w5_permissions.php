@@ -285,6 +285,7 @@ $pm_admin = array(
 	'wpcap_print_batch_download' => 'wpcap_manage_orders', 'wpcap_print_batch_cancel' => 'wpcap_manage_orders', 'wpcap_settlement_sheet' => 'wpcap_view_reports',
 	'wpcap_series_update' => 'wpcap_manage_events', 'wpcap_series_rule_update' => 'wpcap_manage_events', 'wpcap_sms_release_held' => 'manage_options',
 	'wpcap_waitlist_entry' => 'wpcap_manage_orders', 'wpcap_waitlist_settings' => 'manage_options',
+	'wpcap_form_captain_event_form' => 'wpcap_manage_events', 'wpcap_form_captain_request_book' => 'wpcap_manage_orders', 'wpcap_form_captain_request_reject' => 'wpcap_manage_events',
 	'wpcap_dismiss_notice' => 'manage_options',
 	'wpcap_payment_return' => 'token:return key wpcap_rk of the payment return URL (A554, admin_post_nopriv)',
 	'wpcap_waitlist_unsubscribe' => 'token:waitlist unsubscribe token from the e-mail (admin_post_nopriv)',
