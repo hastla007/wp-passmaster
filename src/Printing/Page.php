@@ -55,7 +55,8 @@ final class Page {
 	 * plus $options['confirm'] = their exact number, and their holders receive the new links by e-mail;
 	 * at most Templates::batch_limit() tickets per job ($options['offset'] selects the part).
 	 *
-	 * @param array $options include_delivered (bool), confirm (int), offset (int, 0-based).
+	 * @param array $options include_delivered (bool), confirm (int), offset (int, 0-based), sort (Templates::SORTS, A686;
+	 *                       not for the fallback with codes, which keeps the ticket order for its parts).
 	 * @return array{pdf:string,filename:string,count?:int,total?:int,notified?:int}|array{batch:int,status:string}|\WP_Error
 	 */
 	public static function batch_request( $occurrence_id, $kind, $with_codes, array $options = array() ) {
@@ -68,13 +69,14 @@ final class Page {
 			$step_up = StepUp::check( array( 'bulk', 'exports' ), 'print_batch_codes' );
 			if ( is_wp_error( $step_up ) ) { return $step_up; }
 		}
+		$sort = in_array( (string) ( $options['sort'] ?? '' ), Templates::SORTS, true ) ? (string) $options['sort'] : 'name';
 		if ( ! $with_codes && ( ! BatchJob::ready() || count( Templates::ticket_refs_for_occurrence( $occurrence_id, Templates::batch_statuses( $kind ) ) ) <= BatchJob::sync_limit() ) ) {
-			$pdf = Templates::batch_pdf( $occurrence_id, $kind );
-			Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => false ) );
+			$pdf = Templates::batch_pdf( $occurrence_id, $kind, $sort );
+			Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => false, 'sort' => $sort ) );
 			return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . '.pdf' );
 		}
 		if ( BatchJob::ready() ) {
-			$batch_id = BatchJob::create( $occurrence_id, $kind, $with_codes );
+			$batch_id = BatchJob::create( $occurrence_id, $kind, $with_codes, $sort );
 			if ( is_wp_error( $batch_id ) ) { return $batch_id; }
 			$result = BatchJob::work( $batch_id, (float) apply_filters( 'wpcap_print_batch_inline_budget', 3.0 ) );
 			return array( 'batch' => $batch_id, 'status' => 'done' === $result ? 'ready' : 'rendering' );
@@ -122,7 +124,8 @@ final class Page {
 		<h2><?php esc_html_e( 'Stapeldruck für einen Termin', 'pass-captain' ); ?></h2>
 		<?php Forms::open_form( 'wpcap_print_batch' ); ?>
 		<p><label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $print_occ, '' ); ?></label>
-		<label><?php esc_html_e( 'Layout', 'pass-captain' ); ?> <?php Forms::select( 'kind', $labels, 'badge' ); ?></label></p>
+		<label><?php esc_html_e( 'Layout', 'pass-captain' ); ?> <?php Forms::select( 'kind', $labels, 'badge' ); ?></label>
+		<label><?php esc_html_e( 'Sortierung', 'pass-captain' ); ?> <?php Forms::select( 'sort', Templates::sort_labels(), 'name' ); ?></label></p>
 		<?php if ( current_user_can( 'wpcap_manage_events' ) ) : ?>
 		<fieldset><legend><?php esc_html_e( 'QR-Codes (nur Eventverwaltung)', 'pass-captain' ); ?></legend>
 		<?php if ( BatchJob::ready() ) : ?>
@@ -157,7 +160,7 @@ final class Page {
 		<h2><?php esc_html_e( 'Vorlagen', 'pass-captain' ); ?></h2>
 		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Name', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Layout', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( Templates::all_templates() as $t ) : ?>
-			<tr><td><?php echo esc_html( $t->name ); ?></td><td><?php echo esc_html( $labels[ $t->kind ] ?? $t->kind ); ?></td><td><?php echo esc_html( (int) $t->owner_event_id ? ( Queries::event( (int) $t->owner_event_id )->name ?? '#' . (int) $t->owner_event_id ) : __( 'Global', 'pass-captain' ) ); ?></td><td><?php if ( Templates::can_edit( (int) $t->owner_event_id, (int) $t->template_id ) ) : ?><a href="<?php echo esc_url( Forms::page_url( self::SLUG, array( 'template_id' => (int) $t->template_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a><?php endif; ?></td></tr>
+			<tr><td><?php echo esc_html( $t->name ); ?></td><td><?php echo esc_html( $labels[ $t->kind ] ?? $t->kind ); ?></td><td><?php echo esc_html( (int) $t->owner_event_id ? ( Queries::event( (int) $t->owner_event_id )->name ?? '#' . (int) $t->owner_event_id ) : __( 'Global', 'pass-captain' ) ); ?></td><td><?php if ( Templates::can_edit( (int) $t->owner_event_id, (int) $t->template_id ) ) : ?><a href="<?php echo esc_url( Forms::page_url( self::SLUG, array( 'template_id' => (int) $t->template_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a> · <?php endif; ?><a href="<?php echo esc_url( self::preview_url( (int) $t->template_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Vorschau (PDF)', 'pass-captain' ); ?></a></td></tr>
 		<?php endforeach; ?>
 		</tbody></table>
 		<h3><?php echo esc_html( $edit ? __( 'Vorlage bearbeiten', 'pass-captain' ) : __( 'Neue Vorlage', 'pass-captain' ) ); ?></h3>
@@ -167,7 +170,13 @@ final class Page {
 		<?php if ( ! $edit ) : ?><label><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ), array( absint( Forms::query_arg( 'event_id', 0 ) ) ) ), (string) absint( Forms::query_arg( 'event_id', 0 ) ) ); ?></label><?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?><?php endif; ?></p>
 		<?php list( $edit_content, $edit_design ) = Templates::split( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?>
 		<p><textarea name="body" rows="8" cols="70" class="code" aria-label="<?php esc_attr_e( 'Vorlagentext', 'pass-captain' ); ?>" aria-describedby="wpcap-print-body-help"><?php echo esc_html( $edit_content ); ?></textarea></p>
-		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?></p>
+		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
+		<?php
+		$field_keys = Templates::field_keys();
+		/* translators: %s: list of placeholders for participant fields */
+		echo esc_html( ' ' . sprintf( __( 'Teilnehmerfelder: {field:Schlüssel}, z. B. %s.', 'pass-captain' ), $field_keys ? implode( ', ', array_map( static function ( $key, $label ) { return '{field:' . $key . '} (' . $label . ')'; }, array_keys( $field_keys ), $field_keys ) ) : '{field:firma}' ) );
+		?>
+		</p>
 		<fieldset><legend><?php esc_html_e( 'Gestaltung', 'pass-captain' ); ?></legend>
 		<p><label><?php esc_html_e( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ); ?> <input type="number" name="logo" min="0" step="1" class="small-text" value="<?php echo esc_attr( $edit_design['logo'] ? (string) $edit_design['logo'] : '' ); ?>"></label>
 		<label><?php esc_html_e( 'Akzentfarbe (fette Zeilen)', 'pass-captain' ); ?> <input type="text" name="accent" pattern="#?[0-9A-Fa-f]{6}" maxlength="7" class="small-text" placeholder="#1f3a68" value="<?php echo esc_attr( $edit_design['accent'] ); ?>"></label>
@@ -178,7 +187,8 @@ final class Page {
 		echo esc_html( sprintf( __( 'Leer = Schwarz. Farben brauchen auf Weiß einen Kontrast von mindestens %s:1, sonst wird die Vorlage nicht gespeichert. Die Mediathek-ID steht in der Adresse des Bildes (post=…).', 'pass-captain' ), number_format( Templates::MIN_CONTRAST, 1, ',', '' ) ) );
 		?>
 		</p></fieldset>
-		<p><button class="button button-primary"><?php esc_html_e( 'Vorlage speichern', 'pass-captain' ); ?></button></p></form>
+		<p><button class="button button-primary"><?php esc_html_e( 'Vorlage speichern', 'pass-captain' ); ?></button>
+		<button class="button" name="preview" value="1" formtarget="_blank"><?php esc_html_e( 'Vorschau (PDF, ohne Speichern)', 'pass-captain' ); ?></button></p></form>
 
 		<?php if ( ! $edit ) : ?>
 		<h3><?php esc_html_e( 'Barrierearme Startvorlagen', 'pass-captain' ); ?></h3>
@@ -221,8 +231,44 @@ final class Page {
 		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_save_template' );
 		$in = Forms::post();
+		if ( Forms::flag( $in, 'preview' ) ) {
+			// A686: preview of the edited (unsaved) template with sample data.
+			$kind = Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' );
+			$body = Templates::sanitize_body( self::posted_body( $in ) );
+			$problems = Templates::design_problems( $body );
+			if ( $problems ) { Forms::finish( new \WP_Error( 'wpcap_print_template_design', implode( ' ', $problems ) ), '', Forms::page_url( self::SLUG ) ); }
+			self::send_preview( $kind, $body );
+		}
 		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), self::posted_body( $in ), Forms::int( $in, 'owner_event_id' ) );
 		Forms::finish( $result, __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/** A686: link to the PDF preview of a stored template. */
+	public static function preview_url( $template_id ) {
+		return wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_print_preview', 'template_id' => absint( $template_id ) ), admin_url( 'admin-post.php' ) ), 'wpcap_print_preview_' . absint( $template_id ) );
+	}
+
+	/**
+	 * A686: whether the current user may preview a template: event managers, for global templates and the
+	 * templates of events they manage.
+	 */
+	public static function can_preview( $template ) {
+		if ( ! $template || ! current_user_can( 'wpcap_manage_events' ) ) { return false; }
+		return ! (int) $template->owner_event_id || Scope::can_event( (int) $template->owner_event_id, 'wpcap_manage_events' );
+	}
+
+	/** A686: PDF preview of a stored template with sample data (no ticket data, no codes). */
+	public static function handle_preview() {
+		$template_id = absint( $_GET['template_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified next.
+		check_admin_referer( 'wpcap_print_preview_' . $template_id );
+		$template = Templates::get_template( $template_id );
+		if ( ! self::can_preview( $template ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		self::send_preview( (string) $template->kind, (string) $template->body );
+	}
+
+	/** Sends a preview PDF inline. */
+	private static function send_preview( $kind, $body ) {
+		Scope::send_download( Templates::preview_pdf( $kind, $body ), 'vorschau-' . sanitize_key( $kind ) . '.pdf', 'application/pdf' );
 	}
 
 	/** A685: template body from the form – the text plus the design fields (logo, accent and text colour). */
@@ -255,6 +301,7 @@ final class Page {
 			'include_delivered' => Forms::flag( $in, 'include_delivered' ),
 			'confirm' => isset( $in['confirm'] ) && is_scalar( $in['confirm'] ) && '' !== trim( (string) $in['confirm'] ) ? Forms::int( $in, 'confirm' ) : -1,
 			'offset' => max( 0, Forms::int( $in, 'offset_from' ) - 1 ),
+			'sort' => Forms::choice( $in, 'sort', Templates::SORTS, 'name' ),
 		);
 		$result = self::batch_request( Forms::int( $in, 'occurrence_id' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::flag( $in, 'with_codes' ), $options );
 		if ( is_wp_error( $result ) ) {

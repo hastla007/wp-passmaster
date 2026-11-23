@@ -56,6 +56,7 @@ final class TicketPdf {
 		// Signed QR values (PC1) for all tickets at once; the plain code when signing is off.
 		$qr = Security\SignedQr::qr_values( array_map( static function ( $t ) { return (string) ( $t['token'] ?? '' ); }, $tickets ) );
 		$bodies = array();
+		$answers = null;
 		foreach ( $tickets as $i => $ticket ) {
 			if ( ! $pdf->ok() ) { break; }
 			$occurrence_id = (int) ( $ticket['occurrence_id'] ?? 0 );
@@ -65,6 +66,11 @@ final class TicketPdf {
 			}
 			$values = self::values( self::data( $ticket, $meta ), $meta );
 			$values['qr'] = (string) ( $qr[ $i ] ?? $values['qr'] );
+			if ( false !== strpos( $bodies[ $occurrence_id ], '{field:' ) ) {
+				// A686: participant field answers, read once for all tickets of the document.
+				if ( null === $answers ) { $answers = Templates::field_answers( array_map( static function ( $t ) { return (int) ( $t['ticket_id'] ?? 0 ); }, $tickets ) ); }
+				$values['fields'] = $answers[ (int) ( $ticket['ticket_id'] ?? 0 ) ] ?? array();
+			}
 			Templates::pages( 'ticket', array( $values ), $bodies[ $occurrence_id ], $pdf );
 		}
 		return $pdf;

@@ -574,7 +574,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_privacy_order_anonymized` (Action) | `int $order_id` | Eine Bestellung wurde anonymisiert (Datenschutz-Löschung); Module löschen ihre Daten zur Bestellung (z. B. gespeicherte Partner-Ticketcodes). |
 | `wpcap_privacy_unpaid_attendee_data_cleared` (Action) | `int[] $order_ids` | Der Löschlauf (Schritt `unpaid_attendee_data`) hat die Teilnehmerangaben dieser nie bezahlten Bestellungen entfernt (ein Batch); Integrationen löschen ihre Kopien (z. B. `_wpcap_attendees` an der WooCommerce-Bestellung). |
 | `wpcap_print_batch_background` | `bool $background` (true) | Stapeldrucke laufen als Hintergrund-Stapel (A427); `false` behält den synchronen Druck (Audit R2, Codes mit der fertigen Datei festgeschrieben). |
-| `wpcap_print_batch_block` | `int $tickets` (200) | Tickets je Lauf des Stapeldruck-Jobs (A427; auf ein Vielfaches von 10 aufgerundet). |
+| `wpcap_print_batch_block` | `int $tickets` (200) | Tickets je Lauf des Stapeldruck-Jobs (A427; auf ein Vielfaches von 10 aufgerundet, bei Etikettenbögen zusätzlich auf ganze Bögen, A686). |
 | `wpcap_attendee_list_chunk` | `int $tickets` (500) | A477: Tickets je Block der Teilnehmer- und No-Show-Liste (Druckansicht und CSV werden blockweise gelesen und gestreamt; 1–5000). |
 | `wpcap_print_batch_max` | `int $tickets` (20000) | Höchstzahl Tickets eines Stapeldrucks. |
 | `wpcap_print_batch_sync_limit` | `int $tickets` (300) | Stapel ohne neue Codes bis zu dieser Größe werden sofort geliefert, größere im Hintergrund. |

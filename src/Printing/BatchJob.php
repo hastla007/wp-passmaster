@@ -63,9 +63,15 @@ final class BatchJob {
 		return $wpdb->prefix . 'wpcap_print_batches';
 	}
 
-	public static function block_size() {
+	/**
+	 * Tickets per run: a multiple of 10 (name tags) and – for a label sheet layout (A686) – of the labels per
+	 * page, so every block ends with a full sheet.
+	 */
+	public static function block_size( $kind = '' ) {
 		$n = max( 1, (int) apply_filters( 'wpcap_print_batch_block', self::BLOCK ) );
-		return (int) ( ceil( $n / 10 ) * 10 ); // Name tags: full pages of 10.
+		$n = (int) ( ceil( $n / 10 ) * 10 ); // Name tags: full pages of 10.
+		$per = '' !== (string) $kind ? Templates::per_page( (string) $kind ) : 1;
+		return $per > 1 ? (int) ( ceil( $n / $per ) * $per ) : $n;
 	}
 
 	public static function max_tickets() { return max( 1, (int) apply_filters( 'wpcap_print_batch_max', self::MAX ) ); }
@@ -125,10 +131,11 @@ final class BatchJob {
 	 *
 	 * @return int|\WP_Error
 	 */
-	public static function create( $occurrence_id, $kind, $with_codes ) {
+	public static function create( $occurrence_id, $kind, $with_codes, $sort = 'name' ) {
 		global $wpdb;
 		if ( ! self::ready() ) { return new \WP_Error( 'wpcap_print_batch_unavailable', __( 'Der Stapeldruck im Hintergrund ist noch nicht eingerichtet (Datenbank-Update ausstehend).', 'pass-captain' ) ); }
-		$refs = Templates::ticket_refs_for_occurrence( $occurrence_id, $with_codes ? array( 'valid' ) : Templates::batch_statuses( $kind ) );
+		// A686: the print order (sort) is fixed in the ids file.
+		$refs = Templates::ticket_refs_for_occurrence( $occurrence_id, $with_codes ? array( 'valid' ) : Templates::batch_statuses( $kind ), in_array( $sort, Templates::SORTS, true ) ? $sort : 'name' );
 		if ( ! $refs ) { return new \WP_Error( 'wpcap_print_batch_empty', __( 'Für diesen Termin gibt es keine Tickets zum Drucken.', 'pass-captain' ) ); }
 		if ( count( $refs ) > self::max_tickets() ) {
 			/* translators: %d: maximum number of tickets */
@@ -213,9 +220,9 @@ final class BatchJob {
 			$pdf_bytes = strlen( PdfWriter::header() );
 		}
 		if ( (int) $batch->done >= (int) $batch->total ) { return self::finalize( $batch, $pdf_bytes ); }
-		$slice = self::lines( self::path( $batch, 'ids' ), (int) $batch->done, self::block_size() );
+		$slice = self::lines( self::path( $batch, 'ids' ), (int) $batch->done, self::block_size( (string) $batch->kind ) );
 		if ( ! $slice ) { return self::fail( $batch, 'ids' ); }
-		$rows = Templates::tickets_by_ids( array_map( static fn( $l ) => (int) $l[0], $slice ) );
+		$rows = Templates::attach_fields( Templates::tickets_by_ids( array_map( static fn( $l ) => (int) $l[0], $slice ) ) );
 		$items = array();
 		$codes = '';
 		foreach ( $slice as $line ) {

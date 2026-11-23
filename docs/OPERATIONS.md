@@ -1508,6 +1508,23 @@ für das Logo), Badge „Name groß“ (26 pt) und Namensschild „Name groß“
 Hilfscode unter dem QR-Code. Die angelegte Vorlage lässt sich danach wie jede andere bearbeiten und einem Event
 zuordnen.
 
+### Teilnehmerfelder, Etikettenformate, Sortierung und Vorschau (A686)
+
+- **Teilnehmerfeld-Mapping:** `{field:<Schlüssel>}` druckt die Antwort auf das Teilnehmerfeld mit diesem Schlüssel
+  (z. B. `{field:firma}`, `{field:funktion}`); die Hilfe unter dem Vorlagentext listet die Felder der eigenen Events.
+  Einwilligungen werden nie gedruckt. Gilt für Stapeldruck (auch im Hintergrund), Ticket-PDFs der Mail und Vorschau.
+- **Weitere Formate** neben Ticket, Badge, Namensschild (10/A4) und Einlassband: Etiketten 70 × 37 mm (24 pro A4,
+  z. B. Avery 3474), Etiketten 99,1 × 38,1 mm (14 pro A4, z. B. Avery L7163) – beide ohne Rahmen für vorgestanzte
+  Bögen – und vier A6-Badges pro A4-Bogen mit Schnittrahmen. Beim Drucken „tatsächliche Größe“ (100 %) wählen.
+  Hintergrund-Stapel rendern je Lauf ganze Bögen (Blockgröße auf ein Vielfaches der Etiketten je Seite gerundet).
+- **Sortierung** des Stapeldrucks: Name der Teilnehmenden (Standard, wie bisher), Ticketart und dann Name,
+  Bestellung oder Ticketnummer. Ein Hintergrund-Stapel hält die Reihenfolge beim Anlegen fest. Der Rückfall ohne
+  Stapeltabellen (neue Codes in Teilen) bleibt bei der Ticketnummer, damit die Teile lückenlos aufeinander folgen.
+- **Vorschau:** „Vorschau (PDF)“ in der Vorlagenliste bzw. „Vorschau (PDF, ohne Speichern)“ im Bearbeitungsformular
+  zeigt das Layout mit Beispieldaten (Etikettenbögen: ein voller Bogen). Der Beispielcode ist kein Ticketcode; es
+  werden keine Tickets gelesen und keine Codes erzeugt. Nur Eventverwaltung, für globale Vorlagen und die Vorlagen
+  eigener Events.
+
 ## Stapeldruck mit neuen Ticketcodes (Hintergrundjob, A427)
 
 Ticketcodes sind nur als Hash gespeichert; ein Stapeldruck mit QR-Code braucht deshalb neue Codes. Früher wurden

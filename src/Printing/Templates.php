@@ -16,6 +16,12 @@
  * printed at the top; on wristbands next to the adhesive tab), "@accent|#RRGGBB" (colour of bold lines) and
  * "@text|#RRGGBB" (colour of the other lines). Both colours need a contrast of at least 4.5:1 on white
  * (WCAG 2.2, 1.4.3); save_template() refuses lower values. starters() offers accessible starting points.
+ *
+ * A686: "{field:<key>}" prints the answer to the participant field <key> of the ticket (attendee field
+ * mapping; consents are never printed). Label sheets besides the name tags: 24 labels 70×37 mm and 14 labels
+ * 99.1×38.1 mm per A4 and four A6 badges per A4 sheet with cut marks (grids()). Batch prints can be sorted
+ * by attendee name, ticket type, order or ticket number (SORTS) and every template has a PDF preview with
+ * sample data (preview_pdf()).
  */
 namespace PassCaptain\Printing;
 
@@ -25,7 +31,10 @@ use PassCaptain\Reports\Scope;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Templates {
-	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband' );
+	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband', 'label_3x8', 'label_2x7', 'badge_4up' );
+
+	/** A686: sort orders of batch prints (attendee name is the default, as before). */
+	const SORTS = array( 'name', 'type', 'order', 'ticket' );
 	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{help_code}', '{qr}', '{admission_notice}' );
 
 	/** A685: design lines of a template body. */
@@ -43,7 +52,55 @@ final class Templates {
 			'badge'     => __( 'Badge (A6)', 'pass-captain' ),
 			'nametag'   => __( 'Namensschild (90×55 mm, 10 pro A4)', 'pass-captain' ),
 			'wristband' => __( 'Einlassband (250×25 mm)', 'pass-captain' ),
+			'label_3x8' => __( 'Etiketten 70×37 mm (24 pro A4, z. B. Avery 3474)', 'pass-captain' ),
+			'label_2x7' => __( 'Etiketten 99,1×38,1 mm (14 pro A4, z. B. Avery L7163)', 'pass-captain' ),
+			'badge_4up' => __( 'Badges A6 (4 pro A4 mit Schnittrahmen)', 'pass-captain' ),
 		);
+	}
+
+	/** A686: labels of the batch print sort orders. */
+	public static function sort_labels() {
+		return array(
+			'name'   => __( 'Name der Teilnehmenden', 'pass-captain' ),
+			'type'   => __( 'Ticketart, dann Name', 'pass-captain' ),
+			'order'  => __( 'Bestellung', 'pass-captain' ),
+			'ticket' => __( 'Ticketnummer', 'pass-captain' ),
+		);
+	}
+
+	/** A686: ORDER BY expression of a sort order (aliases t, tt, a of the print queries). */
+	public static function sort_sql( $sort ) {
+		$name = "COALESCE(NULLIF(a.attendee_name,''),'~')";
+		$map = array(
+			'name'   => "$name,t.ticket_id",
+			'type'   => "tt.name,$name,t.ticket_id",
+			'order'  => 't.order_id,t.ticket_id',
+			'ticket' => 't.ticket_id',
+		);
+		return $map[ $sort ] ?? $map['name'];
+	}
+
+	/**
+	 * A686: sheet layouts with several labels per A4 page (millimetres): columns, rows, label width and height,
+	 * left and top margin, horizontal and vertical pitch, text alignment, QR position (right of the text or
+	 * below it), whether a thin cut frame is drawn (plain paper) or not (die-cut label sheets) and the inner
+	 * padding (mm; labels keep 4 mm off the edge, which most printers cannot reach).
+	 *
+	 * @return array<string,array{cols:int,rows:int,w:float,h:float,left:float,top:float,pitch_x:float,pitch_y:float,align:string,qr:string,frame:bool,pad:float}>
+	 */
+	public static function grids() {
+		return array(
+			'nametag'   => array( 'cols' => 2, 'rows' => 5, 'w' => 90, 'h' => 55, 'left' => 15, 'top' => 11, 'pitch_x' => 90, 'pitch_y' => 55, 'align' => 'center', 'qr' => 'right', 'frame' => true, 'pad' => 2.8222 ),
+			'label_3x8' => array( 'cols' => 3, 'rows' => 8, 'w' => 70, 'h' => 37, 'left' => 0, 'top' => 0.5, 'pitch_x' => 70, 'pitch_y' => 37, 'align' => 'left', 'qr' => 'right', 'frame' => false, 'pad' => 3.5 ),
+			'label_2x7' => array( 'cols' => 2, 'rows' => 7, 'w' => 99.1, 'h' => 38.1, 'left' => 4.65, 'top' => 15.15, 'pitch_x' => 101.6, 'pitch_y' => 38.1, 'align' => 'left', 'qr' => 'right', 'frame' => false, 'pad' => 4 ),
+			'badge_4up' => array( 'cols' => 2, 'rows' => 2, 'w' => 105, 'h' => 148.5, 'left' => 0, 'top' => 0, 'pitch_x' => 105, 'pitch_y' => 148.5, 'align' => 'center', 'qr' => 'flow', 'frame' => true, 'pad' => 6 ),
+		);
+	}
+
+	/** A686: items per printed page of a layout (1 for one page per ticket). */
+	public static function per_page( $kind ) {
+		$grid = self::grids()[ $kind ] ?? null;
+		return $grid ? $grid['cols'] * $grid['rows'] : 1;
 	}
 
 	public static function default_body( $kind ) {
@@ -52,6 +109,9 @@ final class Templates {
 			'badge'     => "*20|{attendee_name}\n12|{ticket_category}\n11|{event}\n10|{date}\n{qr}",
 			'nametag'   => "*16|{attendee_name}\n9|{ticket_category}\n8|{event}\n{qr}",
 			'wristband' => "*11|{event}\n8|{date} · {ticket_category}\n8|{attendee_name} {seat_label}\n{qr}",
+			'label_3x8' => "*10|{attendee_name}\n8|{ticket_category}\n7|{event}\n{qr}",
+			'label_2x7' => "*13|{attendee_name}\n9|{ticket_category}\n8|{event} · {date}\n{qr}",
+			'badge_4up' => "*20|{attendee_name}\n12|{ticket_category}\n11|{event}\n10|{date}\n{qr}",
 		);
 		return $bodies[ $kind ] ?? $bodies['ticket'];
 	}
@@ -97,6 +157,9 @@ final class Templates {
 			$map[ $placeholder ] = 'qr' === $key ? '' : sanitize_text_field( (string) ( $values[ $key ] ?? '' ) );
 		}
 		$text = strtr( (string) $text, $map );
+		// A686: answers to participant fields ({field:<key>}).
+		$fields = (array) ( $values['fields'] ?? array() );
+		$text = (string) preg_replace_callback( '/\{field:([a-z0-9_-]{1,64})\}/i', static function ( $m ) use ( $fields ) { return sanitize_text_field( (string) ( $fields[ strtolower( $m[1] ) ] ?? '' ) ); }, $text );
 		$text = trim( preg_replace( '/\s+/u', ' ', $text ) );
 		return (string) preg_replace( '/^[\s·\-|,\/]+|[\s·\-|,\/]+$/u', '', $text );
 	}
@@ -308,20 +371,24 @@ final class Templates {
 			if ( function_exists( 'determine_locale' ) ) { $pdf->set_language( determine_locale() ); }
 		}
 		$mm = PdfWriter::MM;
-		if ( 'nametag' === $kind ) {
-			$w = 90 * $mm;
-			$h = 55 * $mm;
-			$left = 15 * $mm;
-			$top = 297 * $mm - 11 * $mm;
+		$grid = self::grids()[ $kind ] ?? null;
+		if ( $grid ) {
+			// Name tags and label sheets (A686): several labels per A4 page, row by row.
+			$w = $grid['w'] * $mm;
+			$h = $grid['h'] * $mm;
+			$per = $grid['cols'] * $grid['rows'];
+			$top = 297 * $mm - $grid['top'] * $mm;
 			foreach ( array_values( $items ) as $i => $item ) {
-				$slot = $i % 10;
+				$slot = $i % $per;
 				if ( 0 === $slot ) { $pdf->add_page( 210 * $mm, 297 * $mm ); }
-				$x = $left + ( $slot % 2 ) * $w;
-				$y = $top - ( intdiv( $slot, 2 ) + 1 ) * $h;
-				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
+				$x = $grid['left'] * $mm + ( $slot % $grid['cols'] ) * $grid['pitch_x'] * $mm;
+				$y = $top - intdiv( $slot, $grid['cols'] ) * $grid['pitch_y'] * $mm - $h;
+				if ( $grid['frame'] ) { $pdf->rect( $x, $y, $w, $h, false, 0.8 ); }
 				// A685: logo in the top left corner of the label.
-				$logo_h = $logo && $pdf->image( $x + 8, $y + $h - 8 - 9 * $mm, 30 * $mm, 9 * $mm, $logo, 'left' ) ? 10 * $mm : 0;
-				self::cell( $pdf, $lines, $item, $x, $y, $w, $h - $logo_h, 'center', 'right', 8, false, $design );
+				$logo_box = min( 9 * $mm, $h * 0.2 );
+				$pad = $grid['pad'] * $mm;
+				$logo_h = $logo && $pdf->image( $x + $pad, $y + $h - $pad - $logo_box, 30 * $mm, $logo_box, $logo, 'left' ) ? $logo_box + $mm : 0;
+				self::cell( $pdf, $lines, $item, $x, $y, $w, $h - $logo_h, $grid['align'], $grid['qr'], $pad, false, $design );
 			}
 			return $pdf;
 		}
@@ -548,7 +615,7 @@ final class Templates {
 	 * columns are those of $occurrence_id. Without it: the tickets whose ticket type belongs to the
 	 * occurrence (batch printing of admission media, see ticket_refs_for_occurrence()).
 	 */
-	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ), $with_passes = true ) {
+	public static function tickets_for_occurrence( $occurrence_id, array $statuses = array( 'valid', 'checked_in' ), $with_passes = true, $sort = 'name' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
@@ -558,7 +625,7 @@ final class Templates {
 		return $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.order_id,t.ticket_type_id,t.attendee_email,t.transfer_count,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
 			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=%d INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE $which AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list, integer condition.
+			WHERE $which AND t.status IN ($in) ORDER BY " . self::sort_sql( $sort ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- fixed status list, integer condition, sort expression from a fixed map (A686).
 			$occurrence_id
 		) );
 	}
@@ -628,7 +695,7 @@ final class Templates {
 	 *
 	 * @return object[] {ticket_id, token_hash, status, held_by_other}
 	 */
-	public static function ticket_refs_for_occurrence( $occurrence_id, array $statuses ) {
+	public static function ticket_refs_for_occurrence( $occurrence_id, array $statuses, $sort = 'name' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
@@ -636,7 +703,7 @@ final class Templates {
 		return (array) $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.token_hash,t.status,IF(t.transfer_count>0 OR (t.attendee_email<>'' AND t.attendee_email<>ord.customer_email),1,0) AS held_by_other
 			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
-			WHERE tt.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list.
+			WHERE tt.occurrence_id=%d AND t.status IN ($in) ORDER BY " . self::sort_sql( $sort ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- fixed status list, sort expression from a fixed map (A686).
 			absint( $occurrence_id )
 		) );
 	}
@@ -685,7 +752,95 @@ final class Templates {
 			'help_code'       => null !== $help ? (string) $help : ( '' !== (string) $token ? \PassCaptain\HelpCode::for_ticket( (int) ( $row->ticket_id ?? 0 ), (string) $token ) : '' ),
 			'qr'              => null !== $qr ? (string) $qr : ( '' !== (string) $token ? \PassCaptain\Security\SignedQr::qr_value( (string) $token ) : '' ),
 			'code'            => (string) $token,
+			'fields'          => (array) ( $row->_fields ?? array() ),
 		);
+	}
+
+	/**
+	 * A686: adds the participant field answers of the rows' tickets as `_fields` (field key => answer, one
+	 * query for all rows); consents are left out. Keys of $rows are kept.
+	 *
+	 * @param object[] $rows Rows with ticket_id.
+	 * @return object[]
+	 */
+	public static function attach_fields( array $rows ) {
+		$answers = self::field_answers( array_map( static function ( $r ) { return (int) ( $r->ticket_id ?? 0 ); }, $rows ) );
+		foreach ( $rows as $row ) { $row->_fields = $answers[ (int) ( $row->ticket_id ?? 0 ) ] ?? array(); }
+		return $rows;
+	}
+
+	/**
+	 * A686: participant field answers per ticket (ticket_id => field key => answer), without consents.
+	 *
+	 * @param int[] $ticket_ids Tickets.
+	 * @return array<int,array<string,string>>
+	 */
+	public static function field_answers( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		$out = array();
+		foreach ( array_chunk( $ticket_ids, 500 ) as $chunk ) {
+			$rows = $wpdb->get_results( "SELECT pa.ticket_id,pf.field_key,pa.answer FROM {$p}wpcap_participant_answers pa INNER JOIN {$p}wpcap_participant_fields pf ON pf.field_id=pa.field_id WHERE pf.field_type<>'consent' AND pa.ticket_id IN (" . implode( ',', $chunk ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+			foreach ( (array) $rows as $row ) { $out[ (int) $row->ticket_id ][ strtolower( (string) $row->field_key ) ] = (string) $row->answer; }
+		}
+		return $out;
+	}
+
+	/**
+	 * A686: keys of the active participant fields of an event (or of all events the user manages for 0) that
+	 * a template can print with {field:<key>}, key => label.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function field_keys( $event_id = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$scope = $event_id ? array( absint( $event_id ) ) : Scope::event_ids( 'wpcap_manage_events' );
+		$where = null === $scope ? '' : ' AND o.event_id IN (' . ( $scope ? implode( ',', array_map( 'absint', $scope ) ) : '0' ) . ')';
+		$rows = $wpdb->get_results( "SELECT DISTINCT pf.field_key,pf.label FROM {$p}wpcap_participant_fields pf INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=pf.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE pf.status='active' AND pf.field_type<>'consent'$where ORDER BY pf.field_key LIMIT 100" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$key = strtolower( (string) $row->field_key );
+			if ( preg_match( '/^[a-z0-9_-]{1,64}$/', $key ) && ! isset( $out[ $key ] ) ) { $out[ $key ] = (string) $row->label; }
+		}
+		return $out;
+	}
+
+	/**
+	 * A686: sample values for the preview (no real ticket, no valid code): every {field:<key>} of the body
+	 * shows its key.
+	 */
+	public static function sample_item( $body = '' ) {
+		$fields = array();
+		if ( preg_match_all( '/\{field:([a-z0-9_-]{1,64})\}/i', (string) $body, $m ) ) {
+			foreach ( $m[1] as $key ) { $fields[ strtolower( $key ) ] = '‹' . strtolower( $key ) . '›'; }
+		}
+		return array(
+			'event'            => __( 'Beispiel-Event', 'pass-captain' ),
+			'date'             => '24.12.2026 19:30',
+			'time'             => '19:30',
+			'location'         => __( 'Großer Saal', 'pass-captain' ),
+			'ticket_category'  => __( 'Stehplatz', 'pass-captain' ),
+			'attendee_name'    => __( 'Erika Musterfrau', 'pass-captain' ),
+			'seat_label'       => __( 'Reihe 3, Platz 12', 'pass-captain' ),
+			'order'            => 'AB12CD34',
+			'help_code'        => 'K7M2-Q9X4',
+			'admission_notice' => __( 'Ab 18 Jahren, Ausweis mitbringen', 'pass-captain' ),
+			'qr'               => 'VORSCHAU-' . str_repeat( '0', 55 ),
+			'code'             => 'VORSCHAU-' . str_repeat( '0', 55 ),
+			'fields'           => $fields,
+		);
+	}
+
+	/**
+	 * A686: PDF preview of a layout with sample data – one page (label sheets: a full sheet). The preview code
+	 * is no ticket code; nothing is read from or written to tickets.
+	 */
+	public static function preview_pdf( $kind, $body ) {
+		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
+		$body = '' !== trim( (string) $body ) ? (string) $body : self::default_body( $kind );
+		return self::render( $kind, array_fill( 0, self::per_page( $kind ), self::sample_item( $body ) ), $body );
 	}
 
 	/**
@@ -720,8 +875,8 @@ final class Templates {
 	 * (BatchJob, A427: codes are rotated only when the finished file is downloaded) or, without the job
 	 * tables, through batch_pdf_with_codes() (codes committed only with the complete file).
 	 */
-	public static function batch_pdf( $occurrence_id, $kind ) {
-		$rows = self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ), false );
+	public static function batch_pdf( $occurrence_id, $kind, $sort = 'name' ) {
+		$rows = self::attach_fields( self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ), false, $sort ) );
 		$items = array();
 		foreach ( $rows as $row ) { $items[] = self::values( $row, '' ); }
 		$event_id = Scope::occurrence_event( $occurrence_id );
@@ -821,7 +976,7 @@ final class Templates {
 			if ( ! $tokens ) { return $failed( 'nothing', __( 'Die Tickets wurden inzwischen eingecheckt oder storniert.', 'pass-captain' ) ); }
 			$qr = \PassCaptain\Security\SignedQr::qr_values( $tokens );
 			$items = array();
-			foreach ( $printable as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ], null, $qr[ (int) $row->ticket_id ] ?? '' ); }
+			foreach ( self::attach_fields( $printable ) as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ], null, $qr[ (int) $row->ticket_id ] ?? '' ); }
 			if ( ! self::render_to_file( $file, $kind, $items, self::body_for_event( Scope::occurrence_event( $occurrence_id ), $kind ) ) || ! is_file( $file ) ) {
 				return $failed( 'write' );
 			}
