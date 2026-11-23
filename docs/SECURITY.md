@@ -276,7 +276,13 @@ die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
   Dev-Pakete); bekannte Schwachstellen lassen den Build scheitern. Pull Requests prüft zusätzlich
   `actions/dependency-review-action` (ab „moderate“), gitleaks scannt Historie und ZIP.
 - Mitgelieferte Fremdbibliotheken ohne Composer (`assets/vendor/`, z. B. jsQR) werden bei jedem Minor-
-  Release auf neue Versionen und Advisories geprüft.
+  Release auf neue Versionen und Advisories geprüft. Jede hat eine `SOURCE.txt` mit Version, Quelle,
+  npm-Tarball (shasum) und SHA-256 der ausgelieferten Datei (jsQR 1.4.0, tweetnacl 1.0.3; A658);
+  `tests/consistency.php` schlägt fehl, wenn eine Datei ohne neuen Eintrag geändert wird.
+- Saalplan-Editor und Platzauswahl (`assets/seating/`) haben keine HTML-Senken (A658): Namen, Reihen,
+  Platznummern und Farben gehen nur als Text oder als Wert fest benannter Attribute ins DOM, Farben nur als
+  `#rrggbb` (sonst Grau), Event-Handler-/Link-Attribute setzen die Hilfsfunktionen nie
+  (`tests/js/seating-editor-sinks.test.js`).
 - Kadenz: monatlich Composer- und GitHub-Actions-Abhängigkeiten aktualisieren (Pinning beibehalten,
   `composer.lock` committen, reproduzierbaren Build prüfen), Sicherheitsupdates sofort. Dependabot
   (`.github/dependabot.yml`) schlägt wöchentlich Updates für Composer, npm und GitHub Actions vor.

@@ -147,6 +147,8 @@ $check( 'readme.txt points to the tweetnacl source reference', false !== strpos(
 $jsqr = $root . '/assets/vendor/jsqr/';
 $jsqr_source = (string) @file_get_contents( $jsqr . 'SOURCE.txt' );
 $check( 'jsQR: SOURCE.txt names origin, license and the checksum of jsQR.js', is_file( $jsqr . 'jsQR.js' ) && false !== strpos( $jsqr_source, 'https://github.com/cozmo/jsQR' ) && false !== strpos( $jsqr_source, 'Apache' ) && false !== strpos( $jsqr_source, hash_file( 'sha256', $jsqr . 'jsQR.js' ) ) );
+// A658: the version and the npm package (tarball shasum) are recorded too.
+$check( 'jsQR: SOURCE.txt names the version and the npm tarball with its shasum', (bool) preg_match( '/^jsQR \d+\.\d+\.\d+$/m', $jsqr_source ) && (bool) preg_match( '#registry\.npmjs\.org/jsqr/-/jsqr-\d+\.\d+\.\d+\.tgz#', $jsqr_source ) && (bool) preg_match( '/shasum [0-9a-f]{40}/', $jsqr_source ) );
 // A454: every block editor script has an asset file whose version is the content hash of the
 // script (cache busting: a changed editor.js gets a new ?ver=) and whose dependencies cover every
 // window.wp.* package the script uses. Expected hash: first 20 hex digits of md5 (LF line ends).

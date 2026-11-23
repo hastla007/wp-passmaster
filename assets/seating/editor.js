@@ -20,22 +20,26 @@
 	function parse(text, fallback) { try { return JSON.parse(text || '') || fallback; } catch (e) { return fallback; } }
 	function uid(prefix) { counter += 1; return prefix + Date.now().toString(36) + counter.toString(36); }
 	function snap(v) { return Math.max(0, Math.round(v / GRID) * GRID); }
+	// A658: the map data (names, labels, colours) only reaches the DOM as text or as values of the
+	// attributes named in this file – never as markup, event handlers or links.
+	function safeAttr(name) { return !/^on/i.test(name) && !/href$/i.test(name) && name !== 'style'; }
+	function safeColor(value) { return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value) : '#8c8f94'; }
 	function el(tag, attrs, parent, ns) {
 		const node = ns === false ? document.createElement(tag) : document.createElementNS(SVGNS, tag);
-		Object.keys(attrs || {}).forEach(function (k) { node.setAttribute(k, attrs[k]); });
+		Object.keys(attrs || {}).forEach(function (k) { if (safeAttr(k)) node.setAttribute(k, attrs[k]); });
 		if (parent) parent.appendChild(node);
 		return node;
 	}
 	function h(tag, attrs, parent, text) {
 		const node = document.createElement(tag);
-		Object.keys(attrs || {}).forEach(function (k) { if (k === 'className') node.className = attrs[k]; else node.setAttribute(k, attrs[k]); });
+		Object.keys(attrs || {}).forEach(function (k) { if (k === 'className') node.className = attrs[k]; else if (safeAttr(k)) node.setAttribute(k, attrs[k]); });
 		if (text !== undefined) node.textContent = text;
 		if (parent) parent.appendChild(node);
 		return node;
 	}
 	function seatByKey(key) { return draft.seats.find(function (s) { return s.key === key; }); }
 	function groupByKey(key) { return draft.groups.find(function (g) { return g.key === key; }); }
-	function colorOf(list, key) { const item = draft[list].find(function (i) { return i.key === key; }); return item ? item.color : '#8c8f94'; }
+	function colorOf(list, key) { const item = draft[list].find(function (i) { return i.key === key; }); return safeColor(item ? item.color : ''); }
 	function isLocked(seat) { return Object.prototype.hasOwnProperty.call(locked, seat.key); }
 	function standingLockedMax(group) {
 		let max = 0;

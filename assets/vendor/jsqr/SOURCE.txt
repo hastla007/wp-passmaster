@@ -1,14 +1,21 @@
-jsQR
-====
+jsQR 1.4.0
+==========
 
-Files in this directory:
+Files in this directory (unmodified copies from the npm package jsqr@1.4.0):
 
-  jsQR.js   unmodified, unminified distribution build (dist/jsQR.js) of jsQR, loaded by the scanner
+  jsQR.js   unminified distribution build (dist/jsQR.js) of jsQR, loaded by the scanner
             SHA-256 bc40c8a15196236b2314db0856f72ca0b49980cd5413b8c852a7349f5fee0859
-  LICENSE   Apache License 2.0
+  LICENSE   Apache License 2.0 (package LICENSE, unchanged)
 
-Source repository: https://github.com/cozmo/jsQR (npm package "jsqr").
+Source repository: https://github.com/cozmo/jsQR (release 1.4.0, commit 49a9633931fb8030ac2fc9cecc121d6e5a19f9a3)
+npm package:       https://www.npmjs.com/package/jsqr/v/1.4.0
+                   tarball https://registry.npmjs.org/jsqr/-/jsqr-1.4.0.tgz
+                   shasum 8efb8d0a7cc6863cb6d95116b9069123ce9eb2d1
+                   integrity sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A==
+License:           Apache-2.0
+
+Verified 2026-11-23: dist/jsQR.js and LICENSE of the tarball above are byte-identical to the shipped files.
 
 The checksum pins the shipped file (A658): tests/consistency.php fails when jsQR.js changes without this
 file being updated. When updating, take dist/jsQR.js from the npm package of the new release, compare it
-with the tagged source, and record the version and the new checksum here.
+with the tagged source, and record the version, the package shasum and the new checksum here.
