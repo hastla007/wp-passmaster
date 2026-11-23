@@ -58,6 +58,7 @@ final class DevicesPage {
 		$max = max( 1, (int) \PassCaptain\Settings::get( 'device_max_hours' ) );
 		$areas = Areas::selectable( null === $scope ? null : $scope );
 		$status = Areas::device_status( array_map( static function ( $d ) { return (int) $d->device_id; }, $devices ) );
+		$packages = self::package_status( $devices );
 		?>
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Scanner-Geräte', 'pass-captain' ); ?></h1>
@@ -86,20 +87,40 @@ final class DevicesPage {
 			<?php submit_button( __( 'Kopplungs-QR erstellen', 'pass-captain' ), 'primary', 'submit', false ); ?>
 		</form>
 		<h2><?php esc_html_e( 'Gekoppelte Geräte', 'pass-captain' ); ?></h2>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offline-Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $devices as $device ) :
 			$active = ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > \PassCaptain\Clock::mysql() );
 			$sync = $status[ (int) $device->device_id ];
 			$event_names = array_map( static function ( $id ) use ( $names ) { return $names[ $id ] ?? '#' . $id; }, Devices::event_ids( $device ) );
 			?>
-			<tr><td><?php echo esc_html( ( $device->label ?: __( 'Ohne Namen', 'pass-captain' ) ) . ( $device->platform ? ' · ' . $device->platform : '' ) . ( $device->app_version ? ' ' . $device->app_version : '' ) ); ?></td><td><?php echo esc_html( $device->display_name ); ?></td><td><?php echo esc_html( implode( ', ', $event_names ) ); ?></td><td><?php echo esc_html( $sync['area_name'] ?: '—' ); ?></td><td><?php echo esc_html( $device->last_seen_at ? Forms::datetime( $device->last_seen_at, wp_timezone_string() ) : '—' ); ?></td><td><?php echo esc_html( $sync['last_sync_at'] ? Forms::datetime( $sync['last_sync_at'], wp_timezone_string() ) . ' (' . sprintf( /* translators: %d: number of scans */ _n( '%d Scan', '%d Scans', $sync['last_sync_scans'], 'pass-captain' ), $sync['last_sync_scans'] ) . ')' : '—' ); ?></td><td><?php if ( $sync['open_conflicts'] ) : ?><a href="<?php echo esc_url( Forms::page_url( \PassCaptain\Admission\ConflictsPage::SLUG ) ); ?>"><span class="awaiting-mod"><?php echo esc_html( (string) $sync['open_conflicts'] ); ?></span></a><?php else : ?>0<?php endif; ?></td><td><?php echo esc_html( $device->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $active ? __( 'aktiv bis', 'pass-captain' ) . ' ' . ( $device->expires_at ? Forms::datetime( $device->expires_at, wp_timezone_string() ) : '—' ) : __( 'abgelaufen', 'pass-captain' ) ) ); ?></td><td><?php if ( $active ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_revoke_device"><input type="hidden" name="device_id" value="<?php echo esc_attr( $device->device_id ); ?>"><?php wp_nonce_field( 'wpcap_revoke_device_' . $device->device_id ); ?><button class="button"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button></form><?php endif; ?></td></tr>
+			<tr><td><?php echo esc_html( ( $device->label ?: __( 'Ohne Namen', 'pass-captain' ) ) . ( $device->platform ? ' · ' . $device->platform : '' ) . ( $device->app_version ? ' ' . $device->app_version : '' ) ); ?></td><td><?php echo esc_html( $device->display_name ); ?></td><td><?php echo esc_html( implode( ', ', $event_names ) ); ?></td><td><?php echo esc_html( $sync['area_name'] ?: '—' ); ?></td><td><?php echo esc_html( $device->last_seen_at ? Forms::datetime( $device->last_seen_at, wp_timezone_string() ) : '—' ); ?></td><td><?php echo esc_html( $sync['last_sync_at'] ? Forms::datetime( $sync['last_sync_at'], wp_timezone_string() ) . ' (' . sprintf( /* translators: %d: number of scans */ _n( '%d Scan', '%d Scans', $sync['last_sync_scans'], 'pass-captain' ), $sync['last_sync_scans'] ) . ')' : '—' ); ?></td><td><?php if ( $sync['open_conflicts'] ) : ?><a href="<?php echo esc_url( Forms::page_url( \PassCaptain\Admission\ConflictsPage::SLUG ) ); ?>"><span class="awaiting-mod"><?php echo esc_html( (string) $sync['open_conflicts'] ); ?></span></a><?php else : ?>0<?php endif; ?></td><td><?php echo esc_html( self::package_label( $packages[ (int) $device->device_id ] ?? null ) ); ?></td><td><?php echo esc_html( $device->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $active ? __( 'aktiv bis', 'pass-captain' ) . ' ' . ( $device->expires_at ? Forms::datetime( $device->expires_at, wp_timezone_string() ) : '—' ) : __( 'abgelaufen', 'pass-captain' ) ) ); ?></td><td><?php if ( $active ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_revoke_device"><input type="hidden" name="device_id" value="<?php echo esc_attr( $device->device_id ); ?>"><?php wp_nonce_field( 'wpcap_revoke_device_' . $device->device_id ); ?><button class="button"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button></form><?php endif; ?></td></tr>
 		<?php endforeach; ?>
-		<?php if ( ! $devices ) : ?><tr><td colspan="9"><?php esc_html_e( 'Noch keine Geräte gekoppelt.', 'pass-captain' ); ?></td></tr><?php endif; ?>
+		<?php if ( ! $devices ) : ?><tr><td colspan="10"><?php esc_html_e( 'Noch keine Geräte gekoppelt.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
 		<p><?php echo esc_html( __( 'API-Basis für Apps:', 'pass-captain' ) . ' ' . rest_url( 'pass-captain/v1/app/' ) ); ?></p>
 		<?php self::render_web_scanners(); ?>
 		</div>
 		<?php
+	}
+
+	/** A688: offline package state of the listed devices (empty without the offline scanner module). */
+	public static function package_status( array $devices ) {
+		if ( ! class_exists( \PassCaptain\OfflineScanner\Assignments::class ) || ! \PassCaptain\Modules::enabled( \PassCaptain\Modules\OfflineScanner::class ) || ! \PassCaptain\Privacy::has_table( 'wpcap_offline_assignments' ) ) { return array(); }
+		return \PassCaptain\OfflineScanner\Assignments::package_status( array_map( static function ( $d ) { return (int) $d->device_id; }, $devices ) );
+	}
+
+	/** A688: text of the offline package column ("gültig bis …", "abgelaufen am …", "kein Paket geladen", "—"). */
+	public static function package_label( $status ) {
+		if ( ! is_array( $status ) || ! $status['assignments'] ) { return '—'; }
+		if ( '' !== $status['valid_until'] ) {
+			/* translators: %s: date and time */
+			return sprintf( __( 'gültig bis %s', 'pass-captain' ), Forms::datetime( $status['valid_until'], wp_timezone_string() ) );
+		}
+		if ( $status['all_expired'] ) {
+			/* translators: %s: date and time */
+			return sprintf( __( 'abgelaufen am %s – vor dem Einsatz neu laden', 'pass-captain' ), Forms::datetime( $status['expired_at'], wp_timezone_string() ) );
+		}
+		return __( 'kein Paket geladen', 'pass-captain' );
 	}
 
 	/**

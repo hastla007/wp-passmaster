@@ -167,17 +167,19 @@ final class AdminPage {
 
 		<h2><?php esc_html_e( 'Geräte für den Offline-Einsatz', 'pass-captain' ); ?></h2>
 		<?php if ( ! $rules['enabled'] ) : ?><div class="notice notice-warning inline"><p><?php esc_html_e( 'Offline-Scannen ist für dieses Event nicht freigegeben – zugewiesene Geräte erhalten keine Pakete.', 'pass-captain' ); ?></p></div><?php endif; ?>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letztes Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letztes Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Paket gültig bis', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $assigned as $row ) :
 			$active = ! $row->revoked_at && ( ! $row->expires_at || $row->expires_at > \PassCaptain\Clock::mysql() );
 			?>
 			<tr><td><?php echo esc_html( ( $row->label ?: __( 'Ohne Namen', 'pass-captain' ) ) . ' (#' . (int) $row->device_id . ')' ); ?></td>
 			<td><?php echo esc_html( $occ_labels[ (int) $row->occurrence_id ] ?? '#' . (int) $row->occurrence_id ); ?></td>
 			<td><?php echo esc_html( $row->last_package_at ? Forms::datetime( $row->last_package_at, wp_timezone_string() ) : '—' ); ?></td>
+			<?php $package_expiry = Assignments::package_expiry( $row, (int) $rules['max_offline_hours'] ); // A688. ?>
+			<td><?php echo esc_html( '' === $package_expiry ? '—' : Forms::datetime( $package_expiry, wp_timezone_string() ) . ( $package_expiry <= \PassCaptain\Clock::mysql() ? ' (' . __( 'abgelaufen', 'pass-captain' ) . ')' : '' ) ); ?></td>
 			<td><?php echo esc_html( $row->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $active ? __( 'aktiv', 'pass-captain' ) : __( 'abgelaufen', 'pass-captain' ) ) ); ?></td>
 			<td><?php Forms::open_form( 'wpcap_offline_unassign', 'wpcap_offline_unassign_' . (int) $row->device_id . '_' . $event_id . '_' . (int) $row->occurrence_id ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'device_id', $row->device_id ); Forms::hidden( 'occurrence_id', $row->occurrence_id ); ?><button class="button"><?php esc_html_e( 'Entfernen', 'pass-captain' ); ?></button></form></td></tr>
 		<?php endforeach; ?>
-		<?php if ( ! $assigned ) : ?><tr><td colspan="5"><?php esc_html_e( 'Noch keine Geräte zugewiesen.', 'pass-captain' ); ?></td></tr><?php endif; ?>
+		<?php if ( ! $assigned ) : ?><tr><td colspan="6"><?php esc_html_e( 'Noch keine Geräte zugewiesen.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
 		<?php if ( $candidates ) : ?>
 			<?php Forms::open_form( 'wpcap_offline_assign', 'wpcap_offline_assign_' . $event_id ); Forms::hidden( 'event_id', $event_id ); ?>

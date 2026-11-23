@@ -263,6 +263,28 @@ Theme-Vorlagen. Für Entwickler: Filter `wpcap_terms_map`.
 `docs/HOOKS.md` (`wpcap_template_page`) und `$default_html` (die Ausgabe des Plugins, z. B. zum Umschließen) und
 escaped selbst.
 
+### Sammel-Ein- und -Auslass und Paketablauf der Geräte (A688)
+
+**Ticketliste (Tickets):** Tickets, die die Person einlassen darf (gültig oder eingecheckt), haben ein
+Auswahlfeld. „Ausgewählte Tickets einchecken/auschecken“ (optional mit Einlassbereich) → **Weiter zur
+Bestätigung** bucht noch nichts: Über der Liste steht „N Tickets einchecken?“ mit den Ticketnummern und den Knöpfen
+„Ja, einchecken“ und „Abbrechen“. Erst die Bestätigung führt den Lauf aus (`Admission\BulkCheckin`, höchstens 100
+Tickets, Filter `wpcap_bulk_checkin_max`). Jedes Ticket wird wie ein Scan geprüft (Termin, Bereich, Einlassregel,
+Kapazität; Protokoll mit Quelle `admin`). Danach zeigt ein **Ergebnisbericht** je Ticket „erledigt“, „bereits im
+Zielzustand“, den Ablehnungsgrund oder „nicht verbucht – erneut versuchen“ (vorübergehender Datenbankfehler) und die
+Summen. **Wiederholen** („Nicht verbuchte Tickets erneut versuchen“) nutzt denselben Sammelschlüssel: Je Ticket gilt
+der Idempotenzschlüssel `admin:bulk:<Schlüssel>:<Ticket>`, ein bereits gebuchtes Ticket wird nie doppelt eingelassen,
+und ein doppelt abgeschickter Bestätigungsknopf bucht nichts zweimal. Abgelehnte Tickets (z. B. Einlassfenster noch
+nicht offen) bleiben im Bericht; sie werden später mit einer neuen Auswahl erneut versucht. Auswahl und Bericht
+gehören der angemeldeten Person und verfallen nach einer Stunde. Dieselbe Logik bietet die App über
+`POST /app/scan/batch` (siehe [MOBILE-API.md](MOBILE-API.md)).
+
+**Scanner-Geräte:** Die Geräteliste hat die Spalte **Offline-Paket**: „gültig bis …“ (das nächste Ablaufdatum eines
+noch gültigen Pakets: letzter Abruf plus „maximale Offline-Dauer“ des Events – derselbe Zeitpunkt, der als
+`expires_at` im signierten Paket steht), „abgelaufen am … – vor dem Einsatz neu laden“ oder „kein Paket geladen“
+(Gerät für Offline zugewiesen, aber noch nie abgerufen). Unter **Offline-Scanner** zeigt die Gerätetabelle je
+Zuweisung zusätzlich „Paket gültig bis“.
+
 ## Bestellsuche im Admin
 
 Die Suche unter **Pass Captain → Bestellungen** nutzt die Indizes der Bestelltabelle (PERF-15):

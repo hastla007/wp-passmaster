@@ -91,6 +91,52 @@ final class Assignments {
 		$wpdb->update( self::table(), array( 'last_package_at' => current_time( 'mysql', true ) ), array( 'device_id' => (int) $row->device_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id ) );
 	}
 
+	/**
+	 * A688: end of validity of the offline package fetched for an assignment row (last_package_at plus the
+	 * event's max_offline_hours, the `expires_at` signed into the package), UTC; '' without a package.
+	 */
+	public static function package_expiry( $row, $hours = null ) {
+		$fetched = (string) ( $row->last_package_at ?? '' );
+		if ( '' === $fetched ) { return ''; }
+		$hours = null === $hours ? (int) Rules::get( (int) $row->event_id )['max_offline_hours'] : (int) $hours;
+		return gmdate( 'Y-m-d H:i:s', strtotime( $fetched . ' UTC' ) + max( 1, $hours ) * HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * A688: offline package state per device for the device list: assignments, packages fetched, the next
+	 * expiry of a still valid package (`valid_until`), the latest expiry of the expired ones (`expired_at`)
+	 * and whether every fetched package has expired. One query for all devices.
+	 *
+	 * @param int[] $device_ids Devices.
+	 * @return array<int,array{assignments:int,packages:int,valid_until:string,expired_at:string,all_expired:bool}>
+	 */
+	public static function package_status( array $device_ids ) {
+		global $wpdb;
+		$device_ids = array_values( array_unique( array_filter( array_map( 'absint', $device_ids ) ) ) );
+		$out = array();
+		foreach ( $device_ids as $id ) { $out[ $id ] = array( 'assignments' => 0, 'packages' => 0, 'valid_until' => '', 'expired_at' => '', 'all_expired' => false ); }
+		if ( ! $device_ids ) { return $out; }
+		$rows = $wpdb->get_results( 'SELECT device_id,event_id,occurrence_id,last_package_at FROM ' . self::table() . ' WHERE device_id IN (' . implode( ',', $device_ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table name from the prefix, integer list.
+		$now = \PassCaptain\Clock::mysql();
+		$hours = array();
+		foreach ( (array) $rows as $row ) {
+			$id = (int) $row->device_id;
+			++$out[ $id ]['assignments'];
+			if ( ! $row->last_package_at ) { continue; }
+			$event = (int) $row->event_id;
+			if ( ! isset( $hours[ $event ] ) ) { $hours[ $event ] = (int) Rules::get( $event )['max_offline_hours']; }
+			$expiry = self::package_expiry( $row, $hours[ $event ] );
+			++$out[ $id ]['packages'];
+			if ( $expiry > $now ) {
+				if ( '' === $out[ $id ]['valid_until'] || $expiry < $out[ $id ]['valid_until'] ) { $out[ $id ]['valid_until'] = $expiry; }
+			} elseif ( $expiry > $out[ $id ]['expired_at'] ) {
+				$out[ $id ]['expired_at'] = $expiry;
+			}
+		}
+		foreach ( $out as $id => $status ) { $out[ $id ]['all_expired'] = $status['packages'] > 0 && '' === $status['valid_until']; }
+		return $out;
+	}
+
 	/** All assignment rows of a device. */
 	public static function for_device( $device_id ) {
 		global $wpdb;

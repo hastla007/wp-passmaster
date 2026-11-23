@@ -262,7 +262,7 @@ $pm_admin = array(
 	'wpcap_schema_retry' => 'manage_options', 'wpcap_entry_window_dismiss' => 'manage_options', 'wpcap_resume_bulk_run' => 'wpcap_manage_events',
 	'wpcap_retry_allocation' => 'wpcap_manage_orders', 'wpcap_settle_unallocated' => 'wpcap_manage_orders', 'wpcap_request_attendee_data' => 'wpcap_manage_orders',
 	'wpcap_ticket_pdf' => 'wpcap_manage_orders', 'wpcap_resolve_refund' => 'wpcap_refund', 'wpcap_consent_withdraw' => 'wpcap_manage_orders',
-	'wpcap_export_consents' => 'wpcap_manage_orders', 'wpcap_correct_attendee' => 'wpcap_manage_orders', 'wpcap_checkin_ticket' => 'wpcap_checkin',
+	'wpcap_export_consents' => 'wpcap_manage_orders', 'wpcap_correct_attendee' => 'wpcap_manage_orders', 'wpcap_checkin_ticket' => 'wpcap_checkin', 'wpcap_bulk_checkin' => 'wpcap_checkin',
 	'wpcap_create_scanner_page' => 'publish_pages', 'wpcap_test_provider_connection' => 'manage_options', 'wpcap_campaign_create' => 'wpcap_manage_events',
 	'wpcap_campaign_status' => 'wpcap_manage_events', 'wpcap_member_pass' => 'wpcap_manage_orders', 'wpcap_tax_profile_save' => 'wpcap_view_finance',
 	'wpcap_tax_profile_activate' => 'wpcap_view_finance', 'wpcap_tax_profile_retire' => 'wpcap_view_finance', 'wpcap_getting_started' => 'manage_options',

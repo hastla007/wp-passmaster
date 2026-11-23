@@ -54,6 +54,7 @@ final class Menu {
 			'wpcap_correct_attendee' => array( TicketsPage::class, 'handle_correct_attendee' ),
 			'wpcap_reissue_ticket' => array( TicketsPage::class, 'handle_reissue_ticket' ),
 			'wpcap_checkin_ticket' => array( TicketsPage::class, 'handle_checkin_ticket' ),
+			'wpcap_bulk_checkin' => array( TicketsPage::class, 'handle_bulk_checkin' ),
 			ScannerPage::ACTION_CREATE => array( ScannerPage::class, 'handle_create' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			SettingsPage::TEST_ACTION => array( SettingsPage::class, 'handle_test_connection' ),

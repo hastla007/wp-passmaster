@@ -7,6 +7,7 @@
 
 namespace PassCaptain\Admin;
 
+use PassCaptain\Admission\BulkCheckin;
 use PassCaptain\Access;
 use PassCaptain\Audit;
 use PassCaptain\Privacy\AccessLog;
@@ -384,6 +385,171 @@ final class TicketsPage {
 	 * Rendering
 	 * =========================================================================================== */
 
+	/* ------------------------------------------------------------------ A688: bulk check-in / check-out */
+
+	/** Transient of the current user's bulk run: the confirmed selection and its last report. */
+	private static function bulk_key() {
+		return 'wpcap_bulk_checkin_' . get_current_user_id();
+	}
+
+	/** The pending or finished bulk run of the current user (null without one). */
+	public static function bulk_state() {
+		$state = get_transient( self::bulk_key() );
+		return is_array( $state ) && ! empty( $state['batch_key'] ) ? $state : null;
+	}
+
+	/**
+	 * Step 1: the selected tickets (`ticket_ids[]`, `direction` in|out, optional `area_id`) are checked and
+	 * kept for confirmation under a new batch key – nothing is booked yet. Only tickets of dates the user may
+	 * admit to; at most BulkCheckin::max().
+	 *
+	 * @return array|\WP_Error The stored state.
+	 */
+	public static function bulk_prepare( array $in ) {
+		if ( ! current_user_can( 'wpcap_checkin' ) ) { return Forms::forbidden(); }
+		$raw = isset( $in['ticket_ids'] ) && is_array( $in['ticket_ids'] ) ? $in['ticket_ids'] : array();
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', array_filter( $raw, 'is_scalar' ) ) ) ) );
+		if ( ! $ids ) { return Forms::error( 'wpcap_bulk_empty', __( 'Bitte mindestens ein Ticket auswählen.', 'pass-captain' ), 400 ); }
+		if ( count( $ids ) > BulkCheckin::max() ) {
+			/* translators: %d: maximum number of tickets */
+			return Forms::error( 'wpcap_bulk_size', sprintf( _n( 'Höchstens %d Ticket je Sammelaktion.', 'Höchstens %d Tickets je Sammelaktion.', BulkCheckin::max(), 'pass-captain' ), BulkCheckin::max() ), 400 );
+		}
+		$tickets = array();
+		foreach ( $ids as $id ) {
+			$ticket = Queries::ticket_context( $id );
+			if ( ! $ticket || ! Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ) ) {
+				return Forms::forbidden( __( 'Für mindestens ein gewähltes Ticket ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) );
+			}
+			$tickets[ $id ] = (string) $ticket->public_id;
+		}
+		$state = array(
+			'batch_key' => 'admin-' . wp_generate_uuid4(),
+			'direction' => 'out' === Forms::text( $in, 'direction', 8 ) ? 'out' : 'in',
+			'area_id'   => Forms::int( $in, 'area_id' ),
+			'tickets'   => $tickets,
+			'report'    => null,
+			'created'   => \PassCaptain\Clock::now(),
+		);
+		set_transient( self::bulk_key(), $state, HOUR_IN_SECONDS );
+		return $state;
+	}
+
+	/**
+	 * Step 2 (confirmed) and retries: runs the stored selection with its batch key. A retry runs the same
+	 * batch key again for the tickets that were not booked because of a temporary error – tickets already
+	 * booked by this run are never admitted twice (idempotency key per ticket, BulkCheckin). The report is
+	 * kept for the result view.
+	 *
+	 * @param string $batch_key Key of the confirmation form (must match the stored run).
+	 * @param bool   $retry     Only the retryable tickets of the last report.
+	 * @return array|\WP_Error Report.
+	 */
+	public static function bulk_run( $batch_key, $retry = false ) {
+		if ( ! current_user_can( 'wpcap_checkin' ) ) { return Forms::forbidden(); }
+		$state = self::bulk_state();
+		if ( ! $state || ! hash_equals( (string) $state['batch_key'], (string) $batch_key ) ) {
+			return Forms::error( 'wpcap_bulk_expired', __( 'Diese Sammelaktion ist abgelaufen oder wurde schon beendet. Bitte die Tickets erneut auswählen.', 'pass-captain' ), 409 );
+		}
+		$ids = $retry && is_array( $state['report'] ) ? BulkCheckin::retry_ids( $state['report'] ) : array_keys( $state['tickets'] );
+		if ( ! $ids ) { return Forms::error( 'wpcap_bulk_nothing', __( 'Es gibt nichts zu wiederholen.', 'pass-captain' ), 409 ); }
+		$report = BulkCheckin::run( $ids, $state['direction'], $state['batch_key'], array( 'source' => 'admin', 'key_prefix' => 'admin:', 'area_id' => (int) $state['area_id'] ) );
+		if ( is_wp_error( $report ) ) { return $report; }
+		if ( $retry && is_array( $state['report'] ) ) {
+			// Merge: the retried lines replace their earlier ones.
+			$lines = array();
+			foreach ( $state['report']['results'] as $row ) { $lines[ (int) $row['ticket_id'] ] = $row; }
+			foreach ( $report['results'] as $row ) { $lines[ (int) $row['ticket_id'] ] = $row; }
+			$counts = array( 'done' => 0, 'already' => 0, 'refused' => 0, 'retry' => 0 );
+			foreach ( $lines as $row ) {
+				$bucket = $row['ok'] ? 'done' : ( ! empty( $row['retryable'] ) ? 'retry' : ( in_array( $row['result'], BulkCheckin::ALREADY, true ) ? 'already' : 'refused' ) );
+				++$counts[ $bucket ];
+			}
+			$report = array_merge( $report, array( 'results' => array_values( $lines ), 'counts' => $counts, 'total' => count( $lines ), 'complete' => 0 === $counts['retry'] ) );
+		}
+		$state['report'] = $report;
+		set_transient( self::bulk_key(), $state, HOUR_IN_SECONDS );
+		return $report;
+	}
+
+	/** admin-post wpcap_bulk_checkin: steps prepare, run, retry, cancel. */
+	public static function handle_bulk_checkin() {
+		Forms::require_any_cap( array( 'wpcap_checkin' ) );
+		$in = Forms::post();
+		Forms::verify( 'wpcap_bulk_checkin' );
+		$step = Forms::choice( $in, 'step', array( 'prepare', 'run', 'retry', 'cancel' ), 'prepare' );
+		$back = self::back_url( $in ) . '#wpcap-bulk-checkin';
+		if ( 'cancel' === $step ) {
+			delete_transient( self::bulk_key() );
+			Forms::finish( true, __( 'Sammelaktion geschlossen.', 'pass-captain' ), $back );
+		}
+		if ( 'prepare' === $step ) {
+			$state = self::bulk_prepare( $in );
+			Forms::finish( is_wp_error( $state ) ? $state : true, is_wp_error( $state ) ? '' : __( 'Bitte die Sammelaktion bestätigen.', 'pass-captain' ), $back );
+		}
+		$report = self::bulk_run( Forms::text( $in, 'batch_key', 80 ), 'retry' === $step );
+		if ( is_wp_error( $report ) ) { Forms::finish( $report, '', $back ); }
+		/* translators: 1: tickets done, 2: already in that state, 3: refused, 4: to retry */
+		Forms::finish( true, sprintf( __( 'Sammelaktion ausgeführt: %1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen.', 'pass-captain' ), $report['counts']['done'], $report['counts']['already'], $report['counts']['refused'], $report['counts']['retry'] ), $back );
+	}
+
+	/** Confirmation and result report of the current user's bulk run (above the ticket list). */
+	private static function render_bulk( array $filters, $page ) {
+		$state = self::bulk_state();
+		if ( ! $state || ! current_user_can( 'wpcap_checkin' ) ) { return; }
+		$in = 'out' === $state['direction'];
+		$count = count( $state['tickets'] );
+		echo '<div class="notice notice-info inline" id="wpcap-bulk-checkin-state">';
+		if ( ! is_array( $state['report'] ) ) {
+			echo '<p><strong>' . esc_html( sprintf(
+				/* translators: %d: number of tickets */
+				$in ? _n( '%d Ticket auschecken?', '%d Tickets auschecken?', $count, 'pass-captain' ) : _n( '%d Ticket einchecken?', '%d Tickets einchecken?', $count, 'pass-captain' ),
+				$count
+			) ) . '</strong> ' . esc_html__( 'Jedes Ticket wird wie ein Scan am Einlass geprüft (Termin, Bereich, Einlassregel). Bereits verbuchte Tickets werden bei einer Wiederholung nicht doppelt gezählt.', 'pass-captain' ) . '</p>';
+			echo '<p><small>' . esc_html( implode( ', ', array_slice( array_values( $state['tickets'] ), 0, 20 ) ) . ( $count > 20 ? ' …' : '' ) ) . '</small></p>';
+			self::bulk_form( 'run', $state, $filters, $page, $in ? __( 'Ja, auschecken', 'pass-captain' ) : __( 'Ja, einchecken', 'pass-captain' ), true );
+		} else {
+			$report = $state['report'];
+			echo '<p><strong>' . esc_html__( 'Ergebnis der Sammelaktion', 'pass-captain' ) . '</strong> ';
+			/* translators: 1: tickets done, 2: already in that state, 3: refused, 4: to retry */
+			echo esc_html( sprintf( __( '%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen.', 'pass-captain' ), $report['counts']['done'], $report['counts']['already'], $report['counts']['refused'], $report['counts']['retry'] ) ) . '</p>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ergebnis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Hinweis', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $report['results'] as $row ) {
+				$label = $row['ok'] ? ( $row['replayed'] ? __( 'erledigt (bereits in diesem Lauf)', 'pass-captain' ) : __( 'erledigt', 'pass-captain' ) ) : ( ! empty( $row['retryable'] ) ? __( 'nicht verbucht – erneut versuchen', 'pass-captain' ) : (string) $row['result'] );
+				echo '<tr><td><code>' . esc_html( (string) ( $state['tickets'][ (int) $row['ticket_id'] ] ?? '#' . (int) $row['ticket_id'] ) ) . '</code></td><td>' . esc_html( $label ) . '</td><td>' . esc_html( (string) $row['message'] ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+			if ( $report['counts']['retry'] ) {
+				self::bulk_form( 'retry', $state, $filters, $page, __( 'Nicht verbuchte Tickets erneut versuchen', 'pass-captain' ), false );
+			}
+		}
+		self::bulk_form( 'cancel', $state, $filters, $page, is_array( $state['report'] ) ? __( 'Bericht schließen', 'pass-captain' ) : __( 'Abbrechen', 'pass-captain' ), false );
+		echo '</div>';
+	}
+
+	/** One button form of the bulk run (step run, retry or cancel). */
+	private static function bulk_form( $step, array $state, array $filters, $page, $label, $primary ) {
+		Forms::open_form( 'wpcap_bulk_checkin', null, 'style="display:inline-block;margin:0 .5em .5em 0"' );
+		Forms::hidden( 'step', $step );
+		Forms::hidden( 'batch_key', (string) $state['batch_key'] );
+		self::return_fields( $filters, $page );
+		echo '<button type="submit" class="button' . ( $primary ? ' button-primary' : '' ) . '">' . esc_html( $label ) . '</button></form>';
+	}
+
+	/** Selection form of the bulk action (the row checkboxes belong to it through form="…"). */
+	private static function render_bulk_selection( array $filters, $page ) {
+		if ( ! current_user_can( 'wpcap_checkin' ) ) { return; }
+		Forms::open_form( 'wpcap_bulk_checkin', null, 'id="wpcap-bulk-checkin"' );
+		Forms::hidden( 'step', 'prepare' );
+		self::return_fields( $filters, $page );
+		echo '<p><label>' . esc_html__( 'Ausgewählte Tickets', 'pass-captain' ) . ' ';
+		Forms::select( 'direction', array( 'in' => __( 'einchecken', 'pass-captain' ), 'out' => __( 'auschecken', 'pass-captain' ) ), 'in' );
+		echo '</label> ';
+		$areas = $filters['event_id'] ? self::checkin_areas( (int) $filters['event_id'] ) : array();
+		if ( $areas ) { Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' ); }
+		/* translators: %d: maximum number of tickets */
+		echo ' <button type="submit" class="button">' . esc_html__( 'Weiter zur Bestätigung', 'pass-captain' ) . '</button> <span class="description">' . esc_html( sprintf( _n( 'Höchstens %d Ticket je Sammelaktion.', 'Höchstens %d Tickets je Sammelaktion.', BulkCheckin::max(), 'pass-captain' ), BulkCheckin::max() ) ) . '</span></p></form>';
+	}
+
 	/**
 	 * Ticket search in the current user's scope: events with an event-level assignment plus – for
 	 * date-level staff (wpcap_occurrence_staff) – the tickets of their assigned dates only.
@@ -431,6 +597,7 @@ final class TicketsPage {
 		<?php if ( current_user_can( 'wpcap_checkin' ) ) : ?> <a class="page-title-action" href="<?php echo esc_url( Forms::page_url( ScannerPage::SLUG ) ); ?>"><?php esc_html_e( 'Web-Scanner öffnen', 'pass-captain' ); ?></a><?php endif; ?>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
+		<?php self::render_bulk( $filters, $page ); ?>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name', 'pass-captain' ); ?>">
@@ -451,8 +618,10 @@ final class TicketsPage {
 		<?php if ( ! $has_filter ) : ?>
 			<p><?php esc_html_e( 'Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen.', 'pass-captain' ); ?></p>
 		<?php else : ?>
+			<?php self::render_bulk_selection( $filters, $page ); ?>
 			<table class="widefat striped">
 				<thead><tr>
+					<td class="check-column"><span class="screen-reader-text"><?php esc_html_e( 'Auswahl für Sammelaktion', 'pass-captain' ); ?></span></td>
 					<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
 					<th><?php esc_html_e( 'Event / Termin', 'pass-captain' ); ?></th>
 					<th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th>
@@ -461,7 +630,7 @@ final class TicketsPage {
 					<th><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
 				</tr></thead>
 				<tbody>
-				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
+				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
 					$email = \PassCaptain\Pii::show( 'attendee_email', '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email );
 					$buyer_email = \PassCaptain\Pii::show( 'buyer_email', $ticket->customer_email );
@@ -470,6 +639,7 @@ final class TicketsPage {
 					$can_checkin = Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id );
 					?>
 					<tr>
+						<td class="check-column"><?php if ( $can_checkin && in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ) : // A688: selection for bulk check-in/out. ?><input type="checkbox" name="ticket_ids[]" form="wpcap-bulk-checkin" value="<?php echo esc_attr( (string) (int) $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s auswählen', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></td>
 						<td><code><?php echo esc_html( $ticket->public_id ); ?></code><br><small><?php echo esc_html( $ticket->ticket_name ); ?></small></td>
 						<td><?php echo esc_html( $ticket->event_name ); ?><br><small><?php echo esc_html( Forms::datetime( $ticket->starts_at, $ticket->timezone ) ); ?></small></td>
 						<td>

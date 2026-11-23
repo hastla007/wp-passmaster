@@ -41,6 +41,11 @@ Otherwise the server returns `403 wpcap_offline_not_assigned`. Revoked devices g
 deletes stored packages that the server no longer lists or refuses with 403. On `401` (or an error code
 `…device_revoked`/`…device_unauthenticated`) it wipes the device, see *Revoked token* below.
 
+The admin shows the package expiry per device (A688): *Scanner-Geräte* lists "gültig bis …" (the next
+expiry of a still valid package: `last_package_at` + the event's `max_offline_hours`, the same moment as the
+package's `expires_at`), "abgelaufen am …" or "kein Paket geladen"; the device table of an event under
+*Offline-Scanner* has a column "Paket gültig bis" (`Assignments::package_expiry()` / `package_status()`).
+
 ## REST (device bearer token, namespace `pass-captain/v1`)
 
 | Route | Description |
