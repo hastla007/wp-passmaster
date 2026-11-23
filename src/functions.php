@@ -129,3 +129,35 @@ if ( ! function_exists( 'wpcap_get_event_state' ) ) {
 		return PassCaptain\Api\ReadFacade::event( $id );
 	}
 }
+
+/*
+ * Read service for connectors (contract 1.4.0, PASS-E17-01): a ticket or an order with occurrence, event,
+ * holder and check-ins, see PassCaptain\Api\TicketDetails. The holder's e-mail address only with the
+ * capability wpcap_read_holder_email (audited). Null when the record does not exist.
+ */
+
+if ( ! function_exists( 'wpcap_get_ticket_details' ) ) {
+	/**
+	 * Details of a ticket, see PassCaptain\Api\TicketDetails::ticket().
+	 *
+	 * @param int|string $id   Ticket ID or public_id (32 hex characters).
+	 * @param array      $args include_email, user_id, source.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_ticket_details( $id, $args = array() ) {
+		return PassCaptain\Api\TicketDetails::ticket( $id, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_order_ticket_details' ) ) {
+	/**
+	 * Details of an order and its tickets, see PassCaptain\Api\TicketDetails::order().
+	 *
+	 * @param int|string $id   Order ID or public_id (32 hex characters).
+	 * @param array      $args include_email, user_id, source.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_order_ticket_details( $id, $args = array() ) {
+		return PassCaptain\Api\TicketDetails::order( $id, (array) $args );
+	}
+}

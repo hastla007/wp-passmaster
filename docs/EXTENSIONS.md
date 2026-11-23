@@ -49,7 +49,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.1.0 | 1.5.0 | zusätzlich alle Erweiterungspunkte mit „seit 1.5.0“ |
 | 1.2.0 | 1.6.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
-| 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); additiv |
+| 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`) (PASS-E17-01); additiv |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
@@ -124,6 +124,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_workflow_provider_v1` | 1.5.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
+| `PassCaptain\Api\TicketDetails` (`ticket()`, `order()`, `VERSION`, `EMAIL_CAP`), `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\Integrations\Vouchers\Reconciliation` (`orders()`, `VERSION`, `MAX_LIMIT`) | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
@@ -167,6 +168,7 @@ ihnen stehen im `CHANGELOG.md`.
 | White Label | `wp_pass_captain_brand_name_v1`, `wp_pass_captain_brand_logo_v1`, `wp_pass_captain_admin_menu_title_v1`, `wp_pass_captain_admin_menu_icon_v1` | Versionierte Filter | `src/Brand.php` |
 | Zugangsschranke vor dem Kauf (Warteraum) | `wp_pass_captain_checkout_allowed_v1` | Versionierter Filter | `src/Sales/CheckoutGate.php`, `src/Integrations/WooCommerce/CheckoutGate.php` |
 | Zustand von Bestellung, Ticket, Erstattung, Termin, Event lesen | `PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()` | Lese-API (Vertrag 1.3.0) | `src/Api/ReadFacade.php`, `src/functions.php` |
+| Ticket oder Bestellung mit Termin, Event, Inhaber und Check-ins lesen (Connectoren) | `PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | Lese-API (Vertrag 1.4.0) | `src/Api/TicketDetails.php`, `src/functions.php` |
 | API-Scopes für eigene REST-Routen | `wp_pass_captain_api_scopes_v1`, `PassCaptain\Api\Auth::request_can()` / `wpcap_api_request_can()` | Filter + Prüf-API | `src/DeveloperKeys.php`, `src/Api/Auth.php` |
 
 ## Module: Admin-Navigation, Einstellungen, Tabellen
@@ -502,6 +504,57 @@ add_action( 'wpcap_ticket_checked_in', static function ( int $ticket_id ) {
 
 Test: `tests/integration/modules/zzzzzzzz_pc4_read_facade.php` (Positivliste der Schlüssel, beide ID-Arten,
 unbekannte IDs, Markierungswerte für E-Mail, Name, Code und Freitext erscheinen nicht, nur SELECT-Abfragen).
+
+## Lesedienst für Connectoren
+
+Seit Vertragsversion 1.4.0 (Plugin 1.6.0, PASS-E17-01) liest ein Connector ein Ticket oder eine Bestellung samt
+Termin, Event, Inhaber und Check-ins über einen versionierten Dienst, statt Tabellen von Pass Captain direkt
+abzufragen. Er baut auf der [Lesefassade](#lesefassade-für-zustände) auf: `ticket`, `order`, `occurrence` und
+`event` sind genau deren Arrays; Tabellen- oder Spaltennamen kommen nicht vor.
+
+| Funktion | Methode | ID-Argument | seit |
+|---|---|---|---|
+| `wpcap_get_ticket_details( $id, $args = [] )` | `PassCaptain\Api\TicketDetails::ticket( $id, $args )` | `ticket_id` oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.4.0) |
+| `wpcap_get_order_ticket_details( $id, $args = [] )` | `TicketDetails::order( $id, $args )` | `order_id` oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.4.0) |
+
+Rückgabe (`null`, wenn es den Datensatz nicht gibt; alle Schlüssel immer vorhanden; `version` =
+`TicketDetails::VERSION` = 1):
+
+| Teil | Schlüssel |
+|---|---|
+| Ticket-Ergebnis | `version`, `ticket`, `occurrence`, `event`, `holder`, `checkins` |
+| Bestellungs-Ergebnis | `version`, `order` (Bestellung der Lesefassade), `tickets` (Liste von Ticket-Ergebnissen, nach Ticket-ID, höchstens 500) |
+| `ticket` | Ticket der Lesefassade (`version`, `ticket_id`, `public_id`, `order_id`, `order_public_id`, `ticket_type_id`, `occurrence_id`, `event_id`, `status`, `checked_in`, `refunded`, `issued_at`) |
+| `occurrence` | Termin der Lesefassade (`starts_at`, `ends_at`, `timezone`, `status`, `rescheduled_at` …) + `cancelled` (bool, Status `cancelled`), `rescheduled` (bool, `rescheduled_at` gesetzt); `null` ohne Termin |
+| `event` | Event der Lesefassade + `cancelled` (bool); `null` ohne Event |
+| `holder` | `user_id` (WordPress-Konto des Inhabers: ohne eigene Teilnehmer-E-Mail das Konto der Bestellung, sonst das Konto mit der Teilnehmer-E-Mail; `null`, wenn es keins gibt), `is_buyer` (bool), `email_included` (bool), `email` (nur mit Berechtigung, sonst `null`) |
+| `checkins` | Liste der Einlass-Einträge (`checked_in`, `checked_out`, `undone`), älteste zuerst, höchstens 200: `checkin_id`, `result`, `at` (UTC, RFC 3339), `source` (z. B. `web`, `app`), `device_id` (`null` ohne Gerät) |
+
+`$args`:
+
+- `include_email` (bool): die E-Mail-Adresse des Inhabers anfordern. Sie kommt nur, wenn der lesende Benutzer die
+  eigene Capability **`wpcap_read_holder_email`** (`TicketDetails::EMAIL_CAP`) hat. Der Kern vergibt sie an keine
+  Rolle, auch nicht an Administratoren; die Betreiberin vergibt sie bewusst, etwa an den Dienstbenutzer eines
+  Connectors. Jede Herausgabe schreibt einen Eintrag ins Audit-Log (Aktion `holder_email_read`, Objekt Ticket,
+  Details `source` und `reader_user_id`, nie die Adresse).
+- `user_id` (int): der lesende Benutzer, Vorgabe der angemeldete Benutzer. In Hintergrundjobs (Zustellung der
+  Connector-Ereignisse) ist niemand angemeldet; der Connector nennt dann seinen Dienstbenutzer.
+- `source` (string): Kennung des Aufrufers für das Audit-Log, üblicherweise der Connector-Schlüssel.
+
+Sonst gelten die Regeln der Lesefassade: keine Namen, keine Codes, kein Freitext, keine Rechteprüfung außer für die
+E-Mail-Adresse, stabil innerhalb von Version 1 (neue Schlüssel nur mit neuer zweiter Stelle der Vertragsversion).
+Nicht enthalten sind die Kennung des scannenden Mitarbeiters und die Teilnehmerangaben.
+
+```php
+$ok = defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '1.4.0', '>=' )
+	&& version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
+$details = $ok ? wpcap_get_ticket_details( $ticket_id, array( 'source' => 'my_connector' ) ) : null;
+if ( $details && ! $details['occurrence']['cancelled'] ) {
+	$user_id = $details['holder']['user_id']; // Kurszugang für dieses Konto …
+}
+```
+
+Test: `tests/integration/modules/zz_e17_connector_api.php`.
 
 ## Pass Captain Pro / Add-on-Schnittstellen
 

@@ -36,6 +36,8 @@ Lesende Funktionen ohne Hook (Lesefassade `wpcap_get_order_state()`, `wpcap_get_
 `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()`, seit 1.5.0 mit Vertrag 1.3.0)
 stehen mit ihren Rückgabeschlüsseln in [EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände); sie liefern den
 Zustand zu den IDs, die die Actions unten übergeben.
+Ebenso ohne Hook: der Lesedienst für Connectoren `wpcap_get_ticket_details()` und
+`wpcap_get_order_ticket_details()` (seit 1.6.0 mit Vertrag 1.4.0, [EXTENSIONS.md](EXTENSIONS.md#lesedienst-für-connectoren)).
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 `grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der

@@ -24,7 +24,9 @@ besteht nicht.
 Alle Actions übergeben interne Datenbank-IDs. Öffentliche IDs (`public_id`) und den Zustand von Bestellung, Ticket,
 Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.3.0 über die Lesefassade
 `wpcap_get_*_state()` / `PassCaptain\Api\ReadFacade` (ohne personenbezogene Daten und Codes, siehe
-[EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)). Seit welcher Plugin-Version jede Action feuert, ob
+[EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)); ein Ticket oder eine Bestellung mit Termin, Event, Inhaber
+und Check-ins seit Vertragsversion 1.4.0 über `wpcap_get_ticket_details()` / `wpcap_get_order_ticket_details()`
+([Lesedienst für Connectoren](EXTENSIONS.md#lesedienst-für-connectoren)). Seit welcher Plugin-Version jede Action feuert, ob
 sie nach dem Commit feuert und welche Werte `$reason` bei `wpcap_order_cancelled` und `wpcap_ticket_revoked`
 annehmen kann (auch Freitext), steht in [HOOKS.md](HOOKS.md#suite-katalog-seit-welcher-version-zeitpunkt-grund).
 
