@@ -970,6 +970,7 @@ final class PublicEvents {
 	 */
 	public static function card_providers( $event, $currency ) {
 		$providers = Payments\Registry::enabled( (string) $currency );
+		$providers = Payments\Rules::filter( $providers, array( 'event_ids' => isset( $event->event_id ) ? array( (int) $event->event_id ) : array() ) ); // SET-PC-40
 		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
 		return $providers;
 	}

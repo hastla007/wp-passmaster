@@ -645,6 +645,11 @@ final class Controller {
 				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency', array( 'pending' ) );
 				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
+			// SET-PC-40: rules per event, amount and billing country.
+			if ( ! \PassCaptain\Payments\Rules::allows( $provider_id, \PassCaptain\Payments\Rules::order_context( (int) $result['order_id'] ) ) ) {
+				Orders::cancel_order( $result['order_id'], 'provider_not_allowed', array( 'pending' ) );
+				return new \WP_Error( 'wpcap_provider_rule', __( 'Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
+			}
 			if ( $min_hold ) {
 				// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
 				$hold_until = self::hold_until( (int) $result['order_id'] );

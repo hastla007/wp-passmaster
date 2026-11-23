@@ -118,6 +118,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_settings_sections_v1` | 1.5.0 |
 | `wp_pass_captain_settings_schema_v1` | 1.7.0 |
 | `wp_pass_captain_country_presets_v1` | 1.7.0 |
+| `wp_pass_captain_payment_rules_v1` | 1.7.0 |
 | `wp_pass_captain_ticket_mail_inline_max_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_read_v1` | 1.5.0 |
 | `wp_pass_captain_ticket_mail_list_max_v1` | 1.5.0 |

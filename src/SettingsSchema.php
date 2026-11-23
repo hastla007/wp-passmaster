@@ -26,7 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SettingsSchema {
 	/** Entry types the register knows (form field types of Admin\SettingsPage plus group). */
-	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'currency', 'currencies', 'url', 'prefix', 'providers', 'modules', 'list', 'group' );
+	const TYPES = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret', 'email', 'iban', 'bic', 'currency', 'currencies', 'country', 'countries', 'url', 'prefix', 'providers', 'modules', 'list', 'group' );
 
 	/**
 	 * Settings whose value has legal weight (texts with paragraphs of law, invoice data, retention, tax):
@@ -261,6 +261,22 @@ final class SettingsSchema {
 					return new \WP_Error( 'wpcap_setting_url', sprintf( __( '„%s“ muss eine vollständige Adresse mit http:// oder https:// sein.', 'pass-captain' ), $label ) );
 				}
 				return esc_url_raw( $url );
+			case 'country':
+				$code = strtoupper( trim( is_scalar( $value ) ? (string) $value : '' ) );
+				if ( ! preg_match( '/^[A-Z]{2}$/', $code ) ) {
+					/* translators: %s: field label */
+					return new \WP_Error( 'wpcap_setting_country', sprintf( __( '„%s“ muss ein Ländercode aus zwei Buchstaben sein (z. B. DE).', 'pass-captain' ), $label ) );
+				}
+				return $code;
+			case 'countries':
+				$codes = array_values( array_unique( array_filter( array_map( static function ( $c ) { return strtoupper( trim( $c ) ); }, preg_split( '/[\s,;]+/', is_array( $value ) ? implode( ',', array_filter( $value, 'is_scalar' ) ) : ( is_scalar( $value ) ? (string) $value : '' ) ) ) ) ) );
+				foreach ( $codes as $code ) {
+					if ( ! preg_match( '/^[A-Z]{2}$/', $code ) ) {
+						/* translators: 1: field label, 2: invalid code */
+						return new \WP_Error( 'wpcap_setting_countries', sprintf( __( '„%1$s“: „%2$s“ ist kein Ländercode aus zwei Buchstaben.', 'pass-captain' ), $label, $code ) );
+					}
+				}
+				return implode( ',', $codes );
 			case 'currency':
 				$code = strtoupper( trim( is_scalar( $value ) ? (string) $value : '' ) );
 				if ( ! preg_match( '/^[A-Z]{3}$/', $code ) ) {

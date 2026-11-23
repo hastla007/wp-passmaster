@@ -206,6 +206,15 @@ final class Settings {
 			// SET-PC-19: imprint and privacy page ('' privacy = WordPress privacy page, '' imprint = no link).
 			'imprint_url'               => '',
 			'privacy_url'               => '',
+			// SET-PC-24: countries offered in the billing address ('' = built-in list) and the optional region field.
+			'billing_countries'         => '',
+			'billing_region_field'      => 0,
+			// SET-PC-29: WooCommerce (0 = automatic hold: core hold, at least WooCommerce "hold stock").
+			'woo_hold_minutes'          => 0,
+			'woo_issue_on_completed_gateways' => 'cod',
+			'woo_collect_attendees'     => 'fields',
+			// SET-PC-40: payment method rules, one per line ("stripe | events=1,2 | min=10 | max=500 | countries=DE,AT").
+			'payment_rules'             => '',
 		);
 	}
 

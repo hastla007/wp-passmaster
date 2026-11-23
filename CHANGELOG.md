@@ -21,6 +21,9 @@
 - Anrede (SET-PC-09): Alle deutschen Texte nutzen „du“; neue Sprachdatei „Deutsch (Sie)“ (`de_DE_formal`) mit förmlicher Anrede, wählbar in der Käufer-Sprachauswahl. Der Datenschutz-Vorschlag ist jetzt ebenfalls in der Du-Form.
 - Impressum und Datenschutzerklärung (SET-PC-19): eigene Adressen in den Rechtstexten, Links im Checkout und in der E-Mail-Fußzeile, Platzhalter `{imprint_url}` und `{privacy_url}`.
 - Pro-Hinweiszeilen (SET-PC-06): Grundlage für graue, ausblendbare Textzeilen am Ende der Reiter; die Liste ist leer, bis eine Pro-Funktion verkauft wird.
+- Rechnungsadresse (SET-PC-24): Länderliste als Einstellung, optionales Feld „Region / Bundesland“, Verkäuferland als Auswahl.
+- WooCommerce (SET-PC-29): Reservierungszeit, Ausstellen bei „Abgeschlossen“ je Zahlungsart und Teilnehmerdaten im Woo-Checkout als Einstellungen; Filter behalten Vorrang.
+- Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`.
 - WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
 
 ### Servicegebühr (A425, Entscheidungen vom 23.11.2026)

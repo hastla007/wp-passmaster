@@ -121,6 +121,16 @@ final class SettingsPage {
 					'term_replacements' => array( 'type' => 'textarea', 'label' => __( 'Eigene Ersetzungen', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Terms::class, 'sanitize_lines' ), 'description' => __( 'Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen.', 'pass-captain' ) ),
 				),
 			),
+			'woocommerce' => array(
+				'title' => __( 'WooCommerce', 'pass-captain' ),
+				'tab' => 'general',
+				'description' => __( 'Gilt nur, wenn Tickets über WooCommerce verkauft werden. Ticketpreise aus Pass Captain, gemischte Rechnungssteller und Erstattungen nach dem Einlass stellst du unter WooCommerce → Einstellungen → Produkte ein.', 'pass-captain' ),
+				'fields' => array(
+					'woo_hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierung bei WooCommerce-Bestellungen (Minuten)', 'pass-captain' ), 'min' => 0, 'max' => 1440, 'description' => __( '0 = automatisch: die Reservierungsdauer von Pass Captain, mindestens aber „Lagerbestand halten“ aus WooCommerce.', 'pass-captain' ) ),
+					'woo_issue_on_completed_gateways' => array( 'type' => 'text', 'label' => __( 'Tickets erst bei Status „Abgeschlossen“ für diese Zahlungsarten', 'pass-captain' ), 'description' => __( 'Kennungen der WooCommerce-Zahlungsarten, durch Komma getrennt, z. B. „cod, bacs“. Bei allen anderen Zahlungsarten werden Tickets nach der Zahlung ausgestellt.', 'pass-captain' ) ),
+					'woo_collect_attendees' => array( 'type' => 'choice', 'label' => __( 'Teilnehmerdaten im WooCommerce-Checkout', 'pass-captain' ), 'options' => array( 'fields' => __( 'nur wenn die Ticketart Teilnehmerfelder hat (Standard)', 'pass-captain' ), 'always' => __( 'immer (Name und E-Mail je Ticket)', 'pass-captain' ), 'never' => __( 'nie', 'pass-captain' ) ), 'description' => __( 'Ob der WooCommerce-Checkout je Ticket Name, E-Mail und Teilnehmerfelder abfragt.', 'pass-captain' ) ),
+				),
+			),
 			'event_pages' => array(
 				'title' => __( 'Eventseiten', 'pass-captain' ),
 				'tab' => 'general',
@@ -147,6 +157,7 @@ final class SettingsPage {
 				'tab' => 'payments',
 				'fields' => array(
 					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'pass-captain' ), 'description' => __( 'Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten.', 'pass-captain' ) ),
+					'payment_rules' => array( 'type' => 'textarea', 'label' => __( 'Regeln für Zahlungsarten', 'pass-captain' ), 'description' => __( 'Optional, eine Regel je Zeile: Zahlungsart | events=Event-IDs | min=Betrag | max=Betrag | countries=Ländercodes. Beispiel: „manual | max=500 | countries=DE,AT“. Eine Zahlungsart ohne Regel gilt überall; mehrere Zeilen für dieselbe Zahlungsart sind Alternativen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Payments\Rules::class, 'sanitize_setting' ) ),
 				),
 			),
 			'manual' => array(
@@ -310,7 +321,9 @@ final class SettingsPage {
 					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ), 'description' => __( 'Erscheint als Anschrift des Verkäufers auf Rechnungen.', 'pass-captain' ) ),
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ), 'description' => __( 'Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'pass-captain' ) ),
-					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
+					'seller_country' => array( 'type' => 'country', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
+					'billing_countries' => array( 'type' => 'countries', 'label' => __( 'Länder der Rechnungsadresse', 'pass-captain' ), 'description' => __( 'Ländercodes, durch Komma getrennt, z. B. „AT, DE, CH“. Nur diese Länder stehen in der Rechnungsadresse zur Auswahl. Leer = EU-Länder und häufige Nachbarländer.', 'pass-captain' ) ),
+					'billing_region_field' => array( 'type' => 'bool', 'label' => __( 'Feld „Region / Bundesland“ in der Rechnungsadresse anzeigen', 'pass-captain' ), 'description' => __( 'Optionales Feld, z. B. für Kanton oder Provinz; erscheint auf der Rechnung unter dem Ort.', 'pass-captain' ) ),
 					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam.', 'pass-captain' ) ),
 					'seller_small_business' => array( 'type' => 'bool', 'label' => __( 'Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)', 'pass-captain' ), 'description' => __( 'Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen).', 'pass-captain' ) ),
 					'seller_small_business_note' => array( 'type' => 'text', 'label' => __( 'Kleinunternehmer-Hinweis (leer = Standardtext für das Land)', 'pass-captain' ), 'description' => __( 'DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“', 'pass-captain' ) ),
@@ -592,9 +605,11 @@ final class SettingsPage {
 					case 'currency':
 					case 'currencies':
 					case 'url':
+					case 'country':
+					case 'countries':
 						// SET-PC-01: checked by the settings register, which reports instead of clamping.
 						if ( 'int' === $def['type'] && ( null === $raw || '' === $raw ) ) { break; }
-					if ( null === $raw && in_array( $def['type'], array( 'iban', 'bic', 'currency', 'currencies', 'url' ), true ) ) { break; } // Not in the form: keep the stored value.
+					if ( null === $raw && in_array( $def['type'], array( 'iban', 'bic', 'currency', 'currencies', 'url', 'country', 'countries' ), true ) ) { break; } // Not in the form: keep the stored value.
 						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
 						if ( is_wp_error( $checked ) ) {
 							$errors[] = $checked->get_error_message();
@@ -1029,6 +1044,12 @@ final class SettingsPage {
 				break;
 			case 'choice':
 				Forms::select( $key, $def['options'], (string) $value, $id );
+				break;
+			case 'country':
+				// SET-PC-24: selection from the country list; a stored code outside the list stays selectable.
+				$options = \PassCaptain\Billing::builtin_countries();
+				if ( '' !== (string) $value && ! isset( $options[ (string) $value ] ) ) { $options[ (string) $value ] = (string) $value; }
+				Forms::select( $key, $options, (string) $value, $id );
 				break;
 			case 'providers':
 				$enabled = (array) $value;

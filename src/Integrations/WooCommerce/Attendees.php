@@ -169,7 +169,9 @@ final class Attendees {
 			 * @param bool $collect Collect participant data.
 			 * @param int  $type_id Ticket type ID.
 			 */
-			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', $fields || $name_required, $type_id ) ) {
+			$mode = (string) \PassCaptain\Settings::get( 'woo_collect_attendees', 'fields' ); // SET-PC-29: fields | always | never.
+			$collect = 'always' === $mode ? true : ( 'never' === $mode ? false : ( $fields || $name_required ) );
+			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', $collect, $type_id ) ) {
 				continue;
 			}
 			$type  = OrderAdapter::ticket_type( $type_id );

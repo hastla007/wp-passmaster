@@ -887,6 +887,7 @@ final class OrderAdapter {
 			'street'     => implode( ', ', array_filter( array( trim( $get( 'get_billing_address_1' ) ), trim( $get( 'get_billing_address_2' ) ) ), 'strlen' ) ),
 			'postcode'   => $get( 'get_billing_postcode' ),
 			'city'       => $get( 'get_billing_city' ),
+			'region'     => $get( 'get_billing_state' ),
 			'country'    => $get( 'get_billing_country' ),
 			'vat_id'     => $vat_id,
 			'po_number'  => '',
@@ -901,6 +902,8 @@ final class OrderAdapter {
 	/** Hold duration for WooCommerce orders (at least the WooCommerce "hold stock" setting). */
 	private static function hold_minutes() {
 		$minutes = max( Orders::HOLD_MINUTES, absint( get_option( 'woocommerce_hold_stock_minutes', 60 ) ) );
+		$own = absint( \PassCaptain\Settings::get( 'woo_hold_minutes', 0 ) ); // SET-PC-29: 0 = automatic.
+		if ( $own > 0 ) { $minutes = $own; }
 		return (int) apply_filters( 'wpcap_woocommerce_hold_minutes', $minutes );
 	}
 
@@ -1376,7 +1379,8 @@ final class OrderAdapter {
 		 * @param string[]  $gateways Gateway IDs. Default array( 'cod' ).
 		 * @param \WC_Order $wc_order WooCommerce order.
 		 */
-		$gateways = (array) apply_filters( 'wpcap_woocommerce_issue_on_completed_gateways', array( 'cod' ), $wc_order );
+		$configured = array_values( array_filter( array_map( 'sanitize_key', preg_split( '/[\s,;]+/', (string) \PassCaptain\Settings::get( 'woo_issue_on_completed_gateways', 'cod' ) ) ) ) ); // SET-PC-29
+		$gateways = (array) apply_filters( 'wpcap_woocommerce_issue_on_completed_gateways', $configured, $wc_order );
 		if ( ! in_array( $method, $gateways, true ) ) {
 			return false;
 		}

@@ -446,12 +446,12 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 - [ ] **SET-PC-21 · Geschäftsregeln heben, Paket B (Protokolle, Fristen):** Support-Protokoll Tage/Stufe, Connector-Protokoll, Druckstapel, No-Show-Kulanz, Warteliste-Sperrfrist, Offline-Paketdauer; Übersicht „was wird wann gelöscht“ im Reiter Datenschutz. Braucht: -01.
 - [ ] **SET-PC-22 · Pro: feste Fristen einstellbar** (E-Rechnungs-Aufbewahrung, Check-in-Protokoll der Schreib-API). Braucht: anderes Repository (captain-pro).
 - [ ] **SET-PC-23 · Bargeld-Rundung und Stückelung je Währung** (aus/0,05/0,10), Rundungszeile in Bon, Z-Bericht und Export. Braucht: Rechtsprüfung, Steuerberatung.
-- [ ] **SET-PC-24 · Länder und Adressfelder:** Länderliste der Rechnungsadresse als Einstellung, optionales Feld Region, `seller_country` als Auswahl mit Prüfung.
+- [x] **SET-PC-24 · Länder und Adressfelder:** Länderliste der Rechnungsadresse als Einstellung, optionales Feld Region, `seller_country` als Auswahl mit Prüfung. *Erledigt 23.11.2026: Einstellung `billing_countries` (Länderliste, leer = eingebaute Liste), optionales Feld Region (`billing_region_field`, auch aus WooCommerce übernommen, auf der Rechnung unter dem Ort), `seller_country` als Auswahl mit Prüfung (Register-Typen `country`/`countries`); Test `zz_set_pc_24`.*
 - [ ] **SET-PC-25 · Kleinunternehmer- und Steuerhinweise je Land** aus dem Länderprofil, Reverse-Charge-Hinweis je Sprache. Braucht: Rechtsprüfung, -02.
 - [ ] **SET-PC-26 · Fiskal-Profile: Vorlagen je Land/Kanal**, Filter `wp_pass_captain_fiscal_profile_templates_v1`, Aktivierung bleibt an den Prüfvermerk gebunden. Braucht: Rechtsprüfung je Land.
 - [ ] **SET-PC-27 · Eigenes Recht `wpcap_manage_settings`**, Rollenfelder als Auswahl statt Freitext. Braucht: E6 (Empfehlung: einführen).
 - [x] **SET-PC-28 · Hilfetext und Prüfung an jedem Feld:** rund 30 Kernfelder ohne Hilfetext, `payment_poll_after_minutes` definieren, IBAN/BIC prüfen, gekappte Zahlen melden statt still ändern; Test „jedes Feld hat Hilfetext“. Braucht: -01. *Erledigt 23.11.2026: alle Felder der Einstellungsseite mit Hilfetext, IBAN (Prüfziffer) und BIC werden geprüft, Test `zz_set_pc_28`.*
-- [ ] **SET-PC-29 · WooCommerce-Einstellungen gebündelt** im Pass-Captain-Reiter (ein Speicherort, zwei Ansichten) plus Reservierungszeit, Ausstellen bei Status, Teilnehmerdaten im Woo-Checkout. Braucht: -01.
+- [x] **SET-PC-29 · WooCommerce-Einstellungen gebündelt** im Pass-Captain-Reiter (ein Speicherort, zwei Ansichten) plus Reservierungszeit, Ausstellen bei Status, Teilnehmerdaten im Woo-Checkout. Braucht: -01. *Erledigt 23.11.2026: Abschnitt „WooCommerce“ im Reiter Allgemein: Reservierungszeit (`woo_hold_minutes`, 0 = automatisch), Ausstellen erst bei „Abgeschlossen“ je Zahlungsart (`woo_issue_on_completed_gateways`), Teilnehmerdaten im Woo-Checkout (`woo_collect_attendees`); die bestehenden Filter behalten Vorrang. Die drei WooCommerce-Optionen unter Produkte bleiben dort (Hinweis im Abschnitt); Test `zz_set_pc_29`.*
 - [ ] **SET-PC-30 · Netzwerk-Vorgaben (Multisite)**, Standardwerte für neue Unterseiten und Sperren je Wert. Braucht: -01; E7.
 
 ### OPTIMIERUNG
@@ -464,7 +464,7 @@ Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xi
 - [ ] **SET-PC-37 · DATEV-Konten als Tabelle** im Formular. Braucht: Steuerberatung für Standardwerte.
 - [ ] **SET-PC-38 · Ratenlimits für Betreiber** (Checkout je IP/E-Mail, Warteliste, Portal) mit sicheren Untergrenzen. Braucht: -01.
 - [ ] **SET-PC-39 · Kasse: Schichtregeln** (Differenz-Toleranz, Zählpflicht, Bon-Sprache, Blindzählung als Standard).
-- [ ] **SET-PC-40 · Zahlungsarten nach Regel** (je Event, Betrag, Land).
+- [x] **SET-PC-40 · Zahlungsarten nach Regel** (je Event, Betrag, Land). *Erledigt 23.11.2026: `src/Payments/Rules.php`, Einstellung „Regeln für Zahlungsarten“ (Event, Betrag, Rechnungsland), Eventkarte blendet nicht passende Zahlungsarten aus, Checkout prüft die fertige Bestellung; Filter `wp_pass_captain_payment_rules_v1`; Test `zz_set_pc_40`.*
 - [ ] **SET-PC-41 · Pro: E-Rechnung weitere Länder** (Peppol mit Versand, FatturaPA, ebInterface). Braucht: anderes Repository; E4; Rechtsprüfung.
 - [ ] **SET-PC-42 · Schweizer QR-Rechnung** (Kern frei wie GiroCode laut Empfehlung). Braucht: E4.
 - [ ] **SET-PC-43 · Pro: neue Rechteschlüssel vormerken** (`pass.template_designer`, `pass.cancellation_rules`, `pass.accounting_exports`, `pass.settings_sync`). Braucht: anderes Repository; E8.

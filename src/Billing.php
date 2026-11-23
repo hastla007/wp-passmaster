@@ -17,13 +17,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Billing {
 	/** Stored fields (all strings). */
-	const FIELDS = array( 'company', 'first_name', 'last_name', 'street', 'postcode', 'city', 'country', 'vat_id', 'po_number' );
+	const FIELDS = array( 'company', 'first_name', 'last_name', 'street', 'postcode', 'city', 'region', 'country', 'vat_id', 'po_number' );
 
 	/** Fields required when billing data is given at all. */
 	const REQUIRED = array( 'first_name', 'last_name', 'street', 'postcode', 'city', 'country' );
 
 	/** Maximum lengths per field. */
-	const MAX = array( 'company' => 190, 'first_name' => 100, 'last_name' => 100, 'street' => 190, 'postcode' => 16, 'city' => 100, 'country' => 2, 'vat_id' => 20, 'po_number' => 64 );
+	const MAX = array( 'company' => 190, 'first_name' => 100, 'last_name' => 100, 'street' => 190, 'postcode' => 16, 'city' => 100, 'region' => 100, 'country' => 2, 'vat_id' => 20, 'po_number' => 64 );
 
 	/** EU VAT ID formats (normalised: upper case, no spaces/dots/dashes). Greece uses EL, Northern Ireland XI. */
 	const VAT_PATTERNS = array(
@@ -61,9 +61,9 @@ final class Billing {
 		'NO' => 'NO\d{9}(MVA)?',
 	);
 
-	/** Country code => German name (EU plus frequent neighbours); filter `wpcap_billing_countries`. */
-	public static function countries() {
-		$countries = array(
+	/** Built-in country list: code => German name (EU plus frequent neighbours), unfiltered. */
+	public static function builtin_countries() {
+		return array(
 			'AT' => __( 'Österreich', 'pass-captain' ),
 			'DE' => __( 'Deutschland', 'pass-captain' ),
 			'CH' => __( 'Schweiz', 'pass-captain' ),
@@ -96,6 +96,18 @@ final class Billing {
 			'GB' => __( 'Vereinigtes Königreich', 'pass-captain' ),
 			'CY' => __( 'Zypern', 'pass-captain' ),
 		);
+	}
+
+	/** Country code => German name (EU plus frequent neighbours); filter `wpcap_billing_countries`. */
+	public static function countries() {
+		$countries = self::builtin_countries();
+		// SET-PC-24: the setting billing_countries limits the list (empty = the built-in list).
+		$allowed = array_values( array_filter( array_map( 'trim', explode( ',', strtoupper( (string) Settings::get( 'billing_countries', '' ) ) ) ) ) );
+		if ( $allowed ) {
+			$limited = array();
+			foreach ( $allowed as $code ) { $limited[ $code ] = $countries[ $code ] ?? $code; }
+			$countries = $limited;
+		}
 		$countries = apply_filters( 'wpcap_billing_countries', $countries );
 		return is_array( $countries ) && $countries ? $countries : array( 'AT' => 'Österreich', 'DE' => 'Deutschland' );
 	}
@@ -131,6 +143,7 @@ final class Billing {
 			'street' => __( 'Straße und Hausnummer', 'pass-captain' ),
 			'postcode' => __( 'PLZ', 'pass-captain' ),
 			'city' => __( 'Ort', 'pass-captain' ),
+			'region' => __( 'Region / Bundesland', 'pass-captain' ),
 			'country' => __( 'Land', 'pass-captain' ),
 			'vat_id' => __( 'UID-Nummer', 'pass-captain' ),
 			'po_number' => __( 'Bestell- oder Referenznummer', 'pass-captain' ),
@@ -140,6 +153,11 @@ final class Billing {
 	/** Normalised VAT ID: upper case without spaces, dots, dashes and slashes. */
 	public static function normalize_vat_id( $vat_id ) {
 		return strtoupper( preg_replace( '/[\s.\-\/]+/u', '', sanitize_text_field( (string) $vat_id ) ) );
+	}
+
+	/** Whether the optional region field is shown (setting billing_region_field, SET-PC-24). */
+	public static function region_enabled() {
+		return (bool) Settings::get( 'billing_region_field', 0 );
 	}
 
 	/** Cleans the input to the stored fields (no validation). Unknown keys are dropped. */
@@ -260,8 +278,9 @@ final class Billing {
 		$default = self::default_country();
 		echo '<details class="' . esc_attr( $id_prefix ) . '"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'pass-captain' ) . '</summary>';
 		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
-		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'address-line1', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'address-line1', 'postcode' => 'postal-code', 'city' => 'address-level2', 'region' => 'address-level1', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
 		foreach ( self::FIELDS as $field ) {
+			if ( 'region' === $field && ! self::region_enabled() ) { continue; }
 			$id = $id_prefix . '-' . $field;
 			$label = $labels[ $field ] . ( in_array( $field, self::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'pass-captain' ) );
 			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
@@ -351,7 +370,7 @@ final class Billing {
 		$name = (string) ( $data['name'] ?? trim( ( $data['first_name'] ?? '' ) . ' ' . ( $data['last_name'] ?? '' ) ) );
 		$country = (string) ( $data['country'] ?? '' );
 		$country_name = (string) ( $data['country_name'] ?? ( self::countries()[ $country ] ?? $country ) );
-		$lines = array( (string) ( $data['company'] ?? '' ), $name, (string) ( $data['street'] ?? '' ), trim( ( $data['postcode'] ?? '' ) . ' ' . ( $data['city'] ?? '' ) ), $country_name );
+		$lines = array( (string) ( $data['company'] ?? '' ), $name, (string) ( $data['street'] ?? '' ), trim( ( $data['postcode'] ?? '' ) . ' ' . ( $data['city'] ?? '' ) ), (string) ( $data['region'] ?? '' ), $country_name );
 		return array_values( array_filter( array_map( 'trim', $lines ), 'strlen' ) );
 	}
 
