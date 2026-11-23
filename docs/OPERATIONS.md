@@ -1552,6 +1552,25 @@ auf `wpcap_ticket_mail_attachment_budget` begrenzt (A580); alle Tickets bleiben 
 erst nach `wp_mail()` auftreten (Bounces): Pass Captain hat keinen Rückkanal vom Mailserver. Meldet eine
 Käufer:in, dass nichts ankam, „Gespeicherte Codes erneut senden“ verwenden oder das Ticket-PDF herunterladen.
 
+### Bestellliste (A411)
+
+Die Bestellliste ist eine WordPress-Listentabelle (`Admin\OrdersListTable`, Zellen, Filter und Aktionen in
+`Admin\OrdersPage`):
+- **Ansichten** über der Tabelle: Alle, Zahlung offen, Bezahlt, Zu klären (`needs_review`), Storniert – Event-Filter
+  und Suche bleiben dabei erhalten.
+- **Sortieren** nach Datum (Standard: neueste zuerst) und Summe, auf- und absteigend (`orderby=date|total`,
+  `order=asc|desc`; andere Werte werden ignoriert).
+- **Sammelaktion „Zahlung bestätigen“**: bestätigt die Überweisung aller markierten offenen Bestellungen mit
+  Zahlart Überweisung (höchstens 100 je Aufruf) wie die Einzelaktion im Bestelldetail – mit derselben
+  Rechte- und Zugriffsprüfung je Bestellung, Audit-Eintrag und Ticketversand. Andere Zahlarten, bereits bezahlte,
+  stornierte oder abgelaufene Bestellungen werden übersprungen; die Hinweise nennen bestätigte, übersprungene und
+  fehlgeschlagene Bestellungen.
+- **Bildschirmoptionen**: „Bestellungen pro Seite“ (1–200, Standard 20, je Benutzer:in, `wpcap_orders_per_page`).
+- **Leerzustand**: „Keine Bestellungen gefunden.“ mit „Filter zurücksetzen“, solange ein Filter aktiv ist (der Link
+  steht auch neben dem Filterformular).
+
+Ticket- und Eventliste folgen in einem weiteren Schritt (A411 offen für diese Listen).
+
 ### Bestellungen und Tickets finden (A336, A545)
 
 Die Bestellliste zeigt die kurze Bestellnummer aus Mails, Bestellportal und Zahlungsreferenz („AB12-CD34“;

@@ -147,6 +147,7 @@ final class Menu {
 			add_filter( 'plugin_action_links_' . plugin_basename( WPCAP_FILE ), array( self::class, 'plugin_action_links' ) );
 		}
 		add_action( 'current_screen', array( self::class, 'help_tabs' ) );
+		add_filter( 'set_screen_option_' . OrdersPage::PER_PAGE_OPTION, array( OrdersPage::class, 'save_per_page' ), 10, 3 ); // A411.
 		// A299: pages without an own menu entry keep the menu entry of the screen they are reached from open.
 		add_filter( 'parent_file', array( self::class, 'linked_parent_file' ) );
 		add_filter( 'submenu_file', array( self::class, 'linked_submenu_file' ), 10, 2 );
@@ -451,9 +452,11 @@ final class Menu {
 			list( $slug, $title, $menu_title, $cap, $callback ) = $row[1];
 			if ( null === $callback ) {
 				add_submenu_page( self::SLUG, $title, $menu_title, $cap, $slug );
-			} else {
-				add_submenu_page( self::SLUG, $title, $menu_title, $cap, $slug, $callback );
+				continue;
 			}
+			$hook = add_submenu_page( self::SLUG, $title, $menu_title, $cap, $slug, $callback );
+			// A411: screen option and bulk action of the order list (before output).
+			if ( OrdersPage::SLUG === $slug && is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( OrdersPage::class, 'load_screen' ) ); }
 		}
 		// Second screens of a feature both development lines built (one menu entry per feature): reachable by link.
 		foreach ( self::unlisted_pages() as $slug => $page ) {

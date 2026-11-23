@@ -583,7 +583,7 @@ final class Queries {
 	 * @param int[]|null $event_ids Scope.
 	 * @return array{rows: object[], total: int}
 	 */
-	public static function search_orders( array $filters, $event_ids, $page = 1, $per_page = 20 ) {
+	public static function search_orders( array $filters, $event_ids, $page = 1, $per_page = 20, array $sort = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$where = '1=1';
@@ -638,10 +638,20 @@ final class Queries {
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
 		$list_args = array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) );
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT ord.*,(SELECT GROUP_CONCAT(DISTINCT e.name ORDER BY e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=ord.order_id) AS event_names FROM {$p}wpcap_orders ord WHERE $where ORDER BY ord.created_at DESC, ord.order_id DESC LIMIT %d OFFSET %d",
+			"SELECT ord.*,(SELECT GROUP_CONCAT(DISTINCT e.name ORDER BY e.name SEPARATOR ', ') FROM {$p}wpcap_order_items ei INNER JOIN {$p}wpcap_ticket_types et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN {$p}wpcap_occurrences eo ON eo.occurrence_id=et.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=eo.event_id WHERE ei.order_id=ord.order_id) AS event_names FROM {$p}wpcap_orders ord WHERE $where ORDER BY " . self::order_sort_sql( $sort ) . ' LIMIT %d OFFSET %d', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ORDER BY from the whitelist in order_sort_sql().
 			$list_args
 		) );
 		return array( 'rows' => $rows, 'total' => $total );
+	}
+
+	/**
+	 * ORDER BY of the order list (A411): whitelisted column (date = created_at, total = total_minor) and
+	 * direction; the order id breaks ties in the same direction. Default: newest first.
+	 */
+	public static function order_sort_sql( array $sort ) {
+		$column = 'total' === ( $sort['orderby'] ?? '' ) ? 'ord.total_minor' : 'ord.created_at';
+		$dir = 'asc' === strtolower( (string) ( $sort['order'] ?? '' ) ) ? 'ASC' : 'DESC';
+		return "$column $dir, ord.order_id $dir";
 	}
 
 	/**

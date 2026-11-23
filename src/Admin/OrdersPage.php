@@ -638,7 +638,7 @@ final class OrdersPage {
 	}
 
 	/** List filters from the query string (list and CSV export). */
-	private static function list_filters() {
+	public static function list_filters() {
 		return array(
 			'status' => in_array( Forms::query_arg( 'status' ), self::ORDER_STATUSES, true ) ? Forms::query_arg( 'status' ) : '',
 			'payment_status' => in_array( Forms::query_arg( 'payment_status' ), self::PAYMENT_STATUSES, true ) ? Forms::query_arg( 'payment_status' ) : '',
@@ -690,24 +690,196 @@ final class OrdersPage {
 		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d' ) . '.csv' );
 	}
 
-	private static function render_list() {
-		$scope = Queries::event_ids_for( self::CAP );
-		$filters = self::list_filters();
-		$page = Forms::current_page();
-		$per_page = 20;
-		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
+	/* ---------------------------------------------------------------------------------------------
+	 * Order list (A411: WP_List_Table with bulk action, sorting, views, screen option)
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Bulk action of the order list: confirm the bank transfer of the selected orders. */
+	const BULK_CONFIRM = 'wpcap_bulk_confirm_payment';
+
+	/** Screen option (user meta) with the number of orders per page. */
+	const PER_PAGE_OPTION = 'wpcap_orders_per_page';
+	const PER_PAGE_DEFAULT = 20;
+
+	/** Orders per bulk action at most. */
+	const BULK_LIMIT = 100;
+
+	/** Whether the core list table class can be used (else a plain table with the same cells). */
+	public static function list_table_available() {
+		if ( class_exists( '\WP_List_Table', false ) ) { return true; }
+		return defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
+	}
+
+	/** Columns of the list (without the checkbox column): key => label. */
+	public static function list_columns() {
+		return array(
+			'order'    => __( 'Bestellung', 'pass-captain' ),
+			'date'     => __( 'Datum', 'pass-captain' ),
+			'buyer'    => __( 'Käufer', 'pass-captain' ),
+			'event'    => __( 'Event', 'pass-captain' ),
+			'total'    => __( 'Summe', 'pass-captain' ),
+			'status'   => __( 'Status', 'pass-captain' ),
+			'provider' => __( 'Zahlart', 'pass-captain' ),
+		);
+	}
+
+	/** Sorting of the list from the query string: whitelisted column and direction (default newest first). */
+	public static function list_sort() {
+		$orderby = Forms::query_arg( 'orderby' );
+		$order = strtolower( Forms::query_arg( 'order' ) );
+		return array(
+			'orderby' => in_array( $orderby, array( 'date', 'total' ), true ) ? $orderby : 'date',
+			'order' => 'asc' === $order ? 'asc' : 'desc',
+		);
+	}
+
+	/**
+	 * One page of the list in the user's event scope, with the masking decided once for the page.
+	 *
+	 * @return array{rows: object[], total: int, masked: array<int,bool>}
+	 */
+	public static function list_data( array $filters, $page, $per_page, array $sort = array() ) {
+		$page = max( 1, (int) $page );
+		$data = Queries::search_orders( $filters, Queries::event_ids_for( self::CAP ), $page, max( 1, min( 200, (int) $per_page ) ), $sort );
 		// Masking decided once for the page (profile, policy, one unmask lookup), not per row (PERF-15).
 		$masked = DataPolicy::masks_pii_many( array_map( static fn( $row ) => (int) $row->order_id, $data['rows'] ) );
 		\PassCaptain\Privacy\AccessLog::list_view( 'order_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) );
-		$events = Queries::event_options( $scope, array( $filters['event_id'] ) );
-		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
+		return array( 'rows' => $data['rows'], 'total' => (int) $data['total'], 'masked' => $masked );
+	}
+
+	/** Filter arguments of the current list for links (views, reset, CSV, pagination). */
+	private static function filter_args( array $filters ) {
+		return array_filter( array( 'status' => $filters['status'] ?? '', 'payment_status' => $filters['payment_status'] ?? '', 's' => $filters['search'] ?? '', 'event_id' => $filters['event_id'] ?? 0 ) );
+	}
+
+	/**
+	 * Views above the list (quick filters by state): key => [label, url, current]. The event filter
+	 * and the search are kept; the state filters are replaced.
+	 */
+	public static function list_views( array $filters ) {
+		$keep = array_filter( array( 's' => $filters['search'] ?? '', 'event_id' => $filters['event_id'] ?? 0 ) );
+		$views = array(
+			'all' => array( __( 'Alle', 'pass-captain' ), array() ),
+			'pending' => array( __( 'Zahlung offen', 'pass-captain' ), array( 'payment_status' => 'pending' ) ),
+			'paid' => array( __( 'Bezahlt', 'pass-captain' ), array( 'payment_status' => 'paid' ) ),
+			'needs_review' => array( __( 'Zu klären', 'pass-captain' ), array( 'status' => 'needs_review' ) ),
+			'cancelled' => array( Forms::status_label( 'cancelled', 'order' ), array( 'status' => 'cancelled' ) ),
+		);
+		$current = array_filter( array( 'status' => $filters['status'] ?? '', 'payment_status' => $filters['payment_status'] ?? '' ) );
+		$out = array();
+		foreach ( $views as $key => $view ) {
+			$out[ $key ] = array( 'label' => $view[0], 'url' => Forms::page_url( self::SLUG, $keep + $view[1] ), 'current' => $view[1] === $current );
+		}
+		return $out;
+	}
+
+	/** Empty list: a hint and, when filters are active, a link that resets them (A411). */
+	public static function empty_state( array $filters ) {
+		$html = esc_html__( 'Keine Bestellungen gefunden.', 'pass-captain' );
+		if ( self::filter_args( $filters ) ) {
+			$html .= ' <a href="' . esc_url( Forms::page_url( self::SLUG ) ) . '">' . esc_html__( 'Filter zurücksetzen', 'pass-captain' ) . '</a>';
+		}
+		return $html;
+	}
+
+	/** HTML of one cell of the list (escaped). */
+	public static function list_cell( $column, $order, $masked ) {
+		switch ( $column ) {
+			case 'order':
+				return '<a href="' . esc_url( self::order_url( $order->order_id ) ) . '" title="' . esc_attr( $order->public_id ) . '"><code>' . esc_html( \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ) . '</code></a>';
+			case 'date':
+				return esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) );
+			case 'buyer':
+				$name = $masked ? '' : self::buyer_name( $order );
+				return esc_html( $masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ) . ( '' !== $name ? '<br><small>' . esc_html( $name ) . '</small>' : '' );
+			case 'event':
+				return esc_html( (string) $order->event_names );
+			case 'total':
+				/* translators: %s: amount */
+				return esc_html( Forms::money( $order->total_minor, $order->currency ) ) . ( (int) $order->refunded_minor ? '<br><small>' . esc_html( sprintf( __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ) . '</small>' : '' );
+			case 'status':
+				return esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) );
+			case 'provider':
+				return esc_html( (string) $order->payment_provider );
+		}
+		return '';
+	}
+
+	/** Filter set_screen_option_{option}: stores the orders per page (1–200). */
+	public static function save_per_page( $keep, $option, $value ) {
+		return self::PER_PAGE_OPTION === $option ? max( 1, min( 200, absint( $value ) ) ) : $keep;
+	}
+
+	/**
+	 * load-{hook} of the orders page: screen option "Einträge pro Seite" and the bulk action (handled
+	 * before output, then redirected back to the list with its filters).
+	 */
+	public static function load_screen() {
+		if ( function_exists( 'add_screen_option' ) ) {
+			add_screen_option( 'per_page', array( 'label' => __( 'Bestellungen pro Seite', 'pass-captain' ), 'default' => self::PER_PAGE_DEFAULT, 'option' => self::PER_PAGE_OPTION ) );
+		}
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- only selects the action; verified below.
+		$action = isset( $_POST['action'] ) && is_string( $_POST['action'] ) && '-1' !== $_POST['action'] ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+		if ( '' === $action && isset( $_POST['action2'] ) && is_string( $_POST['action2'] ) ) { $action = sanitize_key( wp_unslash( $_POST['action2'] ) ); }
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		if ( self::BULK_CONFIRM !== $action ) { return; }
+		check_admin_referer( 'bulk-orders' );
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		$ids = isset( $_POST['order'] ) && is_array( $_POST['order'] ) ? array_map( 'absint', wp_unslash( $_POST['order'] ) ) : array();
+		$result = self::bulk_confirm_payments( $ids );
+		foreach ( self::bulk_messages( $result ) as $message ) { Forms::flash( $message[0], $message[1] ); }
+		$args = self::filter_args( self::list_filters() );
+		$sort = self::list_sort();
+		if ( array( 'orderby' => 'date', 'order' => 'desc' ) !== $sort ) { $args += $sort; }
+		Forms::redirect( Forms::page_url( self::SLUG, $args ) );
+	}
+
+	/**
+	 * Bulk action "Zahlung bestätigen" (A411): confirms the bank transfer of each selected order the user
+	 * may act on, like the single action. Orders that are not open bank-transfer orders are skipped.
+	 *
+	 * @param int[] $ids Order ids (at most BULK_LIMIT are processed).
+	 * @return array{confirmed: int[], skipped: int[], failed: array<int,string>}
+	 */
+	public static function bulk_confirm_payments( array $ids ) {
+		$out = array( 'confirmed' => array(), 'skipped' => array(), 'failed' => array() );
+		foreach ( array_slice( array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) ), 0, self::BULK_LIMIT ) as $id ) {
+			$order = Orders::get( $id );
+			if ( ! $order || 'manual' !== $order->payment_provider || 'pending' !== $order->payment_status || in_array( $order->status, array( 'cancelled', 'refunded', 'expired' ), true ) ) {
+				$out['skipped'][] = $id;
+				continue;
+			}
+			$result = self::confirm_payment( array( 'order_id' => $id ) );
+			if ( is_wp_error( $result ) ) { $out['failed'][ $id ] = $result->get_error_message(); } else { $out['confirmed'][] = $id; }
+		}
+		return $out;
+	}
+
+	/** Notices of a bulk confirmation: [type, message]. */
+	public static function bulk_messages( array $result ) {
+		$messages = array();
+		$confirmed = count( $result['confirmed'] ?? array() );
+		$skipped = count( $result['skipped'] ?? array() );
+		$failed = (array) ( $result['failed'] ?? array() );
+		/* translators: %d: number of orders */
+		if ( $confirmed ) { $messages[] = array( 'success', sprintf( _n( 'Zahlung für %d Bestellung bestätigt.', 'Zahlung für %d Bestellungen bestätigt.', $confirmed, 'pass-captain' ), $confirmed ) ); }
+		/* translators: %d: number of orders */
+		if ( $skipped ) { $messages[] = array( 'warning', sprintf( _n( '%d Bestellung übersprungen: keine offene Überweisung.', '%d Bestellungen übersprungen: keine offene Überweisung.', $skipped, 'pass-captain' ), $skipped ) ); }
+		foreach ( $failed as $id => $error ) {
+			/* translators: 1: order id, 2: error message */
+			$messages[] = array( 'error', sprintf( __( 'Bestellung #%1$d: %2$s', 'pass-captain' ), (int) $id, (string) $error ) );
+		}
+		if ( ! $messages ) { $messages[] = array( 'warning', __( 'Keine Bestellung ausgewählt.', 'pass-captain' ) ); }
+		return $messages;
+	}
+
+	private static function render_filters( array $filters ) {
+		$events = Queries::event_options( Queries::event_ids_for( self::CAP ), array( $filters['event_id'] ) );
 		$status_options = array( '' => __( 'Alle Bestellstatus', 'pass-captain' ) );
 		foreach ( self::ORDER_STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		$payment_options = array( '' => __( 'Alle Zahlungsstatus', 'pass-captain' ) );
 		foreach ( self::PAYMENT_STATUSES as $s ) { $payment_options[ $s ] = Forms::status_label( $s ); }
 		?>
-		<h1><?php esc_html_e( 'Bestellungen', 'pass-captain' ); ?></h1>
-		<?php Forms::render_notices(); ?>
 		<form method="get" class="wpcap-filters">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'pass-captain' ) . '"' ); ?>
@@ -715,37 +887,43 @@ final class OrdersPage {
 			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
 			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer, E-Mail, Name oder Ticket-ID', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
-			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array_filter( array( 'action' => 'wpcap_orders_csv', 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ), admin_url( 'admin-post.php' ) ), 'wpcap_orders_csv' ) ); ?>"><?php esc_html_e( 'CSV-Export', 'pass-captain' ); ?></a>
+			<?php if ( self::filter_args( $filters ) ) : ?><a class="button-link" href="<?php echo esc_url( Forms::page_url( self::SLUG ) ); ?>"><?php esc_html_e( 'Filter zurücksetzen', 'pass-captain' ); ?></a><?php endif; ?>
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array_merge( array( 'action' => 'wpcap_orders_csv' ), self::filter_args( $filters ) ), admin_url( 'admin-post.php' ) ), 'wpcap_orders_csv' ) ); ?>"><?php esc_html_e( 'CSV-Export', 'pass-captain' ); ?></a>
 		</form>
-		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
-		<table class="widefat striped">
-			<thead><tr>
-				<th><?php esc_html_e( 'Bestellung', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Datum', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Summe', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Zahlart', 'pass-captain' ); ?></th>
-			</tr></thead>
-			<tbody>
-			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
-			<?php foreach ( $data['rows'] as $order ) : ?>
-				<tr>
-					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>" title="<?php echo esc_attr( $order->public_id ); ?>"><code><?php echo esc_html( \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ); ?></code></a></td>
-					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
-					<?php $row_masked = ! empty( $masked[ (int) $order->order_id ] ); ?>
-					<td><?php echo esc_html( $row_masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?><?php $buyer_name = $row_masked ? '' : self::buyer_name( $order ); ?><?php if ( '' !== $buyer_name ) : ?><br><small><?php echo esc_html( $buyer_name ); ?></small><?php endif; ?></td>
-					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
-					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
-					<td><?php echo esc_html( Forms::status_label( $order->status, 'order' ) . ' / ' . Forms::status_label( $order->payment_status, 'order' ) ); ?></td>
-					<td><?php echo esc_html( $order->payment_provider ); ?></td>
-				</tr>
-			<?php endforeach; ?>
-			</tbody>
-		</table>
 		<?php
-		Forms::pagination( $data['total'], $page, $per_page, $base );
+		echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
+	}
+
+	private static function render_list() {
+		$filters = self::list_filters();
+		?>
+		<h1><?php esc_html_e( 'Bestellungen', 'pass-captain' ); ?></h1>
+		<?php
+		Forms::render_notices();
+		self::render_filters( $filters );
+		if ( self::list_table_available() ) {
+			$table = new OrdersListTable();
+			$table->prepare_items();
+			$table->views();
+			echo '<form method="post" action="' . esc_url( Forms::page_url( self::SLUG, self::filter_args( $filters ) ) ) . '">';
+			$table->display();
+			echo '</form>';
+			return;
+		}
+		// Without WP_List_Table (not loadable): plain table with the same cells.
+		$page = Forms::current_page();
+		$data = self::list_data( $filters, $page, self::PER_PAGE_DEFAULT, self::list_sort() );
+		echo '<table class="widefat striped"><thead><tr>';
+		foreach ( self::list_columns() as $label ) { echo '<th>' . esc_html( $label ) . '</th>'; }
+		echo '</tr></thead><tbody>';
+		if ( ! $data['rows'] ) { echo '<tr><td colspan="' . count( self::list_columns() ) . '">' . self::empty_state( $filters ) . '</td></tr>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in empty_state().
+		foreach ( $data['rows'] as $order ) {
+			echo '<tr>';
+			foreach ( array_keys( self::list_columns() ) as $column ) { echo '<td>' . self::list_cell( $column, $order, ! empty( $data['masked'][ (int) $order->order_id ] ) ) . '</td>'; } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in list_cell().
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
+		Forms::pagination( $data['total'], $page, self::PER_PAGE_DEFAULT, Forms::page_url( self::SLUG, self::filter_args( $filters ) ) );
 	}
 
 	/** Billing name or company of an order for the list (A336), masked like elsewhere when not visible. */
