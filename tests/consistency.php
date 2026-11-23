@@ -27,6 +27,15 @@ $check( 'Text Domain is pass-captain', 'pass-captain' === $header( $main, 'Text 
 preg_match_all( '/^## (\d+\.\d+\.\d+)/m', $changelog, $released );
 $missing = array_filter( $released[1], static fn( $v ) => version_compare( $v, '1.1.0', '>=' ) && false === strpos( $readme, '= ' . $v . ' =' ) );
 $check( 'readme changelog lists every release since 1.1.0' . ( $missing ? ' – missing ' . implode( ', ', $missing ) : '' ), ! $missing );
+// A389: every readme changelog entry carries the main changes itself (at least three bullets), not just a
+// pointer to CHANGELOG.md; the 1.5.0 entry names the rename.
+$readme_log = preg_match( '/^== Changelog ==\n(.*?)(?=^== |\z)/ms', $readme, $lm ) ? $lm[1] : '';
+$thin = array();
+foreach ( preg_split( '/^(?== \d+\.\d+\.\d+ =)/m', $readme_log ) as $entry ) {
+	if ( preg_match( '/^= (\d+\.\d+\.\d+) =/', $entry, $em ) && preg_match_all( '/^\* /m', $entry ) < 3 ) { $thin[] = $em[1]; }
+}
+$check( 'A389 readme changelog entries list their main changes (>= 3 bullets)' . ( $thin ? ' - too short: ' . implode( ', ', $thin ) : '' ), '' !== $readme_log && ! $thin );
+$check( 'A389 readme changelog names the rename to "Pass Captain"', false !== strpos( $readme_log, 'Renamed to "Pass Captain"' ) );
 // Documentation links in README.md point to existing files.
 preg_match_all( '/\]\((docs\/[^)#]+)\)/', (string) file_get_contents( $root . '/README.md' ), $links );
 $broken = array_filter( array_unique( $links[1] ), static fn( $l ) => ! file_exists( $root . '/' . $l ) );

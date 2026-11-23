@@ -134,16 +134,25 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 * Shared scanner with WP Voucher Captain, default admission window, deferred privacy erasure for upcoming dates.
 
 = 1.4.0 =
-* Sales models per organizer (merchant or agent), invoices addressed to companies, single- and multi-purpose vouchers.
+* Sales model per organizer: "merchant" or "agent" (invoices in the organizer's name with their own number range, commission invoice or self-billing credit note).
+* Invoices addressed to a company in checkout, box office and order portal, with VAT ID check; name and address required from EUR 250 (configurable).
+* Single- and multi-purpose vouchers: multi-purpose vouchers are a means of payment (full VAT), refunds are split proportionally between payment provider and voucher. Database schema 3.5.0.
 
 = 1.3.0 =
-* Security, refund, admission, privacy and operations improvements from an expert review; database upgrades behind a lock.
+* Security and refunds: refunds lock the order and re-check before paying out; transferred tickets cannot be reassigned; ticket PDFs and wallet files only in private temporary directories.
+* Operations: cancelling an event per date with automatic refunds, admission day change, re-issuing single tickets, rate limiting behind proxy/CDN.
+* Customer experience, tax and privacy: confirmation with bank details and payment deadline, invoices with net/VAT/gross per tax rate and "invoice correction", daily erasure run after retention periods, affiliate cookie only after consent.
+* Database upgrades behind a lock instead of on every page load (schema 3.4.0), queues with a time budget, releases only after green CI.
 
 = 1.2.0 =
-* Convert redeemed vouchers into tickets (WP Voucher Captain); "Partner" module renamed to "Organizer".
+* Convert redeemed vouchers into tickets (WP Voucher Captain): a ticket service issues tickets idempotently through the normal order path, also for a freely chosen date; revocation and audit log.
+* Sold-out dates are not offered for conversion; attendee fields are asked for.
+* "Organizer" instead of "Partner" in roles, interface and documentation.
 
 = 1.1.0 =
-* Translations (fr_FR, it_IT, es_ES, nl_NL, en_US), series price tiers in the WooCommerce cart, email templates and WP Affiliate Captain integration.
+* Translations: French, Italian, Spanish, Dutch (complete), English added.
+* WooCommerce: series price tiers optionally also in cart and checkout (classic and blocks), with a notice when the price changes.
+* Email templates per language with preview, test mail and optional HTML layout; customer mails in the language of the order. Integration with WP Affiliate Captain (sales and refunds).
 
 The full change log is in CHANGELOG.md in the source repository.
 
