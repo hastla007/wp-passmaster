@@ -164,6 +164,12 @@ final class Page {
 			/* translators: %s: currency code */
 			$fee_label = sprintf( __( 'davon Servicegebühren (%s)', 'pass-captain' ), $fee_currency );
 			$summary[ $fee_label ] = Scope::money( (int) $fee['gross'], (string) $fee_currency ) . ' (' . $fee_tax . ')';
+			if ( (int) ( $fee['refunded'] ?? 0 ) || (int) ( $fee['kept'] ?? 0 ) ) {
+				/* translators: %s: currency code */
+				$refund_label = sprintf( __( 'Servicegebühren bei Erstattungen (%s)', 'pass-captain' ), $fee_currency );
+				/* translators: 1: service fees refunded, 2: service fees kept */
+				$summary[ $refund_label ] = sprintf( __( 'erstattet %1$s, einbehalten %2$s', 'pass-captain' ), Scope::money( (int) $fee['refunded'], (string) $fee_currency ), Scope::money( (int) $fee['kept'], (string) $fee_currency ) );
+			}
 		}
 		$summary = self::metrics( $summary, $report, $filters );
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }

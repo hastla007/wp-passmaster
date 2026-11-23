@@ -394,6 +394,11 @@ final class ServiceFee {
 		return array( 'refund' => (int) round( $refund[0] ), 'refund_tax' => (int) round( $refund[1] ), 'kept' => (int) round( $kept[0] ), 'kept_tax' => (int) round( $kept[1] ) );
 	}
 
+	/** Whether the fee counts as organizer revenue in settlements (setting service_fee_to_partner, default off). */
+	public static function to_partner() {
+		return (bool) Settings::get( 'service_fee_to_partner' );
+	}
+
 	/** Whether an order line (row with fee_kind) is a service fee line. */
 	public static function is_fee_line( $line ) {
 		return is_object( $line ) && '' !== (string) ( $line->fee_kind ?? '' );

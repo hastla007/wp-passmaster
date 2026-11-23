@@ -102,6 +102,9 @@ final class Settings {
 			// Owner decision 23.11.2026: refunds the buyer asked for (not caused by a cancellation) keep the fee
 			// ('retain') or refund it ('refund'); organizer cancellations always refund it.
 			'service_fee_refund'        => 'retain',
+			// Owner decision 23.11.2026: the fee is the operator's revenue; on = it counts as organizer revenue in
+			// partner settlements (and in the deal basis of the settlement sheet).
+			'service_fee_to_partner'    => 0,
 			// Postponed occurrence: buyers may request a refund in the order portal (with approval) until
 			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
 			'reschedule_refund_request' => 1,

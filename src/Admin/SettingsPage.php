@@ -246,6 +246,7 @@ final class SettingsPage {
 						),
 						'description' => __( 'Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet.', 'pass-captain' ),
 					),
+					'service_fee_to_partner' => array( 'type' => 'bool', 'label' => __( 'Servicegebühr an Partner weitergeben', 'pass-captain' ), 'description' => __( 'Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös.', 'pass-captain' ) ),
 				),
 				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen.', 'pass-captain' ),
 			),

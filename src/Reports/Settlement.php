@@ -129,6 +129,8 @@ final class Settlement {
 		$providers = array(); // box office provider => bucket
 		$total = self::bucket();
 		$currencies = array();
+		// A425: service fee lines (part of the figures above), shown separately; operator's revenue unless passed on.
+		$service_fee = self::bucket();
 
 		$add = static function ( $line, $provider, array $values ) use ( &$type_channel, &$type_names, &$channels, &$rates, &$providers, &$total ) {
 			$type = (int) $line->ticket_type_id;
@@ -163,6 +165,10 @@ final class Settlement {
 					if ( (int) $line->occurrence_id !== $occurrence_id || \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
 					$currencies[ $order->currency ] = true;
 					$add( $line, (string) $order->payment_provider, array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => (int) $gross_lines[ $i ], 'tax' => (int) $line->tax_minor ) );
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$service_fee['gross'] += (int) $gross_lines[ $i ];
+						$service_fee['tax'] += (int) $line->tax_minor;
+					}
 				}
 			}
 			if ( ! $sale_orders ) { continue; }
@@ -175,6 +181,10 @@ final class Settlement {
 					$line = $lines[ $part['index'] ];
 					if ( (int) $line->occurrence_id !== $occurrence_id ) { continue; }
 					$add( $line, (string) $refund->payment_provider, array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'] ) );
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$service_fee['refunded'] += (int) $part['amount'];
+						$service_fee['refunded_tax'] += (int) $part['tax'];
+					}
 				}
 			}
 		}
@@ -206,6 +216,9 @@ final class Settlement {
 		$box_office = array();
 		foreach ( $providers as $provider => $b ) { $box_office[ $provider ] = array_merge( self::finish( $b ), array( 'label' => self::provider_label( $provider ) ) ); }
 		$total = self::finish( $total );
+		$service_fee = self::finish( $service_fee ) + array( 'to_partner' => \PassCaptain\ServiceFee::to_partner() );
+		// Deal basis: net revenue of the date; the operator's service fee only counts when it is passed on.
+		$deal_basis = $total['revenue_net'] - ( $service_fee['to_partner'] ? 0 : $service_fee['revenue_net'] );
 
 		$issued = (int) ( $stats['issued'] ?? 0 );
 		$checked_in = (int) ( $stats['checked_in'] ?? 0 );
@@ -233,7 +246,8 @@ final class Settlement {
 			'comps_total' => array_sum( array_column( $comps, 'tickets' ) ),
 			'total' => $total,
 			'attendance' => array( 'issued' => $issued, 'checked_in' => $checked_in, 'no_shows' => max( 0, $issued - $checked_in ) ),
-			'deal' => self::deal( $total['revenue_net'], $deal['fixed'], $deal['share_bp'] ),
+			'service_fee' => $service_fee,
+			'deal' => self::deal( $deal_basis, $deal['fixed'], $deal['share_bp'] ),
 		);
 	}
 
@@ -272,6 +286,14 @@ final class Settlement {
 		$rows[] = array( __( 'Eingecheckt', 'pass-captain' ), $a['checked_in'] );
 		$rows[] = array( __( 'No-Shows', 'pass-captain' ), $a['no_shows'] );
 		$rows[] = array();
+		// A425: service fee (included in the figures above) and whether it is part of the deal basis.
+		$fee = (array) ( $sheet['service_fee'] ?? array() );
+		if ( (int) ( $fee['gross'] ?? 0 ) || (int) ( $fee['refunded'] ?? 0 ) ) {
+			$rows[] = array( __( 'Servicegebühren nach Erstattungen (in den Summen oben enthalten)', 'pass-captain' ), $m( (int) $fee['revenue'] ) );
+			$rows[] = array( __( 'davon netto', 'pass-captain' ), $m( (int) $fee['revenue_net'] ) );
+			$rows[] = array( __( 'Zurechnung', 'pass-captain' ), ! empty( $fee['to_partner'] ) ? __( 'an den Veranstalter weitergegeben (Teil der Deal-Basis)', 'pass-captain' ) : __( 'Umsatz des Betreibers (nicht Teil der Deal-Basis)', 'pass-captain' ) );
+			$rows[] = array();
+		}
 		$d = $sheet['deal'];
 		$rows[] = array( __( 'Deal', 'pass-captain' ), __( 'Betrag', 'pass-captain' ) );
 		$rows[] = array( __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ), $m( $d['basis'] ) );
@@ -341,9 +363,17 @@ final class Settlement {
 			. '<tr><th scope="row">' . $e( __( 'Eingecheckt', 'pass-captain' ) ) . '</th><td class="n">' . (int) $a['checked_in'] . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'No-Shows', 'pass-captain' ) ) . '</th><td class="n">' . (int) $a['no_shows'] . '</td></tr></tbody></table>';
 
+		// A425: the buyers' service fee, apart from the deal (operator's revenue unless passed on).
+		$fee = (array) ( $sheet['service_fee'] ?? array() );
+		if ( (int) ( $fee['gross'] ?? 0 ) || (int) ( $fee['refunded'] ?? 0 ) ) {
+			$html .= '<h2>' . $e( __( 'Servicegebühren', 'pass-captain' ) ) . '</h2><table><tbody>'
+				. '<tr><th scope="row">' . $e( __( 'Servicegebühren nach Erstattungen (in den Summen oben enthalten)', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( (int) $fee['revenue'] ) ) . '</td></tr>'
+				. '<tr><th scope="row">' . $e( __( 'davon netto', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( (int) $fee['revenue_net'] ) ) . '</td></tr>'
+				. '<tr><th scope="row">' . $e( __( 'Zurechnung', 'pass-captain' ) ) . '</th><td>' . $e( ! empty( $fee['to_partner'] ) ? __( 'an den Veranstalter weitergegeben (Teil der Deal-Basis)', 'pass-captain' ) : __( 'Umsatz des Betreibers (nicht Teil der Deal-Basis)', 'pass-captain' ) ) . '</td></tr></tbody></table>';
+		}
 		$d = $sheet['deal'];
 		$html .= '<h2>' . $e( __( 'Deal', 'pass-captain' ) ) . '</h2><table><tbody>'
-			. '<tr><th scope="row">' . $e( __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['basis'] ) ) . '</td></tr>'
+			. '<tr><th scope="row">' . $e( empty( $fee['to_partner'] ) && (int) ( $fee['gross'] ?? 0 ) ? __( 'Netto-Umsatz nach Erstattungen ohne Servicegebühren', 'pass-captain' ) : __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['basis'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'abzüglich Fixbetrag', 'pass-captain' ) ) . '</th><td class="n">' . $e( '-' . $money( $d['fixed'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'Bemessungsgrundlage', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['after_fixed'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( sprintf( /* translators: %s: percentage */ __( 'Anteil Künstler/Veranstalter (%s %%)', 'pass-captain' ), number_format_i18n( $d['share_bp'] / 100, 2 ) ) ) . '</th><td class="n">' . $e( $money( $d['artist'] ) ) . '</td></tr>'

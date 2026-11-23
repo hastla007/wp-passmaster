@@ -271,6 +271,7 @@ final class Data {
 		// Completed refunds (netted on their completion day).
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . \PassCaptain\Refunds::fee_columns() . ",r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
+		$fee_refunds = array(); // A425: currency => [refunded, refunded_tax, kept, kept_tax] of the service fee.
 		foreach ( array_chunk( $refunds, self::BLOCK ) as $refund_block ) {
 			$block_orders = array_values( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refund_block ) ) );
 			$refund_lines = self::lines_by_order( $block_orders, $line_sql );
@@ -279,11 +280,19 @@ final class Data {
 				$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 				if ( ! $lines ) { continue; }
 				$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
+				if ( (int) ( $refund->fee_kept_minor ?? 0 ) > 0 ) {
+					$fee_refunds[ (string) $refund->currency ]['kept'] = ( $fee_refunds[ (string) $refund->currency ]['kept'] ?? 0 ) + (int) $refund->fee_kept_minor;
+					$fee_refunds[ (string) $refund->currency ]['kept_tax'] = ( $fee_refunds[ (string) $refund->currency ]['kept_tax'] ?? 0 ) + (int) $refund->fee_kept_tax_minor;
+				}
 				// Same split as the correction document; multi-purpose voucher refunds at their credit note amounts.
 				foreach ( self::refund_split( $refund, $lines, $history[ (int) $refund->order_id ] ?? array() ) as $part ) {
 					$line = $lines[ $part['index'] ];
 					if ( ! $line_in_scope( $line ) ) { continue; }
 					$refund_scope[ (int) $refund->order_id ] = ( $refund_scope[ (int) $refund->order_id ] ?? 0 ) + $part['amount'];
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$fee_refunds[ (string) $refund->currency ]['refunded'] = ( $fee_refunds[ (string) $refund->currency ]['refunded'] ?? 0 ) + $part['amount'];
+						$fee_refunds[ (string) $refund->currency ]['refunded_tax'] = ( $fee_refunds[ (string) $refund->currency ]['refunded_tax'] ?? 0 ) + $part['tax'];
+					}
 					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
 				}
 			}
@@ -350,7 +359,7 @@ final class Data {
 			'credit_notes' => $credit,
 			'comps' => $comps,
 			// A425: service fees of the sales in the range (gross and VAT per currency; part of gross/revenue above).
-			'service_fees' => \PassCaptain\ServiceFee::totals( array_keys( $order_scope ) ),
+			'service_fees' => self::service_fee_totals( \PassCaptain\ServiceFee::totals( array_keys( $order_scope ) ), $fee_refunds ),
 			'occurrences' => $occurrences,
 			'histogram_occurrence' => $histogram_occ,
 			'histogram' => $histogram_occ ? self::checkin_histogram( $histogram_occ ) : array(),
@@ -471,6 +480,30 @@ final class Data {
 	 * oi.order_id). STRAIGHT_JOIN: always driven by the order ids (A434; with few events the optimizer
 	 * otherwise starts at the event and reads every line of it for each block).
 	 */
+	/**
+	 * A425: service fees per currency – sales (gross, tax, orders), refunded with refunds completed in the
+	 * range (refunded, refunded_tax; part of "Erstattungen") and kept by such refunds (kept, kept_tax).
+	 *
+	 * @param array $sales   ServiceFee::totals().
+	 * @param array $refunds currency => refunded, refunded_tax, kept, kept_tax.
+	 */
+	public static function service_fee_totals( array $sales, array $refunds ) {
+		$out = array();
+		foreach ( array_unique( array_merge( array_keys( $sales ), array_keys( $refunds ) ) ) as $cur ) {
+			$out[ $cur ] = array(
+				'gross' => (int) ( $sales[ $cur ]['gross'] ?? 0 ),
+				'tax' => (int) ( $sales[ $cur ]['tax'] ?? 0 ),
+				'orders' => (int) ( $sales[ $cur ]['orders'] ?? 0 ),
+				'refunded' => (int) ( $refunds[ $cur ]['refunded'] ?? 0 ),
+				'refunded_tax' => (int) ( $refunds[ $cur ]['refunded_tax'] ?? 0 ),
+				'kept' => (int) ( $refunds[ $cur ]['kept'] ?? 0 ),
+				'kept_tax' => (int) ( $refunds[ $cur ]['kept_tax'] ?? 0 ),
+			);
+		}
+		ksort( $out );
+		return $out;
+	}
+
 	public static function line_sql() {
 		global $wpdb;
 		$p = $wpdb->prefix;

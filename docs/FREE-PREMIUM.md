@@ -171,7 +171,7 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 |---|---|---|
 | Eigener Checkout mit mehreren Ticketarten, zeitlich begrenzter Reservierung, Verbraucherinformationen und gespeicherter Bedingungsversion | `Orders`, `Rest/Controller`, `templates/event-card.php` | Kern, dauerhaft frei |
 | Kostenlose Bestellungen mit sofortiger Ticketausgabe | `Orders` | Kern, dauerhaft frei |
-| Vorverkaufs-/Servicegebühr je Ticket (Einstellung oder je Ticketart) und je Bestellung, standardmäßig aus; eigene Position in Checkout, Mails, Rechnung und Bericht, Erstattung mit dem Ticket | `ServiceFee`, `Orders`, `Refunds` | Kern, dauerhaft frei |
+| Vorverkaufs-/Servicegebühr je Ticket (Einstellung oder je Ticketart) und je Bestellung, standardmäßig aus; im angezeigten Preis enthalten (Gebühr je Bestellung daneben), eigene Position in Mails, Rechnung und Bericht; Steuer wie das Ticket oder eigenes Steuerprofil; Erstattung bei Absage immer, auf Käuferwunsch nach Einstellung; in Partnerabrechnungen Umsatz des Betreibers (Weitergabe einstellbar) | `ServiceFee`, `Orders`, `Refunds`, `Partners\Settlements` | Kern, dauerhaft frei |
 | Rechnungsangaben (Firma, Anschrift, UID-Prüfung, Pflicht ab Schwellenwert) | `Billing` | Kern, dauerhaft frei |
 | Zahlung manuell / per Überweisung (Bankdaten, Verwendungszweck, Zahlungsfrist) | `Payments/ManualGateway`, `Payments/BankTransfer` | Kern, dauerhaft frei |
 | Stripe Checkout, PayPal (Orders v2) und Mollie mit signierten, idempotenten Webhooks und Erstattung über den Anbieter | `Payments/StripeGateway`, `Payments/PayPalGateway`, Modul `Mollie` | Kern, dauerhaft frei |

@@ -785,6 +785,18 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
     Rechnungskorrektur enthält nur den erstatteten Teil (die Gebührenzeilen nehmen nur teil, wenn die
     Gebühr erstattet wurde); USt der Erstattungen plus USt der einbehaltenen Gebühren = USt der Bestellung.
   - Filter `wpcap_service_fee_refund_rule` entscheidet je Ticket („refund“/„retain“).
+- **Partnerabrechnung und Abrechnungsblatt (Entscheidung vom 23.11.2026):** Die Gebühr ist **Umsatz des
+  Betreibers**. Partnerabrechnungen (`Partners\Settlements`) rechnen sie nicht als Veranstaltererlös ab:
+  Gebührenzeilen sind keine Verkaufspositionen (keine Provision, keine Auszahlung, sie halten keine Bestellung
+  „offen“), Erstattungen werden um die erstattete Gebühr (`wpcap_refunds.fee_minor`) gekürzt. Die Abrechnung
+  weist die Gebühr getrennt aus (`totals.service_fee`: verkauft, erstattet; Satz „Servicegebühren der Käufer:
+  … – Umsatz des Betreibers, nicht Teil dieser Abrechnung“). Einstellung **„Servicegebühr an Partner
+  weitergeben“** (Standard aus): eingeschaltet zählt die Gebühr wie der Ticketpreis zum Veranstaltererlös
+  (bisheriges Verhalten) und die Abrechnung nennt sie als weitergegeben. Das Abrechnungsblatt je Termin
+  (`Reports\Settlement`) zeigt „Servicegebühren nach Erstattungen“ getrennt (in den Summen enthalten) und
+  rechnet sie nur bei eingeschalteter Weitergabe zur Deal-Basis. Der Verkaufsbericht zeigt „davon
+  Servicegebühren“ und „Servicegebühren bei Erstattungen: erstattet …, einbehalten …“ je Währung. Die Einstellung
+  gilt für Abrechnungsentwürfe ab jetzt; abgeschlossene Abrechnungen bleiben unverändert.
 - **Rechtlicher Hinweis:** Die Umsetzung folgt den Entscheidungen der Inhaberin vom 23.11.2026. Die rechtliche
   und steuerliche Einordnung (Preisangabe, Nebenleistung oder eigene Leistung, Erstattungspflicht,
   Zurechnung zum Betreiber) ist **keine Rechts- oder Steuerberatung** und sollte vor dem Einsatz von einer
