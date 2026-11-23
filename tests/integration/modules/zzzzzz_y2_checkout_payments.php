@@ -85,13 +85,14 @@ check( 'first attempt creates a manual order', is_array( $first ) && empty( $fir
 http_reset();
 http_push( array( 'id' => 'cs_y2_qa1', 'url' => 'https://checkout.stripe.com/c/pay/cs_y2_qa1', 'status' => 'open' ), 200, '/v1/checkout/sessions' );
 $switched = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'stripe', 'idempotency_key' => $key ) );
-check( 'same key with another provider: 409, no Stripe session for the manual order', is_wp_error( $switched ) && 'wpcap_idempotency_mismatch' === $switched->get_error_code() && 409 === $switched->get_error_data()['status'] && array() === http_requests( 'checkout/sessions' ) && 'manual' === Orders::get( $first['order_id'] )->payment_provider );
+// Z1: the provider switch is answered with its own code (A639) before the fingerprint comparison.
+check( 'same key with another provider: 409, no Stripe session for the manual order', is_wp_error( $switched ) && 'wpcap_checkout_provider_changed' === $switched->get_error_code() && 409 === $switched->get_error_data()['status'] && array() === http_requests( 'checkout/sessions' ) && 'manual' === Orders::get( $first['order_id'] )->payment_provider );
 $more = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 3 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) );
 $other_mail = $y2_checkout( array( 'email' => 'someone@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) );
 $code = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'campaign_codes' => array( 'NEU' ), 'provider' => 'manual', 'idempotency_key' => $key ) );
 $voucher = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'voucher_code' => 'GUT-1', 'provider' => 'manual', 'idempotency_key' => $key ) );
 // Merged design: Orders::create() compares the cart of a reused key first (A420, wpcap_idempotency_conflict); the
-// REST fingerprint check (wpcap_idempotency_mismatch) still catches a provider switch. Both answer 409 without booking.
+// REST check catches a provider switch (wpcap_checkout_provider_changed, Z1). Both answer 409 without booking.
 $y2_conflict = static fn( $r ) => is_wp_error( $r ) && 'wpcap_idempotency_conflict' === $r->get_error_code() && 409 === ( $r->get_error_data()['status'] ?? 0 );
 check( 'same key with other quantity, e-mail, discount code or voucher: 409 each', $y2_conflict( $more ) && $y2_conflict( $other_mail ) && $y2_conflict( $code ) && $y2_conflict( $voucher ) );
 $same = $y2_data( $y2_checkout( array( 'email' => ' QA1@example.COM ', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ), array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) ) );
@@ -101,7 +102,7 @@ check( 'fingerprint stored on the order (DB 3.12.0)', 64 === strlen( (string) Or
 $wpdb->update( "{$p}wpcap_orders", array( 'request_fingerprint' => null ), array( 'order_id' => $first['order_id'] ) );
 $legacy = $y2_data( $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => $key ) ) );
 $legacy_switch = $y2_checkout( array( 'email' => 'qa1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'stripe', 'idempotency_key' => $key ) );
-check( 'order without fingerprint: same provider reused, other provider 409', is_array( $legacy ) && ! empty( $legacy['reused'] ) && is_wp_error( $legacy_switch ) && 'wpcap_idempotency_mismatch' === $legacy_switch->get_error_code() );
+check( 'order without fingerprint: same provider reused, other provider 409', is_array( $legacy ) && ! empty( $legacy['reused'] ) && is_wp_error( $legacy_switch ) && 'wpcap_checkout_provider_changed' === $legacy_switch->get_error_code() && 409 === $legacy_switch->get_error_data()['status'] );
 
 echo "Y2 QA-1: gateways reuse an open payment only for the current amount\n";
 http_reset();
