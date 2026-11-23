@@ -367,7 +367,7 @@ final class ServiceBookingFlow {
 			if ( (int) $slot['slot_id'] === (int) $booking->slot_id || (int) $slot['available'] < (int) $booking->quantity ) { continue; }
 			if ( null !== $same_type && $same_type !== (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", (int) $slot['resource_id'] ) ) ) { continue; }
 			$row = ServiceBookings::bookable_slot( (int) $slot['slot_id'] );
-			if ( ! $row || ServiceBookings::rule_error( $row, (string) $booking->customer_email, (int) $booking->booking_id ) || ServiceBookings::blocking_slot( $row, (int) $booking->booking_id ) ) { continue; }
+			if ( ! $row || ServiceBookings::rule_error( $row, (string) $booking->customer_email, (int) $booking->booking_id, (int) $booking->quantity ) || ServiceBookings::blocking_slot( $row, (int) $booking->booking_id ) ) { continue; }
 			$out[] = $slot;
 			if ( count( $out ) >= 50 ) { break; }
 		}
