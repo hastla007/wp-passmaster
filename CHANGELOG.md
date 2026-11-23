@@ -37,6 +37,21 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Checkout-Antwort ohne `order_id` und `public_id`.** Die fortlaufende Bestellnummer und die Hälfte des Portallinks gehen nicht mehr an den Browser.
 - **Rechnungs-API (Vertragsversion 1.2.0):** `Api\Invoices::get()` liefert das Leistungsdatum (`service_date`, `service_period` je Rechnung, `service_date`/`service_date_end` je Position).
 
+### Übernahmen und Nachträge vom 23.11.2026
+- **Übernommen aus den Nebenzweigen:** Form-Captain-Adapter (Formular am Event, signierter Event-Kontext, ausdrückliche Übergabe als Anfrage; PR #29, A672), Affiliate-Steuer bei Mehrzweckgutschein plus Kampagnenrabatt nur einmal abziehen (PR #28), Lesefassade für Zustände (`wpcap_get_*_state()`, Vertragsversion 1.3.0) und Kasten „Workflow Captain“ im Systemstatus.
+- **Form Captain auf dem zusammengeführten Stand:** Modul im Manifest (Tabellen werden angelegt), Abschnitt über `wpcap_admin_event_sections`, Kartenfilter `wpcap_event_card_html`, Formularzuordnungen je Liste mit einer Abfrage.
+- **Servicebuchungen:** Die Umbuchungsoptionen berücksichtigen beim Limit pro Person die Menge der Buchung.
+- **Dokumentation:** REST-Namensraum `pass-captain/v1` überall; `wp-pass-captain/v1` nur noch als weitergeleiteter Alias.
+- **Netzwerkaktivierung:** Die Lösch-Zustimmung aller Sites wird vor ihrer Einrichtung geschützt (bis 500 Sites je Lauf, Filter `wpcap_network_install_policy_batch`).
+- **Sicherheit:** Webhook-, SMS- und Fiskalziele werden mit derselben Adressprüfung wie die Anbieteraufrufe geprüft (u. a. 168.63.129.16, 2001::/23, 64:ff9b:1::/48 gesperrt); ungültige Proxy-Einträge zählen nicht mehr als konfigurierter Proxy (N03).
+- **Checkout:** Ein Wiederholversuch mit anderer Zahlart erhält wieder die eigene Meldung `wpcap_checkout_provider_changed`.
+- **Mails:** Rechtstexte stehen als eigener Absatz; „Bewahre diesen Link …“ wieder in einem neuen Absatz.
+- **Tickets:** Der Nachlauf der Ticketausstellung gilt wie der A343-Durchlauf nur für die letzten zwei Tage und übergibt nicht abschließbare Bestellungen einmalig an den Wiederholungs-Job.
+- **Zeit:** 66 weitere Dateien lesen die Zeit über `Clock`.
+- **Suite-Ereignisse (PC-1–PC-3, PC-6):** `docs/HOOKS.md` nennt je Action die Version, seit der sie feuert, ob sie nach dem Commit feuert und die möglichen Werte von `$reason`; Termin verschieben oder absagen im Admin löst die Actions nur nach erfolgreichem Schreiben aus.
+- **Connector-Vertrag 1.1.0 (A705/A708):** neue Ereignisse `voucher_redeemed` und `ticket_revoked`, Gründe nur als Code, Payload-Feld `contract_version`; der Suite-Status listet registrierte Connectoren mit Version und Freigabe – ohne Lizenzstatus.
+- **Entscheidung 17 (endgültig):** Die Connectoren BoatingSchool und LearnBoating sind eigene, nicht verkaufte Projektprodukte mit eigenem Produktschlüssel, nicht Teil von Pass Captain Pro (Doku angepasst).
+
 ### Behobene Fehler aus der Zusammenführung
 - **Servicebuchungen:** Nach einer bezahlten Umbuchung auf ein teureres Zeitfenster lief die Verarbeitung der Zusatzbestellung in eine Endlosschleife (doppelte Verarbeitung durch beide Abläufe); sie läuft jetzt einmal.
 - **Servicebuchungen (PAY-9):** Eine Stornierung nach einer Umbuchung auf ein günstigeres Zeitfenster erstattet auch den Rest der ersten Zahlung.
