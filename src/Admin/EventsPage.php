@@ -343,7 +343,11 @@ final class EventsPage {
 		$table = $wpdb->prefix . 'wpcap_occurrences';
 		$rescheduled = false;
 		if ( $old ) {
-			$wpdb->update( $table, $data, array( 'occurrence_id' => (int) $old->occurrence_id ), $formats, array( '%d' ) );
+			// PC-6: a failed UPDATE changes nothing – no revision, no mails, no audit entry and neither
+			// `wpcap_occurrence_rescheduled` nor `wpcap_occurrence_cancelled` (0 rows = unchanged values).
+			if ( false === $wpdb->update( $table, $data, array( 'occurrence_id' => (int) $old->occurrence_id ), $formats, array( '%d' ) ) ) {
+				return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
+			}
 			$occurrence_id = (int) $old->occurrence_id;
 			$issued = Queries::issued_ticket_count_for_occurrence( $occurrence_id );
 			// A140: calendar-relevant changes raise the revision (iCalendar SEQUENCE); one mail per save.
@@ -483,7 +487,15 @@ final class EventsPage {
 		if ( '' === $reason ) { return Forms::error( 'wpcap_cancel_reason', __( 'Bitte einen Grund für die Absage angeben.', 'pass-captain' ) ); }
 		if ( ! Forms::flag( $in, 'confirm' ) ) { return Forms::error( 'wpcap_cancel_confirm', __( 'Bitte bestätigen, dass die Folgen der Absage geprüft wurden.', 'pass-captain' ) ); }
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'occurrence_id' => (int) $occ->occurrence_id ), array( '%s' ), array( '%d' ) );
+		// PC-6: only the request whose UPDATE changed the status goes on (revision, audit,
+		// `wpcap_occurrence_cancelled`). A database error fires nothing; when a parallel request
+		// cancelled the occurrence first, this one continues its cancellation like a second click.
+		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'occurrence_id' => (int) $occ->occurrence_id, 'status' => (string) $occ->status ), array( '%s' ), array( '%d', '%s' ) );
+		if ( 1 !== (int) $updated ) {
+			$now = false === $updated ? null : Queries::occurrence( (int) $occ->occurrence_id );
+			if ( $now && 'cancelled' === $now->status ) { return self::cancel_occurrence( $in ); }
+			return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
+		}
 		Revisions::bump( (int) $occ->occurrence_id );
 		$issued = Queries::issued_ticket_count_for_occurrence( $occ->occurrence_id );
 		Audit::record( 'occurrence_cancelled', 'occurrence', (int) $occ->occurrence_id, array( 'event_id' => (int) $occ->event_id, 'issued_tickets' => $issued, 'reason' => $reason, 'changes' => array( 'status' => array( $occ->status, 'cancelled' ) ) ) );

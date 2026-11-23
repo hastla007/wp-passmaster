@@ -124,8 +124,8 @@ Produktentscheidung.
 | `wpcap_mail_suppressed` | `string $to, string $type` | `Mailer::deliver()`: Kunden-Mail an eine Platzhalteradresse (Kasse, Gästeliste oder Partnerverkauf ohne Käuferadresse) wird nicht versendet; `$type` ist der Mail-Typ. |
 | `wpcap_before_payment_confirm` | `int $order_id` | Zu Beginn von `Orders::confirm_external_payment()`, **außerhalb** jeder Transaktion und bei jeder (auch wiederholten) Bestätigung. Module bereiten vor, was die Prüfung einer späten Zahlung braucht und nicht unter Zeilensperren geht – z. B. reserviert Voucher Captain einen beim Ablauf freigegebenen Gutschein erneut (A632). Handler müssen idempotent sein und den Bestellstatus selbst prüfen. |
 | `wpcap_order_created` | `int $order_id, array $context` | A331: Neue Bestellung **nach dem Commit** (einmal je Bestellung, nie für einen wiederverwendeten Idempotenzschlüssel), vor der Zahlung einer kostenlosen Bestellung und vor jeder Mail. `$context`: `source` (`native`, `woocommerce`, `pos`, …), `external` (Kanal mit eigener Zahlung), `pending_payment`, `total_minor`, `currency`. Für Folgeaktionen außerhalb der Transaktion (anders als `wpcap_order_creating`, das abbrechen kann). Handler dürfen keine Ausnahme werfen. |
-| `wpcap_order_paid` | `int $order_id` | Nach der Zahlungsbestätigung (auch bei kostenlosen Bestellungen), immer **vor** der Ticketausgabe; wer die Tickets braucht, nutzt `wpcap_tickets_issued`. |
-| `wpcap_order_cancelled` | `int $order_id, string $reason, string $payment_status` (die letzten beiden nur aus `cancel_order()`) | `Orders::cancel_order()`, beim Ablauf von Reservierungen (`expire_holds`) und für offene Bestellungen bei der Event-Absage (`cancel_event`). |
+| `wpcap_order_paid` | `int $order_id` | **Nach dem Commit** der Zahlungsbestätigung (auch bei kostenlosen Bestellungen), immer **vor** der Ticketausgabe; wer die Tickets braucht, nutzt `wpcap_tickets_issued`. |
+| `wpcap_order_cancelled` | `int $order_id, string $reason, string $payment_status` (die letzten beiden nur aus `cancel_order()`, seit 1.5.0) | **Nach dem Commit:** `Orders::cancel_order()`, beim Ablauf von Reservierungen (`expire_holds`) und für offene Bestellungen bei der Event-Absage (`cancel_event`). `$reason` kann Freitext sein (Admin, Partner-API, Ticketdienst `wp_pass_captain_ticket_service_v1`); feste Werte und Präfixe unter [Suite-Katalog](#suite-katalog-seit-welcher-version-zeitpunkt-grund). |
 | `wpcap_order_refunded` | `int $order_id, string $reason` | `Orders::mark_refunded()` nach dem Commit: Bestellung vollständig erstattet (native Erstattung, WooCommerce oder Dashboard des Zahlungsanbieters); offene Tickets sind widerrufen. |
 | `wp_pass_captain_voucher_tickets_revoked_v1` | `array $info` (`redemption_key`, `order_public_id`, `remaining`, `revoked`, `reason`) | Tickets einer Gutschein-Umwandlung wurden in Pass Captain storniert oder erstattet (Bestellung storniert/erstattet, Termin/Event abgesagt) – nicht bei `revoke_tickets()` durch das Gutscheinsystem selbst. Feuert bei jeder Änderung; `remaining` zählt noch gültige oder bereits eingecheckte Tickets. Der Gutscheinanbieter kann den Gutschein damit zurückgeben (idempotent behandeln). |
 | `wpcap_ticket_created` | `int $ticket_id, object $order, object $line, int $index` | Innerhalb der Ausgabe-Transaktion, je Ticket (z. B. Sitzplatz zuweisen). Klartext-Code nicht speichern. |
@@ -136,14 +136,14 @@ Produktentscheidung.
 | `wpcap_payment_start_failed` | `int $order_id, string $provider, WP_Error $error, string $reference` | A324: Ein Zahlungsstart ist beim Anbieter gescheitert (Checkout, Wartelisten-Angebot, Umtausch). Käufer:innen sahen einen neutralen Text mit Fehler-ID `$reference`; `$error` ist der ungeschwärzte Anbieterfehler – nie an Käufer:innen ausgeben. |
 | `wpcap_job_dead_letter` | `int $job_id, string $job_type, string $error` | A188: Ein Hintergrundjob ist nach `Jobs::MAX_ATTEMPTS` (8) Läufen endgültig gescheitert (`dead_letter`; auch wenn der letzte Lauf durch einen abgestürzten Worker endete). `$error`: letzter Fehler, E-Mail-Adressen maskiert, höchstens 500 Zeichen. Zusätzlich Audit-Eintrag `job_dead_letter`; sichtbar unter Betrieb und im Website-Zustand. |
 | `wpcap_tickets_discarded` | `int[] $ticket_ids, int $order_id` | A183: Eine Ticketausgabe ist gescheitert, nachdem die Datenbankverbindung abgerissen war und WordPress neu verbunden hatte; Teile davon liefen ohne Transaktion und wurden wieder entfernt (Codes wurden nie versendet). Module machen hier rückgängig, was sie in `wpcap_ticket_created` geschrieben haben (der Sitzplan gibt die Plätze an die Reservierungen der Bestellung zurück). Die nächste Ausgabe stellt die Tickets vollständig neu aus. |
-| `wpcap_ticket_revoked` | `int $ticket_id, string $reason` | Nach dem Widerruf: Admin (`TicketsPage`) und über `Orders::fire_revoked()` (Erstattung `refund_{id}`, Stornierung `order_cancelled`, Terminabsage `occurrence_cancelled`, Event-Absage `event_cancelled`, Vollerstattung). |
+| `wpcap_ticket_revoked` | `int $ticket_id, string $reason` | **Nach dem Commit** des Widerrufs; `$reason` ist beim Admin-Widerruf Freitext (feste Werte und Präfixe unter [Suite-Katalog](#suite-katalog-seit-welcher-version-zeitpunkt-grund)): Admin (`TicketsPage`) und über `Orders::fire_revoked()` (Erstattung `refund_{id}`, Stornierung `order_cancelled`, Terminabsage `occurrence_cancelled`, Event-Absage `event_cancelled`, Vollerstattung). |
 | `wpcap_ticket_transferred` | `int $ticket_id, array $context` (`order_id`, `source` `portal`/`assign`, `holder_changes` = Übertragungen + Inhaberwechsel bisher) | A674: Ein Ticket gehört nach dem Commit einer anderen Person – Übertragung im Bestellportal (`Orders::transfer_ticket()`) oder Inhaberwechsel bei der Zuweisung (`TicketAssignments`). Ohne Code und ohne Adressen; der neue Code kommt über `wpcap_ticket_code_rotated`. |
 | `wpcap_ticket_code_rotated` | `int $ticket_id, string $code, string $reason` | Neuer Ticketcode (`transfer`, `resend`, `assign`, `portal_pdf` – PDF-Download im Bestellportal ohne bekannten Code). `$code` ist der Klartext-Code – nur flüchtig verwenden, nie speichern oder loggen. |
 | `wpcap_ticket_code_issued` | `int $ticket_id, string $code, string $reason` | Ein **neues** Ticket hat außerhalb der Ticketmail seinen ersten Code bekommen (`exchange`: Umtausch, vor der Umtauschmail), A490. `$code` ist Klartext – nie unverschlüsselt speichern. Das Wallet-Modul legt damit die Pässe an; die Mail ergänzt sie über `wpcap_ticket_code_mail_section`. |
 | `wpcap_consent_granted` | `array $record` | Eine Einwilligung (Teilnehmerfeld mit „Einwilligung“) wurde erteilt, nach dem Commit: Checkout/Kasse/API/WooCommerce mit der Ticketausgabe, Selbstbedienung in Bestellübersicht oder Ticketseite. `$record`: `log_id`, `ticket_id`, `ticket_public_id`, `order_id`, `field_id`, `field_key`, `text_version` (SHA-256 des gezeigten Texts), `source`, `locale`, `created_at` (UTC), `email` (Teilnehmer, sonst Käufer; `null` bei Platzhaltern). Nicht beim Ticketumtausch (Einwilligung wird übernommen). Siehe [BETREIBERPFLICHTEN.md](BETREIBERPFLICHTEN.md#5-einwilligungen-in-teilnehmerfeldern-nachweis-widerruf-löschung). |
 | `wpcap_consent_withdrawn` | `array $record` | Eine Einwilligung wurde widerrufen oder beendet (gleicher `$record`): `source` `portal`/`ticket_page` (Selbstbedienung), `admin`, `transfer`, `holder_change` (`email` = bisherige Person), `privacy_erasure` (`email` = `null`). Integrationen (z. B. Newsletter) setzen den Widerruf damit um. |
 | `wpcap_consent_withdrawn` | `int $consent_id, object $consent` | Eine protokollierte Einwilligung eines Teilnehmerfelds wurde widerrufen (`Sales\Consents::withdraw()`, Quelle z. B. `portal`) oder ist durch einen Inhaberwechsel des Tickets beendet (`withdrawn_source` `holder_changed`, bei Zuweisung an eine andere Person oder Übertragung); Datensatz bleibt mit Zeitpunkt erhalten, die Antwort ist gelöscht. |
-| `wpcap_ticket_checked_in` | `int $ticket_id, array $context` | Nach erfolgreichem Einlass (`Checkin`). `$context`: u. a. `source` (`web`, `app`, `offline`, `admin` beim Einchecken aus der Ticketliste, A338), `device_id`, `checkin_id` (Zeile im Einlassprotokoll, A675: stabile Kennung des Einlasses für die Deduplizierung). |
+| `wpcap_ticket_checked_in` | `int $ticket_id, array $context` | **Nach dem Commit** eines erfolgreichen Einlasses (`Checkin`). `$context`: u. a. `source` (`web`, `app`, `offline`, `admin` beim Einchecken aus der Ticketliste, A338), `device_id`, `checkin_id` (Zeile im Einlassprotokoll, A675: stabile Kennung des Einlasses für die Deduplizierung). |
 | `wpcap_ticket_checked_out` | `int $ticket_id, array $context` | Nach einem Auslass (Mehrfacheinlass/Bereiche); `$context` wie beim Einlass, mit `checkin_id` des Auslasses. |
 | `wpcap_response_end` | – | `Http::end()`: Eine Antwort, die das Plugin selbst ausgibt (CSV-/PDF-Download, druckbare Seite), ist vollständig gesendet; direkt danach endet der Request (`exit`). Für Protokollierung und Tests. |
 | `wpcap_service_booking_status_changed` | `int $booking_id, string $status, string $previous` | Eine Servicebuchung wurde von der Veranstaltungsleitung oder einem Leistungserbringer der Ressource bestätigt (`confirmed`, vorher `held`) oder als nicht erschienen markiert (`no_show`, vorher `confirmed`, erst ab Beginn des Zeitfensters) (A143, `ServiceBookings::set_booking_status()`). |
@@ -152,7 +152,7 @@ Produktentscheidung.
 | `wpcap_refund_rejected` | `int $refund_id, int $order_id` | Eine auf Freigabe wartende Erstattung (`pending_approval`) wurde von einer freigabeberechtigten Person abgelehnt (`Refunds::reject()`). |
 | `wpcap_portal_refund_requested` | `int $refund_id, int $order_id` | Käufer:in hat im Bestellportal eine Stornierung angefragt (A118, `PortalSelfService::request_refund()`): Erstattung mit `source` `portal` im Status `pending_approval`, nach Bestätigungsmail und Audit-Eintrag `refund_requested_by_customer`. Ausgezahlt wird erst nach der Freigabe (`wpcap_refund_completed`). |
 | `wpcap_pass_day_refund_failed` | `int $order_id, int $ticket_type_id, int $occurrence_id, int $amount_minor` | Pass-Modul: Die anteilige Erstattung für einen abgesagten Termin eines Passes (`refund_per_day_minor` × Anzahl) konnte nicht ausgeführt werden (z. B. WooCommerce-Bestellung – dort erstatten, oder Fehler/Freigabe ausstehend). |
-| `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). |
+| `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). **Nach dem Commit** (Autocommit-UPDATE); scheitert das UPDATE, feuert die Action nicht (PC-6). |
 | `wpcap_occurrence_changed` | `int $occurrence_id, array $changes, int $revision` | Admin/Serientermine: kalenderrelevante Angabe eines Termins geändert (A140) – Beginn, Ende, Einlass, Ort, Veranstaltungsland oder Status. `$changes`: Feld => `[alt, neu]` (Zeiten in UTC); `$revision`: neue Revision = `SEQUENCE` der .ics (0 vor Schema 3.9.9). Läuft nach `wpcap_occurrence_rescheduled`; die Kernbenachrichtigung sendet daraus genau eine Mail je Revision. |
 | `wpcap_event_updated` | `int $event_id, array $changes` | Admin (`EventsPage::update_event()`): Name oder Status eines Events wurde geändert (nur bei tatsächlicher Änderung), A582. `$changes`: Feld => `[alt, neu]`. Das Wallet-Modul aktualisiert damit die Pässe und Google-Klassen. |
 | `wpcap_ticket_type_updated` | `int $ticket_type_id, array $changes` | Admin (`EventsPage::save_ticket_type()`): bestehende Ticketart mit Änderungen gespeichert (Name, Preis, Kontingent, Verkaufszeitraum …), A582. `$changes`: Feld => `[alt, neu]`. |
@@ -167,7 +167,7 @@ Produktentscheidung.
 | `wpcap_attendance_confirmed` | `int $ticket_id, array $context` (`method`, `source`) | A676: Eine zulässige Teilnahmebestätigung ohne Scan (Command `attendance.confirm`), nach dem Audit-Eintrag. |
 | `wpcap_checkin_undone` | `int $ticket_id, array $context` (`source`) | A667: Ein Einlass wurde zurückgenommen (Admin, Scanner, App; nach dem Commit). |
 | `wpcap_workflow_event_recorded` | `array $envelope` | A673: Ein Ereignis des Workflow-Vertrags wurde in die Outbox geschrieben (einmal je Ereignis-ID, Envelope ohne `sequence`). Intern, z. B. für Protokolle. |
-| `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
+| `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). **Nach dem Commit** des Statuswechsels; scheitert das UPDATE oder hat eine parallele Anfrage schon abgesagt, feuert die Action in dieser Anfrage nicht (PC-6). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
 | `wpcap_occurrence_cancelled_woocommerce_order` | `int $order_id, int $occurrence_id` | Je bezahlter WooCommerce-Bestellung eines abgesagten Termins (Erstattung erfolgt in WooCommerce). |
 | `wpcap_cancellation_refund_retried` | `array $payload, string $outcome` | Eine fehlgeschlagene Absage-Erstattung (Termin- oder Pass-Absage) wurde im Hintergrundjob `cancellation_refund` erneut versucht und ist erledigt: `$outcome` `done` (ausgezahlt/beim Anbieter), `open` (wartet auf Freigabe bzw. abgelehnt) oder `final` (nichts mehr zu erstatten). `$payload` enthält `order_id`, `occurrence_id`, `mode` (`tickets`/`amount`) und `key`. |
 | `wpcap_occurrence_cancellation_step` | `int $occurrence_id, int $run_id` | Schritt der wiederaufnehmbaren Terminabsage (A428, `BulkRuns`) für Module, nachdem der Kern Tickets widerrufen und Erstattungen eingeplant hat (z. B. Pässe). Muss idempotent sein: Ein abgebrochener Lauf führt den Schritt erneut aus. Mails über `BulkRuns::queue_mail( $run_id, … )`. |
@@ -222,6 +222,75 @@ ausgeben) und `.wpcap-soldout`; `.wpcap-buy` um das Bestellformular, `.wpcap-sol
 mit allen Ticketarten im `select[name="ticket_type_id"]` (`option[data-max]`) und die Rechtstexte
 `.wpcap-legal[data-legal="terms|consumer_info"] .wpcap-legal-text`. Fehlt ein Baustein, bleibt dieser Teil
 im gerenderten (ggf. gecachten) Zustand; der Server prüft beim Bestellen ohnehin alles.
+
+
+### Suite-Katalog: seit welcher Version, Zeitpunkt, Grund
+
+Die Actions, die andere Captain-Plugins (Workflow Captain, Spezifikation `SPEC-suite-events.md`, Abschnitt 4.2)
+als Ereignisse des Kerns nutzen, mit der **Plugin-Version, seit der sie feuern** (PC-1). Die Spalte „Seit“ der
+[Öffentlichen Add-on-API](#öffentliche-add-on-api) nennt dagegen die Version des Add-on-Vertrags (1.0). Ermittelt
+aus den Release-Ständen der Versionsgeschichte (0.9.0, 1.0.0, 1.1.0, 1.3.0, 1.4.0, 1.5.0); vor 0.9.0 gab es kein
+Release mit diesen Hooks.
+
+„Nach dem Commit“ heißt: Wenn die Action feuert, sind die Zeilen, die das Ereignis beschreiben, dauerhaft
+geschrieben; ein Callback sieht sie auch aus einer anderen Datenbankverbindung, und ein Fehler im Callback macht
+nichts rückgängig (PC-2). Wo die Schreibung ohne Transaktion läuft (Autocommit), feuert die Action erst, wenn das
+UPDATE gelungen ist.
+
+| Action | Seit | Zeitpunkt | Änderungen |
+|---|---|---|---|
+| `wpcap_order_creating` | 0.9.0 | **innerhalb** der Bestell-Transaktion (kann abbrechen) | – |
+| `wpcap_order_created` | 1.5.0 | nach dem Commit | – |
+| `wpcap_order_paid` | 0.9.0 | nach dem Commit der Zahlungsbestätigung (bei kostenlosen Bestellungen nach dem Commit der Bestellung), vor der Ticketausgabe | – |
+| `wpcap_order_cancelled` | 0.9.0 | nach dem Commit der Stornierung bzw. des Reservierungsablaufs | **1.5.0:** zweites und drittes Argument (Grund, bisheriger Zahlungsstatus) aus `Orders::cancel_order()`; beim Ablauf einer Reservierung weiterhin nur die Bestell-ID (Commit `b6ef0b4`) |
+| `wpcap_order_refunded` | 0.9.0 | nach dem Commit | – |
+| `wpcap_refund_completed` | 0.9.0 | nach dem Commit der Verbuchung | – |
+| `wpcap_refund_rejected` | 0.9.0 | nach dem Statuswechsel (Autocommit, nur wenn das UPDATE eine Zeile traf) | – |
+| `wpcap_refund_reversed` | 1.5.0 | nach dem Commit | – |
+| `wpcap_ticket_created` | 0.9.0 | **innerhalb** der Ausgabe-Transaktion | – |
+| `wpcap_tickets_issued` | 0.9.0 | nach dem Commit, vor der Ticketmail | – |
+| `wpcap_ticket_revoked` | 0.9.0 | nach dem Commit des Widerrufs | – |
+| `wpcap_ticket_code_rotated` | 0.9.0 | nach dem Commit der Neuerzeugung | – |
+| `wpcap_ticket_transferred` | 1.5.0 | nach dem Commit | – |
+| `wpcap_ticket_exchanged` | 1.5.0 | nach dem Commit des Umtauschs | – |
+| `wpcap_ticket_checked_in` | 0.9.0 | nach dem Commit des Einlasses | – |
+| `wpcap_ticket_checked_out` | 0.9.0 | nach dem Commit des Auslasses | – |
+| `wpcap_occurrence_rescheduled` | 0.9.0 | nach dem gelungenen UPDATE des Termins (Autocommit) | **1.5.0 (PC-6):** feuert nicht mehr, wenn das UPDATE scheitert |
+| `wpcap_occurrence_changed` | 1.5.0 | nach dem gelungenen UPDATE des Termins | – |
+| `wpcap_occurrence_cancelled` | 0.9.0 | nach dem gelungenen Statuswechsel auf `cancelled` (Autocommit; Sammelabsage: nach dem Commit des Schritts) | **1.5.0 (PC-6):** feuert nicht, wenn das UPDATE scheitert, und nur in der Anfrage, die den Status tatsächlich geändert hat |
+| `wpcap_event_cancelled` | 1.5.0 | nach dem Commit der Absage | die Arbeitslisten-Linie übergibt zusätzlich `array $context` (`occurrence_ids`, `run_id`) |
+| `wpcap_consent_granted` | 1.5.0 | nach dem Commit | – |
+| `wpcap_consent_withdrawn` | 1.5.0 | nach dem Commit | – |
+| `wpcap_mail_before_send` | 1.1.0 | unmittelbar vor `wp_mail()` | – |
+
+**Grund (`$reason`) bei `wpcap_order_cancelled` und `wpcap_ticket_revoked` (PC-3).** Der Wert ist eine
+Zeichenkette, **kein geschlossener Satz von Schlüsseln**: Er kann Freitext sein und darf nicht ungeprüft als
+Schlüssel, Dateiname oder HTML verwendet werden.
+
+- **Freitext:** Admin-Stornierung einer Bestellung (Feld „Grund“, bis 255 Zeichen; leer → `admin_cancel`),
+  Admin-Widerruf eines Tickets (Pflichtfeld „Grund“, bis 255 Zeichen), Partner-API (`partner_api: <Text des
+  Partners>`, bis 190 Zeichen) und bei `wpcap_order_cancelled` jeder Text, den ein Gutscheinanbieter über den
+  Ticketdienst `wp_pass_captain_ticket_service_v1` an `revoke_tickets( $key, $reason )` übergibt (leer →
+  `voucher_revoked`). Ein Wiederholungsjob der Stornierung übergibt den Grund des ersten Versuchs.
+- **Feste Werte und Präfixe bei `wpcap_order_cancelled`:** `admin_cancel`, `voucher_rejected`, `voucher_revoked`,
+  `provider_unavailable_for_currency`, `payment_start_failed`, `buyer_cancelled_on_return`, `buyer_released`,
+  `occurrence_cancelled`, `event_cancelled`, `guestlist_cancelled`, `privacy_erasure`, `pos_session_closed`,
+  `partner_api`; Präfixe `{Zahlungsanbieter}_payment_failed`, `{Zahlungsanbieter}_refund_unpaid`,
+  `pos_device_…`, `waitlist_…` (`waitlist_offer_mail_failed`, `waitlist_offer_withdrawn`, `waitlist_declined`,
+  `waitlist_unsubscribed`, `waitlist_removed`, `waitlist_skipped`, `waitlist_closed`), `woocommerce_…`
+  (`woocommerce_checkout_retry`, `woocommerce_split_failed`, `woocommerce_order_trash`,
+  `woocommerce_order_delete`, `woocommerce_refunded_unpaid`, `woocommerce_woocommerce_order_status_…`),
+  `exchange_…` (`exchange_superseded`, `exchange_original_closed`, `exchange_ticket_revoked`,
+  `exchange_ticket_checked_in`) und `service_…` (`service_booking_cancelled`, `service_supplement_cancelled`,
+  `service_supplement_refused`, `service_supplement_dropped`). Beim Ablauf einer Reservierung gibt es kein
+  zweites Argument.
+- **Feste Werte und Präfixe bei `wpcap_ticket_revoked`:** `order_cancelled` (auch wenn die Stornierung einen
+  Freitext-Grund hatte), `occurrence_cancelled`, `event_cancelled`, `exchange`, `doctor`, `privacy_erasure`,
+  `refunded`; Präfixe `refund_{refund_id}` (Erstattung über den Kern), `woocommerce_refund_{id}`,
+  `service_booking_{id}`, `service_rebook_{id}`; bei einer Vollerstattung der Grund von
+  `wpcap_order_refunded` (`native_refund_{id}`, `{Quelle}_refund_{id}`, `{Zahlungsanbieter}_chargeback`,
+  `{Zahlungsanbieter}_dashboard_refund`, `woocommerce_refunded`, `partner_api`, `late_payment_auto_refund`,
+  `unallocated_refunded`, `unallocated_refunded_externally`, `refund_reconcile`).
 
 Die WP-Cron-Hooks des Plugins stehen unter [Cron-Hooks](#cron-hooks).
 

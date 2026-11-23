@@ -24,7 +24,9 @@ besteht nicht.
 Alle Actions übergeben interne Datenbank-IDs. Öffentliche IDs (`public_id`) und den Zustand von Bestellung, Ticket,
 Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.3.0 über die Lesefassade
 `wpcap_get_*_state()` / `PassCaptain\Api\ReadFacade` (ohne personenbezogene Daten und Codes, siehe
-[EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)).
+[EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)). Seit welcher Plugin-Version jede Action feuert, ob
+sie nach dem Commit feuert und welche Werte `$reason` bei `wpcap_order_cancelled` und `wpcap_ticket_revoked`
+annehmen kann (auch Freitext), steht in [HOOKS.md](HOOKS.md#suite-katalog-seit-welcher-version-zeitpunkt-grund).
 
 | Fachliches Ereignis | Action | Argumente | Zeitpunkt | Personenbezogene Daten oder Codes |
 |---|---|---|---|---|
@@ -39,8 +41,8 @@ Erstattung, Termin und Event lädt der Empfänger seit Vertragsversion 1.3.0 üb
 | Ticketcode neu erzeugt (Übertragung, Neuversand, Zuweisung) | `wpcap_ticket_code_rotated` | `int $ticket_id, string $code, string $reason` | nach der Neuerzeugung | **ja: `$code` ist der Ticketcode im Klartext.** Für Suite-Ereignisse ungeeignet |
 | Einlass | `wpcap_ticket_checked_in` | `int $ticket_id, array $context` (`source`, `device_id`, `area_id`, `idempotency_key`) | nach erfolgreichem Einlass, bei Mehrfacheinlass je Einlass | nein |
 | Auslass | `wpcap_ticket_checked_out` | `int $ticket_id, array $context` | nach dem Auslass | nein |
-| Termin verschoben | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` (UTC) | Admin ändert die Startzeit eines Termins mit ausgegebenen Tickets | nein |
-| Termin abgesagt | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | nach der Absage | nein |
+| Termin verschoben | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` (UTC) | Admin ändert die Startzeit eines Termins mit ausgegebenen Tickets, nach dem gelungenen UPDATE | nein |
+| Termin abgesagt | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | nach dem gelungenen Statuswechsel, einmal je Termin | nein |
 | Event abgesagt | `wpcap_event_cancelled` | `int $event_id` | nach Widerruf, Benachrichtigung und Audit-Eintrag | nein |
 | Einwilligung widerrufen | `wpcap_consent_withdrawn` | `int $consent_id, object $consent` | nach dem Widerruf | **ja:** `$consent` ist die Einwilligungszeile einer Person |
 | Beleg erzeugt | `wp_pass_captain_invoice_created_v1` | `int $id, string $type, array $context` | nach dem Commit, einmal je Beleg | nein (IDs und Belegnummer) |
