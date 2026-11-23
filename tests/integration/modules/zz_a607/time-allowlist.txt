@@ -40,7 +40,6 @@ Operations/Monitor.php
 Operations/Queues.php
 Operations/SiteHealth.php
 Ops/Heartbeat.php
-Ops/Network.php
 Ops/Status.php
 Orders.php
 PageCache.php
