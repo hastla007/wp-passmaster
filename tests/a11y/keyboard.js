@@ -138,7 +138,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 		await page.keyboard.press('Tab');
 		f = await focused(page, scope);
 	}
-	if (f && f.field === 'locale') {
+	if (f && (f.field === 'buyer_locale' || f.field === 'locale')) {
 		// Buyer language selector (between the buyer e-mail and the attendee fields).
 		check('buyer language selector is labelled', /Sprache|Language|langue|idioma|lingua|taal/i.test(f.name), f.name);
 		await page.keyboard.press('Tab');
