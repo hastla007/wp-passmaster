@@ -32,7 +32,7 @@ function fixture() {
 
 async function launch() {
 	const browser = await playwright.chromium.launch();
-	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', reducedMotion: 'reduce' });
+	const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', reducedMotion: 'reduce', bypassCSP: true }); // axe is injected as an inline script; the token pages send a strict CSP.
 	return { browser, ctx };
 }
 

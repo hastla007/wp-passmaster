@@ -7,7 +7,7 @@ use PassCaptain\RateLimit;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Rest {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 
 	public static function register_routes() {
 		register_rest_route( self::NS, '/seating/occurrences/(?P<occurrence_id>\d+)', array(
@@ -21,7 +21,10 @@ final class Rest {
 		if ( ! RateLimit::allow( 'seating_availability|' . RateLimit::client(), (int) apply_filters( 'wpcap_seating_availability_limit', 120 ), 60 ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
-		$data = Reservations::availability( absint( $request['occurrence_id'] ?? $request->get_param( 'occurrence_id' ) ) );
+		$occurrence_id = absint( $request['occurrence_id'] ?? $request->get_param( 'occurrence_id' ) );
+		// A610: a cancelled date or one whose online sale is over answers with its state (200, no map).
+		$data = Reservations::closed_state( $occurrence_id );
+		if ( null === $data ) { $data = Reservations::availability( $occurrence_id ); }
 		if ( null === $data ) {
 			return new \WP_Error( 'wpcap_seat_map_not_found', __( 'Für diesen Termin gibt es keinen Saalplan.', 'pass-captain' ), array( 'status' => 404 ) );
 		}

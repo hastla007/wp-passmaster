@@ -5,7 +5,8 @@
  * Every customer-facing mail is identified by a type from the registry (Types::all()). The text
  * comes from an admin override (Templates, per type and locale) or from the built-in default, which
  * is the translatable German text the plugin always sent – so without overrides the content is
- * unchanged. Placeholders ({site_name}, {order_id}, …) are replaced in one pass; unknown ones become
+ * unchanged. Built-in defaults are sent as HTML with layout and plain-text alternative
+ * (Templates::default_format(), filter `wpcap_mail_default_format`); overrides keep their format. Placeholders ({site_name}, {order_id}, …) are replaced in one pass; unknown ones become
  * empty. In HTML mode values are escaped and the content is wrapped in a simple layout (Layout)
  * with an automatic plain-text alternative (PHPMailer AltBody); in text mode nothing is escaped.
  *
@@ -21,12 +22,19 @@
 namespace PassCaptain\Mail;
 
 use PassCaptain\Orders;
+use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Mailer {
 	/** Plain-text alternative for the mail currently being sent (consumed by phpmailer_init). */
 	private static $alt_body = null;
+
+	/** Envelope sender (Return-Path) for the mail currently being sent (consumed by phpmailer_init). */
+	private static $envelope_sender = null;
+
+	/** From name for the mail currently being sent (wp_mail_from_name, early priority). */
+	private static $from_name = null;
 
 	/** Mail type registry (key => definition). */
 	public static function types() {
@@ -54,10 +62,32 @@ final class Mailer {
 	 * @param string   $locale      Recipient locale (e.g. the order's locale); '' keeps the current one.
 	 * @return bool Whether wp_mail accepted the message.
 	 */
-	public static function send( $type, $to, array $vars, array $attachments = array(), $locale = '' ) {
+	/**
+	 * Whether every recipient is a placeholder address of the reserved domain invalid.example (sales
+	 * without a buyer e-mail) or another reserved .invalid address – such mails are never sent.
+	 *
+	 * @param string|string[] $to Recipient(s).
+	 */
+	public static function is_placeholder( $to ) {
+		$list = array_filter( array_map( 'trim', is_array( $to ) ? $to : explode( ',', (string) $to ) ) );
+		if ( ! $list ) { return false; }
+		foreach ( $list as $address ) {
+			$domain = strtolower( (string) substr( strrchr( $address, '@' ) ?: '', 1 ) );
+			if ( 'invalid.example' !== $domain && 'invalid' !== $domain && '.invalid' !== substr( $domain, -8 ) ) { return false; }
+		}
+		return true;
+	}
+
+	/**
+	 * Composes and sends a mail.
+	 *
+	 * @param int $order_id Order the mail belongs to (support log/order history, A328); 0 = Log scope.
+	 */
+	public static function send( $type, $to, array $vars, array $attachments = array(), $locale = '', $order_id = 0 ) {
 		$message = self::compose( $type, $vars, $locale );
 		if ( ! $message ) { return false; }
 		$message['attachments'] = $attachments;
+		if ( absint( $order_id ) ) { $message['order_id'] = absint( $order_id ); }
 		return self::deliver( $to, $message );
 	}
 
@@ -69,7 +99,10 @@ final class Mailer {
 	public static function compose( $type, array $vars, $locale = '' ) {
 		if ( ! self::type( $type ) ) { return null; }
 		return self::with_locale( $locale, static function () use ( $type, $vars, $locale ) {
-			return self::render_template( $type, Templates::resolve( $type, $locale ), $vars, $locale );
+			// A690: configured terms ("Gäste" instead of "Teilnehmende") also in mails rendered in admin requests and jobs.
+			return \PassCaptain\Terms::in_mail( static function () use ( $type, $vars, $locale ) {
+				return self::render_template( $type, Templates::resolve( $type, $locale ), $vars, $locale );
+			} );
 		} );
 	}
 
@@ -83,13 +116,17 @@ final class Mailer {
 		$def = self::type( $type );
 		// Optional per-type derived values (e.g. payment details of an order); passed values win.
 		$derived = $def && isset( $def['vars'] ) && is_callable( $def['vars'] ) ? (array) call_user_func( $def['vars'], $vars ) : array();
-		$vars = self::resolve_vars( array_merge( self::global_vars(), $derived, $vars ) );
+		$vars = self::resolve_vars( array_merge( self::global_vars( $locale ), $derived, $vars ) );
 		$body = (string) ( $template['body'] ?? '' );
+		$text_body = null;
 		if ( $html && ! self::has_tags( $body ) ) {
-			// Plain text in HTML mode (e.g. a built-in default): treat it as text.
+			// Plain text in HTML mode (e.g. a built-in default): treat it as text. The same template
+			// rendered in text mode becomes the plain-text alternative, so it reads exactly like the
+			// historic text mail instead of an HTML-to-text conversion.
+			$text_body = self::replace( $body, $vars, false );
 			$body = nl2br( esc_html( $body ) );
 		}
-		return array(
+		$message = array(
 			'type' => (string) $type,
 			'subject' => self::clean_subject( self::replace( (string) ( $template['subject'] ?? '' ), $vars, false ) ),
 			'body' => self::replace( $body, $vars, $html ),
@@ -97,6 +134,23 @@ final class Mailer {
 			'locale' => (string) $locale,
 			'attachments' => array(),
 		);
+		return null === $text_body ? $message : self::with_text_body( $message, $text_body );
+	}
+
+	/**
+	 * Attaches a plain-text rendering to an HTML message. It is bound to the current HTML body: if
+	 * a filter replaces the body later, prepare() falls back to converting the HTML.
+	 */
+	public static function with_text_body( array $message, $text ) {
+		$message['text_body'] = (string) $text;
+		$message['text_for'] = sha1( (string) $message['body'] );
+		return $message;
+	}
+
+	/** The plain-text rendering of an HTML message if it still matches its body, else null. */
+	public static function text_body( array $message ) {
+		if ( ! isset( $message['text_body'], $message['text_for'] ) ) { return null; }
+		return sha1( (string) ( $message['body'] ?? '' ) ) === $message['text_for'] ? (string) $message['text_body'] : null;
 	}
 
 	/**
@@ -109,17 +163,23 @@ final class Mailer {
 		if ( ! is_array( $filtered ) ) { return $message; }
 		$original = (string) $message['body'];
 		$body = (string) ( $filtered['body'] ?? $original );
+		$text = self::text_body( $message );
 		if ( 'html' === $message['format'] && $body !== $original ) {
 			$base = rtrim( $original );
 			if ( '' !== $base && str_starts_with( $body, $base ) ) {
 				$suffix = substr( $body, strlen( $base ) );
 				$body = $base . ( self::has_tags( $suffix ) ? wp_kses_post( $suffix ) : self::text_to_html( $suffix ) );
+				// Keep the plain-text part in step: the appended text (or its text form) goes there too.
+				$text = null === $text ? null : rtrim( $text ) . ( self::has_tags( $suffix ) ? "\n\n" . Layout::to_text( $suffix ) : $suffix );
 			} else {
 				$body = self::has_tags( $body ) ? wp_kses_post( $body ) : self::text_to_html( $body );
+				$text = null;
 			}
 		}
 		$message['subject'] = self::clean_subject( (string) ( $filtered['subject'] ?? $message['subject'] ) );
 		$message['body'] = $body;
+		unset( $message['text_body'], $message['text_for'] );
+		if ( null !== $text ) { $message = self::with_text_body( $message, $text ); }
 		$message['attachments'] = (array) ( $filtered['attachments'] ?? $message['attachments'] );
 		return $message;
 	}
@@ -130,24 +190,91 @@ final class Mailer {
 	 * @param array $message subject, body, format, attachments, locale, type (optional: headers).
 	 */
 	public static function deliver( $to, array $message ) {
+		if ( self::is_placeholder( $to ) ) {
+			// Box office, guest list or partner sale without a buyer address: nothing to deliver. Done
+			// here, not only in pre_wp_mail, because SMTP plugins may replace wp_mail() entirely.
+			do_action( 'wpcap_mail_suppressed', $to, (string) ( $message['type'] ?? '' ) );
+			return true;
+		}
+		// A677: an optional mail type the site owner handed to the workflow provider is not sent natively
+		// when the provider takes it; otherwise (no provider, refusal, error) it is sent here as always.
+		if ( \PassCaptain\Workflow\MailHandoff::hand_off( $to, $message ) ) { return true; }
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
+		list( $to, $message ) = self::recipients( $to, $message );
 		$prepared = self::prepare( $to, $message );
 		$alt = $prepared['alt_body'];
 		if ( null !== $alt ) {
 			self::$alt_body = $alt;
 			add_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10, 1 );
 		}
+		// Sender settings only for the plugin's own mails, at an early priority: SMTP plugins (which hook
+		// later or force their own sender) keep the last word.
+		self::sender_begin();
+		$sent = false;
 		try {
 			do_action( 'wpcap_mail_before_send', $prepared, $message );
+			\PassCaptain\Operations\Monitor::mail_begin();
 			$sent = wp_mail( $prepared['to'], $prepared['subject'], $prepared['body'], $prepared['headers'], $prepared['attachments'] );
 		} finally {
+			// Failure counter for the Site Health check (A164): type and error code only, no recipient.
+			\PassCaptain\Operations\Monitor::mail_end( (bool) $sent, (string) ( $message['type'] ?? '' ) );
+			self::sender_end();
 			if ( null !== $alt ) {
 				remove_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10 );
 				self::$alt_body = null;
 			}
 		}
+		self::log_outcome( (bool) $sent, $to, $message );
 		return (bool) $sent;
+	}
+
+	/**
+	 * Filter wpcap_mail_recipients (A331): recipients of a customer mail as ['to' => string|string[],
+	 * 'cc' => string[], 'bcc' => string[]] (e.g. a copy to the organiser). Invalid addresses are
+	 * dropped, at most 10 per field; without a valid "to" the original recipient stays. Cc/Bcc become
+	 * mail headers.
+	 *
+	 * @return array [to, message]
+	 */
+	private static function recipients( $to, array $message ) {
+		$filtered = apply_filters( 'wpcap_mail_recipients', array( 'to' => $to, 'cc' => array(), 'bcc' => array() ), $message );
+		if ( ! is_array( $filtered ) ) { return array( $to, $message ); }
+		$clean = static function ( $list ) {
+			$list = is_array( $list ) ? $list : explode( ',', (string) $list );
+			$out = array();
+			foreach ( $list as $address ) {
+				$address = is_string( $address ) ? sanitize_email( $address ) : '';
+				if ( is_email( $address ) && ! self::is_placeholder( $address ) ) { $out[ strtolower( $address ) ] = $address; }
+			}
+			return array_slice( array_values( $out ), 0, 10 );
+		};
+		$new_to = $clean( $filtered['to'] ?? array() );
+		if ( $new_to ) { $to = 1 === count( $new_to ) && ! is_array( $to ) ? $new_to[0] : $new_to; }
+		$headers = (array) ( $message['headers'] ?? array() );
+		foreach ( array( 'cc' => 'Cc', 'bcc' => 'Bcc' ) as $field => $header ) {
+			$list = $clean( $filtered[ $field ] ?? array() );
+			if ( $list ) { $headers[] = $header . ': ' . implode( ', ', $list ); }
+		}
+		$message['headers'] = $headers;
+		return array( $to, $message );
+	}
+
+	/**
+	 * Support log entry of a plugin mail (A328): type, number of recipients and outcome, attributed to
+	 * the order of $message['order_id'] or of the current Log scope – never addresses or content.
+	 */
+	private static function log_outcome( $sent, $to, array $message ) {
+		$recipients = count( array_filter( array_map( 'trim', is_array( $to ) ? $to : explode( ',', (string) $to ) ) ) );
+		$type = sanitize_key( (string) ( $message['type'] ?? '' ) );
+		$context = array( 'mail_type' => $type, 'recipients' => $recipients );
+		if ( ! empty( $message['order_id'] ) ) { $context['order_id'] = absint( $message['order_id'] ); }
+		if ( $sent ) {
+			\PassCaptain\Log::info( 'mail', 'Mail sent: ' . $type, $context );
+			return;
+		}
+		$failure = \PassCaptain\Operations\Monitor::last_mail_failure_text();
+		\PassCaptain\Log::warning( 'mail', 'Mail not sent: ' . $type . ( '' !== $failure ? ' – ' . $failure : '' ), $context );
 	}
 
 	/**
@@ -158,12 +285,13 @@ final class Mailer {
 	public static function prepare( $to, array $message ) {
 		$subject = self::clean_subject( (string) ( $message['subject'] ?? '' ) );
 		$body = (string) ( $message['body'] ?? '' );
-		$headers = (array) ( $message['headers'] ?? array() );
+		$headers = self::sender_headers( (array) ( $message['headers'] ?? array() ) );
 		$alt = null;
 		if ( 'html' === ( $message['format'] ?? 'text' ) ) {
 			$locale = (string) ( $message['locale'] ?? '' );
-			list( $body, $alt ) = self::with_locale( $locale, static function () use ( $body, $subject, $locale ) {
-				return array( Layout::wrap( $body, $subject, $locale ), Layout::alt_text( $body ) );
+			$text = self::text_body( $message );
+			list( $body, $alt ) = self::with_locale( $locale, static function () use ( $body, $subject, $locale, $text ) {
+				return array( Layout::wrap( $body, $subject, $locale ), Layout::alt_text( $body, $text ) );
 			} );
 			$headers[] = 'Content-Type: text/html; charset=UTF-8';
 		}
@@ -177,6 +305,133 @@ final class Mailer {
 		);
 	}
 
+	/**
+	 * Sender of buyer mails (A296 + R3): display name (setting mail_from_name, else the seller name,
+	 * else the site name) and reply-to address (setting mail_reply_to; else, while no own From address
+	 * is configured, the admin e-mail, because replies to wordpress@… would be lost). The From address
+	 * itself is from_email(): configured address or '' (WordPress'/the SMTP plugin's default, so
+	 * SPF/DKIM keep matching). Filter `wpcap_mail_sender`.
+	 *
+	 * @return array{name:string,reply_to:string} reply_to '' = no Reply-To header.
+	 */
+	public static function sender() {
+		$name = trim( (string) Settings::get( 'mail_from_name' ) );
+		if ( '' === $name ) { $name = trim( (string) Settings::get( 'seller_name' ) ); }
+		if ( '' === $name ) { $name = trim( Orders::site_name() ); }
+		$reply = trim( (string) Settings::get( 'mail_reply_to' ) );
+		if ( '' === $reply && '' === self::from_email() ) { $reply = trim( (string) get_option( 'admin_email' ) ); }
+		$sender = (array) apply_filters( 'wpcap_mail_sender', array( 'name' => $name, 'reply_to' => $reply ) );
+		$reply = sanitize_email( (string) ( $sender['reply_to'] ?? '' ) );
+		return array(
+			// No line breaks or angle brackets in a header value.
+			'name' => trim( (string) preg_replace( '/[\r\n<>"]+/', ' ', (string) ( $sender['name'] ?? '' ) ) ),
+			'reply_to' => is_email( $reply ) ? $reply : '',
+		);
+	}
+
+	/** Configured From address of customer mails (setting mail_from_email), '' when not configured. */
+	public static function from_email() {
+		$email = sanitize_email( (string) Settings::get( 'mail_from_email' ) );
+		return is_email( $email ) ? $email : '';
+	}
+
+	/**
+	 * Mail headers with From (configured address) and Reply-To (A296) added; headers the message
+	 * already sets (template, filter) are kept.
+	 *
+	 * @param string[] $headers Headers.
+	 */
+	public static function sender_headers( array $headers = array() ) {
+		$has = static function ( $name ) use ( $headers ) {
+			foreach ( $headers as $header ) {
+				if ( is_string( $header ) && 0 === stripos( ltrim( $header ), $name . ':' ) ) { return true; }
+			}
+			return false;
+		};
+		$sender = self::sender();
+		$from = self::from_email();
+		if ( '' !== $from && ! $has( 'From' ) ) {
+			$headers[] = 'From: ' . self::quote_name( $sender['name'] ) . ' <' . $from . '>';
+		}
+		if ( '' !== $sender['reply_to'] && ! $has( 'Reply-To' ) ) {
+			$headers[] = 'Reply-To: ' . $sender['reply_to'];
+		}
+		return $headers;
+	}
+
+	/**
+	 * Sends a buyer mail that does not go through deliver() (e.g. service bookings) with the sender
+	 * of sender()/from_email() (name, From, Reply-To, envelope sender).
+	 */
+	public static function send_plain( $to, $subject, $body ) {
+		self::sender_begin();
+		try {
+			return (bool) wp_mail( $to, $subject, $body, self::sender_headers() );
+		} finally {
+			self::sender_end();
+		}
+	}
+
+	/** Registers the sender hooks for one plugin mail (removed again by sender_end()). */
+	private static function sender_begin() {
+		$from = self::from_email();
+		self::$envelope_sender = '' !== $from ? $from : null;
+		self::$from_name = self::sender()['name'];
+		add_action( 'phpmailer_init', array( __CLASS__, 'apply_sender' ), 5, 1 );
+		add_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ), 5, 1 );
+	}
+
+	/** Removes the hooks of sender_begin(), so other plugins' mails are not affected. */
+	private static function sender_end() {
+		remove_action( 'phpmailer_init', array( __CLASS__, 'apply_sender' ), 5 );
+		remove_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ), 5 );
+		self::$envelope_sender = null;
+		self::$from_name = null;
+	}
+
+	/** Display name for a From header (quoted when it contains specials). */
+	private static function quote_name( $name ) {
+		$name = trim( str_replace( array( '"', '\\' ), '', (string) $name ) );
+		return preg_match( '/[()<>\[\]:;@,.]/', $name ) ? '"' . $name . '"' : $name;
+	}
+
+	/** wp_mail_from_name (only while the plugin sends): configured/seller/site name instead of "WordPress". */
+	public static function filter_from_name( $name ) {
+		return null !== self::$from_name && '' !== self::$from_name ? self::$from_name : $name;
+	}
+
+	/**
+	 * phpmailer_init (only while the plugin sends, priority 5): envelope sender (Return-Path) = configured
+	 * From address, so SPF checks the sender domain. Left alone when something already set one.
+	 */
+	public static function apply_sender( $phpmailer ) {
+		if ( null === self::$envelope_sender || ! is_object( $phpmailer ) ) { return; }
+		if ( '' === (string) ( $phpmailer->Sender ?? '' ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName -- PHPMailer property.
+			$phpmailer->Sender = self::$envelope_sender; // phpcs:ignore WordPress.NamingConventions.ValidVariableName -- PHPMailer property.
+		}
+	}
+
+	/**
+	 * Sender problems for the system status page: no configured address (mails go out as
+	 * wordpress@<host> unless an SMTP plugin sets a sender) or a sender domain that differs from the
+	 * site domain (DMARC alignment needs SPF/DKIM for that domain).
+	 *
+	 * @return array[] {severity, message}
+	 */
+	public static function sender_issues() {
+		$from = self::from_email();
+		$host = strtolower( (string) ( function_exists( 'wp_parse_url' ) ? wp_parse_url( home_url(), PHP_URL_HOST ) : parse_url( home_url(), PHP_URL_HOST ) ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- fallback before WordPress is loaded.
+		$host = (string) preg_replace( '/^www\./', '', $host );
+		if ( '' === $from ) {
+			return array( array( 'severity' => 'warning', 'message' => __( 'Für Kunden-E-Mails ist keine Absenderadresse eingestellt (Einstellungen → E-Mail-Versand). Ohne SMTP-Plugin gehen Tickets als „wordpress@…“ raus und landen eher im Spam; Antworten der Kund:innen gehen verloren.', 'pass-captain' ) ) );
+		}
+		$domain = strtolower( (string) substr( strrchr( $from, '@' ), 1 ) );
+		if ( '' !== $host && $domain !== $host && ! str_ends_with( $host, '.' . $domain ) && ! str_ends_with( $domain, '.' . $host ) ) {
+			/* translators: 1: sender domain, 2: site domain */
+			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. Ihren SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
+		}
+		return array();
+	}
 	/** phpmailer_init (only registered while an HTML mail is sent): sets the plain-text part. */
 	public static function apply_alt_body( $phpmailer ) {
 		if ( null !== self::$alt_body && is_object( $phpmailer ) ) {
@@ -187,10 +442,21 @@ final class Mailer {
 	/* ---------------------------------------------------------------- Rendering helpers */
 
 	/** Placeholders available in every mail type. */
-	public static function global_vars() {
+	public static function global_vars( $locale = '' ) {
+		$locale = self::normalize_locale( $locale );
+		$locale = '' !== $locale ? $locale : self::current_locale();
+		$legal = static function ( $key ) use ( $locale ) {
+			return static function () use ( $key, $locale ) {
+				$text = \PassCaptain\Settings::legal_text( $key, $locale );
+				return '' === trim( $text ) ? '' : self::block( Layout::to_text( $text ), wp_kses_post( function_exists( 'wpautop' ) ? wpautop( $text ) : $text ) );
+			};
+		};
 		return array(
 			'site_name' => Orders::site_name(),
-			'site_url' => home_url( '/' ),
+			'site_url' => self::link( home_url( '/' ) ),
+			// Legal texts in the recipient's language (fallback: default language), built only when used.
+			'terms_text' => $legal( 'terms_text' ),
+			'consumer_info_text' => $legal( 'consumer_info_text' ),
 		);
 	}
 
@@ -218,10 +484,11 @@ final class Mailer {
 	/** One placeholder value in the requested format. */
 	private static function value( $value, $html ) {
 		if ( is_array( $value ) ) {
-			return (string) ( $html ? ( $value['html'] ?? esc_html( (string) ( $value['text'] ?? '' ) ) ) : ( $value['text'] ?? '' ) );
+			return (string) ( $html ? ( $value['html'] ?? esc_html( (string) ( $value['text'] ?? '' ) ) ) : \PassCaptain\Text::plain( $value['text'] ?? '' ) );
 		}
 		if ( is_bool( $value ) || null === $value || is_object( $value ) ) { return ''; }
-		return $html ? nl2br( esc_html( (string) $value ) ) : (string) $value;
+		// Text mails and subjects are plain text: stored entities ("Kids &lt;3") are decoded (A497).
+		return $html ? nl2br( esc_html( (string) $value ) ) : \PassCaptain\Text::plain( (string) $value );
 	}
 
 	/** Whether a string contains common HTML markup (anything else, e.g. "<x>", counts as text). */
@@ -234,13 +501,30 @@ final class Mailer {
 		return trim( (string) preg_replace( '/[\r\n\t]+/', ' ', (string) $subject ) );
 	}
 
-	/** Plain text to safe HTML: escaped, URLs linked, line breaks kept. */
+	/**
+	 * Plain text to safe HTML: escaped, URLs linked, line breaks kept. A625: a line "Label: URL"
+	 * (e.g. "In Google Wallet speichern: https://pay.google.com/…", "Dein Ticket: https://…") becomes a
+	 * button with the label instead of a long bare URL; the text version keeps the URL.
+	 */
 	public static function text_to_html( $text ) {
-		$html = esc_html( (string) $text );
-		$html = (string) preg_replace_callback( '#https?://[^\s<>"\']+#', static function ( $m ) {
-			return '<a href="' . $m[0] . '">' . $m[0] . '</a>';
-		}, $html );
-		return nl2br( $html );
+		$lines = preg_split( '/\r\n|\r|\n/', (string) $text );
+		$out = array();
+		foreach ( $lines as $line ) {
+			if ( preg_match( '#^\s*([^:\n]{2,80}?):\s+(https?://[^\s<>"\']+)\s*$#u', $line, $m ) && false === strpos( $m[1], '://' ) ) {
+				$out[] = self::button( esc_attr( esc_url_raw( $m[2] ) ), esc_html( trim( $m[1] ) ) );
+				continue;
+			}
+			$out[] = (string) preg_replace_callback( '#https?://[^\s<>"\']+#', static function ( $u ) {
+				return '<a href="' . $u[0] . '">' . $u[0] . '</a>';
+			}, esc_html( $line ) );
+		}
+		return implode( "<br />\n", $out );
+	}
+
+	/** A625: link styled as a button (escaped URL and label), in the layout's accent colour. */
+	public static function button( $url, $label ) {
+		$color = (string) ( Layout::settings()['color'] ?? '#2271b1' );
+		return '<a href="' . $url . '" style="display:inline-block;margin:4px 0;padding:10px 18px;border-radius:4px;background:' . esc_attr( $color ) . ';color:#ffffff;text-decoration:none;font-weight:bold">' . $label . '</a>';
 	}
 
 	/** Link value for templates (URL as text, <a> in HTML). */
@@ -258,11 +542,18 @@ final class Mailer {
 		return function_exists( 'get_locale' ) ? (string) get_locale() : '';
 	}
 
-	/** The site's default locale. */
+	/**
+	 * The site's default locale. Inside with_locale() get_locale() reports the switched locale, so the
+	 * site locale captured before the outermost switch is returned there (A384, A518).
+	 */
 	public static function site_locale() {
+		if ( self::$active_locales && '' !== self::$outer_site_locale ) { return self::$outer_site_locale; }
 		$locale = function_exists( 'get_locale' ) ? (string) get_locale() : self::current_locale();
 		return '' !== $locale ? $locale : 'de_DE';
 	}
+
+	/** @var string Site locale before the outermost with_locale() switched (see site_locale()). */
+	private static $outer_site_locale = '';
 
 	/** Sanitised locale code (e.g. de_DE, de_DE_formal) or ''. */
 	public static function normalize_locale( $locale ) {
@@ -270,18 +561,77 @@ final class Mailer {
 		return preg_match( '/^[a-z]{2,3}(?:_[A-Za-z0-9]{2,8}){0,2}$/', $locale ) ? $locale : '';
 	}
 
-	/** Runs $callback in the given locale and restores the previous one afterwards. */
+	/**
+	 * Runs $callback in the given locale and restores the previous one afterwards.
+	 *
+	 * switch_to_locale() refuses locales without an installed WordPress core language pack. The plugin
+	 * ships its own catalogues (languages/pass-captain-<locale>.mo), so the buyer's mail would fall back to
+	 * the site language although a translation exists (A306). In that case only the plugin's text domain
+	 * is loaded for the buyer's locale (a translate.wordpress.org language pack in wp-content/languages/plugins
+	 * wins over the bundled file) and the site's catalogue is restored afterwards. Dates and numbers then
+	 * keep the site's format (WordPress' own strings stay in the site language).
+	 */
 	public static function with_locale( $locale, callable $callback ) {
 		$locale = self::normalize_locale( $locale );
 		$switched = false;
+		$plugin_only = false;
+		if ( ! self::$active_locales ) { self::$outer_site_locale = self::site_locale(); }
 		if ( '' !== $locale && $locale !== self::current_locale() && function_exists( 'switch_to_locale' ) ) {
 			$switched = (bool) switch_to_locale( $locale );
+			if ( ! $switched ) { $plugin_only = self::load_plugin_catalog( $locale ); }
 		}
+		// A384: dates, times and the reading direction of what the callback builds follow this locale.
+		self::$active_locales[] = '' !== $locale ? $locale : self::active_locale();
 		try {
 			return $callback();
 		} finally {
+			array_pop( self::$active_locales );
 			if ( $switched && function_exists( 'restore_previous_locale' ) ) { restore_previous_locale(); }
+			if ( $plugin_only ) { self::restore_plugin_catalog(); }
 		}
+	}
+
+	/** @var string[] Locales of the with_locale() calls in progress (innermost last). */
+	private static $active_locales = array();
+
+	/**
+	 * A384: locale of the mail or document currently being built (innermost with_locale()); '' outside
+	 * of with_locale() (site/user language).
+	 */
+	public static function active_locale() {
+		return self::$active_locales ? (string) end( self::$active_locales ) : '';
+	}
+
+	/** The plugin catalogue (.mo) for a locale: language pack first, then the bundled file; '' when none. */
+	public static function plugin_catalog( $locale ) {
+		$locale = self::normalize_locale( $locale );
+		if ( '' === $locale ) { return ''; }
+		$candidates = array();
+		if ( defined( 'WP_LANG_DIR' ) ) { $candidates[] = WP_LANG_DIR . '/plugins/pass-captain-' . $locale . '.mo'; }
+		$candidates[] = WPCAP_PATH . 'languages/pass-captain-' . $locale . '.mo';
+		foreach ( $candidates as $file ) {
+			if ( is_readable( $file ) ) { return $file; }
+		}
+		return '';
+	}
+
+	/** Loads only the plugin's text domain in $locale (core language pack missing). */
+	private static function load_plugin_catalog( $locale ) {
+		$file = self::plugin_catalog( $locale );
+		if ( '' === $file || ! function_exists( 'load_textdomain' ) || ! function_exists( 'unload_textdomain' ) ) { return false; }
+		unload_textdomain( 'pass-captain', true );
+		if ( ! load_textdomain( 'pass-captain', $file, $locale ) ) {
+			self::restore_plugin_catalog();
+			return false;
+		}
+		\PassCaptain\Settings::flush();
+		return true;
+	}
+
+	/** Reloads the plugin's text domain for the current (site/user) locale (just in time, A382). */
+	private static function restore_plugin_catalog() {
+		\PassCaptain\Localization::reload_textdomain();
+		\PassCaptain\Settings::flush();
 	}
 }
 

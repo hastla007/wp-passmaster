@@ -16,103 +16,8 @@ use PassCaptain\Payments\Registry;
 use PassCaptain\Payments\StripeGateway;
 use PassCaptain\Payments\Webhooks;
 
-/* ---- HTTP + REST fakes ---- */
-$GLOBALS['wpcap_test_http_queue'] = array();
-$GLOBALS['wpcap_test_http_requests'] = array();
-
-if ( ! function_exists( 'wp_remote_request' ) ) {
-	function wp_remote_request( $url, $args = array() ) {
-		$method = strtoupper( $args['method'] ?? 'GET' );
-		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null );
-		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
-			if ( empty( $entry['match'] ) || false !== strpos( $url, $entry['match'] ) ) {
-				array_splice( $GLOBALS['wpcap_test_http_queue'], $i, 1 );
-				if ( $entry instanceof WP_Error ) { return $entry; }
-				return array( 'response' => array( 'code' => $entry['code'] ?? 200, 'message' => '' ), 'headers' => $entry['headers'] ?? array(), 'body' => is_string( $entry['body'] ?? null ) ? $entry['body'] : json_encode( $entry['body'] ?? array() ) );
-			}
-		}
-		return new WP_Error( 'http_request_failed', 'No scripted response for ' . $method . ' ' . $url );
-	}
-}
-if ( ! function_exists( 'wp_remote_post' ) ) { function wp_remote_post( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'POST'; return wp_remote_request( $url, $args ); } }
-if ( ! function_exists( 'wp_remote_get' ) ) { function wp_remote_get( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'GET'; return wp_remote_request( $url, $args ); } }
-if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; } }
-if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
-if ( ! function_exists( 'wp_remote_retrieve_header' ) ) { function wp_remote_retrieve_header( $r, $h ) { foreach ( (array) ( $r['headers'] ?? array() ) as $k => $v ) { if ( strtolower( $k ) === strtolower( $h ) ) { return $v; } } return ''; } }
-if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['wpcap_test_transients'][ $k ] ); return true; } }
-
-if ( ! class_exists( 'WP_REST_Request' ) ) {
-	class WP_REST_Request implements ArrayAccess {
-		private $params = array();
-		private $headers = array();
-		private $body = '';
-		public function __construct( public $method = 'GET', public $route = '' ) {}
-		private static function canonical( $key ) { return str_replace( '-', '_', strtolower( (string) $key ) ); }
-		public function set_header( $key, $value ) { $this->headers[ self::canonical( $key ) ] = (string) $value; }
-		public function get_header( $key ) { return $this->headers[ self::canonical( $key ) ] ?? null; }
-		public function set_body( $body ) { $this->body = (string) $body; }
-		public function get_body() { return $this->body; }
-		public function get_json_params() { $d = json_decode( $this->body, true ); return is_array( $d ) ? $d : null; }
-		public function set_param( $k, $v ) { $this->params[ $k ] = $v; }
-		public function get_param( $k ) { return $this->params[ $k ] ?? ( $this->get_json_params()[ $k ] ?? null ); }
-		public function get_params() { return array_merge( (array) $this->get_json_params(), $this->params ); }
-		public function offsetExists( mixed $k ): bool { return null !== $this->get_param( $k ); }
-		public function offsetGet( mixed $k ): mixed { return $this->get_param( $k ); }
-		public function offsetSet( mixed $k, mixed $v ): void { $this->params[ $k ] = $v; }
-		public function offsetUnset( mixed $k ): void { unset( $this->params[ $k ] ); }
-	}
-}
-
-function http_reset() { $GLOBALS['wpcap_test_http_queue'] = array(); $GLOBALS['wpcap_test_http_requests'] = array(); }
-function http_push( $body, $code = 200, $match = '' ) { $GLOBALS['wpcap_test_http_queue'][] = array( 'body' => $body, 'code' => $code, 'match' => $match ); }
-function http_requests( $match = '' ) { return array_values( array_filter( $GLOBALS['wpcap_test_http_requests'], static fn( $r ) => '' === $match || false !== strpos( $r['url'], $match ) ) ); }
-function form_body( $request ) { parse_str( (string) $request['body'], $out ); return $out; }
-
-function provider_order( $provider, $type, $qty, $key, $discount = 0 ) {
-	global $wpdb;
-	$r = Orders::create( array( 'email' => "$key@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => $key ), array( 'payment_provider' => $provider, 'hold_minutes' => 30 ) );
-	if ( $discount ) {
-		// Simulates a campaign discount: the provider must charge the order total, not the item sum.
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET discount_minor=%d,total_minor=total_minor-%d WHERE order_id=%d", $discount, $discount, $r['order_id'] ) );
-	}
-	return (array) Orders::get( $r['order_id'] );
-}
-function order_items_array( $order_id ) { return array_map( static fn( $row ) => (array) $row, Orders::items_for_order( $order_id ) ); }
-
-function stripe_request( array $event, $secret = 'whsec_test', $timestamp = null, $tamper = false ) {
-	$body = json_encode( $event );
-	$t = $timestamp ?? time();
-	$sig = hash_hmac( 'sha256', $t . '.' . $body, $secret );
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/stripe/webhook' );
-	$req->set_body( $tamper ? str_replace( '"amount_total":', '"amount_total":1', $body ) : $body );
-	$req->set_header( 'Stripe-Signature', "t=$t,v1=" . str_repeat( '0', 64 ) . ",v1=$sig" );
-	$req['provider'] = 'stripe';
-	return $req;
-}
-function stripe_session_event( $id, $type, $order, array $override = array() ) {
-	return array( 'id' => $id, 'type' => $type, 'data' => array( 'object' => array_merge( array(
-		'id' => 'cs_test_' . $order['public_id'], 'object' => 'checkout.session', 'amount_total' => (int) $order['total_minor'], 'currency' => 'eur',
-		'client_reference_id' => $order['public_id'], 'metadata' => array( 'wpcap_order' => $order['public_id'] ),
-		'payment_intent' => 'pi_' . substr( $order['public_id'], 0, 12 ), 'payment_status' => 'paid', 'status' => 'complete',
-	), $override ) ) );
-}
-function stripe_deliver( $gateway, array $event, ...$args ) {
-	$verified = $gateway->verify_webhook( stripe_request( $event, ...$args ) );
-	return is_wp_error( $verified ) ? $verified : Webhooks::process( $gateway->id(), $verified );
-}
-
-function paypal_request( array $event, $with_headers = true ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/paypal/webhook' );
-	$req->set_body( json_encode( $event ) );
-	if ( $with_headers ) {
-		foreach ( array( 'PAYPAL-TRANSMISSION-ID' => 'tid-1', 'PAYPAL-TRANSMISSION-TIME' => gmdate( 'c' ), 'PAYPAL-TRANSMISSION-SIG' => 'sig==', 'PAYPAL-CERT-URL' => 'https://api.sandbox.paypal.com/v1/notifications/certs/CERT', 'PAYPAL-AUTH-ALGO' => 'SHA256withRSA' ) as $h => $v ) { $req->set_header( $h, $v ); }
-	}
-	$req['provider'] = 'paypal';
-	return $req;
-}
-
 /* ---- Setup ---- */
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 PassCaptain\Settings::update( array(
 	'stripe_secret_key' => 'sk_test_123', 'stripe_webhook_secret' => 'whsec_test',
 	'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client', 'paypal_client_secret' => 'secret', 'paypal_webhook_id' => 'WH-ID-1',
@@ -137,7 +42,7 @@ check( 'session charges exactly the discounted order total', 4500 === (int) $so[
 check( 'session params: mode, currency, references, metadata, email, expiry', 'payment' === $f['mode'] && 'eur' === $f['currency'] && $so['public_id'] === $f['client_reference_id'] && $so['public_id'] === $f['metadata']['wpcap_order'] && $so['public_id'] === $f['payment_intent_data']['metadata']['wpcap_order'] && 'stripe-1@example.com' === $f['customer_email'] && (int) $f['expires_at'] >= time() + 1800 && (int) $f['expires_at'] <= time() + 86400 && false !== strpos( $f['success_url'], 'wpcap_payment=success' ) && false !== strpos( $f['cancel_url'], 'wpcap_payment=cancel' ) );
 Orders::set_provider_reference( $so['order_id'], $pay['provider_reference'] );
 http_reset();
-http_push( array( 'id' => 'cs_test_1', 'url' => 'https://checkout.stripe.com/c/pay/cs_test_1', 'status' => 'open' ), 200, '/v1/checkout/sessions/cs_test_1' );
+http_push( array( 'id' => 'cs_test_1', 'url' => 'https://checkout.stripe.com/c/pay/cs_test_1', 'status' => 'open', 'amount_total' => 4500, 'currency' => 'eur' ), 200, '/v1/checkout/sessions/cs_test_1' );
 $again = $stripe->create_payment( (array) Orders::get( $so['order_id'] ), array() );
 check( 'retried checkout reuses the open session', ! is_wp_error( $again ) && 'cs_test_1' === $again['provider_reference'] && 1 === count( $GLOBALS['wpcap_test_http_requests'] ) && 'GET' === $GLOBALS['wpcap_test_http_requests'][0]['method'] );
 http_reset();
@@ -193,7 +98,7 @@ $rq = http_requests( '/v1/refunds' )[0] ?? array( 'body' => '', 'headers' => arr
 $rf = form_body( $rq );
 check( 'native refund completes with Stripe refund id', ! is_wp_error( $sr ) && 'completed' === $sr['status'] && 're_1' === $sr['provider_reference'] );
 check( 'refund uses payment intent, amount and idempotency key', 'pi_' . substr( $so['public_id'], 0, 12 ) === ( $rf['payment_intent'] ?? '' ) && (string) $sr['amount_minor'] === $rf['amount'] && 'wpcap-refund-' . $sr['refund_id'] === $rq['headers']['Idempotency-Key'] && ! empty( $rf['metadata']['wpcap_refund'] ) );
-$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_x', 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
+$charge = array( 'id' => 'evt_ref1', 'type' => 'charge.refunded', 'data' => array( 'object' => array( 'id' => 'ch_1', 'object' => 'charge', 'amount' => 4500, 'amount_refunded' => 2250, 'refunded' => false, 'currency' => 'eur', 'payment_intent' => 'pi_' . substr( $so['public_id'], 0, 12 ), 'metadata' => array( 'wpcap_order' => $so['public_id'] ), 'refunds' => array( 'data' => array( array( 'id' => 're_1', 'amount' => 2250, 'metadata' => array( 'wpcap_refund' => 'wpcap-refund-1' ) ) ) ) ) ) );
 $own = stripe_deliver( $stripe, $charge );
 check( 'charge.refunded for the plugin\'s own partial refund does not revoke more tickets', 'ignored' === $own && 1 === count( tickets( $so['order_id'], 'valid' ) ) );
 http_reset();
@@ -204,6 +109,9 @@ $charge['data']['object']['refunded'] = true;
 unset( $charge['data']['object']['refunds'] );
 $full = stripe_deliver( $stripe, $charge );
 check( 'full refund in Stripe dashboard marks the order refunded', 'refunded' === $full && 'refunded' === Orders::get( $so['order_id'] )->status && ! tickets( $so['order_id'], 'valid' ) );
+$so_refunds = $wpdb->get_results( $wpdb->prepare( "SELECT amount_minor,reason FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d ORDER BY refund_id", $so['order_id'] ) );
+check( 'the dashboard refund is booked as a refund row for the rest (credit note, voucher share and settlement follow)', 2 === count( $so_refunds ) && 2250 === (int) $so_refunds[1]->amount_minor && 'stripe_dashboard_refund' === $so_refunds[1]->reason && 4500 === (int) Orders::get( $so['order_id'] )->refunded_minor );
+check( 'a repeated dashboard refund event books nothing twice', 'duplicate' === stripe_deliver( $stripe, $charge ) || 2 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d", $so['order_id'] ) ) );
 
 http_reset();
 $co = provider_order( 'stripe', $type, 1, 'stripe-cs-ref' );
@@ -233,7 +141,7 @@ $cr = http_requests( '/v2/checkout/orders' )[0] ?? array( 'headers' => array(), 
 $cb = json_decode( $cr['body'], true );
 check( 'OAuth token via client credentials against the sandbox', 'https://api-m.sandbox.paypal.com/v1/oauth2/token' === $tok['url'] && 'Basic ' . base64_encode( 'client:secret' ) === $tok['headers']['Authorization'] && 'grant_type=client_credentials' === $tok['body'] );
 check( 'create_payment returns approve link and PayPal order id', ! is_wp_error( $pp ) && 'https://www.sandbox.paypal.com/checkoutnow?token=PAYORDER1' === $pp['redirect_url'] && 'PAYORDER1' === $pp['provider_reference'] );
-check( 'PayPal order: CAPTURE, total incl. discount, references, request id', 'CAPTURE' === $cb['intent'] && '45.00' === $cb['purchase_units'][0]['amount']['value'] && 'EUR' === $cb['purchase_units'][0]['amount']['currency_code'] && $po['public_id'] === $cb['purchase_units'][0]['custom_id'] && $po['public_id'] === $cb['purchase_units'][0]['reference_id'] && 'wpcap-' . $po['public_id'] === $cr['headers']['PayPal-Request-Id'] && 'Bearer A21-token' === $cr['headers']['Authorization'] && false !== strpos( $cb['payment_source']['paypal']['experience_context']['return_url'], 'wpcap_paypal_return=1' ) );
+check( 'PayPal order: CAPTURE, total incl. discount, references, request id', 'CAPTURE' === $cb['intent'] && '45.00' === $cb['purchase_units'][0]['amount']['value'] && 'EUR' === $cb['purchase_units'][0]['amount']['currency_code'] && $po['public_id'] === $cb['purchase_units'][0]['custom_id'] && $po['public_id'] === $cb['purchase_units'][0]['reference_id'] && 'wpcap-' . $po['public_id'] . '-4500eur' === $cr['headers']['PayPal-Request-Id'] && 'Bearer A21-token' === $cr['headers']['Authorization'] && false !== strpos( $cb['payment_source']['paypal']['experience_context']['return_url'], 'wpcap_paypal_return=1' ) );
 Orders::set_provider_reference( $po['order_id'], $pp['provider_reference'] );
 http_reset();
 http_push( array( 'id' => 'PAYORDER2', 'links' => array( array( 'rel' => 'approve', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=PAYORDER2' ) ) ), 201, '/v2/checkout/orders' );

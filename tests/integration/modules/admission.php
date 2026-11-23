@@ -19,28 +19,6 @@ PassCaptain\Modules\Admission::register();
 global $wpdb;
 $p = $wpdb->prefix;
 
-function adm_ts( $local, $tz ) { return ( new DateTimeImmutable( $local, new DateTimeZone( $tz ) ) )->getTimestamp(); }
-function adm_now( $ts ) { if ( null === $ts ) { unset( $GLOBALS['wpcap_test_filters']['wpcap_checkin_now'] ); } else { $GLOBALS['wpcap_test_filters']['wpcap_checkin_now'] = (int) $ts; } }
-/** Event with one occurrence (local times in $tz) and $qty free tickets. */
-function adm_setup( $tz = 'Europe/Vienna', $start = null, $end = null, $qty = 1 ) {
-	global $wpdb;
-	$p = $wpdb->prefix;
-	$type = make_type( 100, 50, 0 );
-	$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
-	$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$occ" );
-	$GLOBALS['wpcap_test_transients'] = array();
-	$order = Orders::create( array( 'email' => 'adm' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'adm-' . uniqid( '', true ) ) );
-	$codes = is_wp_error( $order ) ? array() : ticket_code_for( $order['order_id'] );
-	$fields = array( 'timezone' => $tz );
-	if ( $start ) { $fields['starts_at'] = gmdate( 'Y-m-d H:i:s', adm_ts( $start, $tz ) ); }
-	if ( $end ) { $fields['ends_at'] = gmdate( 'Y-m-d H:i:s', adm_ts( $end, $tz ) ); }
-	$wpdb->update( "{$p}wpcap_occurrences", $fields, array( 'occurrence_id' => $occ ) );
-	return array( 'type' => $type, 'occ' => $occ, 'event' => $event, 'codes' => $codes );
-}
-function adm_r( $r ) { return is_wp_error( $r ) ? (string) ( $r->get_error_data()['result'] ?? $r->get_error_code() ) : (string) $r['status']; }
-function adm_in( $code, $at = null, array $ctx = array() ) { adm_now( $at ); $r = Checkin::perform( $code, $ctx + array( 'idempotency_key' => 'adm-' . uniqid( '', true ) ) ); adm_now( null ); return adm_r( $r ); }
-function adm_out( $code, $at = null, array $ctx = array() ) { adm_now( $at ); $r = Checkin::check_out( $code, $ctx + array( 'idempotency_key' => 'adm-' . uniqid( '', true ) ) ); adm_now( null ); return adm_r( $r ); }
-function adm_ticket_status( $code ) { global $wpdb; return $wpdb->get_var( "SELECT status FROM {$wpdb->prefix}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $code ) . "'" ); }
 
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
@@ -185,6 +163,8 @@ RulesPage::save_policy( array( 'ticket_type_id' => $s['type'], 'policy' => 'defa
 $GLOBALS['wpcap_test_users'][] = new Wpcap_Test_User( 8, 'nordstaff', 'nord@example.com' );
 $added = RulesPage::add_staff( array( 'area_id' => $nord, 'user' => 'nord@example.com' ) );
 check( 'staff can be assigned to an area; unknown users rejected', ! is_wp_error( $added ) && array( 8 ) === Areas::staff( $nord ) && is_wp_error( RulesPage::add_staff( array( 'area_id' => $nord, 'user' => 'nobody' ) ) ) );
+// Non-administrators also need the event assignment for wpcap_checkin (Access::can_access_event).
+$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,8,'wpcap_checkin')", $s['event'] ) );
 $GLOBALS['wpcap_test_user_id'] = 8;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 $req = new WP_REST_Request( 'POST' );
@@ -221,7 +201,7 @@ check( 'paired device is bound to the selected area; /app/me returns it', $vip =
 RulesPage::save_policy( array( 'ticket_type_id' => $other['type'], 'policy' => 'default' ) );
 $nord_type = make_type( 10, 10, 0 );
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $s['occ'] ), array( 'ticket_type_id' => $nord_type ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $no = Orders::create( array( 'email' => 'nordonly@example.com', 'items' => array( array( 'ticket_type_id' => $nord_type, 'quantity' => 1 ) ), 'idempotency_key' => 'adm-nord-' . uniqid() ) );
 $nord_code = ticket_code_for( $no['order_id'] )[0];
 Areas::set_type_areas( $nord_type, $s['event'], array( $nord ) );
@@ -277,7 +257,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 
 echo "Admission: review fixes (scope of conflicts, public errors, backdated offline scans)\n";
 // Cross-event uploads never create conflicts in an event the device is not paired for.
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $foreign = adm_setup();
 $wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'cancelled' ), array( 'occurrence_id' => $foreign['occ'] ) );
 $foreign_ok = adm_setup();
@@ -292,7 +272,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_checkin' );
 $noacc = Checkin::perform( $foreign_ok['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x3', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $noacc_lookup = Checkin::perform( $foreign['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x4', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
-check( 'uploader without check-in access creates no conflict (also for lookup errors)', is_wp_error( $noacc ) && is_wp_error( $noacc_lookup ) && 'cancelled_event' === $noacc_lookup->get_error_data()['result'] && empty( $noacc->get_error_data()['conflict_id'] ) && empty( $noacc_lookup->get_error_data()['conflict_id'] ) && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
+check( 'uploader without check-in access creates no conflict (also for lookup errors; A365: scope before the occurrence state)', is_wp_error( $noacc ) && is_wp_error( $noacc_lookup ) && 'forbidden' === $noacc_lookup->get_error_data()['result'] && empty( $noacc->get_error_data()['conflict_id'] ) && empty( $noacc_lookup->get_error_data()['conflict_id'] ) && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
 
 // Errors returned to clients carry no internal ids.
 $used_req = new WP_REST_Request( 'POST' );
@@ -345,6 +325,12 @@ $dw_ok = Checkin::perform( $dw['codes'][0], array( 'idempotency_key' => 'dw-1' )
 adm_now( $dw_start + 2 * 3600 + 60 );
 $dw_late = Checkin::perform( $dw['codes'][1], array( 'idempotency_key' => 'dw-2' ) );
 check( 'default entry window: closed 3 h before, open 90 min before the start, closed after the end', 'outside_entry_window' === ( $dw_early['status'] ?? '' ) && 'checked_in' === adm_r( $dw_ok ) && 'outside_entry_window' === adm_r( $dw_late ) );
+$dw_when = PassCaptain\Orders::format_start( gmdate( 'Y-m-d H:i:s', $dw_start ), 'Europe/Vienna' );
+check( 'A048: the refusal names the date the ticket is valid for', is_wp_error( $dw_late ) && false !== strpos( $dw_late->get_error_message(), $dw_when ) );
+$dw_other = Checkin::perform( $dw['codes'][2], array( 'idempotency_key' => 'dw-occ', 'occurrence_id' => $dw['occ'] + 100000 ) );
+check( 'A048: a ticket for another date (date chosen in the scanner) is refused with its own date', is_wp_error( $dw_other ) && 'wrong_occurrence' === $dw_other->get_error_data()['result'] && false !== strpos( $dw_other->get_error_message(), $dw_when ) );
+$dw_items = PassCaptain\PublicEvents::scanner_occurrences();
+check( 'A048: the web scanner offers the upcoming dates the user may admit to', (bool) array_filter( $dw_items, static fn( $i ) => (int) $i['id'] === (int) $dw['occ'] && false !== strpos( $i['label'], $dw_when ) ) );
 PassCaptain\Settings::update( array( 'default_entry_window' => 0 ) );
 check( 'the default entry window can be switched off', 'checked_in' === adm_r( Checkin::perform( $dw['codes'][2], array( 'idempotency_key' => 'dw-3' ) ) ) );
 PassCaptain\Settings::update( array( 'default_entry_window' => $dw_before ) );

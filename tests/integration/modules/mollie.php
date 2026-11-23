@@ -13,7 +13,7 @@ use PassCaptain\Payments\Registry;
 use PassCaptain\Payments\Webhooks;
 use PassCaptain\Settings;
 
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 
 Mollie::register();
@@ -25,7 +25,7 @@ function mollie_payment( $id, $status, $order, array $extra = array() ) {
 	return array_merge( array( 'resource' => 'payment', 'id' => $id, 'status' => $status, 'amount' => array( 'value' => MollieGateway::format_amount( (int) $order['total_minor'], $order['currency'] ), 'currency' => $order['currency'] ), 'metadata' => array( 'order' => $order['public_id'] ), '_links' => array( 'checkout' => array( 'href' => 'https://www.mollie.com/checkout/select-method/' . $id ) ) ), $extra );
 }
 function mollie_webhook( $id ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/mollie/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/mollie/webhook' );
 	$req->set_body( 'id=' . $id );
 	$req['provider'] = 'mollie';
 	return $req;
@@ -45,14 +45,15 @@ check( 'amount strings use currency decimals', '45.00' === MollieGateway::format
 
 echo "Mollie: methods\n";
 Settings::update( array( 'mollie' => array( 'methods' => array( 'ideal', 'creditcard', 'klarna' ), 'billing_country' => 'NL' ) ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_reset();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ), array( 'id' => 'creditcard', 'description' => 'Kreditkarte' ), array( 'id' => 'bancontact', 'description' => 'Bancontact' ) ) ) ), 200, '/v2/methods' );
-$methods = MollieGateway::selectable_methods( 2500, 'EUR' );
+$methods = MollieGateway::selectable_methods( 2500, 'EUR', true );
 $mq = http_requests( '/v2/methods' )[0] ?? array( 'url' => '' );
 parse_str( (string) parse_url( $mq['url'], PHP_URL_QUERY ), $q );
 check( 'only enabled methods Mollie offers for amount/currency', array( 'ideal' => 'iDEAL', 'creditcard' => 'Kreditkarte' ) === $methods );
-check( 'methods queried with amount, currency and billing country', '25.00' === ( $q['amount']['value'] ?? '' ) && 'EUR' === ( $q['amount']['currency'] ?? '' ) && 'NL' === ( $q['billingCountry'] ?? '' ) );
+// Y5/PERF-2: EUR methods are fetched once per currency/country (limits filtered locally), not per amount.
+check( 'methods queried per currency and billing country (not per amount), with a short timeout', ! isset( $q['amount'] ) && 'NL' === ( $q['billingCountry'] ?? '' ) && 'oneoff' === ( $q['sequenceType'] ?? '' ) && ( $mq['timeout'] ?? 99 ) <= 3 );
 http_reset();
 MollieGateway::selectable_methods( 2500, 'EUR' );
 check( 'methods are cached', ! http_requests( '/v2/methods' ) );
@@ -62,21 +63,21 @@ ob_start(); Mollie::render_checkout_fields( (object) array( 'occurrence_id' => 3
 check( 'checkout shows a labelled method selector', false !== strpos( $html, '<legend>' ) && false !== strpos( $html, 'value="ideal"' ) && false === strpos( $html, 'bancontact' ) );
 
 echo "Mollie: create payment\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_reset();
 $r = Orders::create( array( 'email' => 'mol-1@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'mol-1', 'mollie_method' => 'ideal' ), array( 'payment_provider' => 'mollie', 'hold_minutes' => 30 ) );
 $order = (array) Orders::get( $r['order_id'] );
 check( 'chosen method stored for the order', 'ideal' === Mollie::chosen_method( $order['order_id'] ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 http_push( array( '_embedded' => array( 'methods' => array( array( 'id' => 'ideal', 'description' => 'iDEAL' ) ) ) ), 200, '/v2/methods' );
 http_push( mollie_payment( 'tr_Test1234', 'open', $order ), 201, '/v2/payments' );
 $pay = $mollie->create_payment( $order, order_items_array( $order['order_id'] ) );
 $cr = http_requests( '/v2/payments' )[0] ?? array( 'headers' => array(), 'body' => '', 'method' => '', 'url' => '' );
 $body = json_decode( $cr['body'], true );
 check( 'create returns the checkout redirect and payment id', ! is_wp_error( $pay ) && 'mollie' === $pay['provider'] && 'tr_Test1234' === $pay['provider_reference'] && 0 === strpos( $pay['redirect_url'], 'https://www.mollie.com/checkout/' ) );
-check( 'POST /v2/payments with bearer key and idempotency key', 'POST' === $cr['method'] && 'https://api.mollie.com/v2/payments' === $cr['url'] && 'Bearer ' . $api_key === $cr['headers']['Authorization'] && 'wpcap-mollie-' . $order['public_id'] === $cr['headers']['Idempotency-Key'] );
+check( 'POST /v2/payments with bearer key and idempotency key', 'POST' === $cr['method'] && 'https://api.mollie.com/v2/payments' === $cr['url'] && 'Bearer ' . $api_key === $cr['headers']['Authorization'] && 'wpcap-mollie-' . $order['public_id'] . '-' . (int) $order['total_minor'] . 'eur' === $cr['headers']['Idempotency-Key'] );
 check( 'amount string, description, metadata, method', array( 'currency' => 'EUR', 'value' => '50.00' ) === $body['amount'] && $order['public_id'] === $body['metadata']['order'] && 'ideal' === $body['method'] && false !== strpos( $body['description'], $order['public_id'] ) && 'de_DE' === $body['locale'] );
-check( 'webhookUrl and redirectUrl', 'https://example.test/wp-json/wp-pass-captain/v1/payments/mollie/webhook' === $body['webhookUrl'] && false !== strpos( $body['redirectUrl'], 'wpcap_mollie_return=1' ) && false !== strpos( $body['redirectUrl'], $order['public_id'] ) );
+check( 'webhookUrl and redirectUrl', 'https://example.test/wp-json/pass-captain/v1/payments/mollie/webhook' === $body['webhookUrl'] && false !== strpos( $body['redirectUrl'], 'wpcap_mollie_return=1' ) && false !== strpos( $body['redirectUrl'], $order['public_id'] ) );
 Orders::set_provider_reference( $order['order_id'], 'tr_Test1234' );
 http_reset();
 http_push( mollie_payment( 'tr_Test1234', 'open', $order ), 200, '/v2/payments/tr_Test1234' );

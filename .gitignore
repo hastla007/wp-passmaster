@@ -1,7 +1,12 @@
 /vendor/
 /build/dist/
 /.phpunit.cache/
-/.phpunit.result.cache
+.phpunit.result.cache
 tests/integration/wp/
 tests/a11y/node_modules/
 tests/a11y/report/
+/.claude/worktrees/
+/build/.phpstan-cache/
+tests/e2e/artifacts/
+/node_modules/
+tests/upgrade/.wordpress/

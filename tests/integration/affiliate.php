@@ -1,23 +1,36 @@
 <?php
-/** WP Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
+/** Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
 // phpcs:ignoreFile
 use PassCaptain\Orders;
 use PassCaptain\Integrations\AffiliateCaptain\Adapter as AffiliateAdapter;
 
-echo "WP Affiliate Captain adapter\n";
+echo "Affiliate Captain adapter\n";
 $GLOBALS['wpac_test_version'] = '1.1.0';
 $GLOBALS['wpac_test_sales']   = array();
 $GLOBALS['wpac_test_refunds'] = array();
 $GLOBALS['wpac_test_touch']   = null;
 if ( ! function_exists( 'wpac_contract_version' ) ) {
-	function wpac_contract_version() { return $GLOBALS['wpac_test_version']; }
-	function wpac_record_sale( array $payload ) { $GLOBALS['wpac_test_sales'][] = $payload; return array( 'status' => 'created' ); }
+	function wpac_contract_version() { if ( $GLOBALS['wpac_test_version'] instanceof Throwable ) { throw $GLOBALS['wpac_test_version']; } return $GLOBALS['wpac_test_version']; }
+	function wpac_record_sale( array $payload ) {
+		// Failure modes for the retry tests: 'throw' (exception), 'error' (WP_Error).
+		$fail = $GLOBALS['wpac_test_fail'] ?? '';
+		if ( 'throw' === $fail ) { throw new RuntimeException( 'Affiliate Captain database gone' ); }
+		if ( 'error' === $fail ) { return new WP_Error( 'wpac_storage', 'Affiliate Captain could not store the sale' ); }
+		// A203: faults (exception / WP_Error such as a timeout) and alternative answers of Affiliate Captain.
+		$fault = $GLOBALS['wpac_test_sale_fault'] ?? null;
+		if ( $fault instanceof Throwable ) { throw $fault; }
+		if ( is_wp_error( $fault ) ) { return $fault; }
+		$GLOBALS['wpac_test_sales'][] = $payload;
+		return $GLOBALS['wpac_test_sale_response'] ?? array( 'status' => 'created' );
+	}
 	function wpac_record_refund( array $payload ) { $GLOBALS['wpac_test_refunds'][] = $payload; return array( 'status' => 'adjusted' ); }
 	function wpac_resolve_partner_code( $code, array $context = array() ) { return 'NORD-1' === strtoupper( $code ) ? array( 'affiliate_id' => 7, 'code_id' => 3, 'code' => 'NORD-1' ) : null; }
 	function wpac_current_touch() { return $GLOBALS['wpac_test_touch']; }
 }
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'salt-' . $scheme; } }
 AffiliateAdapter::register();
+// No consent API in this test: the operator opts in to reading the referral cookie (default: no consent).
+$GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] = true;
 $aff_last_sale = static fn() => end( $GLOBALS['wpac_test_sales'] );
 $aff_snapshot  = static function ( $order_id ) { global $wpdb; return json_decode( $wpdb->get_var( "SELECT price_snapshot FROM {$wpdb->prefix}wpcap_orders WHERE order_id=" . (int) $order_id ), true ); };
 $aff_order     = static function ( $type, $qty, $payload = array(), $internal = array() ) {
@@ -94,4 +107,18 @@ $by_means = ! empty( $vsnap['amount_paid_by_voucher'] );
 $expected = $by_means ? (int) $fresh->total_minor - (int) round( (int) $fresh->tax_minor * (int) $fresh->total_minor / ( (int) $fresh->total_minor + (int) $vsnap['amount_paid_by_voucher'] ) ) : (int) $fresh->total_minor - (int) $fresh->tax_minor;
 check( 'a redeemed voucher reduces the commission base to the net of what was paid', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && $expected === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
 echo '  (voucher ' . ( $by_means ? 'multi-purpose' : 'single-purpose' ) . ': paid ' . (int) $fresh->total_minor . ', base ' . (int) $sale['items'][0]['net_minor'] . ")\n";
+// Campaign discount + voucher: the stored line VAT is already on the discounted price, so it is scaled with
+// paid / (paid + voucher) only once (Affiliate Captain audit P2: the base was too high before).
+PassCaptain\Campaigns::create( array( 'code' => 'AFFCV20', 'kind' => 'percent', 'value' => 2000, 'currency' => 'EUR' ) );
+wpcap_test_reset_transients();
+$cv = $aff_order( $aff_type, 1, array( 'campaign_codes' => array( 'AFFCV20' ) ) );
+$cv_applied = PassCaptain\Integrations\Vouchers\Checkout::apply( $cv['order_id'], 'GIFT-15' );
+Orders::confirm_manual_payment( $cv['order_id'] );
+$cv_fresh = Orders::get( $cv['order_id'] );
+$cv_sale  = $aff_last_sale();
+$cv_snap  = json_decode( (string) $cv_fresh->voucher_snapshot, true );
+$cv_means = ! empty( $cv_snap['amount_paid_by_voucher'] );
+$cv_exp   = $cv_means ? (int) $cv_fresh->total_minor - (int) round( (int) $cv_fresh->tax_minor * (int) $cv_fresh->total_minor / ( (int) $cv_fresh->total_minor + (int) $cv_snap['amount_paid_by_voucher'] ) ) : (int) $cv_fresh->total_minor - (int) $cv_fresh->tax_minor;
+check( 'campaign discount + voucher: VAT removed once on the discounted price (base not too high)', ! is_wp_error( $cv ) && ! is_wp_error( $cv_applied ) && (int) $cv_fresh->discount_minor > 0 && (string) $cv['order_id'] === $cv_sale['order_id'] && $cv_exp === $cv_sale['items'][0]['net_minor'] );
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_affiliate_tracking_allowed'] );

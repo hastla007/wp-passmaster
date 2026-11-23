@@ -6,6 +6,14 @@ name: Release
 #   v<plugin version>, unless that release exists already; the tag is then created on exactly
 #   the commit CI tested (workflow_run head_sha),
 # - on manual runs from main (workflow_dispatch).
+#
+# Release gate (build/verify-release.sh), for every trigger, before anything is built: the commit
+# must be on main (ancestor of origin/main), the CI workflow (ci.yml) must have succeeded for
+# exactly that commit (queried via the Actions API; running CI is waited for), and the tag must
+# match the plugin header Version, WPCAP_VERSION and the readme.txt Stable tag.
+# Then build/check-versions.sh (CHANGELOG, composer.json, requirements), a reproducible build whose
+# sha256 must equal the ZIP the CI run tested, and the release gets pass-captain.zip plus
+# pass-captain.zip.sha256 (verification: docs/COMPATIBILITY.md, "Release-Artefakt prüfen").
 on:
   push:
     tags:
@@ -16,8 +24,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
+# Least privilege: nothing by default, the release job gets what it needs.
+permissions: {}
 
 # Never publish two releases at the same time (e.g. tag push and CI completion overlapping).
 concurrency:
@@ -35,13 +43,32 @@ jobs:
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: write # create the release (and the tag for CI-triggered runs)
+      actions: read # read CI workflow runs for the release commit
     env:
       # The commit to release: the one CI tested for workflow_run, else the triggering commit.
       RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # Kept: the job runs `git fetch origin main` after checkout (private repository needs the token).
+          persist-credentials: true
           ref: ${{ env.RELEASE_SHA }}
+          # Full history so the ancestry check against origin/main works.
+          fetch-depth: 0
+
+      # Tag pushes and manual runs: only commits that are on main and passed CI are released
+      # (the workflow_run path is gated by the successful CI run on main itself; build/verify-release.sh
+      # below checks the same again for every trigger).
+      - name: Release guard (commit on main, CI green)
+        if: github.event_name != 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --no-tags origin main
+          bash build/release-guard.sh "$RELEASE_SHA" origin/main "WordPress plugin checks"
 
       - name: Determine tag
         run: |
@@ -58,24 +85,53 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - uses: shivammathur/setup-php@v2
+      - name: Verify release commit (on main, CI passed for this SHA, versions match the tag)
+        if: env.SKIP == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The checkout is the release commit itself; HEAD must be exactly RELEASE_SHA.
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA" || { echo "::error::Checked out $(git rev-parse HEAD), expected $RELEASE_SHA"; exit 1; }
+          bash build/verify-release.sh "$TAG" "$RELEASE_SHA"
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         if: env.SKIP == ''
         with:
-          php-version: '8.2'
-          tools: composer:v2
+          php-version: '8.5'
+          # Same exact Composer version as ci.yml (COMPOSER_VERSION), so the ZIP is byte-identical.
+          # wp-cli: script translations (wp i18n make-json) in build/release.sh.
+          tools: composer:2.8.12, wp-cli
           extensions: mbstring
           coverage: none
 
-      - name: Check plugin version matches the tag
+      - name: Release gate – all translations complete
         if: env.SKIP == ''
-        run: |
-          version="${TAG#v}"
-          grep -q "Version: ${version}\$" pass-captain.php || { echo "Plugin header version does not match tag ${TAG}"; exit 1; }
-          grep -q "'WPCAP_VERSION', '${version}'" pass-captain.php || { echo "WPCAP_VERSION does not match tag ${TAG}"; exit 1; }
+        run: php tests/i18n-check.php
 
-      - name: Build ZIP
+      - name: Release gate – manual acceptance record complete (docs/RELEASE.md)
+        if: env.SKIP == ''
+        run: bash build/release-acceptance.sh "${TAG#v}"
+
+      - name: Version, changelog and requirement consistency
+        if: env.SKIP == ''
+        run: bash build/check-versions.sh "$TAG"
+
+      - name: Build ZIP (reproducible, writes pass-captain.zip.sha256)
         if: env.SKIP == ''
         run: bash build/release.sh
+
+      - name: Compare with the ZIP CI built and tested for this commit
+        if: env.SKIP == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" -f head_sha="$RELEASE_SHA" -f status=success -f per_page=1 --jq '.workflow_runs[0].id // empty')"
+          test -n "$run_id" || { echo "::error::No successful CI run with an artifact for ${RELEASE_SHA}"; exit 1; }
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name pass-captain --dir "$RUNNER_TEMP/ci-artifact"
+          ci="$(sha256sum "$RUNNER_TEMP/ci-artifact/pass-captain.zip" | cut -d' ' -f1)"
+          ours="$(cut -d' ' -f1 build/dist/pass-captain.zip.sha256)"
+          echo "CI run ${run_id}: ${ci}"; echo "release build:  ${ours}"
+          test "$ci" = "$ours" || { echo "::error::Release ZIP differs from the ZIP CI tested for ${RELEASE_SHA} (build not reproducible)"; exit 1; }
 
       - name: Extract release notes from CHANGELOG.md
         if: env.SKIP == ''
@@ -93,8 +149,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then target_args=(--verify-tag); else target_args=(--target "$RELEASE_SHA"); fi
-          gh release create "$TAG" build/dist/pass-captain.zip \
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            # The tag must still point at the verified commit (it could have been moved meanwhile).
+            remote="$(git ls-remote origin "refs/tags/${TAG}^{}" | cut -f1)"
+            [ -n "$remote" ] || remote="$(git ls-remote origin "refs/tags/${TAG}" | cut -f1)"
+            test "$remote" = "$RELEASE_SHA" || { echo "::error::Tag ${TAG} now points to ${remote:-nothing}, verified ${RELEASE_SHA}"; exit 1; }
+            target_args=(--verify-tag)
+          else
+            target_args=(--target "$RELEASE_SHA")
+          fi
+          gh release create "$TAG" build/dist/pass-captain.zip build/dist/pass-captain.zip.sha256 build/dist/build-info.txt \
             --title "Pass Captain ${TAG}" \
             --notes-file release-notes.md \
             "${target_args[@]}"

@@ -38,8 +38,27 @@ final class Templates {
 		return array(
 			'subject' => (string) call_user_func( $def['subject'] ),
 			'body' => (string) call_user_func( $def['body'] ),
-			'format' => 'text',
+			'format' => self::default_format( $type ),
 		);
+	}
+
+	/**
+	 * Format of a built-in default: HTML (layout plus plain-text alternative) unless the type
+	 * definition says 'format' => 'text' or the `wpcap_mail_default_format` filter returns 'text'.
+	 * Stored overrides keep the format the admin chose; this only applies without an override.
+	 * Also used for mails with their own editor (type 'reminder').
+	 */
+	public static function default_format( $type ) {
+		$def = Mailer::type( $type );
+		$format = is_array( $def ) && isset( $def['format'] ) ? (string) $def['format'] : 'html';
+		/**
+		 * Format of built-in mail texts without an admin override.
+		 *
+		 * @param string $format 'html' (default) or 'text'.
+		 * @param string $type   Mail type (registry key, or 'reminder').
+		 */
+		$format = (string) apply_filters( 'wpcap_mail_default_format', 'text' === $format ? 'text' : 'html', (string) $type );
+		return 'text' === $format ? 'text' : 'html';
 	}
 
 	/**

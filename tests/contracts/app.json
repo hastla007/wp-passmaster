@@ -1,0 +1,165 @@
+{
+  "contract": "app",
+  "version": "1.1",
+  "description": "Mobile-App-API pass-captain/v1/app/… (Geräte-Bearer-Token). Requests sind Parameter mit Platzhaltern, Responses Shapes.",
+  "endpoints": {
+    "POST /app/pair": {
+      "direction": "inbound",
+      "request": {
+        "code": "{{pairing_code}}",
+        "device_label": "Einlass Nord",
+        "platform": "ios",
+        "app_version": "2.3.0"
+      },
+      "response": {
+        "token": "string",
+        "token_type": "string",
+        "device_id": "string",
+        "expires_at": "string",
+        "user": {
+          "display_name": "string"
+        },
+        "event_ids": [
+          "int"
+        ],
+        "area": "object|null"
+      }
+    },
+    "GET /app/me": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "api_version": "string",
+        "user": {
+          "display_name": "string"
+        },
+        "device": {
+          "id": "string",
+          "label": "string",
+          "expires_at": "string"
+        },
+        "event_ids": [
+          "int"
+        ],
+        "area": "object|null",
+        "features": {
+          "undo": "bool",
+          "offline_sync": "bool",
+          "check_out": "bool",
+          "areas": "bool",
+          "attendee_name": "bool"
+        },
+        "server_time": "string"
+      }
+    },
+    "GET /app/occurrences": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "occurrences": [
+          {
+            "occurrence_id": "int",
+            "event_id": "int",
+            "event": "string",
+            "starts_at": "string",
+            "ends_at": "string|null",
+            "timezone": "string",
+            "location": "string",
+            "status": "string",
+            "areas": [
+              {
+                "id": "int",
+                "name": "string"
+              }
+            ],
+            "doors_open_at": "string|null"
+          }
+        ]
+      }
+    },
+    "POST /app/scan/validate": {
+      "direction": "inbound",
+      "request": {
+        "code": "{{code}}",
+        "occurrence_id": "{{occurrence_id}}"
+      },
+      "response": {
+        "status": "string",
+        "ticket_public_id": "string",
+        "event_id": "int",
+        "occurrence_id": "int",
+        "event": "string",
+        "ticket": "string",
+        "starts_at": "string",
+        "timezone": "string",
+        "ok": "bool",
+        "result": "string"
+      }
+    },
+    "POST /app/scan/check-in": {
+      "direction": "inbound",
+      "request": {
+        "code": "{{code}}",
+        "idempotency_key": "{{idempotency_key}}",
+        "occurrence_id": "{{occurrence_id}}"
+      },
+      "response": {
+        "ok": "bool",
+        "result": "string",
+        "status": "string",
+        "ticket_public_id": "string",
+        "event_id": "int",
+        "occurrence_id": "int",
+        "event": "string",
+        "ticket": "string",
+        "starts_at": "string",
+        "timezone": "string",
+        "admissions": "int",
+        "first_admission": "bool",
+        "first_checked_in_at": "string",
+        "last_checked_in_at": "string"
+      }
+    },
+    "POST /app/scan/sync": {
+      "direction": "inbound",
+      "request": {
+        "scans": [
+          {
+            "code": "{{code}}",
+            "idempotency_key": "{{idempotency_key}}",
+            "scanned_at": "{{scanned_at}}",
+            "direction": "in"
+          }
+        ]
+      },
+      "response": {
+        "results": [
+          {
+            "ok": "bool",
+            "result": "string",
+            "?status": "string",
+            "?ticket_public_id": "string",
+            "?event_id": "int",
+            "?occurrence_id": "int",
+            "?event": "string",
+            "?ticket": "string",
+            "?starts_at": "string",
+            "?timezone": "string",
+            "?admissions": "int",
+            "?first_admission": "bool",
+            "?first_checked_in_at": "string",
+            "?last_checked_in_at": "string",
+            "idempotency_key": "string",
+            "direction": "string",
+            "conflict": "bool",
+            "double_admission": "bool",
+            "?code": "string",
+            "?message": "string",
+            "?conflict_id": "int"
+          }
+        ],
+        "offline_conflicts_are_possible": "bool"
+      }
+    }
+  }
+}

@@ -42,6 +42,19 @@ final class Registry {
 		return $out;
 	}
 
+	/**
+	 * Error for a buyer whose payment could not be started (A642). Kept for callers of the earlier API;
+	 * delegates to StartFailures::handle() (support log with Fehler-ID, audit entry, generic code).
+	 *
+	 * @param \WP_Error $error    Gateway error.
+	 * @param int       $order_id Order.
+	 * @param string    $provider Gateway id.
+	 * @return \WP_Error wpcap_payment_start_failed (502).
+	 */
+	public static function public_start_error( \WP_Error $error, $order_id, $provider ) {
+		return StartFailures::handle( (string) $provider, (int) $order_id, $error );
+	}
+
 	/** Test helper. */
 	public static function reset() { self::$gateways = null; }
 }

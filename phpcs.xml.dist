@@ -1,0 +1,106 @@
+<?xml version="1.0"?>
+<!--
+	PHP_CodeSniffer ruleset for Pass Captain (WordPress Coding Standards 3 + PHPCompatibilityWP).
+
+	Scope: everything that matters for security, correctness, i18n and compatibility. Pure layout
+	sniffs (alignment, one-line control structures, call/array formatting) and the docblock rules of
+	WordPress-Docs are not enforced: the code base uses a compact style and a mass reformatting
+	would only produce merge conflicts. Known findings of the enforced sniffs are frozen in
+	phpcs-baseline.json (counted per file and sniff); `php build/phpcs-baseline.php` fails on any
+	new finding. See docs/TESTING.md, section "Statische Analyse".
+-->
+<ruleset name="Pass Captain">
+	<description>WordPress Coding Standards (security, DB, i18n, WP API) and PHPCompatibilityWP for Pass Captain.</description>
+
+	<file>pass-captain.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>templates</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="parallel" value="8"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- Supported platform: PHP 8.5+, WordPress 7.0+ (docs/COMPATIBILITY.md). -->
+	<config name="testVersion" value="8.5-"/>
+	<config name="minimum_wp_version" value="7.0"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress">
+		<!-- Docblock rules (WordPress-Docs). -->
+		<exclude name="Squiz.Commenting"/>
+		<exclude name="Generic.Commenting"/>
+
+		<!-- Layout only; the compact style (aligned or one-line statements) is intentional. -->
+		<exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+		<exclude name="Generic.Formatting.DisallowMultipleStatements"/>
+		<exclude name="Generic.WhiteSpace.ScopeIndent"/>
+		<exclude name="Squiz.ControlStructures.ControlSignature"/>
+		<exclude name="Squiz.Functions.MultiLineFunctionDeclaration"/>
+		<exclude name="Squiz.PHP.EmbeddedPhp"/>
+		<exclude name="Squiz.Strings.DoubleQuoteUsage"/>
+		<exclude name="PEAR.Functions.FunctionCallSignature"/>
+		<exclude name="PSR2.Classes.ClassDeclaration"/>
+		<exclude name="PSR2.Files.EndFileNewline"/>
+		<exclude name="NormalizedArrays.Arrays"/>
+		<exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
+		<exclude name="WordPress.Arrays.ArrayDeclarationSpacing"/>
+		<exclude name="WordPress.Arrays.ArrayIndentation"/>
+		<exclude name="WordPress.WhiteSpace"/>
+		<exclude name="Universal.Operators.DisallowShortTernary"/>
+		<exclude name="Universal.Operators.DisallowStandalonePostIncrementDecrement"/>
+		<exclude name="WordPress.PHP.YodaConditions"/>
+
+		<!-- PSR-4 class files (src/Foo/BarBaz.php) instead of class-bar-baz.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+
+		<!-- The plugin works on its own tables; direct queries are the design, caching is per service. -->
+		<exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+		<exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
+	</rule>
+
+	<!-- Explicit security rules (A173), kept even if a WordPress ruleset release drops them. -->
+	<rule ref="Generic.PHP.Syntax"/>
+	<rule ref="Generic.PHP.BacktickOperator"/>
+	<rule ref="Squiz.PHP.Eval"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="pass-captain"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="wpcap"/>
+				<element value="wp_pass_captain"/>
+				<element value="PassCaptain"/>
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Custom capabilities registered in Installer.php, plus WooCommerce's shop manager capability. -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="wpcap_manage_events"/>
+				<element value="wpcap_manage_orders"/>
+				<element value="wpcap_checkin"/>
+				<element value="wpcap_view_reports"/>
+				<element value="wpcap_refund"/>
+				<element value="wpcap_approve_refunds"/>
+				<element value="wpcap_view_finance"/>
+				<element value="manage_woocommerce"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

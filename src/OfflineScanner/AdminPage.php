@@ -8,6 +8,7 @@ namespace PassCaptain\OfflineScanner;
 use PassCaptain\Access;
 use PassCaptain\Admin\Forms;
 use PassCaptain\Admin\Queries;
+use PassCaptain\Security\SignedQr;
 use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -20,10 +21,14 @@ final class AdminPage {
 		return current_user_can( self::CAP ) && Access::can_access_event( (int) $event_id, self::CAP );
 	}
 
-	/** URL of the PWA; the API base is passed so the app works in subdirectory installs. */
+	/**
+	 * URL of the PWA; the API base is passed so the app works in subdirectory installs, the language
+	 * (WordPress user locale) so the app speaks it – it remembers it for offline starts. The app is
+	 * served from the site's own origin (Pwa, A286), not from the asset URL that may be on a CDN.
+	 */
 	public static function app_url() {
-		$base = defined( 'WPCAP_URL' ) ? WPCAP_URL : '';
-		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( rest_url( 'wp-pass-captain/v1/app/' ) );
+		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : ( function_exists( 'get_locale' ) ? get_locale() : 'de_DE' );
+		return Pwa::base_url() . 'index.html?api=' . rawurlencode( \PassCaptain\Mobile\Devices::api_base() ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 
 	public static function save_rules( array $in ) {
@@ -62,6 +67,12 @@ final class AdminPage {
 		return Keys::rotate( 'manual' );
 	}
 
+	/** Rotates the signing key of signed QR codes (manage_options); `revoke` drops the previous key at once. */
+	public static function rotate_qr_key( array $in = array() ) {
+		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
+		return SignedQr::rotate( Forms::flag( $in, 'revoke' ), 'manual' );
+	}
+
 	/* ---- admin-post wrappers ---- */
 
 	private static function back( $result, array $in ) {
@@ -96,6 +107,15 @@ final class AdminPage {
 		Forms::finish( self::rotate_key( $in ), __( 'Neuer Signaturschlüssel erzeugt. Der bisherige öffentliche Schlüssel bleibt bis zum Ablauf seiner Pakete gültig.', 'pass-captain' ), Forms::page_url( self::SLUG, array( 'event_id' => Forms::int( $in, 'event_id' ) ) ) );
 	}
 
+	public static function handle_rotate_qr_key() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_qr_rotate_key' );
+		$message = Forms::flag( $in, 'revoke' )
+			? __( 'Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel wurde sofort gesperrt; damit signierte QR-Codes werden abgewiesen.', 'pass-captain' )
+			: __( 'Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel bleibt gültig, bis die damit signierten QR-Codes ablaufen.', 'pass-captain' );
+		Forms::finish( self::rotate_qr_key( $in ), $message, Forms::page_url( self::SLUG, array( 'event_id' => Forms::int( $in, 'event_id' ) ) ) );
+	}
+
 	/* ---- rendering ---- */
 
 	public static function render() {
@@ -112,7 +132,7 @@ final class AdminPage {
 		<a class="button" href="<?php echo esc_url( Forms::page_url( \PassCaptain\Admin\DevicesPage::SLUG ) ); ?>"><?php esc_html_e( 'Gerät koppeln', 'pass-captain' ); ?></a></p>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Event wählen …', 'pass-captain' ) ) + $events, $event_id ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Event wählen …', 'pass-captain' ) ) + $events, $event_id, '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Anzeigen', 'pass-captain' ); ?></button>
 		</form>
 		<?php if ( $event_id ) { self::render_event( $event_id ); } ?>
@@ -123,10 +143,11 @@ final class AdminPage {
 
 	private static function render_event( $event_id ) {
 		$rules = Rules::get( $event_id );
-		$occurrences = Queries::occurrences_for_event( $event_id );
-		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
-		foreach ( $occurrences as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$assigned = Assignments::for_event( $event_id );
+		// A476: a bounded window of dates (next ones, or from the chosen day) plus every assigned date.
+		$window = Queries::occurrence_window( $event_id, array_map( static function ( $row ) { return (int) $row->occurrence_id; }, (array) $assigned ), Forms::query_arg( 'occ_from' ) );
+		$occ_labels = array( 0 => __( 'Alle Termine', 'pass-captain' ) );
+		foreach ( $window['rows'] as $occ ) { $occ_labels[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone ); }
 		$candidates = Assignments::candidates( $event_id );
 		$show_names = (bool) Settings::get( 'scanner_show_attendee' );
 		?>
@@ -146,17 +167,19 @@ final class AdminPage {
 
 		<h2><?php esc_html_e( 'Geräte für den Offline-Einsatz', 'pass-captain' ); ?></h2>
 		<?php if ( ! $rules['enabled'] ) : ?><div class="notice notice-warning inline"><p><?php esc_html_e( 'Offline-Scannen ist für dieses Event nicht freigegeben – zugewiesene Geräte erhalten keine Pakete.', 'pass-captain' ); ?></p></div><?php endif; ?>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letztes Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letztes Paket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Paket gültig bis', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $assigned as $row ) :
-			$active = ! $row->revoked_at && ( ! $row->expires_at || $row->expires_at > current_time( 'mysql', true ) );
+			$active = ! $row->revoked_at && ( ! $row->expires_at || $row->expires_at > \PassCaptain\Clock::mysql() );
 			?>
 			<tr><td><?php echo esc_html( ( $row->label ?: __( 'Ohne Namen', 'pass-captain' ) ) . ' (#' . (int) $row->device_id . ')' ); ?></td>
 			<td><?php echo esc_html( $occ_labels[ (int) $row->occurrence_id ] ?? '#' . (int) $row->occurrence_id ); ?></td>
 			<td><?php echo esc_html( $row->last_package_at ? Forms::datetime( $row->last_package_at, wp_timezone_string() ) : '—' ); ?></td>
+			<?php $package_expiry = Assignments::package_expiry( $row, (int) $rules['max_offline_hours'] ); // A688. ?>
+			<td><?php echo esc_html( '' === $package_expiry ? '—' : Forms::datetime( $package_expiry, wp_timezone_string() ) . ( $package_expiry <= \PassCaptain\Clock::mysql() ? ' (' . __( 'abgelaufen', 'pass-captain' ) . ')' : '' ) ); ?></td>
 			<td><?php echo esc_html( $row->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $active ? __( 'aktiv', 'pass-captain' ) : __( 'abgelaufen', 'pass-captain' ) ) ); ?></td>
 			<td><?php Forms::open_form( 'wpcap_offline_unassign', 'wpcap_offline_unassign_' . (int) $row->device_id . '_' . $event_id . '_' . (int) $row->occurrence_id ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'device_id', $row->device_id ); Forms::hidden( 'occurrence_id', $row->occurrence_id ); ?><button class="button"><?php esc_html_e( 'Entfernen', 'pass-captain' ); ?></button></form></td></tr>
 		<?php endforeach; ?>
-		<?php if ( ! $assigned ) : ?><tr><td colspan="5"><?php esc_html_e( 'Noch keine Geräte zugewiesen.', 'pass-captain' ); ?></td></tr><?php endif; ?>
+		<?php if ( ! $assigned ) : ?><tr><td colspan="6"><?php esc_html_e( 'Noch keine Geräte zugewiesen.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
 		<?php if ( $candidates ) : ?>
 			<?php Forms::open_form( 'wpcap_offline_assign', 'wpcap_offline_assign_' . $event_id ); Forms::hidden( 'event_id', $event_id ); ?>
@@ -164,6 +187,7 @@ final class AdminPage {
 				<label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $occ_labels, 0 ); ?></label>
 				<button class="button button-primary"><?php esc_html_e( 'Zuweisen', 'pass-captain' ); ?></button></p>
 			</form>
+			<?php Forms::occurrence_window_filter( $window, self::SLUG, array( 'event_id' => $event_id ) ); ?>
 		<?php else : ?>
 			<p class="description"><?php esc_html_e( 'Keine aktiven, für dieses Event gekoppelten Geräte. Zuerst unter „Scanner-Geräte“ einen Kopplungscode für dieses Event erstellen und im Offline-Scanner eingeben.', 'pass-captain' ); ?></p>
 		<?php endif; ?>
@@ -180,8 +204,26 @@ final class AdminPage {
 			<tr><td><code><?php echo esc_html( $key['key_id'] ); ?></code></td><td><code style="font-size:11px"><?php echo esc_html( $key['public_key'] ); ?></code></td><td><?php echo esc_html( 'active' === $key['status'] ? __( 'aktiv', 'pass-captain' ) : __( 'in Übergangsfrist', 'pass-captain' ) ); ?></td><td><?php echo esc_html( $key['valid_until'] ? Forms::datetime( gmdate( 'Y-m-d H:i:s', strtotime( $key['valid_until'] ) ), wp_timezone_string() ) : '—' ); ?></td></tr>
 		<?php endforeach; ?>
 		</tbody></table>
-		<?php Forms::open_form( 'wpcap_offline_rotate_key', 'wpcap_offline_rotate_key', 'onsubmit="return confirm(\'' . esc_js( __( 'Neuen Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '\')"' ); Forms::hidden( 'event_id', $event_id ); ?>
+		<?php Forms::open_form( 'wpcap_offline_rotate_key', 'wpcap_offline_rotate_key', 'data-wpcap-confirm="' . esc_attr( __( 'Neuen Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '"' ); Forms::hidden( 'event_id', $event_id ); ?>
 			<p><button class="button"><?php esc_html_e( 'Schlüssel rotieren', 'pass-captain' ); ?></button></p>
+		</form>
+		<?php self::render_qr_keys( $event_id ); ?>
+		<?php
+	}
+
+	private static function render_qr_keys( $event_id ) {
+		$keys = SignedQr::public_keys();
+		?>
+		<h2><?php esc_html_e( 'Signierte QR-Codes (Ed25519)', 'pass-captain' ); ?></h2>
+		<p class="description"><?php echo esc_html( SignedQr::enabled() ? __( 'Signierte QR-Codes sind aktiv: neue QR-Codes enthalten eine signierte Angabe ohne personenbezogene Daten. Klassische Ticketcodes werden weiter angenommen.', 'pass-captain' ) : __( 'Signierte QR-Codes sind aus (Einstellungen → Einlass / Scanner-Geräte). Bereits ausgegebene signierte QR-Codes werden weiter angenommen.', 'pass-captain' ) ); ?></p>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Schlüssel-ID', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Öffentlicher Schlüssel', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Gültig bis', 'pass-captain' ); ?></th></tr></thead><tbody>
+		<?php foreach ( $keys as $key ) : ?>
+			<tr><td><code><?php echo esc_html( $key['key_id'] ); ?></code></td><td><code style="font-size:11px"><?php echo esc_html( $key['public_key'] ); ?></code></td><td><?php echo esc_html( 'active' === $key['status'] ? __( 'aktiv', 'pass-captain' ) : __( 'in Übergangsfrist', 'pass-captain' ) ); ?></td><td><?php echo esc_html( $key['valid_until'] ? Forms::datetime( gmdate( 'Y-m-d H:i:s', strtotime( $key['valid_until'] ) ), wp_timezone_string() ) : '—' ); ?></td></tr>
+		<?php endforeach; ?>
+		</tbody></table>
+		<?php Forms::open_form( 'wpcap_qr_rotate_key', 'wpcap_qr_rotate_key', 'data-wpcap-confirm="' . esc_attr( __( 'Neuen QR-Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '"' ); Forms::hidden( 'event_id', $event_id ); ?>
+			<p><label><input type="checkbox" name="revoke" value="1"> <?php esc_html_e( 'Bisherigen Schlüssel sofort sperren (bei Verdacht auf Kompromittierung; alle damit signierten QR-Codes werden ungültig und müssen neu versendet werden)', 'pass-captain' ); ?></label></p>
+			<p><button class="button"><?php esc_html_e( 'QR-Schlüssel rotieren', 'pass-captain' ); ?></button></p>
 		</form>
 		<?php
 	}

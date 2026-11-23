@@ -1,35 +1,260 @@
 <?php
-/** Customer notifications for schedule changes. */
+/**
+ * Customer notifications for schedule and detail changes of an occurrence.
+ *
+ * - `wpcap_occurrence_rescheduled` (start moved, tickets issued): mail type `occurrence_rescheduled`.
+ * - `wpcap_occurrence_changed` (A140; start, end, doors open, location or venue country changed):
+ *   one mail per recipient and revision. A pure time shift keeps the `occurrence_rescheduled`
+ *   text; any other change, alone or together with a new time, is sent as one combined
+ *   `occurrence_changed` mail. Both carry the updated .ics (attachment and link) whose SEQUENCE is
+ *   the new revision. When the save path fires both actions, the reschedule mail is deferred to
+ *   the change handler, so time + location changed in one save produce exactly one mail.
+ * - Per-event opt-out: events.notify_changes = 0 suppresses both change mails (not cancellations).
+ * - A428: the mails go out through a resumable `notify` run (BulkRuns): every recipient is queued
+ *   in the message queue first, then sent; a request that dies while sending leaves the rest to
+ *   the queue worker and the run's background job, so every holder is still informed.
+ */
 namespace PassCaptain;
+
+use PassCaptain\Calendar\Ics;
+use PassCaptain\Calendar\Revisions;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Notifications {
+	/** Occurrences whose reschedule mail is handled by the following `wpcap_occurrence_changed`. */
+	private static $deferred = array();
+
 	public static function register() {
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'occurrence_rescheduled' ), 10, 3 );
+		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'occurrence_changed' ), 10, 3 );
+	}
+
+	/**
+	 * Fires `wpcap_occurrence_rescheduled` (when $reschedule) and `wpcap_occurrence_changed` for a
+	 * saved occurrence, with the reschedule mail folded into the change mail.
+	 *
+	 * @param int   $occurrence_id
+	 * @param array $changes    field => [old, new] (any fields; only relevant ones are passed on).
+	 * @param int   $revision   Revision after the change.
+	 * @param bool  $reschedule Whether to fire `wpcap_occurrence_rescheduled` (start moved, tickets issued).
+	 */
+	public static function after_save( $occurrence_id, array $changes, $revision, $reschedule ) {
+		$occurrence_id = absint( $occurrence_id );
+		$notify = Revisions::notifiable( $changes );
+		if ( $reschedule && isset( $changes['starts_at'] ) ) {
+			if ( $notify ) { self::$deferred[ $occurrence_id ] = true; }
+			try {
+				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $changes['starts_at'][0], $changes['starts_at'][1] );
+			} finally {
+				unset( self::$deferred[ $occurrence_id ] );
+			}
+		}
+		$relevant = Revisions::relevant( $changes );
+		if ( $relevant ) {
+			/**
+			 * After a calendar-relevant field of an occurrence changed (A140): start, end, doors open,
+			 * location, venue country or status. Fired once per save, after `wpcap_occurrence_rescheduled`.
+			 *
+			 * @param int   $occurrence_id
+			 * @param array $changes  field => [old, new] (UTC datetimes for times).
+			 * @param int   $revision New revision (iCalendar SEQUENCE); 0 before the 3.9.9 upgrade.
+			 */
+			do_action( 'wpcap_occurrence_changed', $occurrence_id, $relevant, (int) $revision );
+		}
 	}
 
 	/**
 	 * Informs holders of valid tickets (attendee e-mail if set, otherwise buyer) about a new date.
-	 * Each recipient gets one message per change; refunds are not implied.
+	 * Each recipient gets one message per change; the mail carries the refund note ({refund_note},
+	 * RescheduleRefunds) and the occurrence is marked as moved for portal refund requests. The audit
+	 * entry (basis of the "Verschoben" badge) is always written; the mail is skipped when the change
+	 * handler sends a combined mail or the event opted out.
+	 *
+	 * The mails go through the message queue (one row per recipient, dedupe key
+	 * resched|occurrence|new start|e-mail): a repeated hook or double submit sends nothing twice, each
+	 * recipient is retried on its own, and an admin request with thousands of holders only queues them.
+	 * The first ones are sent right away (Communications::$inline_seconds), the rest by the worker.
+	 * Progress: Communications::progress( 'resched|<occurrence id>|<new start>' ).
+	 *
+	 * @return int Number of recipients queued (or already queued for this change).
+	 */
+	public static function occurrence_rescheduled( $occurrence_id, $old_starts_at, $new_starts_at ) {
+		$occ = self::occurrence( $occurrence_id );
+		if ( ! $occ || $old_starts_at === $new_starts_at ) { return 0; }
+		// Portal refund requests for moved occurrences (also when the mail is combined or opted out).
+		RescheduleRefunds::mark( (int) $occ->occurrence_id );
+		$sent = 0;
+		$deferred = isset( self::$deferred[ absint( $occurrence_id ) ] );
+		if ( ! $deferred && Revisions::event_notifies( $occ->event_id ) ) {
+			// One notice run per change (old > new at this revision): a repeated hook for the same change
+			// mails nobody twice (R3 #8), a later change – even back and forth – is a new run.
+			$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|rescheduled|' . md5( $old_starts_at . '>' . $new_starts_at . '|r' . (int) ( $occ->revision ?? 0 ) ), array( 'mail' => 'occurrence_rescheduled', 'old' => (string) $old_starts_at, 'new' => (string) $new_starts_at ) );
+		}
+		Audit::record( 'occurrence_rescheduled', 'occurrence', absint( $occurrence_id ), array( 'old' => $old_starts_at, 'new' => $new_starts_at, 'notified' => $sent ) + ( $deferred ? array( 'combined' => true ) : array() ) );
+		return $sent;
+	}
+
+	/**
+	 * Change mail for a revision (A140): idempotent per occurrence and revision, only for scheduled
+	 * occurrences of events that did not opt out, only to holders of valid tickets.
 	 *
 	 * @return int Number of notified recipients.
 	 */
-	public static function occurrence_rescheduled( $occurrence_id, $old_starts_at, $new_starts_at ) {
+	public static function occurrence_changed( $occurrence_id, $changes = array(), $revision = 0 ) {
+		$notify = Revisions::notifiable( (array) $changes );
+		if ( ! $notify ) { return 0; }
+		$occ = self::occurrence( $occurrence_id );
+		if ( ! $occ || 'scheduled' !== $occ->status || ! Revisions::event_notifies( $occ->event_id ) ) { return 0; }
+		if ( ! self::recipients( $occ->occurrence_id ) ) { return 0; }
+		if ( ! Revisions::claim_notification( $occ->occurrence_id, (int) $revision ) ) { return 0; }
+		// A pure time shift keeps the established reschedule text; anything else is one combined mail.
+		$time_only = isset( $notify['starts_at'] ) && ! array_diff_key( $notify, array_flip( array( 'starts_at', 'ends_at', 'doors_open_at' ) ) );
+		$type = $time_only ? 'occurrence_rescheduled' : 'occurrence_changed';
+		$spec = $time_only
+			? array( 'mail' => $type, 'old' => (string) $notify['starts_at'][0], 'new' => (string) $notify['starts_at'][1] )
+			: array( 'mail' => $type, 'notify' => $notify );
+		$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|changed|' . (int) $revision . '|' . md5( wp_json_encode( $notify ) ), $spec );
+		Audit::record( 'occurrence_change_notified', 'occurrence', (int) $occ->occurrence_id, array( 'revision' => (int) $revision, 'mail_type' => $type, 'fields' => array_keys( $notify ), 'notified' => $sent ) );
+		return $sent;
+	}
+
+	/** Occurrence with event name, or null. */
+	private static function occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) );
-		if ( ! $occ || $old_starts_at === $new_starts_at ) { return 0; }
-		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", absint( $occurrence_id ) ) );
-		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
-		$old = wp_date( 'd.m.Y H:i', strtotime( $old_starts_at . ' UTC' ), $tz );
-		$new = wp_date( 'd.m.Y H:i', strtotime( $new_starts_at . ' UTC' ), $tz );
-		$vars = array( 'event_name' => (string) $occ->event_name, 'old_date' => $old, 'event_date' => $new, 'timezone' => (string) $occ->timezone, 'event_location' => (string) $occ->location );
-		$sent = 0;
-		foreach ( $recipients as $recipient ) {
-			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_rescheduled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$sent; }
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
+	}
+
+	/**
+	 * A519: SQL aggregate for the language of a recipient with several orders (grouped rows over
+	 * `ord`): the locale of the newest order that has one – not MAX(locale), which picked the
+	 * alphabetically last language ("nl_NL" over "de_DE").
+	 */
+	const LATEST_LOCALE_SQL = "SUBSTRING_INDEX(GROUP_CONCAT(NULLIF(ord.locale,'') ORDER BY ord.order_id DESC SEPARATOR ','),',',1)";
+
+	/** Distinct recipients (attendee e-mail, otherwise buyer) of valid tickets with their locale (A519: of the newest order). */
+	private static function recipients( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email," . self::LATEST_LOCALE_SQL . " AS locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- LATEST_LOCALE_SQL is a class constant with literal SQL.
+	}
+
+	/** Local date and time (A384: Format::datetime_format() of the mail's language) of a UTC datetime in the occurrence's timezone ('' for empty). */
+	private static function local( $occ, $utc ) {
+		if ( null === $utc || '' === (string) $utc ) { return ''; }
+		try {
+			$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
+		} catch ( \Exception $e ) {
+			$tz = new \DateTimeZone( 'UTC' );
 		}
-		Audit::record( 'occurrence_rescheduled', 'occurrence', absint( $occurrence_id ), array( 'old' => $old_starts_at, 'new' => $new_starts_at, 'notified' => $sent ) );
-		return $sent;
+		return \PassCaptain\Frontend\Format::local( $utc, $tz );
+	}
+
+	private static function rescheduled_vars( $occ, $old_starts_at, $new_starts_at ) {
+		return array(
+			'event_name' => (string) $occ->event_name,
+			'old_date' => self::local( $occ, $old_starts_at ),
+			'event_date' => self::local( $occ, $new_starts_at ),
+			'timezone' => (string) $occ->timezone,
+			'event_location' => (string) $occ->location,
+			'ics_url' => self::ics_link( $occ->occurrence_id ),
+			// Refund request with deadline (RescheduleRefunds), built in the recipient's locale.
+			'refund_note' => static function () use ( $occ, $new_starts_at ) { return RescheduleRefunds::mail_note( $new_starts_at, (string) $occ->timezone ); },
+		);
+	}
+
+	private static function changed_vars( $occ, array $notify ) {
+		return array(
+			'event_name' => (string) $occ->event_name,
+			'event_date' => self::local( $occ, $occ->starts_at ),
+			'old_date' => self::local( $occ, isset( $notify['starts_at'] ) ? $notify['starts_at'][0] : $occ->starts_at ),
+			'timezone' => (string) $occ->timezone,
+			'event_location' => (string) $occ->location,
+			'ics_url' => self::ics_link( $occ->occurrence_id ),
+			// Built in the recipient's locale.
+			'changes' => static function () use ( $occ, $notify ) { return self::change_lines( $occ, $notify ); },
+		);
+	}
+
+	/** One line per changed detail: "Label: old → new". */
+	public static function change_lines( $occ, array $notify ) {
+		$labels = array(
+			'starts_at' => __( 'Beginn', 'pass-captain' ),
+			'ends_at' => __( 'Ende', 'pass-captain' ),
+			'doors_open_at' => _x( 'Einlass', 'doors open time', 'pass-captain' ),
+			'location' => __( 'Ort', 'pass-captain' ),
+			'venue_country' => __( 'Veranstaltungsland', 'pass-captain' ),
+		);
+		$empty = __( 'nicht angegeben', 'pass-captain' );
+		$lines = array();
+		foreach ( $labels as $field => $label ) {
+			if ( ! isset( $notify[ $field ] ) ) { continue; }
+			list( $old, $new ) = $notify[ $field ];
+			if ( in_array( $field, array( 'starts_at', 'ends_at', 'doors_open_at' ), true ) ) {
+				$old = self::local( $occ, $old );
+				$new = self::local( $occ, $new );
+			}
+			$old = '' === (string) $old ? $empty : (string) $old;
+			$new = '' === (string) $new ? $empty : (string) $new;
+			/* translators: 1: changed detail (e.g. "Ort"), 2: previous value, 3: new value */
+			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'pass-captain' ), $label, $old, $new );
+		}
+		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Informs all holders of valid tickets through a resumable `notify` run (A428): one queued mail
+	 * per recipient (with the current .ics attached when it is sent), sent within this request's
+	 * time budget; the rest is sent in the background.
+	 *
+	 * @return int Mails sent so far.
+	 */
+	private static function send_all( $occ, $key, array $spec ) {
+		if ( ! self::recipients( $occ->occurrence_id ) ) { return 0; }
+		$spec += array( 'occurrence_id' => (int) $occ->occurrence_id, 'ics' => 1 );
+		$run = BulkRuns::drive( BulkRuns::start( 'notify', (int) $occ->occurrence_id, $key, array( 'mail' => $spec ) ) );
+		return (int) ( BulkRuns::summary( $run )['notified'] ?? 0 );
+	}
+
+	/**
+	 * Mail type and placeholders of a queued change notice (BulkRuns), with the occurrence's data
+	 * at the time of sending.
+	 *
+	 * @param array $payload mail (occurrence_rescheduled|occurrence_changed), occurrence_id, old, new, notify.
+	 * @return array|null type, vars.
+	 */
+	public static function mail_spec( array $payload ) {
+		$occ = self::occurrence( absint( $payload['occurrence_id'] ?? 0 ) );
+		if ( ! $occ ) { return null; }
+		if ( 'occurrence_rescheduled' === ( $payload['mail'] ?? '' ) ) {
+			return array( 'type' => 'occurrence_rescheduled', 'vars' => self::rescheduled_vars( $occ, (string) ( $payload['old'] ?? '' ), (string) ( $payload['new'] ?? '' ) ) );
+		}
+		return array( 'type' => 'occurrence_changed', 'vars' => self::changed_vars( $occ, (array) ( $payload['notify'] ?? array() ) ) );
+	}
+
+	/**
+	 * Temporary .ics file with the current state of an occurrence (empty list when the event is not
+	 * public). File names follow the ticket mail: termin-{id}-{random}.ics.
+	 *
+	 * @return string[]
+	 */
+	public static function ics_file( $occurrence_id ) {
+		$settings = (array) Settings::get( 'calendar' );
+		if ( ! self::calendar_enabled() || empty( $settings['attach_ics'] ) ) { return array(); }
+		$ics = Ics::occurrence_calendar( $occurrence_id );
+		if ( null === $ics ) { return array(); }
+		$file = trailingslashit( get_temp_dir() ) . 'termin-' . absint( $occurrence_id ) . '-' . bin2hex( random_bytes( 8 ) ) . '.ics';
+		return false !== file_put_contents( $file, $ics ) ? array( $file ) : array(); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+	}
+
+	/** Download link of the current .ics (placeholder {ics_url}); '' without the calendar module. */
+	private static function ics_link( $occurrence_id ) {
+		return self::calendar_enabled() ? Mail\Mailer::link( Ics::occurrence_url( $occurrence_id ) ) : '';
+	}
+
+	/** Whether the calendar module serves the public .ics downloads. */
+	private static function calendar_enabled() {
+		return Modules::enabled( Modules\Calendar::class );
 	}
 }

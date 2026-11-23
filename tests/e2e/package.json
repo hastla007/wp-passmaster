@@ -1,0 +1,12 @@
+{
+  "name": "wp-pass-captain-e2e",
+  "private": true,
+  "description": "Browser E2E tests (Playwright + node:test) against a disposable WordPress site with Pass Captain.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-reporter=spec"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40"
+  }
+}

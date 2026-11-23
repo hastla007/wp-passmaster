@@ -29,11 +29,11 @@ $wpdb->query( "UPDATE {$p}wpcap_events SET name='=Gala' WHERE event_id=$revent" 
 $wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $rocc, 'name' => 'Kind', 'price_minor' => 1070, 'currency' => 'EUR', 'capacity' => 5, 'max_per_order' => 10, 'tax_rate_bp' => 700, 'status' => 'active' ) );
 $rb = (int) $wpdb->insert_id;
 
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $o1 = Orders::create( array( 'email' => 'report@example.com', 'items' => array( array( 'ticket_type_id' => $ra, 'quantity' => 2 ), array( 'ticket_type_id' => $rb, 'quantity' => 1 ) ), 'idempotency_key' => 'wpr-1-' . uniqid() ) );
 Orders::confirm_manual_payment( $o1['order_id'] );
 $unpaid = Orders::create( array( 'email' => 'unpaid-report@example.com', 'items' => array( array( 'ticket_type_id' => $ra, 'quantity' => 1 ) ), 'idempotency_key' => 'wpr-2-' . uniqid() ) );
-Pos::open_session( 0 );
+$wpr_shift = Pos::open_session( 0 ); // Closed at the end of the module.
 $pos = Pos::sell( array( 'occurrence_id' => $rocc, 'quantities' => array( $ra => 1 ), 'method' => 'cash', 'form_key' => 'wpr-pos-' . bin2hex( random_bytes( 8 ) ) ) );
 $refund = PassCaptain\Refunds::request( $o1['order_id'], array( (int) tickets( $o1['order_id'] )[0]->ticket_id ), 'Test', 'wpr-refund' );
 check( 'fixture: refund of one 11,90 ticket completed with the VAT of its 19 % line', 'completed' === $refund['status'] && 1190 === (int) $refund['amount_minor'] && 190 === (int) $refund['tax_minor'] && ! is_wp_error( $pos ) );
@@ -92,3 +92,9 @@ check( 'CSV export contains sections and is injection safe', false !== strpos( $
 $svg = ReportsPage::bar_chart( array( '<b>A</b>' => 10, 'B' => 5 ), 'T<script>' );
 check( 'SVG bar chart: escaped labels and proportional bars', str_starts_with( $svg, '<svg' ) && false === strpos( $svg, '<script>' ) && false !== strpos( $svg, '&lt;b&gt;A&lt;/b&gt;' ) && false !== strpos( $svg, 'width="420"' ) && false !== strpos( $svg, 'width="210"' ) );
 check( 'invalid dates fall back to defaults', Data::valid_date( '2026-02-28' ) && ! Data::valid_date( '2026-02-30' ) && ! Data::valid_date( "2026-01-01' OR 1" ) );
+// Close the box office shift opened above: later modules expect user 1 without an open shift
+// (zzzzzz_z2_payment_residuals: a back-office refund without an open shift waits as an open payout).
+if ( is_object( $wpr_shift ) && ! empty( $wpr_shift->session_id ) ) {
+	$wpr_close = Pos::close_session( (int) $wpr_shift->session_id, Pos::session_totals( (int) $wpr_shift->session_id )['cash']['expected'] ?? 0, 'Testende' );
+	if ( is_wp_error( $wpr_close ) ) { echo '  (shift close: ' . $wpr_close->get_error_code() . ")\n"; }
+}

@@ -1,9 +1,12 @@
 <?php
 /**
- * Payment adapters for box office payments (pos_cash, pos_card, pos_free, pos_invoice).
+ * Payment adapters for box office payments (pos_cash, pos_card, pos_free, pos_invoice, pos_card_device).
  *
- * They are never offered in the online checkout (is_available() is false). refund() only returns a
- * reference: the money is paid back at the till (cash), on the card terminal or by credit note.
+ * They are never offered in the online checkout (is_available() is false). refund() books the payout
+ * into an open shift (Shifts::book_refund(): negative movement with storno receipt number and VAT per
+ * rate) and returns a reference: the money is paid back at the till (cash), on the card terminal or
+ * by credit note. Cash and card payouts fail without an open shift, so they never bypass the
+ * reconciliation; the refund can be executed again once a shift is open.
  */
 namespace PassCaptain\BoxOffice;
 
@@ -37,13 +40,19 @@ final class PosGateway implements GatewayInterface {
 	public function supports_refunds() { return true; }
 
 	public function refund( array $order, $amount_minor, $idempotency_key ) {
-		return substr( $this->id . ':' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $idempotency_key ), 0, 191 );
+		if ( preg_match( '/^wpcap-refund-(\d+)$/', (string) $idempotency_key, $m ) ) {
+			$booked = Shifts::book_refund( (int) $m[1], true );
+			// A local check (e.g. no open shift): nothing was paid out, a clear failure (A272).
+			if ( is_wp_error( $booked ) ) { return \PassCaptain\Refunds::definitive( $booked ); }
+		}
+		return \PassCaptain\Text::cut( $this->id . ':' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $idempotency_key ), 191 );
 	}
 
 	/** wpcap_payment_gateways filter. */
 	public static function register_gateways( $list ) {
 		$list = is_array( $list ) ? $list : array();
-		foreach ( Service::methods() as $method => $def ) {
+		// All methods incl. card_device: stornos of terminal sales stay possible without the add-on.
+		foreach ( Service::all_methods() as $method => $def ) {
 			$list[] = new self( $def['provider'], $def['label'] );
 		}
 		return $list;

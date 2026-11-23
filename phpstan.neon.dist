@@ -1,0 +1,28 @@
+# PHPStan for Pass Captain (WordPress via szepeviktor/phpstan-wordpress, WooCommerce stubs).
+# Known findings are frozen in phpstan-baseline.neon; new ones fail CI.
+# Regenerate the baseline only after fixing findings: composer phpstan:baseline
+# See docs/TESTING.md, section "Statische Analyse".
+includes:
+	- phpstan-baseline.neon
+
+parameters:
+	level: 5
+	phpVersion:
+		min: 80500
+		max: 80699
+	paths:
+		- pass-captain.php
+		- uninstall.php
+		- src
+		- templates
+	bootstrapFiles:
+		- build/phpstan-bootstrap.php
+	scanFiles:
+		- build/phpstan-stubs/wp-cli.php
+		- build/phpstan-stubs/form-captain.php
+		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
+	excludePaths:
+		- vendor
+	treatPhpDocTypesAsCertain: false
+	reportUnmatchedIgnoredErrors: false
+	tmpDir: build/.phpstan-cache

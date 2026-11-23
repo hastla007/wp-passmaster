@@ -7,8 +7,9 @@
  *    the maximum age of an offline scan at upload; older scans are flagged for review.
  *  - duplicate_policy: how a ticket admitted offline on two devices is handled at sync.
  *      review           – the later upload becomes an open admission conflict ("Einlass-Konflikte").
- *      first_sync_wins  – the first uploaded admission counts; later duplicates are recorded and
- *                         resolved automatically as "Doppelscan" (still visible in the history).
+ *      first_sync_wins  – the first uploaded admission counts; later duplicates of the same device or
+ *                         user are recorded and resolved automatically as "Doppelscan" (still visible
+ *                         in the history); duplicates from another device stay open for review.
  *  - include_attendee: attendee names in packages; only effective while the global setting
  *    scanner_show_attendee is on. Default: token hashes only.
  */
@@ -26,7 +27,7 @@ final class Rules {
 	public static function policy_labels() {
 		return array(
 			'review' => __( 'Zur Prüfung markieren (offener Einlass-Konflikt)', 'pass-captain' ),
-			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan automatisch geklärt)', 'pass-captain' ),
+			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan am selben Gerät automatisch geklärt, geräteübergreifend zur Prüfung)', 'pass-captain' ),
 		);
 	}
 
@@ -37,7 +38,7 @@ final class Rules {
 	/** Rules of an event (defaults when never configured: disabled). */
 	public static function get( $event_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_offline_events WHERE event_id=%d", absint( $event_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_offline_events', absint( $event_id ) ) );
 		if ( ! $row ) { return self::defaults(); }
 		return array(
 			'enabled' => (bool) $row->enabled,
@@ -59,7 +60,7 @@ final class Rules {
 	/** Longest package lifetime over all enabled events (key rotation grace fallback). */
 	public static function max_hours_enabled() {
 		global $wpdb;
-		return (int) $wpdb->get_var( "SELECT MAX(max_offline_hours) FROM {$wpdb->prefix}wpcap_offline_events WHERE enabled=1" );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(max_offline_hours) FROM %i WHERE enabled=1', $wpdb->prefix . 'wpcap_offline_events' ) );
 	}
 
 	/**
@@ -79,8 +80,8 @@ final class Rules {
 		}
 		$rules = array( 'enabled' => ! empty( $in['enabled'] ), 'max_offline_hours' => $hours, 'duplicate_policy' => $policy, 'include_attendee' => ! empty( $in['include_attendee'] ) );
 		$wpdb->query( $wpdb->prepare(
-			"INSERT INTO {$wpdb->prefix}wpcap_offline_events (event_id,enabled,max_offline_hours,duplicate_policy,include_attendee,updated_by,updated_at) VALUES (%d,%d,%d,%s,%d,%d,%s) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),max_offline_hours=VALUES(max_offline_hours),duplicate_policy=VALUES(duplicate_policy),include_attendee=VALUES(include_attendee),updated_by=VALUES(updated_by),updated_at=VALUES(updated_at)",
-			absint( $event_id ), $rules['enabled'] ? 1 : 0, $hours, $policy, $rules['include_attendee'] ? 1 : 0, get_current_user_id(), current_time( 'mysql', true )
+			'INSERT INTO %i (event_id,enabled,max_offline_hours,duplicate_policy,include_attendee,updated_by,updated_at) VALUES (%d,%d,%d,%s,%d,%d,%s) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled),max_offline_hours=VALUES(max_offline_hours),duplicate_policy=VALUES(duplicate_policy),include_attendee=VALUES(include_attendee),updated_by=VALUES(updated_by),updated_at=VALUES(updated_at)', $wpdb->prefix . 'wpcap_offline_events',
+			absint( $event_id ), $rules['enabled'] ? 1 : 0, $hours, $policy, $rules['include_attendee'] ? 1 : 0, get_current_user_id(), \PassCaptain\Clock::mysql()
 		) );
 		Audit::record( 'offline_rules_saved', 'event', absint( $event_id ), $rules );
 		return $rules;

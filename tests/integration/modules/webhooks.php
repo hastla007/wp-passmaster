@@ -36,7 +36,7 @@ check( 'subscription created with whsec_ secret and filtered events', ! is_wp_er
 
 echo "Webhooks: events and payloads\n";
 $type = make_type( 30, 10, 0 );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $r = Orders::create( array( 'email' => 'wh-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'wh-1' ) );
 $da = wh_deliveries( $a['subscription_id'] );
 $db = wh_deliveries( $b['subscription_id'] );

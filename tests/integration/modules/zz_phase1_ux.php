@@ -23,6 +23,7 @@ if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspec
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 if ( ! function_exists( 'wp_verify_nonce' ) ) { function wp_verify_nonce( $n, $a = -1 ) { return 'n' === $n ? 1 : false; } }
+if ( ! function_exists( 'wp_create_nonce' ) ) { function wp_create_nonce( $a = -1 ) { return 'n'; } }
 if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $u, $a = -1 ) { return $u . '&_wpnonce=n'; } }
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return $GLOBALS['p1u_user_meta'][ $u ][ $k ] ?? ''; } }
 if ( ! function_exists( 'update_user_meta' ) ) { function update_user_meta( $u, $k, $v ) { $GLOBALS['p1u_user_meta'][ $u ][ $k ] = $v; return true; } }
@@ -63,11 +64,15 @@ unset( $GLOBALS['wpcap_test_options']['date_format'], $GLOBALS['wpcap_test_optio
 
 echo "Phase 1 UX: checkout response with bank transfer details\n";
 Settings::update( array( 'bank_recipient' => 'Kulturverein Musterstadt', 'bank_iban' => 'at61 1904 3002 3457 3201', 'bank_bic' => 'bkauatww', 'manual_instructions' => '', 'enabled_providers' => array( 'manual' ), 'manual_hold_hours' => 48 ) );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $mail_offset = count( $GLOBALS['wpcap_test_mails'] );
 $type = make_type( 20, 10, 2500 );
 $res = Controller::checkout( p1u_request( array( 'email' => 'bank@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-bank-' . uniqid() ) ) );
 $data = p1u_data( $res );
+// The checkout response carries neither order_id nor public_id (SEC-4); the test reads them from the database.
+check( 'checkout response leaks neither the sequential order_id nor the public_id', is_array( $data ) && ! array_key_exists( 'order_id', $data ) && ! array_key_exists( 'public_id', $data ) );
+$p1u_row = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", 'bank@example.com' ) );
+$data = is_array( $data ) ? $data + array( 'order_id' => (int) ( $p1u_row->order_id ?? 0 ), 'public_id' => (string) ( $p1u_row->public_id ?? '' ) ) : $data;
 $bank = $data['payment']['bank_transfer'] ?? array();
 $ref = Format::order_reference( $data['public_id'] ?? '' );
 check( 'checkout returns the short order number and the formatted total', is_array( $data ) && $ref === ( $data['reference'] ?? '' ) && 9 === strlen( $ref ) && '50,00 €' === ( $data['total_formatted'] ?? '' ) );
@@ -77,17 +82,34 @@ $found2 = PassCaptain\Admin\Queries::search_orders( array( 'search' => strtolowe
 check( 'admin order search finds the order by its short number / payment reference', in_array( $data['public_id'], array_column( $found['rows'], 'public_id' ), true ) && in_array( $data['public_id'], array_column( $found2['rows'], 'public_id' ), true ) );
 $due = BankTransfer::due_at( $data['order_id'] );
 check( 'due date is the end of the reservation (48 h)', '' !== $due && abs( strtotime( $due . ' UTC' ) - ( time() + 48 * 3600 ) ) < 120 );
-check( 'the access token never travels in the checkout response', false === strpos( wp_json_encode( $data ), p1u_access_token( $data['public_id'] ) ) && '' !== p1u_access_token( $data['public_id'] ) );
+check( 'the access token never travels in the checkout response', false === strpos( wp_json_encode( p1u_data( $res ) ), p1u_access_token( $data['public_id'] ) ) && '' !== p1u_access_token( $data['public_id'] ) );
 $access_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mail_offset ), static fn( $m ) => 'bank@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Deine Bestellung' ) ) )[0] ?? array( 'body' => '' );
 check( 'access-link mail contains the payment instructions by default', false !== strpos( $access_mail['body'], "Zahlungsinformationen\nBetrag: 50,00 €\nEmpfänger: Kulturverein Musterstadt\nIBAN: AT61 1904 3002 3457 3201\nBIC: BKAUATWW\nVerwendungszweck: Bestellung " . $ref . "\nZahlbar bis: " ) && false !== strpos( $access_mail['body'], "verfällt die Reservierung.\n\nBewahre diesen Link sicher auf" ) );
 check( 'payment instructions are empty once the order is paid', ( function () use ( $data ) { Orders::confirm_manual_payment( $data['order_id'] ); $vars = PassCaptain\Mail\Types::order_access_vars( $data['public_id'] ); return '' === $vars['payment_instructions']['text'] && Format::order_reference( $data['public_id'] ) === $vars['order_reference']; } )() );
-check( 'order_access registry lists the new placeholders; preview sample shows the bank block', isset( Mailer::type( 'order_access' )['placeholders']['payment_instructions'], Mailer::type( 'order_access' )['placeholders']['order_reference'] ) && false !== strpos( Mailer::compose( 'order_access', call_user_func( Mailer::type( 'order_access' )['sample'] ) )['body'], 'IBAN: AT61 1904 3002 3457 3201' ) );
+check( 'order_access registry lists the new placeholders; preview sample shows the bank block', isset( Mailer::type( 'order_access' )['placeholders']['payment_instructions'], Mailer::type( 'order_access' )['placeholders']['order_reference'] ) && false !== strpos( (string) Mailer::text_body( Mailer::compose( 'order_access', call_user_func( Mailer::type( 'order_access' )['sample'] ) ) ), 'IBAN: AT61 1904 3002 3457 3201' ) );
 Settings::update( array( 'bank_iban' => '' ) );
 $no_iban = BankTransfer::details( Orders::get( $data['order_id'] ) );
-check( 'without IBAN no bank rows (recipient/BIC) are shown, reference and amount stay', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) );
+// A265: without IBAN no transfer request at all (no remittance either), only amount, due date and instructions.
+check( 'without IBAN no bank rows (recipient/BIC/remittance) are shown, amount stays', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && false === $no_iban['transfer'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && ! isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) && isset( BankTransfer::rows( $no_iban )['Betrag'] ) );
+Settings::update( array( 'bank_iban' => 'AT611904300234573201' ) );
+
+echo "Phase 1 UX: manual payment cannot block an event anonymously\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$mh = array();
+for ( $i = 0; $i < 3; $i++ ) {
+	$mh[] = Controller::checkout( p1u_request( array( 'email' => 'hold-abuse@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-hold-' . $i . uniqid() ) ) );
+}
+check( 'at most two unpaid manual orders per e-mail address', ! is_wp_error( $mh[0] ) && ! is_wp_error( $mh[1] ) && is_wp_error( $mh[2] ) && 'wpcap_manual_open_orders' === $mh[2]->get_error_code() );
+$mh_client = array();
+for ( $i = 0; $i < 4; $i++ ) {
+	$mh_client[] = Controller::checkout( p1u_request( array( 'email' => 'hold-abuse-' . $i . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-holdc-' . $i . uniqid() ) ) );
+}
+check( 'at most five manual orders per client within the hold time', is_wp_error( end( $mh_client ) ) && 'wpcap_rate_limited' === end( $mh_client )->get_error_code() );
+foreach ( array_merge( $mh, $mh_client ) as $r ) { $r = p1u_data( $r ); if ( is_array( $r ) && ! empty( $r['order_id'] ) ) { Orders::cancel_order( $r['order_id'], 'test_cleanup' ); } }
+$GLOBALS['wpcap_test_transients'] = array();
 
 echo "Phase 1 UX: checkout errors carry the form field\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $err = Controller::checkout( p1u_request( array( 'email' => 'kaputt', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual' ) ) );
 check( 'invalid e-mail -> field "email"', is_wp_error( $err ) && 'email' === ( $err->get_error_data()['field'] ?? '' ) && 400 === $err->get_error_data()['status'] );
 $err = Controller::checkout( p1u_request( array( 'email' => 'code@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'campaign_codes' => array( 'GIBTSNICHT' ), 'provider' => 'manual', 'idempotency_key' => 'p1u-code-' . uniqid() ) ) );
@@ -101,7 +123,7 @@ $err = Controller::with_error_field( new WP_Error( 'wpcap_voucher_state', 'x', a
 check( 'voucher errors -> field "voucher_code"; unknown codes stay without field', 'voucher_code' === $err->get_error_data()['field'] && ! isset( Controller::with_error_field( new WP_Error( 'wpcap_db_busy', 'x', array( 'status' => 503 ) ) )->get_error_data()['field'] ) );
 
 echo "Phase 1 UX: portal resend route\n";
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $paid_id = admin_paid_order( make_type( 20 ), 2, 'resend@example.com' );
 $paid = Orders::get( $paid_id );
 $token = p1u_access_token( $paid->public_id );
@@ -115,7 +137,7 @@ p1u_data( Controller::resend_tickets( p1u_request( array( 'access_token' => $tok
 p1u_data( Controller::resend_tickets( p1u_request( array( 'access_token' => $token ), array( 'public_id' => $paid->public_id ) ) ) );
 $limited = Controller::resend_tickets( p1u_request( array( 'access_token' => $token ), array( 'public_id' => $paid->public_id ) ) );
 check( 'at most 3 resends per order and hour (429 afterwards)', is_wp_error( $limited ) && 429 === $limited->get_error_data()['status'] && 'wpcap_resend_rate_limited' === $limited->get_error_code() );
-$GLOBALS['wpcap_test_transients'] = array();
+wpcap_test_reset_transients();
 $pending = Orders::create( array( 'email' => 'unpaid@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5 ), 'quantity' => 1 ) ), 'idempotency_key' => 'p1u-unpaid-' . uniqid() ) );
 $unpaid = Controller::resend_tickets( p1u_request( array( 'access_token' => p1u_access_token( $pending['public_id'] ) ), array( 'public_id' => $pending['public_id'] ) ) );
 check( 'unpaid order: resend refused with 409', is_wp_error( $unpaid ) && 409 === $unpaid->get_error_data()['status'] );
@@ -137,16 +159,24 @@ $card_type = make_type( 30, 5, 1990 );
 // Only this occurrence is listed (the shortcode shows the next 50 dates).
 $card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$card_type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='p1u_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
-$card = PassCaptain\PublicEvents::render_shortcode();
+$card = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 $card_pos = strpos( $card, 'data-type="' . $card_type . '"' );
 $article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card_pos ), '<article' ), 12000 ) : '';
 check( 'buyer e-mail comes before the attendee box with the clear label', false !== strpos( $article, 'Deine E-Mail-Adresse (für Tickets und Bestätigung)' ) && strpos( $article, 'name="email"' ) < strpos( $article, 'wpcap-attendees' ) );
 check( 'CTA uses the theme button class', false !== strpos( $article, 'class="wp-element-button wpcap-submit"' ) );
 check( 'consent mentions consumer information only when configured', false !== strpos( $article, 'Ich akzeptiere die Bedingungen.</label>' ) && false === strpos( $article, 'Verbraucherinformationen gelesen' ) );
-check( 'prices with currency symbol', false !== strpos( $article, 'Standard — 19,90 €' ) );
-check( 'fields are labelled explicitly (for/id) for inline errors', 1 === preg_match( '#<label for="(wpcap-\d+-email)">.*?<input id="\1" name="email"#s', $article ) && false !== strpos( $article, 'name="campaign_code"' ) && false !== strpos( $article, 'Rabattcode (optional)' ) );
+// Merged templates/event-card.php: "Name — <span class="wpcap-type-price">price</span>" (A456/A458).
+check( 'prices with currency symbol', 1 === preg_match( '#<label for="wpcap-\d+-' . $card_type . '">Standard — <span class="wpcap-type-price">19,90 €</span>#', $article ) );
+check( 'prices with currency symbol (price in its own span)', false !== strpos( $article, 'Standard — <span class="wpcap-type-price">19,90 €</span>' ) ); // A456/A458: price in its own span.
+check( 'fields are labelled explicitly (for/id) for inline errors', 1 === preg_match( '#<label for="(wpcap-\d+-email)">.*?<input id="\1" name="email"#s', $article ) && ( false === strpos( $article, 'name="campaign_code"' ) || false !== strpos( $article, 'Rabattcode (optional)' ) ) );
+// Merged design: the Arbeitsliste rule (A017) wins – the field only appears when a code is active for the event.
+// Audit 3 (A017): the discount code field only appears when a code is active for the event.
+$card_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$card_occ" );
+check( 'discount code field only with an active code for the event', PassCaptain\Campaigns::has_active( $card_event, 'EUR' ) === ( false !== strpos( $article, 'name="campaign_code"' ) ) );
+$p1u_code_html = PassCaptain\Campaigns::has_active( $card_event, 'EUR' ) ? '' : 'x';
+check( 'discount code field is labelled when rendered, absent without an active code', ( false === strpos( $article, 'name="campaign_code"' ) || false !== strpos( $article, 'Rabattcode (optional)' ) ) && ( '' === $p1u_code_html || false === strpos( $article, 'name="campaign_code"' ) ) );
 Settings::update( array( 'consumer_info_text' => 'Widerrufsbelehrung …' ) );
-$card2 = PassCaptain\PublicEvents::render_shortcode();
+$card2 = PassCaptain\PublicEvents::render_shortcode( array( 'layout' => 'cards' ) ); // Full cards (layout auto lists many dates compactly).
 check( 'with consumer information the consent names it', false !== strpos( $card2, 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.' ) );
 Settings::update( array( 'require_terms' => 0, 'terms_text' => '', 'consumer_info_text' => '' ) );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='p1u_hidden'" );
@@ -166,7 +196,7 @@ $inv_html = Invoices::render_html( $inv_id );
 check( 'invoice HTML lists net/tax/gross per VAT rate', false !== strpos( $inv_html, 'Aufstellung nach Steuersätzen' ) && 1 === preg_match( '#<td>13,00 %</td><td class="n">19,47 EUR</td><td class="n">2,53 EUR</td><td class="n">22,00 EUR</td>#', $inv_html ) && 1 === preg_match( '#<td>20,00 %</td><td class="n">9,08 EUR</td><td class="n">1,82 EUR</td><td class="n">10,90 EUR</td>#', $inv_html ) );
 check( 'credit notes are labelled "Rechnungskorrektur" in the HTML document', false !== strpos( $inv_html, 'Rechnungskorrektur GS-P1U-' . $inv_id ) && false === strpos( $inv_html, 'Gutschrift' ) );
 $pdf = PassCaptain\Printing\InvoicePdf::render( $inv_id );
-check( 'invoice PDF lists net/tax/gross per rate and the Rechnungskorrektur page', false !== strpos( $pdf, '(19,47 EUR) Tj' ) && false !== strpos( $pdf, '(22,00 EUR) Tj' ) && false !== strpos( $pdf, '(9,08 EUR) Tj' ) && false !== strpos( $pdf, '(Rechnungskorrektur GS-P1U-' . $inv_id . ') Tj' ) && false === strpos( $pdf, 'Gutschrift' ) );
+check( 'invoice PDF lists net/tax/gross per rate and the Rechnungskorrektur page', false !== strpos( wpcap_pdf_plain( $pdf ), '(19,47 EUR) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(22,00 EUR) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(9,08 EUR) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(Rechnungskorrektur GS-P1U-' . $inv_id . ') Tj' ) && false === strpos( wpcap_pdf_plain( $pdf ), 'Gutschrift' ) );
 $GLOBALS['wpcap_test_options']['timezone_string'] = 'Europe/Vienna';
 check( 'invoice year follows the site timezone (31 Dec 23:30 UTC = next year in Vienna)', 2027 === Invoices::local_year( gmmktime( 23, 30, 0, 12, 31, 2026 ) ) && 2026 === Invoices::local_year( gmmktime( 22, 30, 0, 12, 31, 2026 ) - 3600 ) );
 check( 'next invoice number uses the local year', 1 === preg_match( '/-' . Invoices::local_year() . '-\d{6}$/', (string) Invoices::next_number() ) );

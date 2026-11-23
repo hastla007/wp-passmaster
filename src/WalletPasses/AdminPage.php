@@ -13,12 +13,13 @@ final class AdminPage {
 	const CAP = 'manage_options';
 	const SECRETS = array( 'apple_pass_cert', 'apple_pass_key', 'apple_pass_key_password', 'apple_wwdr_cert', 'google_wallet_service_account' );
 
-	/** Where a secret comes from: 'constant', 'env', 'settings' or ''. */
+	/**
+	 * Where a secret comes from: 'constant', 'env', 'settings' (encrypted store), 'undecryptable'
+	 * (stored but unreadable with the configured key) or ''.
+	 */
 	public static function secret_source( $key ) {
-		$constant = 'WPCAP_' . strtoupper( $key );
-		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return 'constant'; }
-		if ( is_string( getenv( $constant ) ) && '' !== getenv( $constant ) ) { return 'env'; }
-		return '' !== (string) Settings::get( $key ) ? 'settings' : '';
+		$source = \PassCaptain\Secrets::source( $key );
+		return 'vault' === $source ? 'settings' : $source;
 	}
 
 	/** Validates and stores the form. */
@@ -32,6 +33,11 @@ final class AdminPage {
 			'wallet_apple_icon_path' => Forms::text( $in, 'wallet_apple_icon_path', 500 ),
 			'wallet_apple_logo_path' => Forms::text( $in, 'wallet_apple_logo_path', 500 ),
 		);
+		$logo_url = esc_url_raw( Forms::text( $in, 'wallet_google_logo_url', 500 ) );
+		if ( '' !== $logo_url && 0 !== stripos( $logo_url, 'https://' ) ) {
+			return Forms::error( 'wpcap_wallet_logo_url', __( 'Die Logo-Adresse für Google Wallet muss mit https:// beginnen.', 'pass-captain' ) );
+		}
+		$values['wallet_google_logo_url'] = $logo_url;
 		$pass_type = Forms::text( $in, 'wallet_apple_pass_type_id', 190 );
 		if ( '' !== $pass_type && ! preg_match( '/^pass\.[A-Za-z0-9.\-]+$/', $pass_type ) ) {
 			return Forms::error( 'wpcap_wallet_pass_type', __( 'Die Pass Type ID muss mit "pass." beginnen.', 'pass-captain' ) );
@@ -55,7 +61,7 @@ final class AdminPage {
 			if ( in_array( self::secret_source( $key ), array( 'constant', 'env' ), true ) ) { continue; }
 			if ( Forms::flag( $in, $key . '_clear' ) ) { $values[ $key ] = ''; continue; }
 			$value = trim( str_replace( "\r\n", "\n", (string) ( $in[ $key ] ?? '' ) ) );
-			if ( '' !== $value ) { $values[ $key ] = substr( $value, 0, 20000 ); }
+			if ( '' !== $value ) { $values[ $key ] = \PassCaptain\Text::cut( $value, 20000 ); }
 		}
 		Settings::update( $values );
 		Audit::record( 'wallet_settings_saved', 'settings', 0, array( 'apple' => $values['wallet_apple_enabled'], 'google' => $values['wallet_google_enabled'] ) );
@@ -65,6 +71,7 @@ final class AdminPage {
 	/** Configuration status for display. */
 	public static function status() {
 		$apple = Credentials::apple();
+		$apple_material = is_wp_error( $apple ) && 'wpcap_wallet_apple_cert_expired' === $apple->get_error_code() ? Credentials::apple( false ) : $apple;
 		$google = Credentials::google();
 		$status = array(
 			'extensions' => array(
@@ -74,12 +81,12 @@ final class AdminPage {
 				'gd' => function_exists( 'imagecreatetruecolor' ),
 				'curl_http2' => function_exists( 'curl_version' ) && defined( 'CURL_VERSION_HTTP2' ) && ( curl_version()['features'] & CURL_VERSION_HTTP2 ),
 			),
-			'apple' => array( 'enabled' => (bool) Settings::get( 'wallet_apple_enabled' ), 'configured' => ( new AppleProvider() )->is_configured(), 'error' => is_wp_error( $apple ) ? $apple->get_error_message() : '', 'cert' => null, 'wwdr' => null ),
-			'google' => array( 'enabled' => (bool) Settings::get( 'wallet_google_enabled' ), 'configured' => ( new GoogleProvider() )->is_configured(), 'error' => is_wp_error( $google ) ? $google->get_error_message() : '', 'account' => is_array( $google ) ? $google['client_email'] : '' ),
+			'apple' => array( 'enabled' => (bool) Settings::get( 'wallet_apple_enabled' ), 'configured' => ( new AppleProvider() )->is_configured(), 'error' => is_wp_error( $apple ) ? \PassCaptain\Redact::text( $apple->get_error_message() ) : '', 'cert' => null, 'wwdr' => null ),
+			'google' => array( 'enabled' => (bool) Settings::get( 'wallet_google_enabled' ), 'configured' => ( new GoogleProvider() )->is_configured(), 'error' => is_wp_error( $google ) ? \PassCaptain\Redact::text( $google->get_error_message() ) : '', 'account' => is_array( $google ) ? $google['client_email'] : '' ),
 		);
-		if ( is_array( $apple ) ) {
-			$status['apple']['cert'] = Credentials::describe_cert( $apple['cert'] );
-			$status['apple']['wwdr'] = Credentials::describe_cert( $apple['wwdr'] );
+		if ( is_array( $apple_material ) ) {
+			$status['apple']['cert'] = Credentials::describe_cert( $apple_material['cert'] );
+			$status['apple']['wwdr'] = Credentials::describe_cert( $apple_material['wwdr'] );
 			$uid = (string) ( $status['apple']['cert']['uid'] ?? '' );
 			if ( '' !== $uid && $uid !== Settings::get( 'wallet_apple_pass_type_id' ) ) {
 				/* translators: %s: pass type id from the certificate */
@@ -103,7 +110,7 @@ final class AdminPage {
 		try {
 			return $provider->bundle( $provider->pass_json( $ticket ), $credentials );
 		} catch ( \Throwable $e ) {
-			return Forms::error( 'wpcap_wallet_test_pass', __( 'Der Test-Pass konnte nicht signiert werden.', 'pass-captain' ) . ' (' . $e->getMessage() . ')', 500 );
+			return Forms::error( 'wpcap_wallet_test_pass', __( 'Der Test-Pass konnte nicht signiert werden.', 'pass-captain' ) . ' (' . \PassCaptain\Redact::text( $e->getMessage() ) . ')', 500 );
 		}
 	}
 
@@ -121,20 +128,20 @@ final class AdminPage {
 		header( 'Content-Disposition: attachment; filename="test.pkpass"' );
 		header( 'Content-Length: ' . strlen( $bytes ) );
 		echo $bytes; // phpcs:ignore WordPress.Security.EscapeOutput -- binary pkpass.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	private static function yes_no( $flag ) {
-		return $flag ? '<span style="color:#008a20">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#d63638">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
+		return $flag ? '<span style="color:#007017">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#b32d2e">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
 	}
 
 	private static function cert_row( $label, $cert ) {
 		echo '<tr><th>' . esc_html( $label ) . '</th><td>';
 		if ( ! $cert ) { echo '—'; } else {
 			$expired = $cert['valid_to'] < time();
-			$soon = ! $expired && $cert['valid_to'] < time() + 30 * DAY_IN_SECONDS;
+			$soon = ! $expired && $cert['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS;
 			echo esc_html( $cert['subject'] ) . '<br>' . esc_html( sprintf( /* translators: 1: from date, 2: to date */ __( 'gültig von %1$s bis %2$s', 'pass-captain' ), gmdate( 'd.m.Y', $cert['valid_from'] ), gmdate( 'd.m.Y', $cert['valid_to'] ) ) );
-			if ( $expired || $soon ) { echo ' <strong style="color:#d63638">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
+			if ( $expired || $soon ) { echo ' <strong style="color:#b32d2e">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
 		}
 		echo '</td></tr>';
 	}
@@ -144,17 +151,8 @@ final class AdminPage {
 	}
 
 	private static function secret_row( $key, $label ) {
-		$source = self::secret_source( $key );
 		echo '<tr><th><label for="wpcap-' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td>';
-		if ( in_array( $source, array( 'constant', 'env' ), true ) ) {
-			/* translators: %s: constant name */
-			echo esc_html( sprintf( __( 'Gesetzt über %s.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) );
-		} else {
-			echo '<textarea class="large-text code" rows="3" id="wpcap-' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" placeholder="' . esc_attr( 'settings' === $source ? __( 'gespeichert – leer lassen, um den Wert zu behalten', 'pass-captain' ) : __( 'Dateipfad oder PEM/JSON-Inhalt', 'pass-captain' ) ) . '"></textarea>';
-			if ( 'settings' === $source ) { echo '<label><input type="checkbox" name="' . esc_attr( $key ) . '_clear" value="1"> ' . esc_html__( 'Wert entfernen', 'pass-captain' ) . '</label>'; }
-			/* translators: %s: constant name */
-			echo '<p class="description">' . esc_html( sprintf( __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
-		}
+		\PassCaptain\Secrets::render_field( $key, 'wpcap-' . $key, $key . '_clear', true );
 		echo '</td></tr>';
 	}
 
@@ -169,6 +167,8 @@ final class AdminPage {
 		echo '<tr><th>' . esc_html__( 'Apple Wallet einsatzbereit', 'pass-captain' ) . '</th><td>' . self::yes_no( $status['apple']['configured'] ) . ( $status['apple']['error'] ? ' ' . esc_html( $status['apple']['error'] ) : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		self::cert_row( __( 'Pass-Type-ID-Zertifikat', 'pass-captain' ), $status['apple']['cert'] );
 		self::cert_row( __( 'Apple WWDR-Zertifikat', 'pass-captain' ), $status['apple']['wwdr'] );
+		$key_label = 'constant' === Store::key_source() ? __( 'eigene Konstante WPCAP_WALLET_ENCRYPTION_KEY', 'pass-captain' ) : __( 'aus den WordPress-Salts abgeleitet – bei neuen Salts nicht mehr lesbar; empfohlen: WPCAP_WALLET_ENCRYPTION_KEY', 'pass-captain' );
+		echo '<tr><th>' . esc_html__( 'Schlüssel für Ticketcodes', 'pass-captain' ) . '</th><td>' . esc_html( $key_label ) . '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Web-Service-URL', 'pass-captain' ) . '</th><td><code>' . esc_html( AppleProvider::web_service_url() ) . '</code></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Google Wallet einsatzbereit', 'pass-captain' ) . '</th><td>' . self::yes_no( $status['google']['configured'] ) . ( $status['google']['error'] ? ' ' . esc_html( $status['google']['error'] ) : '' ) . ( $status['google']['account'] ? ' <code>' . esc_html( $status['google']['account'] ) . '</code>' : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput
 		echo '</tbody></table>';
@@ -186,13 +186,13 @@ final class AdminPage {
 		echo '<tr><th>' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="wallet_apple_enabled" value="1"' . checked( (int) $s['wallet_apple_enabled'], 1, false ) . '> ' . esc_html__( '.pkpass für neue Tickets erzeugen', 'pass-captain' ) . '</label></td></tr>';
 		self::text_row( 'wallet_apple_pass_type_id', __( 'Pass Type ID', 'pass-captain' ), $s['wallet_apple_pass_type_id'], 'pass.com.example.tickets' );
 		self::text_row( 'wallet_apple_team_id', __( 'Team-ID', 'pass-captain' ), $s['wallet_apple_team_id'] );
-		echo '<tr><th>' . esc_html__( 'Versand', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'wallet_apple_delivery', array( 'attachment' => __( 'Als Anhang (.pkpass)', 'pass-captain' ), 'link' => __( 'Als Download-Link', 'pass-captain' ) ), $s['wallet_apple_delivery'] );
-		echo '</td></tr><tr><th>' . esc_html__( 'APNs', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'wallet_apns_host', array( 'https://api.push.apple.com' => __( 'Produktion', 'pass-captain' ), 'https://api.sandbox.push.apple.com' => __( 'Sandbox', 'pass-captain' ) ), $s['wallet_apns_host'] );
+		echo '<tr><th><label for="wpcap-wallet-apple-delivery">' . esc_html__( 'Versand', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'wallet_apple_delivery', array( 'attachment' => __( 'Als Anhang (.pkpass)', 'pass-captain' ), 'link' => __( 'Als Download-Link', 'pass-captain' ) ), $s['wallet_apple_delivery'], 'wpcap-wallet-apple-delivery' );
+		echo '</td></tr><tr><th><label for="wpcap-wallet-apns-host">' . esc_html__( 'APNs', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'wallet_apns_host', array( 'https://api.push.apple.com' => __( 'Produktion', 'pass-captain' ), 'https://api.sandbox.push.apple.com' => __( 'Sandbox', 'pass-captain' ) ), $s['wallet_apns_host'], 'wpcap-wallet-apns-host' );
 		echo '</td></tr>';
 		self::text_row( 'wallet_apple_icon_path', __( 'Eigenes Icon (PNG-Pfad, 29×29)', 'pass-captain' ), $s['wallet_apple_icon_path'], __( 'Optional; …@2x.png daneben wird mitverwendet. Ohne Angabe wird ein Icon erzeugt.', 'pass-captain' ) );
-		self::text_row( 'wallet_apple_logo_path', __( 'Eigenes Logo (PNG-Pfad, max. 160×50)', 'pass-captain' ), $s['wallet_apple_logo_path'] );
+		self::text_row( 'wallet_apple_logo_path', __( 'Eigenes Logo (PNG-Pfad, max. 160×50)', 'pass-captain' ), $s['wallet_apple_logo_path'], __( 'Optional. Ohne Logo zeigt Wallet nur den Namen des Veranstalters.', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_cert', __( 'Pass-Type-ID-Zertifikat (PEM oder .p12)', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_key', __( 'Privater Schlüssel (PEM)', 'pass-captain' ) );
 		self::secret_row( 'apple_pass_key_password', __( 'Schlüssel-Passwort', 'pass-captain' ) );
@@ -200,6 +200,7 @@ final class AdminPage {
 		echo '</tbody></table><h2>' . esc_html__( 'Google Wallet', 'pass-captain' ) . '</h2><table class="form-table"><tbody>';
 		echo '<tr><th>' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="wallet_google_enabled" value="1"' . checked( (int) $s['wallet_google_enabled'], 1, false ) . '> ' . esc_html__( '„In Google Wallet speichern“-Link versenden', 'pass-captain' ) . '</label></td></tr>';
 		self::text_row( 'wallet_google_issuer_id', __( 'Aussteller-ID (Issuer ID)', 'pass-captain' ), $s['wallet_google_issuer_id'] );
+		self::text_row( 'wallet_google_logo_url', __( 'Logo (öffentliche HTTPS-Adresse)', 'pass-captain' ), (string) ( $s['wallet_google_logo_url'] ?? '' ), __( 'Optional; quadratisch, mindestens 660×660 Pixel. Ohne Angabe wird das Logo des E-Mail-Layouts bzw. das Website-Icon verwendet.', 'pass-captain' ) );
 		self::secret_row( 'google_wallet_service_account', __( 'Servicekonto-Schlüssel (JSON)', 'pass-captain' ) );
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );

@@ -46,6 +46,8 @@ final class ConflictsPage {
 			'out_of_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),
 			'forbidden' => __( 'Kein Einlasszugriff', 'pass-captain' ),
 			'offline_expired' => __( 'Offline-Dauer überschritten (Offline-Scanner)', 'pass-captain' ),
+			'backdated_admission' => __( 'Zurückdatierter Offline-Einlass (wäre beim Upload abgelehnt worden)', 'pass-captain' ),
+			'area_full' => __( 'Einlassbereich voll (offline eingelassen)', 'pass-captain' ),
 		);
 		return $labels[ (string) $result ] ?? Forms::status_label( $result );
 	}
@@ -60,6 +62,7 @@ final class ConflictsPage {
 		if ( ! in_array( $status, array( 'open', 'resolved', 'all' ), true ) ) { $status = 'open'; }
 		$page = Forms::current_page();
 		$data = Conflicts::search( array( 'status' => 'all' === $status ? '' : $status, 'event_id' => $event_id ), $scope, $page, 50 );
+		\PassCaptain\Privacy\AccessLog::list_view( 'admission_conflicts', array( 'event_id' => $event_id, 'status' => $status, 'paged' => $page ), count( (array) ( $data['rows'] ?? array() ) ) );
 		$resolutions = Conflicts::resolutions();
 		?>
 		<div class="wrap wpcap-admin">
@@ -68,10 +71,27 @@ final class ConflictsPage {
 		<p class="description"><?php esc_html_e( 'Offline-Scans, die ein Gerät bereits eingelassen hat, die der Server aber abgelehnt hat (z. B. Ticket woanders schon verwendet). Bitte prüfen und mit Notiz klären.', 'pass-captain' ); ?></p>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id ); ?>
-			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'status', array( 'open' => _x( 'Offen', 'status of an admission conflict: not resolved yet', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status, '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
+		<?php $report = Conflicts::report( $scope, $event_id ); ?>
+		<div class="wpcap-conflict-report">
+			<p><strong><?php esc_html_e( 'Doppel-Einlässe auf verschiedenen Geräten', 'pass-captain' ); ?>:</strong>
+			<?php
+			/* translators: 1: open cross-device double admissions, 2: total, 3: resolved as double admission */
+			echo esc_html( sprintf( __( '%1$d offen · %2$d insgesamt · %3$d als Doppel-Einlass bestätigt', 'pass-captain' ), $report['cross_device_open'], $report['cross_device_total'], $report['duplicate_admission'] ) );
+			?>
+			</p>
+			<?php if ( $report['undos'] ) : ?>
+			<p><strong><?php esc_html_e( 'Zurückgenommene Check-ins (Undos pro Ticket)', 'pass-captain' ); ?>:</strong></p>
+			<table class="widefat striped wpcap-undo-report"><thead><tr><th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Undos', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt', 'pass-captain' ); ?></th></tr></thead><tbody>
+			<?php foreach ( $report['undos'] as $undo ) : ?>
+				<tr><td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $undo->public_id ) ) ); ?>"><code><?php echo esc_html( (string) $undo->public_id ); ?></code></a></td><td><?php echo (int) $undo->undos; ?></td><td><?php echo esc_html( Forms::datetime( $undo->last_at, 'UTC' ) ); ?></td></tr>
+			<?php endforeach; ?>
+			</tbody></table>
+			<?php endif; ?>
+		</div>
 		<table class="widefat striped"><thead><tr>
 			<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
 			<th><?php esc_html_e( 'Ergebnis', 'pass-captain' ); ?></th>
@@ -89,7 +109,7 @@ final class ConflictsPage {
 				<td>
 				<?php if ( 'open' === $row->status ) : ?>
 					<?php Forms::open_form( 'wpcap_admission_resolve_conflict', 'wpcap_admission_resolve_conflict_' . $row->conflict_id ); Forms::hidden( 'conflict_id', $row->conflict_id ); ?>
-						<?php Forms::select( 'resolution', array( '' => __( 'Klärung …', 'pass-captain' ) ) + $resolutions, '' ); ?>
+						<?php Forms::select( 'resolution', array( '' => __( 'Klärung …', 'pass-captain' ) ) + $resolutions, '', '', Forms::aria_label( __( 'Klärung', 'pass-captain' ) ) ); ?>
 						<input type="text" name="note" maxlength="2000" placeholder="<?php esc_attr_e( 'Notiz', 'pass-captain' ); ?>">
 						<button class="button"><?php esc_html_e( 'Klären', 'pass-captain' ); ?></button>
 					</form>

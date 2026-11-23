@@ -1,20 +1,45 @@
 {
-  "name": "hastla007/wp-pass-captain",
+  "name": "hastla007/pass-captain",
   "description": "Eigenständige Event-, Ticket- und Passverwaltung für WordPress",
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
-    "php": ">=8.2",
-    "endroid/qr-code": "^6.0"
+    "php": ">=8.5",
+    "bacon/bacon-qr-code": "^3.0"
+  },
+  "require-dev": {
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+    "php-stubs/woocommerce-stubs": "^11.3",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpstan/extension-installer": "^1.4",
+    "phpstan/phpstan": "^2.1",
+    "squizlabs/php_codesniffer": "^3.13",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "wp-coding-standards/wpcs": "^3.1"
   },
   "autoload": {
     "psr-4": {
       "PassCaptain\\": "src/"
     }
   },
+  "scripts": {
+    "lint:phpcs": "phpcs -q",
+    "lint:phpstan": "phpstan analyse --no-progress --memory-limit=2G",
+    "lint": [
+      "@lint:phpcs",
+      "@lint:phpstan"
+    ],
+    "phpstan:baseline": "phpstan analyse --no-progress --memory-limit=2G --generate-baseline=phpstan-baseline.neon --allow-empty-baseline"
+  },
   "config": {
     "platform": {
-      "php": "8.2.0"
-    }
+      "php": "8.5.0"
+    },
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpstan/extension-installer": true
+    },
+    "sort-packages": true,
+    "platform-check": false
   }
 }

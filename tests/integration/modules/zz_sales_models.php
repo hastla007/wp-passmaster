@@ -104,7 +104,7 @@ check( 'seller snapshot is the organizer (legal name, address, VAT ID, tax numbe
 $sm_html1 = Invoices::render_html( $sm_i1['invoice_id'] );
 check( 'invoice view shows organizer as seller and "Vermittelt durch {platform}"', false !== strpos( $sm_html1, 'Theater Agentur GmbH' ) && false !== strpos( $sm_html1, 'Steuernummer: 143/123/45678' ) && false !== strpos( $sm_html1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_html1, 'TAG-' ) );
 $sm_pdf1 = PassCaptain\Printing\InvoicePdf::render( $sm_i1['invoice_id'] );
-check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( $sm_pdf1, 'Vermittelt durch Plattform GmbH' ) && false !== strpos( $sm_pdf1, 'Theater Agentur GmbH' ) );
+check( 'invoice PDF shows organizer and agent note', str_starts_with( $sm_pdf1, '%PDF' ) && false !== strpos( wpcap_pdf_plain( $sm_pdf1 ), 'Vermittelt durch Plattform GmbH' ) && false !== strpos( wpcap_pdf_plain( $sm_pdf1 ), 'Theater Agentur GmbH' ) );
 $sm_i2 = Invoices::issue_for_order( sm_order( array( $sm_ta => 1 ), 'sm-agent-2' ) );
 check( 'next agent invoice continues the organizer series without gaps', sprintf( 'TAG-%d-000002', $sm_year ) === $sm_i2['invoice_number'] );
 $sm_ip = Invoices::issue_for_order( sm_order( array( $sm_tp => 1 ), 'sm-platform' ) );
@@ -118,7 +118,7 @@ check( 'credit note of an agent invoice follows the organizer (own correction se
 check( 'credit note view keeps the organizer as seller', false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), $sm_cn['credit_note_number'] ) && false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), 'Theater Agentur GmbH' ) );
 $sm_rows = Invoices::export_rows( gmdate( 'Y-m-d', time() - 86400 ), gmdate( 'Y-m-d' ) );
 $sm_export = array_filter( $sm_rows, static fn( $r ) => ( $r[1] ?? '' ) === $GLOBALS['sm_i1']['invoice_number'] );
-check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === end( $sm_rows[0] ) && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
+check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === $sm_rows[0][14] && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
 
 $sm_b = SmPartners::save( array( 'name' => 'Zweite Agentur', 'billing_address' => 'Weg 3, Graz', 'tax_number' => '12 345/6789', 'sales_model' => 'agent' ) );
 $sm_tb2 = sm_type( 1000, 1000 );
@@ -158,6 +158,27 @@ $sm_vat_r = Invoices::issue_for_order( sm_order( array( $sm_tv => 1 ), 'sm-small
 check( 'small-business organizer: invoice with VAT is refused (§ 14c)', is_wp_error( $sm_vat_r ) && 'wpcap_invoice_small_business_vat' === $sm_vat_r->get_error_code() );
 $sm_zero = Invoices::issue_for_order( sm_order( array( $sm_tz => 2 ), 'sm-small-0' ) );
 check( 'small-business organizer: 0 % invoice carries the small-business note', ! is_wp_error( $sm_zero ) && false !== strpos( Invoices::render_html( $sm_zero['invoice_id'] ), 'Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG' ) );
+
+echo "Sales models: platform operator as small business\n";
+PassCaptain\Settings::update( array( 'seller_small_business' => 1, 'seller_small_business_note' => '' ) );
+$sm_pv = sm_type( 1190, 1900 );
+$sm_pv_r = Invoices::issue_for_order( sm_order( array( $sm_pv => 1 ), 'sm-plat-small-vat' ) );
+check( 'small-business platform: invoice with VAT is refused (§ 14c)', is_wp_error( $sm_pv_r ) && 'wpcap_invoice_small_business_vat' === $sm_pv_r->get_error_code() );
+$sm_p0 = sm_type( 1000, 0 );
+$sm_p0_r = Invoices::issue_for_order( sm_order( array( $sm_p0 => 1 ), 'sm-plat-small-0' ) );
+check( 'small-business platform: 0 % invoice carries the § 19 UStG note (DE default)', ! is_wp_error( $sm_p0_r ) && false !== strpos( Invoices::render_html( $sm_p0_r['invoice_id'] ), '§ 19 UStG' ) );
+PassCaptain\Settings::update( array( 'seller_country' => 'AT' ) );
+check( 'Austrian platform: default note cites § 6 Abs. 1 Z 27 UStG; an own text wins', str_contains( Invoices::seller()['small_business_note'], '§ 6 Abs. 1 Z 27' ) && ( function () { PassCaptain\Settings::update( array( 'seller_small_business_note' => 'Eigener Hinweis' ) ); return 'Eigener Hinweis' === Invoices::seller()['small_business_note']; } )() );
+PassCaptain\Settings::update( array( 'seller_small_business_note' => '', 'seller_country' => 'DE' ) );
+$sm_kp = SmPartners::save( array( 'name' => 'Kunde der Kleinplattform', 'billing_address' => "Ring 1\n10115 Berlin", 'vat_id' => 'DE444444444', 'sales_model' => 'agent', 'invoice_prefix' => 'KPL', 'commission_bp' => 1000, 'fee_per_ticket_minor' => 50, 'fee_tax_rate_bp' => 1900, 'settlement_start' => $sm_m1 . '-01' ) );
+$sm_kpt = sm_type( 1190, 1900 );
+SmPartners::set_events( $sm_kp, array( sm_event( $sm_kpt ) ) );
+sm_order( array( $sm_kpt => 2 ), 'sm-kp-1', $sm_t1 );
+$sm_kpd = SmSettlements::get( SmSettlements::create_draft( $sm_kp, $sm_m1 ) );
+$sm_kph = SmSettlements::render_html( $sm_kpd );
+check( 'small-business platform: commission invoice without VAT and with the small-business note', 0 === (int) $sm_kpd->platform_fee_tax_minor && (int) $sm_kpd->platform_fee_gross_minor === (int) $sm_kpd->platform_fee_net_minor && str_contains( $sm_kph, '§ 19 UStG' ) );
+PassCaptain\Settings::update( array( 'seller_small_business' => 0, 'seller_small_business_note' => '', 'seller_country' => 'DE' ) );
+check( 'without the setting the platform has no small-business note', '' === Invoices::seller()['small_business_note'] );
 
 echo "Sales models: settlements – agent (Provisionsrechnung)\n";
 $sm_ta_m1 = SmPartners::save( array( 'name' => 'Vermittelt GmbH', 'billing_address' => "Allee 5\n50667 Köln", 'vat_id' => 'DE333333333', 'sales_model' => 'agent', 'invoice_prefix' => 'VMG', 'commission_bp' => 1000, 'fee_per_ticket_minor' => 50, 'fee_tax_rate_bp' => 1900, 'settlement_start' => $sm_m1 . '-01' ) );

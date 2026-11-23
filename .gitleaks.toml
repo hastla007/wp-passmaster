@@ -1,0 +1,31 @@
+# gitleaks configuration (CI job "secrets": repository history and the built ZIP; see
+# docs/TESTING.md, section "Secret-Scan"). Default rules plus narrow rule allowlists for test
+# fixtures; live keys are still reported everywhere, including tests/.
+title = "Pass Captain"
+
+[extend]
+useDefault = true
+
+# The entropy-based generic rule hits long check() descriptions and fixture strings in the
+# integration tests; it stays active for everything outside tests/ (including the release ZIP).
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "generic-api-key false positives in test code"
+paths = ['''^tests/''']
+
+# Stripe test-mode keys (sk_test_/rk_test_) are fixtures, not secrets; live keys stay blocked.
+[[rules]]
+id = "stripe-access-token"
+[[rules.allowlists]]
+description = "Stripe test-mode keys"
+regexTarget = "match"
+regexes = ['''(sk|rk)_test_''']
+
+# JWT-shaped fixture strings in the redaction tests (Redact::text must strip them); real tokens
+# outside tests/ stay reported.
+[[rules]]
+id = "jwt"
+[[rules.allowlists]]
+description = "JWT-shaped redaction fixtures in the integration tests"
+paths = ['''^tests/integration/''']

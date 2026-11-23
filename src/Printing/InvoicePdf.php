@@ -16,22 +16,22 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class InvoicePdf {
 	/** Same rule as Invoices::can_view_order_finance(): finance roles globally, order managers per event. */
 	public static function can_view_order_finance( $order_id ) {
-		if ( current_user_can( 'manage_options' ) || current_user_can( Invoices::FINANCE_CAP ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( Invoices::FINANCE_CAP ) && Access::order_in_scope( $order_id ) ) ) { return true; }
 		global $wpdb;
-		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
+		$event_ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $order_id ) ) );
 		if ( ! $event_ids ) { return false; }
 		foreach ( $event_ids as $event_id ) {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	private static function money( $minor, $currency ) {
-		return number_format_i18n( (int) $minor / 100, 2 ) . ' ' . $currency;
+		return \PassCaptain\Money::format( $minor, $currency );
 	}
 
 	private static function date( $utc ) {
-		return wp_date( 'd.m.Y', strtotime( $utc . ' UTC' ) );
+		return \PassCaptain\Frontend\Format::local( $utc, null, 'date' );
 	}
 
 	/** Header block with seller data; returns the y position below it. */
@@ -83,12 +83,12 @@ final class InvoicePdf {
 	public static function render( $invoice_id, $credit_note_id = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoices WHERE invoice_id=%d", absint( $invoice_id ) ) );
+		$invoice = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d', $p . 'wpcap_invoices', absint( $invoice_id ) ) );
 		if ( ! $invoice ) { return ''; }
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoice_lines WHERE invoice_id=%d ORDER BY invoice_line_id", $invoice->invoice_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY invoice_line_id', $p . 'wpcap_invoice_lines', $invoice->invoice_id ) );
 		$credits = $credit_note_id
-			? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d AND credit_note_id=%d", $invoice->invoice_id, absint( $credit_note_id ) ) )
-			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) );
+			? $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d AND credit_note_id=%d', $p . 'wpcap_credit_notes', $invoice->invoice_id, absint( $credit_note_id ) ) )
+			: $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE invoice_id=%d ORDER BY credit_note_id', $p . 'wpcap_credit_notes', $invoice->invoice_id ) );
 		if ( $credit_note_id && ! $credits ) { return ''; }
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? Invoices::seller() );
@@ -124,7 +124,7 @@ final class InvoicePdf {
 			foreach ( $lines as $line ) {
 				$desc = PdfWriter::wrap( $line->description, 9, 250 );
 				if ( $y - 12 * count( $desc ) < 90 ) {
-					$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+					$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 					$pdf->add_page( 595.28, 841.89 );
 					$y = $table_header( 790 );
 				}
@@ -138,7 +138,7 @@ final class InvoicePdf {
 			}
 			// Totals block: VAT breakdown (net/tax/gross per rate) plus the sums.
 			if ( $y < 130 + 28 * count( $rates ) ) {
-				$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+				$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
 				$y = 790;
 			}
@@ -161,7 +161,7 @@ final class InvoicePdf {
 			$pdf->text( 545, $y, 10, self::money( (int) $invoice->total_minor - (int) $invoice->tax_minor, $cur ), false, 'right' );
 			foreach ( $rates as $rate => $sum ) {
 				$y -= 14;
-				$pdf->text( 300, $y, 10, sprintf( __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
+				$pdf->text( 300, $y, 10, sprintf( /* translators: %s: VAT rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
 				$pdf->text( 545, $y, 10, self::money( $sum['tax'], $cur ), false, 'right' );
 			}
 			$y -= 18;
@@ -169,12 +169,12 @@ final class InvoicePdf {
 			$pdf->text( 545, $y, 11, self::money( $invoice->total_minor, $cur ), true, 'right' );
 			$y = self::payments( $pdf, $y, $invoice, $snapshot, $page, $footer );
 			if ( Invoices::seller_notes( $snapshot ) && $y - 30 - 24 * count( Invoices::seller_notes( $snapshot ) ) < 60 ) {
-				$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+				$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
 				$y = 820;
 			}
 			$y = self::seller_notes( $pdf, $y - 30, $snapshot );
-			$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page ) );
+			$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page ) );
 		}
 
 		foreach ( $credits as $credit ) {
@@ -182,16 +182,36 @@ final class InvoicePdf {
 			$y = self::header( $pdf, $seller );
 			$pdf->text( 50, $y, 18, __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number, true );
 			$y -= 22;
-			$pdf->text( 50, $y, 10, sprintf( __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
+			$pdf->text( 50, $y, 10, sprintf( /* translators: 1: invoice number, 2: invoice date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
 			$y -= 14;
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
 			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }
+			if ( 'voided' === ( $credit->status ?? '' ) ) {
+				$y -= 18;
+				$pdf->text( 50, $y, 10, sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), self::date( (string) $credit->voided_at ) ), true );
+			}
 			$y -= 36;
-			$rows = array(
-				array( __( 'Nettobetrag', 'pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
-				array( __( 'Umsatzsteuer', 'pass-captain' ), '-' . self::money( $credit->tax_minor, $credit->currency ), false ),
-				array( __( 'Korrekturbetrag', 'pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true ),
-			);
+			// VAT breakdown per rate (net/tax/gross), like the invoice.
+			$credit_rates = Invoices::credit_rates( $credit );
+			$pdf->line( 50, $y + 6, 545, $y + 6 );
+			$y -= 10;
+			$pdf->text( 50, $y, 9, __( 'Aufstellung nach Steuersätzen', 'pass-captain' ), true );
+			$pdf->text( 330, $y, 9, __( 'Netto', 'pass-captain' ), true, 'right' );
+			$pdf->text( 440, $y, 9, __( 'USt.', 'pass-captain' ), true, 'right' );
+			$pdf->text( 545, $y, 9, __( 'Brutto', 'pass-captain' ), true, 'right' );
+			foreach ( $credit_rates as $r ) {
+				$y -= 13;
+				$pdf->text( 50, $y, 9, __( 'USt-Satz', 'pass-captain' ) . ' ' . Invoices::rate_label( $r['rate_bp'] ) );
+				$pdf->text( 330, $y, 9, '-' . self::money( $r['net'], $credit->currency ), false, 'right' );
+				$pdf->text( 440, $y, 9, '-' . self::money( $r['tax'], $credit->currency ), false, 'right' );
+				$pdf->text( 545, $y, 9, '-' . self::money( $r['gross'], $credit->currency ), false, 'right' );
+			}
+			$y -= 30;
+			$rows = array( array( __( 'Nettobetrag', 'pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ) );
+			foreach ( $credit_rates as $r ) {
+				$rows[] = array( sprintf( /* translators: %s: VAT rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ), '-' . self::money( $r['tax'], $credit->currency ), false );
+			}
+			$rows[] = array( __( 'Korrekturbetrag', 'pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true );
 			foreach ( $rows as $r ) {
 				$pdf->text( 300, $y, 10, $r[0], $r[2] );
 				$pdf->text( 545, $y, 10, $r[1], $r[2], 'right' );
@@ -205,7 +225,7 @@ final class InvoicePdf {
 	/** Invoice id of an order (issuing it when the order is paid but has none yet, like the core print view). */
 	public static function invoice_for_order( $order_id, $issue = true ) {
 		global $wpdb;
-		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", absint( $order_id ) ) );
+		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', absint( $order_id ) ) );
 		if ( $id || ! $issue ) { return $id; }
 		$result = Invoices::issue_for_order( $order_id );
 		return is_wp_error( $result ) ? $result : (int) $result['invoice_id'];
@@ -223,6 +243,7 @@ final class InvoicePdf {
 		if ( is_wp_error( $result ) ) {
 			wp_die( esc_html( $result->get_error_message() ), (int) ( $result->get_error_data()['status'] ?? 400 ) );
 		}
+		\PassCaptain\Privacy\AccessLog::export( 'invoice_pdf', 'order', $order_id, array( 'credit_note_id' => $credit_note_id ) );
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 
@@ -241,8 +262,8 @@ final class InvoicePdf {
 	private static function filename( $invoice_id, $credit_note_id ) {
 		global $wpdb;
 		$number = $credit_note_id
-			? $wpdb->get_var( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE credit_note_id=%d", $credit_note_id ) )
-			: $wpdb->get_var( $wpdb->prepare( "SELECT invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $invoice_id ) );
+			? $wpdb->get_var( $wpdb->prepare( 'SELECT credit_note_number FROM %i WHERE credit_note_id=%d', $wpdb->prefix . 'wpcap_credit_notes', $credit_note_id ) )
+			: $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_number FROM %i WHERE invoice_id=%d', $wpdb->prefix . 'wpcap_invoices', $invoice_id ) );
 		return ( $credit_note_id ? 'rechnungskorrektur-' : 'rechnung-' ) . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $number ) . '.pdf';
 	}
 
@@ -253,12 +274,12 @@ final class InvoicePdf {
 	 */
 	public static function customer_pdf( $public_id, $token ) {
 		global $wpdb;
-		$public_id = sanitize_text_field( (string) $public_id );
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$public_id = sanitize_text_field( \PassCaptain\Security\Input::text( $public_id ) );
+		$token = \PassCaptain\Security\Input::hex( $token );
 		$denied = new \WP_Error( 'wpcap_not_found', __( 'Nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return $denied; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { return $denied; }
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
+		if ( ! \PassCaptain\Orders::access_matches( $order, $token ) ) { return $denied; }
 		$invoice_id = self::invoice_for_order( $order->order_id, false );
 		if ( ! $invoice_id ) { return $denied; }
 		return array( 'pdf' => self::render( $invoice_id ), 'filename' => self::filename( $invoice_id, 0 ) );
@@ -267,9 +288,17 @@ final class InvoicePdf {
 	/** template_redirect: ?wpcap_invoice_pdf=<public_id>&wpcap_access=<token> */
 	public static function maybe_customer_download() {
 		if ( ! isset( $_GET['wpcap_invoice_pdf'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$result = self::customer_pdf( wp_unslash( $_GET['wpcap_invoice_pdf'] ), wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
-		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
-		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		// A283: personal download, also the 404 answer – never stored by a page cache or CDN.
+		\PassCaptain\PageCache::no_store( 'invoice_pdf' );
+		$public_id = sanitize_text_field( \PassCaptain\Security\Input::text( wp_unslash( $_GET['wpcap_invoice_pdf'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+		$from_url = \PassCaptain\Security\Input::hex( wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
+		// Without token in the URL: the order's short-lived access cookie (Security\AccessCookie, SEC-7).
+		$token = '' !== $from_url || '' === $public_id ? $from_url : \PassCaptain\Security\AccessCookie::resolve( 'order', $public_id );
+		if ( '' === $token && '' !== $public_id && \PassCaptain\Security\AccessCookie::marker_present() ) { \PassCaptain\Security\AccessCookie::blocked_page(); }
+		$result = self::customer_pdf( $public_id, $token );
+		if ( is_wp_error( $result ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
+		if ( '' !== $from_url ) { \PassCaptain\Security\AccessCookie::exchange( 'order', $public_id, $from_url, add_query_arg( 'wpcap_invoice_pdf', $public_id, home_url( '/' ) ) ); }
+		\PassCaptain\Security\PrivatePage::send(); // No cache copy, no framing, no indexing (secret link).
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 
@@ -281,13 +310,12 @@ final class InvoicePdf {
 		// Unguessable private directory per mail (the attachment keeps its readable file name). The core
 		// deletes the attachment after wp_mail(); the directory (and the file, should sending abort) is
 		// removed at shutdown at the latest.
-		$dir = trailingslashit( get_temp_dir() ) . 'wpcap-' . bin2hex( random_bytes( 16 ) );
-		if ( ! @mkdir( $dir, 0700 ) ) { return $mail; } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+		$dir = \PassCaptain\TempFiles::private_dir();
+		if ( ! $dir ) { return $mail; }
 		$file = $dir . '/' . self::filename( $invoice_id, 0 );
 		self::$temp_files[] = array( $file, $dir );
 		if ( 1 === count( self::$temp_files ) ) { register_shutdown_function( array( __CLASS__, 'cleanup_temp_files' ) ); }
-		if ( false !== file_put_contents( $file, self::render( $invoice_id ) ) ) {
-			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		if ( \PassCaptain\TempFiles::put( $file, self::render( $invoice_id ) ) ) {
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
 		} else {
 			self::cleanup_temp_files();
@@ -300,11 +328,8 @@ final class InvoicePdf {
 
 	/** Removes temporary invoice attachments and their directories (idempotent). */
 	public static function cleanup_temp_files() {
-		foreach ( self::$temp_files as $entry ) {
-			list( $file, $dir ) = $entry;
-			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-		}
+		// A626: kept for mail queue plugins until the cleanup sweep (Mail\TempFiles), unless the TTL is 0.
+		\PassCaptain\Mail\TempFiles::release( array_column( self::$temp_files, 0 ), array_column( self::$temp_files, 1 ) );
 		self::$temp_files = array();
 	}
 

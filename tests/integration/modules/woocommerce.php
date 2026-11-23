@@ -80,14 +80,13 @@ $missing = Attendees::normalize( array( $type => array( array( 'answers' => arra
 check( 'missing required answer for the second ticket is rejected with the field label', is_wp_error( $missing ) && false !== strpos( $missing->get_error_message(), 'Firma' ) );
 $raw = array(
 	$type  => array(
-		array( 'name' => 'Ada <b>L</b>', 'email' => 'ada@example.com', 'answers' => array( 'firma' => ' ACME ', 'evil' => 'x' ) ),
+		array( 'name' => 'Ada <b>L</b>', 'email' => 'ada@example.com', 'answers' => array( 'firma' => ' ACME ' ) ),
 		array( 'answers' => array( 'firma' => 'Globex', 'diet' => 'vegan' ) ),
-		array( 'answers' => array( 'firma' => 'surplus' ) ),
 	),
-	$plain => array( array( 'name' => 'ignored' ) ),
 );
 $ok = Attendees::normalize( $raw, array( $type => 2, $plain => 1 ) );
-check( 'valid answers are normalised (trimmed, unknown keys/types/surplus dropped)', is_array( $ok ) && 2 === count( $ok ) && 'ACME' === $ok[0]['answers']['firma'] && ! isset( $ok[0]['answers']['evil'] ) && 'Ada L' === $ok[0]['name'] && 'vegan' === $ok[1]['answers']['diet'] );
+// A681: unknown keys, types and surplus entries are refused (tests in modules/zz_a681.php), no longer dropped.
+check( 'valid answers are normalised (trimmed, tags stripped)', is_array( $ok ) && 2 === count( $ok ) && 'ACME' === $ok[0]['answers']['firma'] && 'Ada L' === $ok[0]['name'] && 'vegan' === $ok[1]['answers']['diet'] );
 check( 'JSON input from the checkout block is accepted', is_array( Attendees::normalize( wp_json_encode( $raw ), array( $type => 2 ) ) ) );
 $bad_email = Attendees::normalize( array( $type => array( array( 'email' => 'nope', 'answers' => array( 'firma' => 'A' ) ), array( 'answers' => array( 'firma' => 'B' ) ) ) ), array( $type => 2 ) );
 check( 'invalid attendee e-mail is rejected', is_wp_error( $bad_email ) );
@@ -104,6 +103,19 @@ Woo::sync_paid_order( 7101 );
 $answers = $wpdb->get_col( "SELECT a.answer FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=$core ORDER BY a.answer" );
 check( 'issued tickets carry the participant answers', array( 'ACME', 'Globex', 'vegan' ) === $answers );
 check( 'participant data is removed from the WooCommerce order after issuance', '' === $wc->get_meta( Woo::ATTENDEE_META ) );
+
+echo "WooCommerce: another plugin can hold the ticket issuance\n";
+check( 'the hold contract is versioned for integrations', 1 <= Woo::HOLD_FULFILMENT );
+$held_type = make_type( 5 );
+$held = woo_t_order( 7351, array( array( $held_type, 1, '25.00' ) ) );
+$held_core = Woo::reserve( $held );
+$held->status = 'processing';
+$GLOBALS['wpcap_test_filters']['wpcap_woocommerce_hold_fulfilment'] = true; // e.g. Voucher Captain: gift card shortfall.
+Woo::sync_paid_order( 7351 );
+check( 'a held order gets no tickets and keeps its reservation', 0 === count( tickets( $held_core ) ) && 'pending' === Orders::get( $held_core )->payment_status );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_woocommerce_hold_fulfilment'] );
+Woo::sync_paid_order( 7351 );
+check( 'once the hold is lifted the tickets are issued', 1 === count( tickets( $held_core ) ) );
 
 echo "WooCommerce: cash on delivery issues at completed\n";
 $type = make_type( 5 );
@@ -140,6 +152,10 @@ check( 'update-item above capacity is rejected with a message', is_wp_error( $to
 check( 'update-item within capacity is accepted', true === Woo::store_api_validate_quantity( true, 3, $product, array( 'key' => 'abc', 'quantity' => 1 ) ) );
 $small = make_type( 100, 4 );
 check( 'per-order maximum caps the Store API quantity', 4 === Woo::quantity_limit( $small ) && 1 === Woo::quantity_limit( $small, 3 ) );
+
+check( 'fiscal ticket-only WooCommerce carts pass allocation guard', null === Woo::mixed_fiscal_allocation_error( true, false, false, false ) );
+check( 'mixed fiscal WooCommerce carts reject unassigned products, fees and shipping', is_wp_error( Woo::mixed_fiscal_allocation_error( true, true, false, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, true, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, false, true ) ) );
+check( 'assigned mixed carts and carts without mapped fiscal tickets are not blocked by the allocation guard', null === Woo::mixed_fiscal_allocation_error( true, false, false, false ) && null === Woo::mixed_fiscal_allocation_error( false, true, true, true ) );
 
 echo "WooCommerce: refunds\n";
 $type = make_type( 10, 10, 2500 );

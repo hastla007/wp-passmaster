@@ -1,13 +1,13 @@
 <?php
 /**
- * Optional adapter for WP Affiliate Captain (integration contract v1).
+ * Optional adapter for Affiliate Captain (integration contract v1).
  *
  * Reports paid Pass Captain orders (online checkout, POS, box office, waiting list) as sales and
  * reverses the commission on refunds (also partial ones and those of cancelled dates) and on
- * cancellations. Orders that came in through WooCommerce are skipped: WP Affiliate Captain records
+ * cancellations. Orders that came in through WooCommerce are skipped: Affiliate Captain records
  * the WooCommerce order itself, so reporting them here would pay commission twice.
  *
- * Uses only Pass Captain's documented hooks and the public functions of WP Affiliate Captain; never
+ * Uses only Pass Captain's documented hooks and the public functions of Affiliate Captain; never
  * reads Affiliate Captain tables and never sends payment data. The customer e-mail is passed only for
  * Affiliate Captain's self-referral check and is not stored there.
  *
@@ -36,12 +36,27 @@ final class Adapter {
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund' ), 10, 2 );
 		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_refunded' ), 10, 2 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_cancelled' ) );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
-	/** True if WP Affiliate Captain is active with a contract of the same major version. */
+	/** Job that repeats reporting a paid order after Affiliate Captain failed or threw. */
+	const SALE_JOB = 'affiliate_sale_retry';
+
+	/** Whether the sale retry job is running (no second job is queued from inside it). */
+	private static $job_running = false;
+
+	/**
+	 * True if Affiliate Captain is active with a contract of the same major version (any minor version;
+	 * docs/CONTRACTS.md). A failing or malformed version answer counts as incompatible.
+	 */
 	public static function available() {
 		if ( ! function_exists( 'wpac_record_sale' ) || ! function_exists( 'wpac_contract_version' ) ) { return false; }
-		return strtok( (string) wpac_contract_version(), '.' ) === strtok( self::CONTRACT, '.' );
+		try {
+			$version = wpac_contract_version();
+		} catch ( \Throwable $e ) {
+			return false;
+		}
+		return is_scalar( $version ) && \PassCaptain\Contracts::compatible( (string) $version, self::CONTRACT );
 	}
 
 	public static function register_integration( $list ) {
@@ -106,9 +121,9 @@ final class Adapter {
 		}
 		if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
 			$referral['touch'] = array(
-				'code'       => substr( sanitize_text_field( (string) $touch['code'] ), 0, 64 ),
+				'code'       => \PassCaptain\Text::cut( sanitize_text_field( (string) $touch['code'] ), 64 ),
 				'method'     => in_array( $touch['method'] ?? '', array( 'link', 'cookie', 'app' ), true ) ? $touch['method'] : 'link',
-				'campaign'   => substr( sanitize_text_field( (string) ( $touch['campaign'] ?? '' ) ), 0, 100 ),
+				'campaign'   => \PassCaptain\Text::cut( sanitize_text_field( (string) ( $touch['campaign'] ?? '' ) ), 100 ),
 				'content_id' => absint( $touch['content_id'] ?? 0 ),
 				'ts'         => absint( $touch['ts'] ?? 0 ),
 			);
@@ -125,26 +140,27 @@ final class Adapter {
 	 *
 	 * Cookie referrals (method "cookie"): with the WP Consent API (plugin "WP Consent API" plus a
 	 * compatible cookie banner) the "marketing" category decides – no consent, no use. Without a
-	 * consent API the default is true: the site operator then gates Affiliate Captain's cookie in
-	 * the cookie banner. Link referrals of the current shop session (method "link"/"app") use no
-	 * marketing cookie and are allowed by default. Filter `wpcap_affiliate_tracking_allowed`
-	 * (bool $allowed, string $method) overrides both, e.g. for a different consent manager.
+	 * consent API there is no proof of consent, so the cookie is not read (default false, § 25
+	 * TDDDG / § 165 Abs. 3 TKG 2021); an operator whose cookie banner blocks Affiliate Captain's
+	 * cookie until consent opts in with the filter below. Link referrals of the current shop
+	 * session (method "link"/"app") use no marketing cookie and are allowed by default. Filter
+	 * `wpcap_affiliate_tracking_allowed` (bool $allowed, string $method) overrides both, e.g. for a
+	 * different consent manager.
 	 *
 	 * @param string $method Touch method (cookie, link, app).
 	 */
 	public static function tracking_allowed( $method = 'cookie' ) {
-		$allowed = 'cookie' !== $method ? true : ( function_exists( 'wp_has_consent' ) ? (bool) wp_has_consent( 'marketing' ) : true );
+		$allowed = 'cookie' !== $method ? true : ( function_exists( 'wp_has_consent' ) && (bool) wp_has_consent( 'marketing' ) );
 		return (bool) apply_filters( 'wpcap_affiliate_tracking_allowed', $allowed, $method );
 	}
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */
 	private static function check_code( $code ) {
-		$client = class_exists( '\PassCaptain\RateLimit' ) ? \PassCaptain\RateLimit::client() : (string) ( $_SERVER['REMOTE_ADDR'] ?? '' );
-		$key    = 'wpcap_partner_fail_' . hash( 'sha256', $client . '|' . wp_salt( 'nonce' ) );
-		$fails  = (int) get_transient( $key );
-		if ( $fails >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
+		// Atomic failure counter per client (A288; IPv6 per /64, A280): checked first, only wrong codes count.
+		$bucket = 'affiliate_code_fail|' . \PassCaptain\RateLimit::client();
+		if ( \PassCaptain\RateLimit::hits( $bucket, HOUR_IN_SECONDS ) >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }
 		if ( ! function_exists( 'wpac_resolve_partner_code' ) || ! wpac_resolve_partner_code( $code, array( 'context' => 'code', 'source' => self::SOURCE ) ) ) {
-			set_transient( $key, $fails + 1, HOUR_IN_SECONDS );
+			\PassCaptain\RateLimit::allow( $bucket, 10, HOUR_IN_SECONDS );
 			throw new \RuntimeException( 'partner_code_invalid' );
 		}
 	}
@@ -188,15 +204,46 @@ final class Adapter {
 		 */
 		$hold = (int) apply_filters( 'wpcap_affiliate_hold_until', $latest_end, $order );
 		if ( $hold > 0 ) { $payload['hold_until'] = gmdate( 'Y-m-d H:i:s', $hold ); }
-		/** Final sale payload sent to WP Affiliate Captain. */
+		/** Final sale payload sent to Affiliate Captain. */
 		$payload = apply_filters( 'wpcap_affiliate_sale_payload', $payload, $order );
 		$result  = self::call( 'wpac_record_sale', $payload, $order->order_id, 'affiliate_sale' );
 		if ( ! is_wp_error( $result ) || 'wpac_queued' === $result->get_error_code() ) {
 			$lines = array();
 			foreach ( $payload['items'] as $item ) { $lines[ (string) $item['item_id'] ] = (int) $item['net_minor']; }
 			self::update_snapshot( $order->order_id, array( 'affiliate_lines' => $lines ) );
+		} elseif ( ! self::$job_running ) {
+			// Affiliate Captain failed or threw: one retry job per order (idempotency key = order id). The
+			// sale call is idempotent on the Affiliate Captain side and skipped here once reported.
+			\PassCaptain\Jobs::enqueue( 'affiliate-sale-' . (int) $order->order_id, self::SALE_JOB, array( 'order_id' => (int) $order->order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 		}
 		return $result;
+	}
+
+	/**
+	 * Filter wp_pass_captain_process_job_v1: repeats reporting a paid order. Done when the sale was
+	 * recorded (or queued) by Affiliate Captain, was reported already, or the order is no longer
+	 * reportable (not paid, WooCommerce channel). While Affiliate Captain is inactive or keeps failing
+	 * the job answers an error: the queue retries with backoff and dead-letters it after
+	 * Jobs::MAX_ATTEMPTS (listed on the system status page, where it can be retried).
+	 */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( self::SALE_JOB !== $type ) { return $handled; }
+		$order_id = absint( ( (array) $payload )['order_id'] ?? 0 );
+		if ( ! $order_id ) { return true; }
+		if ( ! self::available() ) {
+			return new \WP_Error( 'wpcap_affiliate_unavailable', 'WP Affiliate Captain is not active (contract v1).' );
+		}
+		self::$job_running = true;
+		try {
+			$result = self::on_paid( $order_id );
+		} catch ( \Throwable $error ) {
+			$result = new \WP_Error( 'wpcap_affiliate_exception', $error->getMessage() );
+		} finally {
+			self::$job_running = false;
+		}
+		if ( is_wp_error( $result ) && 'wpac_queued' !== $result->get_error_code() ) { return $result; }
+		Audit::record( 'affiliate_sale_retried', 'order', $order_id, array( 'reported' => null !== $result ) );
+		return true;
 	}
 
 	/* ---------------------------------------------------------------- Reversals */
@@ -210,7 +257,7 @@ final class Adapter {
 		if ( ! $order ) { return null; }
 		global $wpdb;
 		$p      = $wpdb->prefix;
-		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,tax_minor,ticket_ids,reason FROM {$p}wpcap_refunds WHERE refund_id=%d AND order_id=%d AND status='completed'", absint( $refund_id ), (int) $order->order_id ) );
+		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,tax_minor,ticket_ids,reason FROM %i WHERE refund_id=%d AND order_id=%d AND status='completed'", $p . 'wpcap_refunds', absint( $refund_id ), (int) $order->order_id ) );
 		if ( ! $refund ) { return null; }
 		$net_refund = max( 0, (int) $refund->amount_minor - (int) $refund->tax_minor );
 		$reported   = (array) self::snapshot_of( $order )['affiliate_lines'];
@@ -247,7 +294,7 @@ final class Adapter {
 		}
 		return self::call(
 			'wpac_record_refund',
-			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => 'refund-' . (int) $refund->refund_id, 'type' => 'refund', 'items' => $lines, 'reason' => substr( sanitize_text_field( (string) $refund->reason ), 0, 100 ) ),
+			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => 'refund-' . (int) $refund->refund_id, 'type' => 'refund', 'items' => $lines, 'reason' => \PassCaptain\Text::cut( sanitize_text_field( (string) $refund->reason ), 100 ) ),
 			$order->order_id,
 			'affiliate_refund'
 		);
@@ -268,7 +315,7 @@ final class Adapter {
 		if ( ! $order ) { return null; }
 		return self::call(
 			'wpac_record_refund',
-			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => $refund_id . '-' . (int) $order->order_id, 'type' => $type, 'full' => true, 'reason' => substr( sanitize_text_field( (string) $reason ), 0, 100 ) ),
+			array( 'contract' => self::CONTRACT, 'source' => self::SOURCE, 'order_id' => (string) (int) $order->order_id, 'refund_id' => $refund_id . '-' . (int) $order->order_id, 'type' => $type, 'full' => true, 'reason' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reason ), 100 ) ),
 			$order->order_id,
 			'affiliate_refund'
 		);
@@ -280,7 +327,7 @@ final class Adapter {
 	private static function reportable_order( $order_id ) {
 		if ( ! self::available() ) { return null; }
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,payment_status,status,currency,total_minor,price_snapshot,voucher_snapshot,payment_provider,updated_at FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,customer_email,payment_status,status,currency,total_minor,price_snapshot,voucher_snapshot,payment_provider,updated_at FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
 		if ( ! $order ) { return null; }
 		$channel = (string) ( self::snapshot_of( $order )['affiliate_referral']['channel'] ?? '' );
 		/**
@@ -307,7 +354,7 @@ final class Adapter {
 	private static function update_snapshot( $order_id, array $data ) {
 		global $wpdb;
 		$table    = $wpdb->prefix . 'wpcap_orders';
-		$snapshot = json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT price_snapshot FROM {$table} WHERE order_id=%d", absint( $order_id ) ) ), true );
+		$snapshot = json_decode( (string) $wpdb->get_var( $wpdb->prepare( 'SELECT price_snapshot FROM %i WHERE order_id=%d', $table, absint( $order_id ) ) ), true );
 		$snapshot = array_merge( is_array( $snapshot ) ? $snapshot : array(), $data );
 		$wpdb->update( $table, array( 'price_snapshot' => wp_json_encode( $snapshot ) ), array( 'order_id' => absint( $order_id ) ) );
 	}
@@ -320,23 +367,33 @@ final class Adapter {
 	private static function items( $order ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_minor,tt.name AS type_name,o.event_id,o.starts_at,o.ends_at,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order->order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,' . \PassCaptain\OrderLines::paid_columns() . ',tt.name AS type_name,o.event_id,o.starts_at,o.ends_at,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
 		$subtotal = 0;
 		foreach ( $lines as $line ) { $subtotal += (int) $line->line_total_minor; }
 		// Multi-purpose voucher (means of payment): the order keeps the full price and VAT, only the amount
 		// due shrinks. The VAT share of what was actually paid is then proportional, not the full line VAT.
 		$voucher       = ! empty( $order->voucher_snapshot ) ? json_decode( (string) $order->voucher_snapshot, true ) : null;
 		$paid_by_means = is_array( $voucher ) && ! empty( $voucher['amount_paid_by_voucher'] );
+		// Weights: line gross after its own campaign discount (OrderLines::after_discount), so a
+		// discount for one event/type does not reduce the commission base of other lines.
+		$lines  = array_values( $lines );
+		$discount = isset( $order->discount_minor ) ? (int) $order->discount_minor : (int) ( \PassCaptain\Orders::get( (int) ( $order->order_id ?? 0 ) )->discount_minor ?? 0 );
+		$after  = \PassCaptain\OrderLines::after_discount( $lines, $discount );
+		$weight = array_sum( $after );
 		$paid  = min( (int) $order->total_minor, $subtotal );
+		// The stored line VAT already belongs to the line after campaign discounts (Orders::create()), so
+		// the paid share is paid / (paid + voucher), not gross / line total before discounts – that would
+		// remove the discount a second time and raise the commission base (Affiliate Captain audit P2).
+		$before_voucher = $paid_by_means ? $paid + max( 0, (int) $voucher['amount_paid_by_voucher'] ) : 0;
 		$left  = $paid;
 		$last  = count( $lines ) - 1;
 		$items = array();
 		foreach ( $lines as $index => $line ) {
-			$gross = $index === $last ? $left : ( $subtotal > 0 ? intdiv( $paid * (int) $line->line_total_minor, $subtotal ) : 0 );
+			$gross = $index === $last ? $left : ( $weight > 0 ? intdiv( $paid * (int) $after[ $index ], $weight ) : 0 );
 			$gross = max( 0, min( $gross, $left ) );
 			$left -= $gross;
 			$end   = $line->ends_at ? $line->ends_at : $line->starts_at;
-			$tax   = $paid_by_means && (int) $line->line_total_minor > 0 ? (int) round( (int) $line->tax_minor * $gross / (int) $line->line_total_minor ) : (int) $line->tax_minor;
+			$tax   = $paid_by_means && $before_voucher > 0 ? (int) round( (int) $line->tax_minor * $paid / $before_voucher ) : (int) $line->tax_minor;
 			$net   = max( 0, $gross - $tax );
 			$items[] = array(
 				'item_id'      => (string) (int) $line->item_id,

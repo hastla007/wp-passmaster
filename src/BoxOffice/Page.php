@@ -3,6 +3,7 @@
 namespace PassCaptain\BoxOffice;
 
 use PassCaptain\Admin\Forms;
+use PassCaptain\Audit;
 use PassCaptain\Admin\Queries;
 use PassCaptain\Orders;
 use PassCaptain\Printing\Templates;
@@ -17,7 +18,7 @@ final class Page {
 	/** Whether the current user may see a sale (receipt): cashier of the sale, order managers in scope or finance. */
 	public static function can_view_sale( $sale ) {
 		if ( ! $sale ) { return false; }
-		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpcap_view_finance' ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( 'wpcap_view_finance' ) && \PassCaptain\Access::order_in_scope( $sale->order_id ) ) ) { return true; }
 		if ( (int) $sale->cashier_id === get_current_user_id() && current_user_can( Service::CAP ) ) { return true; }
 		return Scope::can_order( $sale->order_id, Service::CAP );
 	}
@@ -44,35 +45,73 @@ final class Page {
 		return array( 'pdf' => Templates::render( 'ticket', $items, Templates::body_for_event( $event_id, 'ticket' ) ), 'filename' => 'tickets-' . $sale->receipt_number . '.pdf' );
 	}
 
+	/** Tabs of the box office screen (registers only for administrators). */
+	public static function tabs() {
+		$tabs = array(
+			'sale' => __( 'Verkauf', 'pass-captain' ),
+			'shift' => __( 'Schicht', 'pass-captain' ),
+			'shifts' => __( 'Schichten & Z-Berichte', 'pass-captain' ),
+		);
+		if ( Registers::can_manage() ) { $tabs['registers'] = __( 'Kassen', 'pass-captain' ); }
+		return $tabs;
+	}
+
 	public static function render() {
 		if ( ! current_user_can( Service::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		$session = Service::open_session_for( get_current_user_id() );
+		$tabs = self::tabs();
+		$tab = Forms::query_arg( 'tab', 'sale' );
+		$tab = isset( $tabs[ $tab ] ) ? $tab : 'sale';
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'pass-captain' ) . '</h1>';
 		self::render_fiscal_notice();
 		Forms::render_notices();
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Kassenbereiche', 'pass-captain' ) . '">';
+		foreach ( $tabs as $key => $label ) {
+			echo '<a class="nav-tab' . ( $key === $tab ? ' nav-tab-active" aria-current="page' : '' ) . '" href="' . esc_url( ShiftPage::url( $key ) ) . '">' . esc_html( $label ) . '</a>';
+		}
+		echo '</nav>';
+		if ( 'shift' === $tab ) { ShiftPage::render_shift(); echo '</div>'; return; }
+		if ( 'shifts' === $tab ) { ShiftPage::render_shifts(); echo '</div>'; return; }
+		if ( 'registers' === $tab ) {
+			ShiftPage::render_registers();
+			if ( current_user_can( 'manage_options' ) ) { self::render_admin_settings(); }
+			echo '</div>';
+			return;
+		}
+		$session = Service::open_session_for( get_current_user_id() );
+		$device_state = self::device_state_for_request();
 		$last = absint( $_GET['sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $device_state && 'succeeded' === $device_state['status'] ) { $last = (int) $device_state['sale_id']; }
 		$last_sale = $last ? Service::sale( $last ) : null;
 		if ( $last_sale && Service::is_booked( $last_sale ) && self::can_view_sale( $last_sale ) ) {
 			$receipt = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => $last ), admin_url( 'admin-post.php' ) );
-			echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( __( 'Verkauf gebucht: Beleg %1$s über %2$s.', 'pass-captain' ), $last_sale->receipt_number, Scope::money( $last_sale->total_minor, $last_sale->currency ) ) ) . ' <a class="button" target="_blank" href="' . esc_url( $receipt ) . '">' . esc_html__( 'Beleg drucken', 'pass-captain' ) . '</a> ';
+			echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( /* translators: 1: receipt number, 2: amount */ __( 'Verkauf gebucht: Beleg %1$s über %2$s.', 'pass-captain' ), $last_sale->receipt_number, Scope::money( $last_sale->total_minor, $last_sale->currency ) ) ) . ' <a class="button" target="_blank" href="' . esc_url( $receipt ) . '">' . esc_html__( 'Beleg drucken', 'pass-captain' ) . '</a> ';
 			Forms::open_form( 'wpcap_pos_tickets', 'wpcap_pos_tickets_' . $last, 'target="_blank" style="display:inline"' );
 			Forms::hidden( 'sale_id', $last );
 			echo '<button class="button">' . esc_html__( 'Tickets drucken (PDF)', 'pass-captain' ) . '</button></form></p></div>';
 		}
+		if ( $device_state && 'succeeded' !== $device_state['status'] ) { self::render_device_status( $device_state ); }
 		if ( ! $session ) {
-			echo '<h2>' . esc_html__( 'Kassensitzung öffnen', 'pass-captain' ) . '</h2>';
-			Forms::open_form( 'wpcap_pos_open' );
-			echo '<p><label>' . esc_html__( 'Wechselgeld (Anfangsbestand)', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="float" value="0,00" size="10"></label> ';
-			echo '<label>' . esc_html__( 'Währung', 'pass-captain' ) . ' <input type="text" name="currency" value="EUR" size="4" maxlength="3"></label></p>';
-			echo '<p><button class="button button-primary">' . esc_html__( 'Kasse öffnen', 'pass-captain' ) . '</button></p></form></div>';
+			$active = Shifts::current_for_user( get_current_user_id() );
+			if ( $active ) {
+				echo '<p>' . esc_html__( 'Deine Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich.', 'pass-captain' ) . ' <a class="button" href="' . esc_url( ShiftPage::url( 'shift' ) ) . '">' . esc_html__( 'Zum Kassenabschluss', 'pass-captain' ) . '</a></p>';
+			} else {
+				ShiftPage::render_open_forms();
+			}
+			self::render_lookup();
+			echo '</div>';
 			return;
 		}
-		$occurrences = \PassCaptain\Printing\Page::occurrence_options( Service::CAP );
+		$register = Registers::get( $session->register_id );
+		$occurrences = \PassCaptain\Printing\Page::occurrence_options( Service::CAP, false );
+		if ( $register && (int) $register->event_id ) {
+			$occurrences = array_filter( $occurrences, static function ( $label, $id ) use ( $register ) { return Scope::occurrence_event( $id ) === (int) $register->event_id; }, ARRAY_FILTER_USE_BOTH );
+		}
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! isset( $occurrences[ $occurrence_id ] ) ) { $occurrence_id = (int) array_key_first( $occurrences ); }
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p><label>' . esc_html__( 'Termin', 'pass-captain' ) . ' ';
-		Forms::select( 'occurrence_id', $occurrences, $occurrence_id, '', 'onchange="this.form.submit()"' );
-		echo '</label></p></form>';
+		// No submit on change: with the keyboard every arrow key would reload the page (A314).
+		Forms::select( 'occurrence_id', $occurrences, $occurrence_id );
+		echo '</label> <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
 		if ( $occurrence_id ) {
 			$types = Service::ticket_types( $occurrence_id );
 			Forms::open_form( 'wpcap_pos_sell', null, 'id="wpcap-pos-form"' );
@@ -85,6 +124,7 @@ final class Page {
 				$any_seated = $any_seated || $t['seated'];
 				$required = array_values( array_filter( $t['fields'], static function ( $f ) { return $f['required']; } ) );
 				$hints = array();
+				if ( '' !== $t['price_rule'] ) { $hints[] = $t['price_rule']; }
 				if ( $t['seated'] ) { $hints[] = __( 'Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze).', 'pass-captain' ); }
 				/* translators: %s: list of field labels */
 				if ( $required ) { $hints[] = sprintf( __( 'Pflichtangaben je Ticket: %s', 'pass-captain' ), implode( ', ', array_map( static function ( $f ) { return $f['label']; }, $required ) ) ); }
@@ -97,9 +137,25 @@ final class Page {
 			}
 			echo '<div id="wpcap-pos-attendees" class="wpcap-pos-attendees"></div>';
 			echo '<noscript><p class="description">' . esc_html__( 'Für Teilnehmerangaben wird JavaScript benötigt.', 'pass-captain' ) . '</p></noscript>';
-			echo '<p><strong>' . esc_html__( 'Summe:', 'pass-captain' ) . ' <span id="wpcap-pos-total">0,00</span> ' . esc_html( $session->currency ) . '</strong></p><p>';
-			foreach ( Service::methods() as $key => $def ) {
-				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( $key ) . '"' . ( 'cash' === $key ? ' checked' : '' ) . '> ' . esc_html( $def['label'] ) . '</label>';
+			echo '<p><strong>' . esc_html__( 'Summe:', 'pass-captain' ) . ' <span id="wpcap-pos-total">' . esc_html( \PassCaptain\Money::number( 0, $session->currency ) ) . '</span> ' . esc_html( $session->currency ) . '</strong></p><p>';
+			$sale_methods = Service::sale_methods();
+			$first = (string) array_key_first( $sale_methods );
+			foreach ( $sale_methods as $key => $def ) {
+				if ( 'free' === $key && ! Service::can_give_free() ) { continue; }
+				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( $key ) . '"' . ( $first === $key ? ' checked' : '' ) . '> ' . esc_html( $def['label'] ) . '</label>';
+			}
+			if ( Service::fiscal_block() ) {
+				echo '<br><span class="description">' . esc_html__( 'Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat.', 'pass-captain' ) . '</span>';
+			}
+			// Card terminals of an add-on (DeviceGatewayInterface): only when at least one is registered for this register.
+			$devices = Service::fiscal_block() ? array() : Devices::for_session( $session );
+			if ( $devices ) {
+				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( Service::DEVICE_METHOD ) . '"> ' . esc_html( Service::method_label( Service::DEVICE_METHOD ) ) . '</label>';
+				echo '<label for="wpcap-pos-device-select">' . esc_html__( 'Kartenterminal', 'pass-captain' ) . '</label> <select id="wpcap-pos-device-select" name="device">';
+				foreach ( $devices as $device_id => $gateway ) {
+					echo '<option value="' . esc_attr( $device_id ) . '">' . esc_html( Devices::label( $gateway, $device_id ) ) . '</option>';
+				}
+				echo '</select>';
 			}
 			echo '</p><p><label>' . esc_html__( 'Gegeben (bar)', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="tendered" size="8"></label> <span id="wpcap-pos-change"></span> ';
 			echo '<label>' . esc_html__( 'Terminal-Referenz', 'pass-captain' ) . ' <input type="text" name="reference" size="14" maxlength="100"></label> ';
@@ -107,7 +163,8 @@ final class Page {
 			self::render_billing_fields();
 			echo '<p><button class="button button-primary button-hero">' . esc_html__( 'Verkauf buchen', 'pass-captain' ) . '</button></p></form>';
 			$availability_url = add_query_arg( array( 'action' => 'wpcap_pos_availability', 'occurrence_id' => $occurrence_id, '_wpnonce' => wp_create_nonce( 'wpcap_pos' ) ), admin_url( 'admin-post.php' ) );
-			echo '<script>window.wpcapPos=' . wp_json_encode( array(
+			wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+			\PassCaptain\Assets::inline_script( 'wpcap-pos', 'window.wpcapPos=' . wp_json_encode( array(
 				'availabilityUrl' => $availability_url,
 				'changeLabel' => __( 'Rückgeld:', 'pass-captain' ),
 				/* translators: 1: running ticket number, 2: ticket type */
@@ -115,62 +172,163 @@ final class Page {
 				'name' => __( 'Name', 'pass-captain' ),
 				'email' => __( 'E-Mail (optional)', 'pass-captain' ),
 				'heading' => __( 'Teilnehmerangaben', 'pass-captain' ),
-			) ) . ';</script>';
-			wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+				'consentVersion' => __( 'Version', 'pass-captain' ),
+				// A403: amounts like Money::number() (currency minor unit, site number format).
+				'decimals' => \PassCaptain\Money::decimals( $session->currency ),
+				'decimalPoint' => \PassCaptain\Frontend\Format::js_config()['decimal'],
+				'thousandsSep' => \PassCaptain\Frontend\Format::js_config()['thousands'],
+			) ) . ';', 'before' );
 		}
 		self::render_session( $session );
+		self::render_lookup();
 		echo '</div>';
+	}
+
+	/**
+	 * State of the terminal sale named by ?device_sale= (polled once, so a reload without JavaScript
+	 * also advances it); null when absent, not a terminal sale or not the user's.
+	 */
+	private static function device_state_for_request() {
+		$sale_id = absint( $_GET['device_sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- status view with permission check; the poll changes nothing the user could not trigger.
+		if ( ! $sale_id ) { return null; }
+		$sale = Service::sale( $sale_id );
+		if ( ! $sale || Service::DEVICE_METHOD !== $sale->payment_method || ! self::own_or_admin( $sale ) ) { return null; }
+		$state = Service::poll_device_payment( $sale_id );
+		return is_wp_error( $state ) ? null : $state;
+	}
+
+	/** Status box of a terminal payment: live region, cancel button (JS polls via admin-ajax). */
+	private static function render_device_status( array $state ) {
+		$sale = Service::sale( $state['sale_id'] );
+		$order = $sale ? Orders::get( $sale->order_id ) : null;
+		$pending = 'pending' === $state['status'];
+		$class = $pending ? 'notice-info' : ( 'unbooked' === $state['status'] ? 'notice-warning' : 'notice-error' );
+		/* translators: %s: amount with currency */
+		$text = $pending ? sprintf( __( 'Am Terminal bezahlen … %s', 'pass-captain' ), $order ? Scope::money( $order->total_minor, $order->currency ) : '' ) : $state['message'];
+		echo '<div id="wpcap-pos-device" class="notice ' . esc_attr( $class ) . ' inline wpcap-pos-device" data-status="' . esc_attr( $state['status'] ) . '">';
+		echo '<p id="wpcap-pos-device-status" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" style="font-size:1.2em"><strong>' . esc_html( $text ) . '</strong></p>';
+		if ( ! $pending ) {
+			echo '<p>' . esc_html( 'unbooked' === $state['status'] ? __( 'Die Zahlung ist erfolgt. Bitte den Verkauf in der Liste unten später „Nachbuchen“.', 'pass-captain' ) : __( 'Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden.', 'pass-captain' ) ) . '</p></div>';
+			return;
+		}
+		echo '<p id="wpcap-pos-device-hint">' . esc_html__( 'Bitte die Karte am Terminal vorlegen. Die Anzeige aktualisiert sich automatisch.', 'pass-captain' ) . '</p>';
+		echo '<noscript><p><a class="button" href="' . esc_url( self::back( array( 'device_sale' => (int) $state['sale_id'] ) ) ) . '">' . esc_html__( 'Status aktualisieren', 'pass-captain' ) . '</a></p></noscript>';
+		Forms::open_form( 'wpcap_pos_device_cancel', 'wpcap_pos_device_' . (int) $state['sale_id'], 'id="wpcap-pos-device-cancel-form"' );
+		Forms::hidden( 'sale_id', (int) $state['sale_id'] );
+		echo '<p><button type="submit" class="button" id="wpcap-pos-device-cancel">' . esc_html__( 'Zahlung am Terminal abbrechen', 'pass-captain' ) . '</button></p></form></div>';
+		wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+		wp_add_inline_script( 'wpcap-pos', 'window.wpcapPosDevice=' . wp_json_encode( array(
+			'saleId' => (int) $state['sale_id'],
+			'url' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wpcap_pos_device_' . (int) $state['sale_id'] ),
+			'interval' => 2000,
+			'cancelling' => __( 'Zahlung wird am Terminal abgebrochen …', 'pass-captain' ),
+			'offline' => __( 'Keine Verbindung zum Server. Der Status wird erneut abgefragt …', 'pass-captain' ),
+			'booked' => __( 'Zahlung erfolgreich. Der Verkauf wird gebucht …', 'pass-captain' ),
+			'again' => __( 'Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden.', 'pass-captain' ),
+		) ) . ';', 'before' );
+	}
+
+	private static function render_admin_settings() {
+		echo '<details class="wpcap-boxoffice-admin-settings"><summary>' . esc_html__( 'Kassen- und Belegeinstellungen', 'pass-captain' ) . '</summary>';
+		Forms::open_form( 'wpcap_pos_settings' );
+		echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <label>' . esc_html__( 'Bediener auf Kundenbelegen', 'pass-captain' ) . ' <select name="boxoffice_receipt_cashier">' . implode( '', array_map( static function ( $value, $label ) { return '<option value="' . esc_attr( $value ) . '"' . selected( (string) Settings::get( 'boxoffice_receipt_cashier' ), $value, false ) . '>' . esc_html( $label ) . '</option>'; }, array( 'id', 'initials', 'name' ), array( __( 'Bedienernummer', 'pass-captain' ), __( 'Initialen', 'pass-captain' ), __( 'Vollständiger Name', 'pass-captain' ) ) ) ) . '</select></label></p><p><label><input type="checkbox" name="boxoffice_cash_confirmed" value="1"' . checked( (bool) Settings::get( 'boxoffice_cash_confirmed' ), true, false ) . '> ' . esc_html__( 'Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben', 'pass-captain' ) . '</label></p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- option values and labels are escaped inside the closure.
+		echo '<p><label>' . esc_html__( 'Zugelassene Kassenregister (eine Zeile je Register)', 'pass-captain' ) . '<br><textarea name="boxoffice_terminals" rows="5" cols="70" maxlength="10000">' . esc_textarea( TerminalRegistry::raw() ) . '</textarea></label><br><span class="description">' . esc_html__( 'Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen.', 'pass-captain' ) . '</span></p>';
+		echo '<p><button class="button">' . esc_html__( 'Kassen- und Belegeinstellungen speichern', 'pass-captain' ) . '</button></p></form></details>';
+	}
+
+	/**
+	 * Receipt lookup: finds a booked sale by receipt number (also of closed shifts) so that it can
+	 * be stornoed (in full or per ticket) into the current open shift.
+	 */
+	private static function render_lookup() {
+		$number = Forms::query_arg( 'receipt', '' );
+		echo '<h3>' . esc_html__( 'Beleg suchen (Storno früherer Schichten)', 'pass-captain' ) . '</h3><form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p><label>' . esc_html__( 'Belegnummer', 'pass-captain' ) . ' <input type="text" name="receipt" size="22" value="' . esc_attr( $number ) . '"></label> <button class="button">' . esc_html__( 'Suchen', 'pass-captain' ) . '</button></p></form>';
+		if ( '' === $number ) { return; }
+		global $wpdb;
+		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE receipt_number=%s", $number ) );
+		if ( ! $sale || ! Service::is_booked( $sale ) || ! self::can_view_sale( $sale ) ) {
+			echo '<p>' . esc_html__( 'Kein Beleg mit dieser Nummer gefunden.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		\PassCaptain\Privacy\AccessLog::view( 'pos_sale', 'pos_sale', (int) $sale->sale_id );
+		echo '<table class="widefat striped"><tbody>';
+		self::render_sale_row( $sale );
+		echo '</tbody></table>';
 	}
 
 	private static function render_session( $session ) {
 		global $wpdb;
-		$totals = Service::session_totals( $session->session_id );
+		$view = Shifts::view( $session->session_id );
+		$totals = $view['totals'];
 		$cur = $session->currency;
-		echo '<h2>' . esc_html( sprintf( __( 'Kassensitzung #%1$d (seit %2$s)', 'pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
-		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
-		foreach ( $totals['methods'] as $m => $t ) {
-			echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['count'] . '</td><td>' . (int) $t['voided_count'] . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
+		$register = $view['register'];
+		/* translators: 1: register, 2: shift id, 3: time */
+		echo '<h2>' . esc_html( sprintf( __( 'Kasse „%1$s“ · Schicht #%2$d (seit %3$s)', 'pass-captain' ), $register ? $register->name : '–', $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
+		if ( (int) ( $session->location_id ?? 0 ) || '' !== (string) ( $session->fiscal_register_id ?? '' ) ) {
+			/* translators: 1: location ID, 2: register ID */
+			echo '<p>' . esc_html( sprintf( __( 'Standort %1$d · Kasse %2$s', 'pass-captain' ), (int) $session->location_id, '' !== (string) $session->fiscal_register_id ? (string) $session->fiscal_register_id : __( 'Standard', 'pass-captain' ) ) ) . '</p>';
 		}
-		echo '</tbody></table><p>' . esc_html( sprintf( __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
+		if ( $view['masked'] ) {
+			echo '<p>' . esc_html( sprintf( /* translators: 1: sales, 2: stornos */ __( 'Verkäufe %1$d · Stornos %2$d. Blindzählung: Beträge und Soll-Bestand werden erst nach der Zählung angezeigt.', 'pass-captain' ), $totals['counts']['sales'], $totals['counts']['stornos'] + $totals['counts']['refunds'] ) ) . '</p>';
+		} else {
+			echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Stornos/Erstattungen', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $totals['methods'] as $m => $t ) {
+				echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['sales_count'] . '</td><td>' . (int) $t['refund_count'] . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
+			}
+			echo '</tbody></table><p>' . esc_html( sprintf( /* translators: 1: opening cash, 2: expected cash */ __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
+		}
 
 		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status <> 'failed' ORDER BY sale_id DESC LIMIT 50", $session->session_id ) );
 		if ( $sales ) {
-			echo '<h3>' . esc_html__( 'Verkäufe dieser Sitzung', 'pass-captain' ) . '</h3><table class="widefat striped"><tbody>';
-			foreach ( $sales as $s ) {
-				$url = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => (int) $s->sale_id ), admin_url( 'admin-post.php' ) );
-				$booked = Service::is_booked( $s );
-				echo '<tr><td>' . esc_html( $s->receipt_number ?: __( '(nicht gebucht)', 'pass-captain' ) ) . '</td><td>' . esc_html( Scope::local( $s->created_at, Scope::site_timezone(), 'H:i' ) ) . '</td><td>' . esc_html( Service::method_label( $s->payment_method ) ) . '</td><td>' . esc_html( $booked ? Scope::money( $s->total_minor, $s->currency ) : '–' ) . '</td><td>' . esc_html( Forms::status_label( $s->status ) ) . '</td><td>' . ( $booked ? '<a target="_blank" href="' . esc_url( $url ) . '">' . esc_html__( 'Beleg', 'pass-captain' ) . '</a>' : '' );
-				if ( 'pending' === $s->status ) {
-					echo ' ';
-					Forms::open_form( 'wpcap_pos_finalize', 'wpcap_pos_finalize_' . (int) $s->sale_id, 'style="display:inline"' );
-					Forms::hidden( 'sale_id', (int) $s->sale_id );
-					echo '<button class="button button-small">' . esc_html__( 'Nachbuchen', 'pass-captain' ) . '</button></form>';
-				} elseif ( 'storno_pending' === $s->status && current_user_can( \PassCaptain\Refunds::APPROVE_CAP ) ) {
-					echo ' ';
-					Forms::open_form( 'wpcap_pos_storno_reject', 'wpcap_pos_storno_reject_' . (int) $s->sale_id, 'style="display:inline"' );
-					Forms::hidden( 'sale_id', (int) $s->sale_id );
-					echo '<button class="button button-small">' . esc_html__( 'Storno ablehnen', 'pass-captain' ) . '</button></form>';
-				} elseif ( 'voided' === $s->status ) {
-					echo ' · <a target="_blank" href="' . esc_url( add_query_arg( 'storno', 1, $url ) ) . '">' . esc_html__( 'Stornobeleg', 'pass-captain' ) . '</a>';
-				} elseif ( 'completed' === $s->status ) {
-					echo ' ';
-					Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" onsubmit="return confirm(\'' . esc_js( __( 'Verkauf wirklich stornieren?', 'pass-captain' ) ) . '\')"' );
-					Forms::hidden( 'sale_id', (int) $s->sale_id );
-					echo '<input type="text" name="reason" size="12" placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form>';
-				}
-				echo '</td></tr>';
-			}
+			echo '<h3>' . esc_html__( 'Verkäufe dieser Schicht', 'pass-captain' ) . '</h3><table class="widefat striped"><tbody>';
+			foreach ( $sales as $s ) { self::render_sale_row( $s ); }
 			echo '</tbody></table>';
 		}
-		echo '<h3>' . esc_html__( 'Kassenabschluss', 'pass-captain' ) . '</h3>';
-		Forms::open_form( 'wpcap_pos_close', null, 'onsubmit="return confirm(\'' . esc_js( __( 'Kasse jetzt abschließen?', 'pass-captain' ) ) . '\')"' );
-		Forms::hidden( 'session_id', (int) $session->session_id );
-		echo '<p><label>' . esc_html__( 'Gezählter Bargeldbestand', 'pass-captain' ) . ' <input type="text" inputmode="decimal" name="counted" required size="10"></label> <label>' . esc_html__( 'Notiz', 'pass-captain' ) . ' <input type="text" name="note" size="30"></label> <button class="button">' . esc_html__( 'Kasse abschließen', 'pass-captain' ) . '</button></p></form>';
-		if ( current_user_can( 'manage_options' ) ) {
-			echo '<h3>' . esc_html__( 'Belegeinstellungen', 'pass-captain' ) . '</h3>';
-			Forms::open_form( 'wpcap_pos_settings' );
-			echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <button class="button">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></p></form>';
+		echo '<p><a class="button" href="' . esc_url( ShiftPage::url( 'shift' ) ) . '">' . esc_html__( 'Einlage/Entnahme, Zählung und Kassenabschluss', 'pass-captain' ) . '</a></p>';
+	}
+
+	/** One sale with receipt links and actions (book, reject storno, storno in full or per ticket). */
+	private static function render_sale_row( $s ) {
+		global $wpdb;
+		$url = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => (int) $s->sale_id ), admin_url( 'admin-post.php' ) );
+		$booked = Service::is_booked( $s );
+		echo '<tr><td>' . esc_html( $s->receipt_number ?: __( '(nicht gebucht)', 'pass-captain' ) ) . '</td><td>' . esc_html( Scope::local( $s->created_at, Scope::site_timezone(), 'd.m. H:i' ) ) . '</td><td>' . esc_html( Service::method_label( $s->payment_method ) ) . '</td><td>' . esc_html( $booked ? Scope::money( $s->total_minor, $s->currency ) : '–' ) . '</td><td>' . esc_html( Forms::status_label( $s->status ) ) . '</td><td>' . ( $booked ? '<a target="_blank" href="' . esc_url( $url ) . '">' . esc_html__( 'Beleg', 'pass-captain' ) . '</a>' : '' );
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT movement_id,receipt_number FROM {$wpdb->prefix}wpcap_boxoffice_movements WHERE sale_id=%d AND receipt_number IS NOT NULL ORDER BY movement_id", (int) $s->sale_id ) ) as $mv ) {
+			echo ' · <a target="_blank" href="' . esc_url( add_query_arg( array( 'action' => 'wpcap_pos_payout_receipt', 'movement_id' => (int) $mv->movement_id ), admin_url( 'admin-post.php' ) ) ) . '">' . esc_html( $mv->receipt_number ) . '</a>';
 		}
+		if ( 'pending' === $s->status ) {
+			echo ' ';
+			Forms::open_form( 'wpcap_pos_finalize', 'wpcap_pos_finalize_' . (int) $s->sale_id, 'style="display:inline"' );
+			Forms::hidden( 'sale_id', (int) $s->sale_id );
+			echo '<button class="button button-small">' . esc_html__( 'Nachbuchen', 'pass-captain' ) . '</button></form>';
+		} elseif ( 'storno_pending' === $s->status && current_user_can( \PassCaptain\Refunds::APPROVE_CAP ) ) {
+			echo ' ';
+			Forms::open_form( 'wpcap_pos_storno_reject', 'wpcap_pos_storno_reject_' . (int) $s->sale_id, 'style="display:inline"' );
+			Forms::hidden( 'sale_id', (int) $s->sale_id );
+			echo '<button class="button button-small">' . esc_html__( 'Storno ablehnen', 'pass-captain' ) . '</button></form>';
+		} elseif ( 'voided' === $s->status && '' !== (string) $s->storno_receipt_number ) {
+			echo ' · <a target="_blank" href="' . esc_url( add_query_arg( 'storno', 1, $url ) ) . '">' . esc_html__( 'Stornobeleg', 'pass-captain' ) . '</a>';
+		} elseif ( 'completed' === $s->status ) {
+			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.status,tt.name FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.refunded=0 ORDER BY t.ticket_id", (int) $s->order_id ) );
+			$any_checked_in = (bool) array_filter( $tickets, static function ( $t ) { return 'checked_in' === $t->status; } );
+			echo ' ';
+			Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr( __( 'Wirklich stornieren?', 'pass-captain' ) ) . '"' );
+			Forms::hidden( 'sale_id', (int) $s->sale_id );
+			echo '<input type="text" name="reason" size="12" placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button>';
+			if ( count( $tickets ) > 1 || $any_checked_in ) {
+				echo '<details><summary>' . esc_html__( 'Nur einzelne Tickets stornieren', 'pass-captain' ) . '</summary>';
+				foreach ( $tickets as $t ) {
+					echo '<label style="display:block"><input type="checkbox" name="ticket_ids[]" value="' . (int) $t->ticket_id . '"> #' . (int) $t->ticket_id . ' ' . esc_html( (string) $t->name ) . ( 'checked_in' === $t->status ? ' (' . esc_html__( 'eingecheckt', 'pass-captain' ) . ')' : '' ) . '</label>';
+				}
+				echo '</details>';
+			}
+			if ( $any_checked_in && Service::can_override_checkin() ) {
+				echo '<label style="display:block">' . esc_html__( 'Ausnahme für eingecheckte Tickets, Grund:', 'pass-captain' ) . ' <input type="text" name="override_reason" size="20" maxlength="200"></label>';
+			}
+			echo '</form>';
+		}
+		echo '</td></tr>';
 	}
 
 	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
@@ -182,14 +340,16 @@ final class Page {
 
 	/**
 	 * Prominent notice: the box office is not a certified cash register (RKSV / KassenSichV). It can
-	 * be dismissed per user (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user meta).
+	 * be dismissed per user and site (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user option
+	 * with the site prefix, A470: each site of a network may run its own box office; a dismissal of
+	 * earlier versions, stored network-wide, still counts).
 	 */
 	public static function render_fiscal_notice() {
 		$user_id = get_current_user_id();
 		if ( isset( $_GET['wpcap_dismiss_fiscal_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::FISCAL_NOTICE_META ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
-			update_user_meta( $user_id, self::FISCAL_NOTICE_META, 1 );
+			update_user_option( $user_id, self::FISCAL_NOTICE_META, 1 );
 		}
-		if ( $user_id && get_user_meta( $user_id, self::FISCAL_NOTICE_META, true ) ) { return; }
+		if ( $user_id && get_user_option( self::FISCAL_NOTICE_META, $user_id ) ) { return; }
 		$dismiss = wp_nonce_url( add_query_arg( 'wpcap_dismiss_fiscal_notice', '1', self::back() ), self::FISCAL_NOTICE_META );
 		echo '<div class="notice notice-warning wpcap-fiscal-notice" role="note" style="border-left-width:6px;padding:12px 16px"><p style="font-size:1.05em"><strong>' . esc_html__( 'Wichtiger Hinweis:', 'pass-captain' ) . '</strong> '
 			. esc_html__( 'Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig.', 'pass-captain' ) . '</p><p>'
@@ -199,41 +359,13 @@ final class Page {
 
 	/* ------------------------------------------------------------------ handlers */
 
-	private static function back( array $args = array() ) {
+	public static function back( array $args = array() ) {
 		return Forms::page_url( self::SLUG, $args );
-	}
-
-	public static function handle_open() {
-		Forms::verify( 'wpcap_pos_open' );
-		$in = Forms::post();
-		$float = Forms::parse_money( $in['float'] ?? '0' );
-		$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ) );
-		Forms::finish( $result, __( 'Kasse geöffnet.', 'pass-captain' ), self::back() );
 	}
 
 	/** Optional "Rechnung auf Firma" fields (collapsed); empty fields mean no billing data. */
 	private static function render_billing_fields() {
-		$labels = \PassCaptain\Billing::labels();
-		$default = \PassCaptain\Billing::default_country();
-		echo '<details class="wpcap-pos-billing"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'pass-captain' ) . '</summary>';
-		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
-		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
-		foreach ( \PassCaptain\Billing::FIELDS as $field ) {
-			$id = 'wpcap-pos-billing-' . $field;
-			$label = $labels[ $field ] . ( in_array( $field, \PassCaptain\Billing::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'pass-captain' ) );
-			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
-			if ( 'country' === $field ) {
-				echo '<select id="' . esc_attr( $id ) . '" name="billing[country]" autocomplete="country">';
-				foreach ( \PassCaptain\Billing::countries() as $code => $name ) {
-					echo '<option value="' . esc_attr( $code ) . '"' . selected( $code, $default, false ) . '>' . esc_html( $name ) . '</option>';
-				}
-				echo '</select>';
-			} else {
-				echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="billing[' . esc_attr( $field ) . ']" maxlength="' . (int) \PassCaptain\Billing::MAX[ $field ] . '" autocomplete="' . esc_attr( $autocomplete[ $field ] ) . '">';
-			}
-			echo '</td></tr>';
-		}
-		echo '</tbody></table></details>';
+		echo \PassCaptain\Billing::fields_html( 'wpcap-pos-billing' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Billing::fields_html().
 	}
 
 	/** Maps the POS form to Service::sell() input. */
@@ -257,6 +389,8 @@ final class Page {
 				$answers = array();
 				foreach ( is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array() as $key => $value ) {
 					if ( is_scalar( $value ) ) { $answers[ sanitize_key( (string) $key ) ] = (string) $value; }
+					// A680: a multi-select sends a list of chosen labels (validated against the choices).
+					elseif ( is_array( $value ) ) { $answers[ sanitize_key( (string) $key ) ] = array_values( array_map( 'strval', array_filter( $value, 'is_scalar' ) ) ); }
 				}
 				$attendees[ absint( $type_id ) ][] = array(
 					'name' => is_scalar( $entry['name'] ?? null ) ? (string) $entry['name'] : '',
@@ -271,7 +405,8 @@ final class Page {
 			'names' => $names,
 			'attendees' => $attendees,
 			'email' => Forms::text( $in, 'email' ),
-			'method' => Forms::choice( $in, 'method', array_keys( Service::methods() ), '' ),
+				'method' => Forms::choice( $in, 'method', array_keys( Service::all_methods() ), '' ),
+			'device' => Forms::text( $in, 'device', 40 ),
 			'tendered_minor' => $tendered,
 			'reference' => Forms::text( $in, 'reference', 100 ),
 			'form_key' => Forms::text( $in, 'form_key', 64 ),
@@ -294,15 +429,20 @@ final class Page {
 		if ( is_wp_error( $result ) ) {
 			Forms::finish( $result, '', self::back( array( 'occurrence_id' => $input['occurrence_id'] ) ) );
 		}
+		if ( ! empty( $result['device_pending'] ) ) {
+			// Terminal payment running: the page shows its status (polled by pos.js).
+			Forms::redirect( self::back( array( 'occurrence_id' => $input['occurrence_id'], 'device_sale' => (int) $result['sale']->sale_id ) ) );
+		}
 		Forms::redirect( self::back( array( 'occurrence_id' => $input['occurrence_id'], 'sale' => (int) $result['sale']->sale_id ) ) );
 	}
 
 	public static function handle_storno() {
+		Forms::require_any_cap( array( Service::CAP ) ); // A145: no lookup before the capability check.
 		$in = Forms::post();
 		$sale_id = Forms::int( $in, 'sale_id' );
 		Forms::verify( 'wpcap_pos_storno_' . $sale_id );
-		$result = Service::storno( $sale_id, Forms::text( $in, 'reason' ) );
-		$message = ! is_wp_error( $result ) && 'storno_pending' === $result->status ? __( 'Storno angelegt; es wartet auf Freigabe.', 'pass-captain' ) : __( 'Verkauf storniert. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben.', 'pass-captain' );
+		$result = Service::storno( $sale_id, Forms::text( $in, 'reason' ), Forms::ids( $in, 'ticket_ids' ), Forms::text( $in, 'override_reason', 200 ) );
+		$message = ! is_wp_error( $result ) && 'storno_pending' === $result->status ? __( 'Storno angelegt; es wartet auf Freigabe.', 'pass-captain' ) : __( 'Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken.', 'pass-captain' );
 		Forms::finish( $result, $message, self::back() );
 	}
 
@@ -310,7 +450,7 @@ final class Page {
 	private static function own_or_admin( $sale ) {
 		if ( ! $sale ) { return false; }
 		$session = Service::session( $sale->session_id );
-		return $session && ( (int) $session->user_id === get_current_user_id() || current_user_can( 'manage_options' ) ) && Scope::can_order( $sale->order_id, Service::CAP );
+		return $session && ( Shifts::is_cashier( $session, get_current_user_id() ) || current_user_can( 'manage_options' ) ) && Scope::can_order( $sale->order_id, Service::CAP );
 	}
 
 	public static function handle_finalize() {
@@ -321,28 +461,65 @@ final class Page {
 		Forms::finish( $result, __( 'Verkauf gebucht.', 'pass-captain' ), self::back( is_wp_error( $result ) ? array() : array( 'sale' => $sale_id ) ) );
 	}
 
+	/** admin-post fallback (no JavaScript): cancel a running terminal payment. */
+	public static function handle_device_cancel() {
+		$sale_id = Forms::int( Forms::post(), 'sale_id' );
+		Forms::verify( 'wpcap_pos_device_' . $sale_id );
+		$sale = Service::sale( $sale_id );
+		$result = current_user_can( Service::CAP ) && self::own_or_admin( $sale ) ? Service::cancel_device_payment( $sale_id ) : Forms::forbidden();
+		if ( is_array( $result ) && 'succeeded' === $result['status'] ) { Forms::redirect( self::back( array( 'occurrence_id' => (int) $sale->occurrence_id, 'sale' => $sale_id ) ) ); }
+		$message = is_array( $result ) ? $result['message'] : '';
+		Forms::finish( $result, '' !== $message ? $message : __( 'Zahlung am Terminal abgebrochen.', 'pass-captain' ), self::back( $sale ? array( 'occurrence_id' => (int) $sale->occurrence_id ) : array() ) );
+	}
+
+	/** admin-ajax wpcap_pos_device_status: polls the terminal payment of a sale (cashier or administrator). */
+	public static function ajax_device_status() {
+		$sale_id = absint( $_REQUEST['sale_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is per sale and verified on the next line.
+		check_ajax_referer( 'wpcap_pos_device_' . $sale_id );
+		$sale = self::device_sale_or_forbidden( $sale_id );
+		self::send_device_state( Service::poll_device_payment( $sale_id ), $sale );
+	}
+
+	/** admin-ajax wpcap_pos_device_cancel: cancels the running terminal payment of a sale. */
+	public static function ajax_device_cancel() {
+		$sale_id = absint( $_REQUEST['sale_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the nonce is per sale and verified on the next line.
+		check_ajax_referer( 'wpcap_pos_device_' . $sale_id );
+		$sale = self::device_sale_or_forbidden( $sale_id );
+		self::send_device_state( Service::cancel_device_payment( $sale_id ), $sale );
+	}
+
+	private static function device_sale_or_forbidden( $sale_id ) {
+		$sale = Service::sale( $sale_id );
+		if ( ! current_user_can( Service::CAP ) || ! self::own_or_admin( $sale ) ) {
+			wp_send_json_error( array( 'message' => __( 'Keine Berechtigung.', 'pass-captain' ) ), 403 );
+		}
+		return $sale;
+	}
+
+	private static function send_device_state( $state, $sale ) {
+		if ( is_wp_error( $state ) ) {
+			$data = $state->get_error_data();
+			wp_send_json_error( array( 'message' => $state->get_error_message() ), is_array( $data ) ? (int) ( $data['status'] ?? 400 ) : 400 );
+		}
+		if ( 'succeeded' === $state['status'] ) { $state['redirect'] = self::back( array( 'occurrence_id' => (int) $sale->occurrence_id, 'sale' => (int) $sale->sale_id ) ); }
+		wp_send_json_success( $state );
+	}
+
 	public static function handle_storno_reject() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$sale_id = Forms::int( Forms::post(), 'sale_id' );
 		Forms::verify( 'wpcap_pos_storno_reject_' . $sale_id );
 		Forms::finish( Service::reject_storno( $sale_id ), __( 'Storno abgelehnt; der Verkauf bleibt bestehen.', 'pass-captain' ), self::back() );
-	}
-
-	public static function handle_close() {
-		Forms::verify( 'wpcap_pos_close' );
-		$in = Forms::post();
-		$counted = Forms::parse_money( $in['counted'] ?? '' );
-		$result = null === $counted ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ) : Service::close_session( Forms::int( $in, 'session_id' ), $counted, Forms::text( $in, 'note' ) );
-		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s.', 'pass-captain' ), Scope::money( $result->expected_cash_minor, $result->currency ), Scope::money( $result->closing_count_minor, $result->currency ), Scope::money( $result->difference_minor, $result->currency ) );
-		Forms::finish( $result, $message, self::back() );
 	}
 
 	public static function handle_receipt() {
 		$sale = Service::sale( absint( $_GET['sale_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view with permission check.
 		if ( ! self::can_view_sale( $sale ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		if ( ! Service::is_booked( $sale ) ) { wp_die( esc_html__( 'Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde.', 'pass-captain' ), 404 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'pos_receipt', 'pos_sale', (int) $sale->sale_id, array( 'storno' => ! empty( $_GET['storno'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		nocache_headers();
 		echo Service::receipt_html( $sale->sale_id, ! empty( $_GET['storno'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in receipt_html.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	public static function handle_tickets() {
@@ -350,13 +527,14 @@ final class Page {
 		Forms::verify( 'wpcap_pos_tickets_' . $sale_id );
 		$result = self::tickets_pdf( $sale_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'pos_tickets_pdf', 'pos_sale', $sale_id );
 		Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 
 	public static function handle_availability() {
 		check_admin_referer( 'wpcap_pos' );
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
-		if ( ! Scope::can_event( Scope::occurrence_event( $occurrence_id ), Service::CAP ) ) { wp_send_json_error( null, 403 ); }
+		if ( ! Scope::can_occurrence( $occurrence_id, Service::CAP ) ) { wp_send_json_error( null, 403 ); }
 		$out = array();
 		foreach ( Service::ticket_types( $occurrence_id ) as $t ) { $out[ $t['ticket_type_id'] ] = $t['available']; }
 		wp_send_json_success( $out );
@@ -366,10 +544,17 @@ final class Page {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_pos_settings' );
 		$in = Forms::post();
+		$terminal_raw = Forms::textarea( $in, 'boxoffice_terminals', 10000 );
+		$valid_terminals = TerminalRegistry::validate( $terminal_raw );
+		if ( is_wp_error( $valid_terminals ) ) { Forms::finish( $valid_terminals, '', self::back() ); }
 		Settings::update( array(
 			'boxoffice_receipt_prefix' => preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'boxoffice_receipt_prefix', 10 ) ) ?: 'BON',
 			'boxoffice_receipt_footer' => Forms::text( $in, 'boxoffice_receipt_footer', 300 ),
+			'boxoffice_terminals' => $terminal_raw,
+			'boxoffice_receipt_cashier' => Forms::choice( $in, 'boxoffice_receipt_cashier', array( 'id', 'initials', 'name' ), 'id' ),
+			'boxoffice_cash_confirmed' => Forms::flag( $in, 'boxoffice_cash_confirmed' ) ? 1 : 0,
 		) );
+		Audit::record( 'boxoffice_settings_saved', 'settings', 0, array( 'cash_confirmed' => (bool) Settings::get( 'boxoffice_cash_confirmed' ) ) );
 		Forms::finish( true, __( 'Einstellungen gespeichert.', 'pass-captain' ), self::back() );
 	}
 }

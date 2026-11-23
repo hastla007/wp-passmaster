@@ -1,0 +1,20 @@
+tweetnacl-js 1.0.3
+==================
+
+Files in this directory (unmodified copies from the npm package tweetnacl@1.0.3):
+
+  nacl-fast.js      human-readable source code
+                    SHA-256 6bcd37a3b20dce913f82d4b23e4e2b661058b4b953df8a3f8c45d56ac4f72447
+  nacl-fast.min.js  minified build of nacl-fast.js, loaded by the offline scanner
+                    SHA-256 3ec535c004aeeb225785d8e93fb33bf99f52e399bd7dfc01969b5629baea5131
+  LICENSE           The Unlicense (public domain)
+
+Source repository: https://github.com/dchest/tweetnacl-js (tag v1.0.3)
+npm package:       https://www.npmjs.com/package/tweetnacl/v/1.0.3
+                   tarball https://registry.npmjs.org/tweetnacl/-/tweetnacl-1.0.3.tgz
+                   shasum ac0af71680458d8a6378d0d0d050ab1407d35596
+License:           The Unlicense, https://unlicense.org/
+
+Used by the offline PWA scanner (assets/offline-scanner/) to verify the Ed25519 signatures of
+offline ticket packages. To rebuild the minified file: `uglifyjs nacl-fast.js -c -m -o nacl-fast.min.js`
+(uglify-js 3, the package's `npm run build`), or take nacl-fast.min.js from the npm package above.

@@ -1,131 +1,133 @@
 <?php
-/** fiskaltrust POS System API v2 adapter. */
+/** fiskaltrust POS System API adapter. */
 namespace PassCaptain\Fiscalization\Providers;
 
 use PassCaptain\Fiscalization\AdapterInterface;
+use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class FiskaltrustAdapter implements AdapterInterface {
-	const ID = 'fiskaltrust_possystem';
-	const SANDBOX = 'https://possystem-api-sandbox.fiskaltrust.eu/v2';
-
-	public function id() { return self::ID; }
+	public function id() { return 'fiskaltrust_pos'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
-	public function countries() { return array( 'AT', 'BE', 'DE', 'ES', 'FR', 'GR', 'IT', 'PL', 'PT' ); }
-	public function capabilities() { return array( 'receipt_submit', 'operation_status' ); }
+	public function countries() { return array( 'AT', 'BE', 'DE', 'ES', 'FR', 'GR', 'IT', 'PT' ); }
+	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'receipt_qr_payload', 'daily_report', 'journal_export' ); }
 
 	public function health_check( array $seller, array $configuration ) {
-		$headers = $this->headers( $configuration, $this->operation_id( 'health:' . ( $seller['seller_id'] ?? 0 ) ) );
-		if ( is_wp_error( $headers ) ) { return $headers; }
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::SANDBOX, 'echo' ), 'POST', $headers, array( 'Message' => 'Pass Captain connection check' ) );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) {
-			return new \WP_Error( 'fiskaltrust_health_failed', __( 'fiskaltrust-Verbindungstest wurde abgelehnt.', 'pass-captain' ) );
-		}
-		return array( 'ok' => true );
+		$auth = $this->headers( $configuration, ProviderHttp::uuid_from_key( 'health|' . (int) ( $seller['seller_id'] ?? 0 ) ) );
+		if ( is_wp_error( $auth ) ) { return $auth; }
+		$url = $this->endpoint( $configuration, '/echo' );
+		if ( is_wp_error( $url ) ) { return $url; }
+		$result = ProviderHttp::request( $url, 'POST', $auth, array( 'Message' => 'WP Pass Captain fiscal adapter health check' ) );
+		return is_wp_error( $result ) ? $result : array( 'ok' => true );
 	}
 
+	/** fiskaltrust's x-operation-id makes the /sign call safely replayable. */
 	public function query_status( array $document, array $seller, array $configuration ) {
-		$operation_id = $this->operation_id( (string) ( $document['idempotency_key'] ?? '' ) );
-		$headers = $this->headers( $configuration, $operation_id );
-		if ( is_wp_error( $headers ) ) { return $headers; }
-		$url = HttpClient::endpoint( $configuration, self::SANDBOX, 'journal/OperationItem/' . rawurlencode( $operation_id ) );
-		$response = HttpClient::request( $url, 'GET', $headers );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( 404 === $response['status'] ) { return array( 'status' => 'not_found' ); }
-		if ( 200 !== $response['status'] ) { return new \WP_Error( 'fiskaltrust_status_unknown', __( 'fiskaltrust-Status konnte nicht sicher abgefragt werden.', 'pass-captain' ) ); }
-		$item = $response['data'];
-		if ( 'done' !== strtolower( (string) ( $item['LastState'] ?? '' ) ) || ! isset( $item['Response'] ) || ! is_string( $item['Response'] ) ) {
-			return new \WP_Error( 'fiskaltrust_status_pending', __( 'fiskaltrust verarbeitet den Vorgang noch.', 'pass-captain' ) );
-		}
-		$receipt = json_decode( $item['Response'], true );
-		if ( ! is_array( $receipt ) || (int) ( $item['ResponseCode'] ?? 0 ) >= 400 ) {
-			return new \WP_Error( 'fiskaltrust_status_failed', __( 'fiskaltrust meldet keinen erfolgreich abgeschlossenen Beleg.', 'pass-captain' ) );
-		}
-		return $this->result( $receipt, $document );
+		return self::submitted( $this->sign( $document, $seller, $configuration ) );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
-		$cases = $this->validate_cases( $configuration, $document );
-		if ( is_wp_error( $cases ) ) { return $cases; }
-		$operation_id = $this->operation_id( (string) ( $document['idempotency_key'] ?? '' ) );
-		$headers = $this->headers( $configuration, $operation_id );
+		return $this->sign( $document, $seller, $configuration );
+	}
+
+	private function sign( array $document, array $seller, array $configuration ) {
+		$payload = $this->payload( $document, $configuration );
+		if ( is_wp_error( $payload ) ) { return $payload; }
+		$headers = $this->headers( $configuration, ProviderHttp::uuid_from_key( $document['idempotency_key'] ?? '' ) );
 		if ( is_wp_error( $headers ) ) { return $headers; }
-		$lines = array();
-		foreach ( (array) ( $document['items'] ?? array() ) as $index => $item ) {
-			$rate = (int) ( $item['tax_rate_bp'] ?? -1 );
-			if ( $rate < 0 || ! isset( $cases['charge'] ) ) { return new \WP_Error( 'fiskaltrust_tax_mapping_missing', __( 'Steuer- oder Belegfall-Zuordnung für fiskaltrust fehlt.', 'pass-captain' ) ); }
-			$lines[] = array(
-				'Quantity' => max( 1, (int) ( $item['quantity'] ?? 1 ) ),
-				'Description' => sanitize_text_field( (string) ( $item['description'] ?? __( 'Ticket', 'pass-captain' ) ) ),
-				'Amount' => (float) HttpClient::minor_to_major( (int) ( $item['gross_minor'] ?? 0 ) ),
-				'VATRate' => $rate / 100,
-				'ftChargeItemCase' => $cases['charge'],
-			);
+		$url = $this->endpoint( $configuration, '/sign' );
+		if ( is_wp_error( $url ) ) { return $url; }
+		$result = ProviderHttp::request( $url, 'POST', $headers, $payload, 12 );
+		if ( is_wp_error( $result ) ) { return $result; }
+		$data = $result['data'];
+		$reference = (string) ( $data['ftReceiptIdentification'] ?? $data['ftQueueItemID'] ?? $data['ftQueueItemId'] ?? '' );
+		if ( '' === $reference ) { return new \WP_Error( 'fiskaltrust_result_incomplete', __( 'fiskaltrust hat keine Belegreferenz zurückgegeben.', 'pass-captain' ) ); }
+		$fields = array( 'Fiskaltrust-Beleg' => $reference );
+		if ( ! empty( $data['ftReceiptMoment'] ) ) { $fields['Zeitpunkt'] = sanitize_text_field( $data['ftReceiptMoment'] ); }
+		$receipt = array( 'fields' => $fields );
+		$signatures = is_array( $data['ftSignatures'] ?? null ) ? $data['ftSignatures'] : array();
+		if ( isset( $signatures[0]['ftSignatureData'] ) && is_string( $signatures[0]['ftSignatureData'] ) && strlen( $signatures[0]['ftSignatureData'] ) <= 4096 ) {
+			$receipt['qr_payload'] = $signatures[0]['ftSignatureData'];
 		}
-		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$pay_case = absint( $configuration['payment_cases'][ $payment_method ] ?? $configuration['payment_cases']['default'] ?? 0 );
-		if ( ! $pay_case ) { return new \WP_Error( 'fiskaltrust_payment_mapping_missing', __( 'Zahlungsart ist in fiskaltrust nicht zugeordnet.', 'pass-captain' ) ); }
-		$reference = (string) ( $document['idempotency_key'] ?? '' );
-		$payload = array(
-			'cbReceiptReference' => substr( 'WPC-' . $reference, 0, 128 ),
-			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z' ),
-			'cbChargeItems' => $lines,
-			'cbPayItems' => array( array( 'Description' => $payment_method, 'Amount' => (float) HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ), 'ftPayItemCase' => $pay_case ) ),
-			'ftReceiptCase' => $cases['receipt'],
-		);
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::SANDBOX, 'sign' ), 'POST', $headers, $payload );
-		if ( is_wp_error( $response ) ) { return $response; }
-		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) {
-			return new \WP_Error( 'fiskaltrust_submit_failed', __( 'fiskaltrust hat den Beleg nicht bestätigt.', 'pass-captain' ) );
-		}
-		return $this->result( $response['data'], $document );
+		return array( 'reference' => \PassCaptain\Text::cut( sanitize_text_field( $reference ), 191 ), 'receipt' => $receipt );
 	}
 
-	private function validate_cases( array $configuration, array $document ) {
-		if ( ! absint( $configuration['ft_receipt_case'] ?? 0 ) || ! absint( $configuration['ft_charge_item_case'] ?? 0 ) ) {
-			return new \WP_Error( 'fiskaltrust_cases_missing', __( 'Die von fiskaltrust für das Land freigegebenen Geschäftsfall-Codes fehlen.', 'pass-captain' ) );
-		}
+	private function payload( array $document, array $configuration ) {
+		$currency = (string) ( $document['currency'] ?? 'EUR' );
+		$receipt_case = $this->case_value( $configuration['receipt_case'] ?? null );
+		$charge_case = $this->case_value( $configuration['charge_item_case'] ?? null );
+		$payment_cases = (array) ( $configuration['payment_cases'] ?? array() );
+		if ( null === $receipt_case || null === $charge_case ) { return new \WP_Error( 'fiskaltrust_case_mapping_missing', __( 'Die fiskaltrust-Geschäftsfallcodes müssen je Land konfiguriert werden.', 'pass-captain' ) ); }
+		$charges = array();
+		$sum = 0;
 		foreach ( (array) ( $document['items'] ?? array() ) as $item ) {
-			$rate = (string) (int) ( $item['tax_rate_bp'] ?? -1 );
-			if ( ! isset( $configuration['tax_cases'][ $rate ] ) ) {
-				return new \WP_Error( 'fiskaltrust_tax_mapping_missing', __( 'Ein Steuersatz ist nicht auf einen fiskaltrust-Belegfall abgebildet.', 'pass-captain' ) );
-			}
+			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
+			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
+			$charges[] = array(
+				'Quantity' => $qty,
+				'Description' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ),
+				'Amount' => (float) ProviderHttp::decimal( $gross, $currency ) / $qty,
+				'VATRate' => (float) number_format( (int) ( $item['tax_rate_bp'] ?? 0 ) / 100, 2, '.', '' ),
+				'ftChargeItemCase' => $charge_case,
+			);
+			$sum += $gross;
 		}
-		return array( 'receipt' => absint( $configuration['ft_receipt_case'] ), 'charge' => absint( $configuration['ft_charge_item_case'] ) );
+		$method = sanitize_key( $document['payment_method'] ?? 'other' );
+		$pay_case = $this->case_value( $payment_cases[ $method ] ?? null );
+		if ( null === $pay_case || ! $charges || $sum !== (int) ( $document['gross_minor'] ?? -1 ) ) {
+			return new \WP_Error( 'fiskaltrust_payment_mapping_missing', __( 'Die Zahlungscode-Zuordnung fehlt oder der Belegbetrag stimmt nicht.', 'pass-captain' ) );
+		}
+		$moment = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c' ) ) );
+		$register = sanitize_text_field( (string) ( $document['profile']['register_id'] ?? $configuration['terminal_id'] ?? '1' ) );
+		$payload = array(
+			'cbReceiptReference' => (string) ( $document['idempotency_key'] ?? '' ),
+			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: time() ),
+			'cbTerminalID' => $register,
+			'cbReceiptAmount' => (float) ProviderHttp::decimal( $sum, $currency ),
+			'cbChargeItems' => $charges,
+			'cbPayItems' => array( array( 'ftPayItemID' => ProviderHttp::uuid_from_key( 'pay|' . ( $document['idempotency_key'] ?? '' ) ), 'Description' => $method, 'Amount' => (float) ProviderHttp::decimal( $sum, $currency ), 'ftPayItemCase' => $pay_case ) ),
+			'ftReceiptCase' => $receipt_case,
+			'ftPosSystemId' => sanitize_text_field( (string) ( $configuration['pos_system_id'] ?? '' ) ),
+		);
+		if ( '' === $payload['ftPosSystemId'] ) { return new \WP_Error( 'fiskaltrust_possystem_missing', __( 'Die fiskaltrust-POS-System-ID fehlt.', 'pass-captain' ) ); }
+		return $payload;
 	}
 
-	private function result( array $data, array $document ) {
-		$reference = is_scalar( $data['cbReceiptReference'] ?? null ) ? sanitize_text_field( (string) $data['cbReceiptReference'] ) : 'WPC-' . substr( (string) ( $document['idempotency_key'] ?? '' ), 0, 48 );
-		$fields = array();
-		foreach ( array( 'ftQueueID', 'ftQueueItemID', 'cbReceiptMoment', 'cbReceiptIdentification', 'cbFiscalNumber' ) as $key ) {
-			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) { $fields[ $key ] = (string) $data[ $key ]; }
-		}
-		return array( 'reference' => $reference, 'receipt' => array( 'fields' => $fields ) );
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
 	}
 
+	private function case_value( $value ) {
+		if ( ! is_scalar( $value ) || '' === (string) $value || ! preg_match( '/^\d+$/', (string) $value ) ) { return null; }
+		return (int) $value;
+	}
 	private function headers( array $configuration, $operation_id ) {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
-		$cashbox = sanitize_text_field( $credentials['cashbox_id'] ?? '' );
-		$token = (string) ( $credentials['cashbox_access_token'] ?? '' );
-		$possystem = sanitize_text_field( $configuration['possystem_id'] ?? '' );
-		if ( '' === $cashbox || '' === $token || '' === $possystem ) {
-			return new \WP_Error( 'fiskaltrust_credentials_missing', __( 'fiskaltrust CashBox-Zugang und POS-System-ID fehlen.', 'pass-captain' ) );
-		}
-		return array(
-			'x-cashbox-id' => $cashbox,
-			'x-cashbox-accesstoken' => $token,
-			'x-possystem-id' => $possystem,
-			'x-operation-id' => $operation_id,
-		);
+		$cashbox_id = sanitize_text_field( (string) ( $credentials['cashbox_id'] ?? '' ) );
+		$access_token = (string) ( $credentials['access_token'] ?? '' );
+		$pos_id = sanitize_text_field( (string) ( $configuration['pos_system_id'] ?? '' ) );
+		if ( '' === $cashbox_id || '' === $access_token || '' === $pos_id ) { return new \WP_Error( 'fiskaltrust_credentials_missing', __( 'fiskaltrust-CashBox-Zugangsdaten oder POS-System-ID fehlen.', 'pass-captain' ) ); }
+		return array( 'x-cashbox-id' => $cashbox_id, 'x-cashbox-accesstoken' => $access_token, 'x-possystem-id' => $pos_id, 'x-operation-id' => $operation_id );
 	}
-
-	private function operation_id( $key ) {
-		$bytes = substr( hash( 'sha256', 'wpcap-fiskaltrust|' . $key, true ), 0, 16 );
-		$bytes[6] = chr( ( ord( $bytes[6] ) & 0x0f ) | 0x50 );
-		$bytes[8] = chr( ( ord( $bytes[8] ) & 0x3f ) | 0x80 );
-		$hex = bin2hex( $bytes );
-		return substr( $hex, 0, 8 ) . '-' . substr( $hex, 8, 4 ) . '-' . substr( $hex, 12, 4 ) . '-' . substr( $hex, 16, 4 ) . '-' . substr( $hex, 20 );
+	/**
+	 * API base (A655): the configured endpoint_url (alias base_url); without one the production API only
+	 * for environment "production" and the sandbox only when the configuration explicitly says
+	 * environment "test"/"sandbox". A configuration without environment and without endpoint is refused –
+	 * real receipts are never fiscalised against the sandbox by a silent fallback.
+	 */
+	private function endpoint( array $configuration, $path ) {
+		$base = trim( (string) ( $configuration['endpoint_url'] ?? $configuration['base_url'] ?? '' ) );
+		if ( '' === $base ) {
+			$env = sanitize_key( (string) ( $configuration['environment'] ?? '' ) );
+			if ( 'production' === $env ) {
+				$base = 'https://possystem-api.fiskaltrust.eu/v2';
+			} elseif ( in_array( $env, array( 'test', 'sandbox' ), true ) ) {
+				$base = 'https://possystem-api-sandbox.fiskaltrust.eu/v2';
+			}
+		}
+		$base = untrailingslashit( $base );
+		return '' === $base ? new \WP_Error( 'fiskaltrust_endpoint_missing', __( 'fiskaltrust-Endpunkt fehlt.', 'pass-captain' ) ) : $base . $path;
 	}
 }

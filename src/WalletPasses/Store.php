@@ -14,10 +14,55 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Store {
 	/** 32 byte secretbox key from WPCAP_WALLET_ENCRYPTION_KEY or the WordPress auth salt. */
 	public static function key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', self::base(), true );
+	}
+
+	/**
+	 * Separate HMAC key for the signed wallet links (download, Google save, "add all"), derived from the
+	 * same base with its own label (A648): the secretbox key is used for encryption only.
+	 */
+	public static function link_key() {
+		return hash_hmac( 'sha256', 'wpcap-wallet-links-v1', self::base(), true );
+	}
+
+	private static function base() {
 		$base = defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) : '';
 		if ( '' === $base && function_exists( 'wp_salt' ) ) { $base = (string) wp_salt( 'auth' ); }
 		if ( '' === $base ) { throw new \RuntimeException( 'wallet_key_missing' ); }
-		return hash_hmac( 'sha256', 'wpcap-wallet-secretbox-v1', $base, true );
+		return $base;
+	}
+
+	/** 'constant' (WPCAP_WALLET_ENCRYPTION_KEY, recommended) or 'salt' (derived from wp_salt( 'auth' )). */
+	public static function key_source() {
+		return defined( 'WPCAP_WALLET_ENCRYPTION_KEY' ) && '' !== (string) constant( 'WPCAP_WALLET_ENCRYPTION_KEY' ) ? 'constant' : 'salt';
+	}
+
+	const KEY_CHECK_OPTION = 'wpcap_wallet_key_check';
+
+	/** Short, non-reversible fingerprint of the current key (detects a changed salt/key, A584). */
+	public static function key_check() {
+		return substr( hash_hmac( 'sha256', 'wpcap-wallet-key-check', self::key() ), 0, 16 );
+	}
+
+	/** Remembers the fingerprint of the key the stored secrets were encrypted with (first use only). */
+	public static function remember_key() {
+		if ( '' === (string) get_option( self::KEY_CHECK_OPTION, '' ) ) { update_option( self::KEY_CHECK_OPTION, self::key_check(), false ); }
+	}
+
+	/**
+	 * Whether stored secrets were encrypted with another key than the current one (salt rotated or
+	 * WPCAP_WALLET_ENCRYPTION_KEY changed/removed). Without a fingerprint (installs before A584) the
+	 * newest stored secret is probed instead.
+	 */
+	public static function key_changed() {
+		global $wpdb;
+		$known = (string) get_option( self::KEY_CHECK_OPTION, '' );
+		if ( '' !== $known ) { return ! hash_equals( $known, self::key_check() ); }
+		$box = $wpdb->get_var( 'SELECT secret FROM ' . self::t( 'wallet_state' ) . ' ORDER BY updated_at DESC LIMIT 1' );
+		if ( null === $box ) { return false; }
+		if ( null === self::decrypt( $box ) ) { return true; }
+		self::remember_key();
+		return false;
 	}
 
 	public static function encrypt( array $data ) {
@@ -52,7 +97,7 @@ final class Store {
 
 	public static function state( $ticket_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_state' ) . ' WHERE ticket_id=%d', absint( $ticket_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d', self::t( 'wallet_state' ), absint( $ticket_id ) ) );
 	}
 
 	/**
@@ -66,7 +111,8 @@ final class Store {
 		$existing = self::state( $ticket_id );
 		$auth = bin2hex( random_bytes( 20 ) );
 		$generation = $existing ? (int) $existing->generation + 1 : 1;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
+		self::remember_key();
 		$row = array(
 			'secret' => self::encrypt( array( 'code' => (string) $code, 'auth' => $auth ) ),
 			'code_hash' => hash( 'sha256', (string) $code ),
@@ -90,7 +136,7 @@ final class Store {
 	public static function touch( $ticket_id, $fingerprint, $previous_tag ) {
 		global $wpdb;
 		$tag = self::next_tag( $previous_tag );
-		$wpdb->update( self::t( 'wallet_state' ), array( 'fingerprint' => $fingerprint, 'update_tag' => $tag, 'updated_at' => current_time( 'mysql', true ) ), array( 'ticket_id' => absint( $ticket_id ) ) );
+		$wpdb->update( self::t( 'wallet_state' ), array( 'fingerprint' => $fingerprint, 'update_tag' => $tag, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'ticket_id' => absint( $ticket_id ) ) );
 		return $tag;
 	}
 
@@ -98,19 +144,21 @@ final class Store {
 
 	public static function passes( $ticket_id, $provider = '' ) {
 		global $wpdb;
-		$sql = 'SELECT * FROM ' . self::t( 'wallet_passes' ) . ' WHERE ticket_id=%d' . ( $provider ? ' AND provider=%s' : '' ) . ' ORDER BY wallet_pass_id';
-		return $provider ? $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ), $provider ) ) : $wpdb->get_results( $wpdb->prepare( $sql, absint( $ticket_id ) ) );
+		if ( $provider ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d AND provider=%s ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ), $provider ) );
+		}
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d ORDER BY wallet_pass_id', self::t( 'wallet_passes' ), absint( $ticket_id ) ) );
 	}
 
 	public static function pass_by_serial( $provider, $serial ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_passes' ) . ' WHERE provider=%s AND serial_number=%s', $provider, (string) $serial ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE provider=%s AND serial_number=%s', self::t( 'wallet_passes' ), $provider, (string) $serial ) );
 	}
 
 	/** Idempotent insert/update by serial number. */
 	public static function save_pass( $ticket_id, $provider, $serial, $ref, $status = 'active' ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$existing = self::pass_by_serial( $provider, $serial );
 		if ( $existing ) {
 			$wpdb->update( self::t( 'wallet_passes' ), array( 'provider_ref' => $ref, 'status' => $status, 'updated_at' => $now ), array( 'wallet_pass_id' => (int) $existing->wallet_pass_id ) );
@@ -120,9 +168,39 @@ final class Store {
 		return (int) $wpdb->insert_id;
 	}
 
+	/** Records that the provider object of a pass exists remotely (Google: created/updated over REST). */
+	public static function mark_synced( $wallet_pass_id ) {
+		global $wpdb;
+		if ( ! $wallet_pass_id ) { return; }
+		$wpdb->update( self::t( 'wallet_passes' ), array( 'synced_at' => \PassCaptain\Clock::mysql() ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
+	}
+
+	/** Whether wpcap_wallet_passes has `remote_at` (schema 3.10.21, A566; deferred upgrades). */
+	public static function remote_ready() {
+		return \PassCaptain\ServiceBookings::has_column( 'wpcap_wallet_passes', 'remote_at' );
+	}
+
+	/**
+	 * Whether the provider holds this pass (A566): a Google object exists only after the buyer used the
+	 * save link. Without the column (deferred upgrade) every pass counts as held, as before.
+	 *
+	 * @param object|array $pass wpcap_wallet_passes row.
+	 */
+	public static function is_remote( $pass ) {
+		$pass = (array) $pass;
+		return ! self::remote_ready() || ! empty( $pass['remote_at'] );
+	}
+
+	/** Marks a pass as held by the provider (the buyer's save link was used; first time only). */
+	public static function mark_remote( $provider, $serial ) {
+		global $wpdb;
+		if ( ! self::remote_ready() ) { return false; }
+		return (bool) $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'wallet_passes' ) . ' SET remote_at=%s WHERE provider=%s AND serial_number=%s AND remote_at IS NULL', \PassCaptain\Clock::mysql(), (string) $provider, (string) $serial ) );
+	}
+
 	public static function set_pass_status( $wallet_pass_id, $status ) {
 		global $wpdb;
-		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => current_time( 'mysql', true ) ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
+		$wpdb->update( self::t( 'wallet_passes' ), array( 'status' => $status, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'wallet_pass_id' => (int) $wallet_pass_id ) );
 	}
 
 	/* ---- Apple device registrations ---- */
@@ -130,11 +208,12 @@ final class Store {
 	public static function register_device( $device, $pass_type, $serial, $push_token, $auth_hash ) {
 		global $wpdb;
 		$table = self::t( 'wallet_registrations' );
-		$now = current_time( 'mysql', true );
-		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT registration_id FROM $table WHERE device_library_id=%s AND serial_number=%s", $device, $serial ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET push_token=%s,updated_at=%s WHERE device_library_id=%s", $push_token, $now, $device ) );
+		$now = \PassCaptain\Clock::mysql();
+		$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT registration_id FROM %i WHERE device_library_id=%s AND serial_number=%s', $table, $device, $serial ) );
+		// A648: the caller is authenticated for this serial only – the push token of the device's other
+		// registrations is never changed here (each pass registers its own token).
 		if ( $exists ) {
-			$wpdb->update( $table, array( 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
+			$wpdb->update( $table, array( 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'pass_type_id' => $pass_type, 'updated_at' => $now ), array( 'registration_id' => (int) $exists ) );
 			return false;
 		}
 		$wpdb->insert( $table, array( 'device_library_id' => $device, 'pass_type_id' => $pass_type, 'serial_number' => $serial, 'push_token' => $push_token, 'auth_token_hash' => $auth_hash, 'created_at' => $now, 'updated_at' => $now ) );
@@ -143,35 +222,35 @@ final class Store {
 
 	public static function unregister_device( $device, $serial ) {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'wallet_registrations' ) . ' WHERE device_library_id=%s AND serial_number=%s', $device, $serial ) );
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE device_library_id=%s AND serial_number=%s', self::t( 'wallet_registrations' ), $device, $serial ) );
 	}
 
 	public static function delete_push_token( $push_token ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'wallet_registrations' ) . ' WHERE push_token=%s', $push_token ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE push_token=%s', self::t( 'wallet_registrations' ), $push_token ) );
 	}
 
 	public static function registrations_for_serial( $serial ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_registrations' ) . ' WHERE serial_number=%s', $serial ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE serial_number=%s', self::t( 'wallet_registrations' ), $serial ) );
 	}
 
 	public static function registration_by_auth( $serial, $auth_hash ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'wallet_registrations' ) . ' WHERE serial_number=%s AND auth_token_hash=%s LIMIT 1', $serial, $auth_hash ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE serial_number=%s AND auth_token_hash=%s LIMIT 1', self::t( 'wallet_registrations' ), $serial, $auth_hash ) );
 	}
 
 	/** Serial numbers registered on a device that changed after $since (update tag). */
 	public static function updated_serials( $device, $pass_type, $since ) {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT r.serial_number,s.update_tag FROM ' . self::t( 'wallet_registrations' ) . ' r INNER JOIN ' . self::t( 'wallet_passes' ) . " p ON p.provider='apple' AND p.serial_number=r.serial_number INNER JOIN " . self::t( 'wallet_state' ) . ' s ON s.ticket_id=p.ticket_id WHERE r.device_library_id=%s AND r.pass_type_id=%s AND s.update_tag>%d ORDER BY s.update_tag',
+			"SELECT r.serial_number,s.update_tag FROM %i r INNER JOIN %i p ON p.provider='apple' AND p.serial_number=r.serial_number INNER JOIN %i s ON s.ticket_id=p.ticket_id WHERE r.device_library_id=%s AND r.pass_type_id=%s AND s.update_tag>%d ORDER BY s.update_tag", self::t( 'wallet_registrations' ), self::t( 'wallet_passes' ), self::t( 'wallet_state' ),
 			$device, $pass_type, (int) $since
 		) );
 	}
 
 	public static function has_registrations_for_device( $device, $pass_type ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM ' . self::t( 'wallet_registrations' ) . ' WHERE device_library_id=%s AND pass_type_id=%s LIMIT 1', $device, $pass_type ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE device_library_id=%s AND pass_type_id=%s LIMIT 1', self::t( 'wallet_registrations' ), $device, $pass_type ) );
 	}
 }

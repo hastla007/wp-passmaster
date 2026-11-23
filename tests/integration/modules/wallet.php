@@ -120,7 +120,7 @@ function wpw_jwt_parts( $jwt ) { return array_map( static fn( $s ) => Jwt::b64ur
 
 /* ---- Issuance: pkpass attached, Google link in mail ---- */
 http_reset();
-delete_transient( 'wpcap_wallet_google_token' );
+PassCaptain\WalletPasses\GoogleProvider::forget_token();
 $type = make_type( 10, 10, 0 );
 $occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='2027-03-01 18:30:00', location='Konzerthaus' WHERE occurrence_id=$occ" );
@@ -131,17 +131,17 @@ $codes = ticket_code_for( $r['order_id'] );
 $code = $codes[0] ?? '';
 $ticket = tickets( $r['order_id'] )[0];
 $pkpass_name = 'ticket-' . substr( $ticket->public_id, 0, 12 ) . '.pkpass';
-check( 'wallet mail: .pkpass attached and Google link added', isset( $mail['files'][ $pkpass_name ] ) && false !== strpos( $mail['body'], 'Zu Apple Wallet hinzufügen' ) && false !== strpos( $mail['body'], 'In Google Wallet speichern: https://pay.google.com/gp/v/save/' ) );
+check( 'wallet mail: .pkpass attached and Google link added', isset( $mail['files'][ $pkpass_name ] ) && false !== strpos( $mail['body'], 'Zu Apple Wallet hinzufügen' ) && false !== strpos( $mail['body'], 'In Google Wallet speichern: https://example.test/wp-json/pass-captain/v1/wallet/google/save?t=' ) );
 check( 'wallet mail: temporary .pkpass removed after sending', ! file_exists( trailingslashit( get_temp_dir() ) . $pkpass_name ) );
 $files = wpw_unzip( $mail['files'][ $pkpass_name ] ?? '' );
-$expected = array( 'icon.png', 'icon@2x.png', 'logo.png', 'logo@2x.png', 'manifest.json', 'pass.json', 'signature' );
+$expected = array( 'icon.png', 'icon@2x.png', 'manifest.json', 'pass.json', 'signature' ); // A628: no generated text logo.
 $names = array_keys( $files ); sort( $names );
 check( 'pkpass: zip contains pass.json, manifest, signature and @1x/@2x images', $expected === $names );
 $manifest = json_decode( $files['manifest.json'] ?? '{}', true );
-$hashes_ok = count( $manifest ) === 5;
+$hashes_ok = count( $manifest ) === 3; // pass.json + two icons (A628: no generated logo)
 foreach ( (array) $manifest as $name => $sha ) { $hashes_ok = $hashes_ok && isset( $files[ $name ] ) && sha1( $files[ $name ] ) === $sha; }
 check( 'pkpass: manifest has SHA-1 of every file except manifest/signature', $hashes_ok && ! isset( $manifest['signature'] ) );
-check( 'pkpass: images are PNGs of the right size', 58 === getimagesizefromstring( $files['icon@2x.png'] )[0] && 29 === getimagesizefromstring( $files['icon.png'] )[0] && 320 === getimagesizefromstring( $files['logo@2x.png'] )[0] );
+check( 'pkpass: images are PNGs of the right size', 58 === getimagesizefromstring( $files['icon@2x.png'] )[0] && 29 === getimagesizefromstring( $files['icon.png'] )[0] );
 $certs = array();
 check( 'pkpass: detached PKCS#7 signature verifies against the WWDR CA', wpw_verify_signature( $files['manifest.json'], $files['signature'], $wpw_dir . '/ca.pem', $certs ) && 2 === count( $certs ) );
 check( 'pkpass: tampered manifest fails verification', ! wpw_verify_signature( str_replace( 'pass.json', 'pass.jsoN', $files['manifest.json'] ), $files['signature'], $wpw_dir . '/ca.pem' ) );
@@ -151,7 +151,7 @@ check( 'pass.json: QR barcode carries the plaintext ticket code', 'PKBarcodeForm
 check( 'pass.json: date in occurrence timezone (Vienna, +01:00)', '2027-03-01T19:30:00+01:00' === $pj['relevantDate'] && '2027-03-01T19:30:00+01:00' === $pj['eventTicket']['secondaryFields'][0]['value'] && true === $pj['eventTicket']['secondaryFields'][0]['ignoresTimeZone'] );
 $aux = array_column( $pj['eventTicket']['auxiliaryFields'], 'value', 'key' );
 check( 'pass.json: event, category and seat from wpcap_ticket_seat_label', 'Konzert' === $pj['eventTicket']['primaryFields'][0]['value'] && 'Standard' === $aux['category'] && 'Reihe 3, Platz 7' === $aux['seat'] );
-check( 'pass.json: web service URL and auth token', 'https://example.test/wp-json/wp-pass-captain/v1/wallet/apple' === $pj['webServiceURL'] && strlen( $pj['authenticationToken'] ) >= 16 && 'rgb(16,32,48)' === $pj['backgroundColor'] );
+check( 'pass.json: web service URL and auth token', 'https://example.test/wp-json/pass-captain/v1/wallet/apple' === $pj['webServiceURL'] && strlen( $pj['authenticationToken'] ) >= 16 && 'rgb(16,32,48)' === $pj['backgroundColor'] );
 $state = Store::state( $ticket->ticket_id );
 check( 'wallet storage: code encrypted (secretbox), auth token only hashed', $state && false === strpos( $state->secret, $code ) && hash( 'sha256', $code ) === $state->code_hash && hash( 'sha256', $pj['authenticationToken'] ) === $state->auth_token_hash && $code === Store::secrets( $state )['code'] );
 $tampered = clone $state; $tampered->secret = substr( $state->secret, 0, -4 ) . 'AAAA';
@@ -160,8 +160,14 @@ $rows = Store::passes( $ticket->ticket_id );
 check( 'wallet_passes rows for apple and google', 2 === count( $rows ) && 'apple' === $rows[0]->provider && $ticket->public_id === $rows[0]->serial_number && 'google' === $rows[1]->provider );
 
 /* ---- Google save JWT ---- */
-preg_match( '#https://pay\.google\.com/gp/v/save/(\S+)#', $mail['body'], $gm );
-$jwt = $gm[1] ?? '';
+// A583: the mail carries a short signed link; following it (Wallet API unreachable here) falls back
+// to the single-ticket JWT with class and object.
+preg_match( '#(https://example\.test/wp-json/pass-captain/v1/wallet/google/save\S+)#', $mail['body'], $glm );
+parse_str( (string) parse_url( $glm[1] ?? '', PHP_URL_QUERY ), $glq );
+$gsave = WebService::google_save( wpw_rest( 'GET', $glq ) );
+$glocation = is_wp_error( $gsave ) ? '' : (string) ( $gsave->get_data()['headers']['Location'] ?? '' );
+check( 'google save link: 302 to pay.google.com', ! is_wp_error( $gsave ) && 302 === $gsave->get_status() && str_starts_with( $glocation, 'https://pay.google.com/gp/v/save/' ) );
+$jwt = substr( $glocation, strlen( 'https://pay.google.com/gp/v/save/' ) );
 list( $jh, $jc, $js ) = wpw_jwt_parts( $jwt ) + array( '', '', '' );
 $header = json_decode( $jh, true );
 $claims = json_decode( $jc, true );
@@ -221,6 +227,8 @@ http_push( array( 'access_token' => 'ya29.test', 'expires_in' => 3600 ), 200, 'o
 http_push( array( 'id' => 'x' ), 200, 'eventTicketObject/' );
 $wpw_apns->calls = array();
 $wpw_apns->statuses = array( 200, 410 );
+// A566: only objects the buyer saved (save link used) exist at Google and are updated.
+Store::mark_remote( 'google', $object['id'] );
 $rev = PassCaptain\Admin\TicketsPage::revoke_ticket( array( 'ticket_id' => $ticket->ticket_id, 'reason' => 'Test' ) );
 check( 'revoke (regression): nothing is sent while the request is still running', 0 === count( $wpw_apns->calls ) );
 Service::flush();
@@ -237,7 +245,7 @@ $assertion = json_decode( $ac, true );
 check( 'google OAuth: JWT bearer grant signed with the service account key', 'urn:ietf:params:oauth:grant-type:jwt-bearer' === ( $tq['grant_type'] ?? '' ) && 'https://www.googleapis.com/auth/wallet_object.issuer' === $assertion['scope'] && 'https://oauth2.googleapis.com/token' === $assertion['aud'] && 1 === openssl_verify( implode( '.', array_slice( explode( '.', $tq['assertion'] ), 0, 2 ) ), $as, $g_pub, OPENSSL_ALGO_SHA256 ) );
 $patch = http_requests( 'eventTicketObject/' )[0] ?? array();
 $patch_body = json_decode( $patch['body'] ?? '{}', true );
-check( 'google: object PATCHed to INACTIVE without barcode', 'PATCH' === ( $patch['method'] ?? '' ) && 'Bearer ya29.test' === $patch['headers']['Authorization'] && 'INACTIVE' === $patch_body['state'] && ! isset( $patch_body['barcode'] ) && false !== strpos( $patch['url'], rawurlencode( $object['id'] ) ) );
+check( 'google: saved object replaced (PUT) as INACTIVE without barcode and holder data (A566)', 'PUT' === ( $patch['method'] ?? '' ) && 'Bearer ya29.test' === $patch['headers']['Authorization'] && 'INACTIVE' === $patch_body['state'] && ! isset( $patch_body['barcode'] ) && ! isset( $patch_body['ticketHolderName'] ) && ! isset( $patch_body['seatInfo'] ) && false !== strpos( $patch['url'], rawurlencode( $object['id'] ) ) );
 $after = WebService::serials( wpw_rest( 'GET', array( 'device' => 'devA1b2c3', 'pass_type' => 'pass.test.wpcap', 'passesUpdatedSince' => $last ) ) );
 $vj = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth ) ) );
 check( 'revoke: serial reported as updated, pass served voided without barcode', 200 === $after->get_status() && array( $serial ) === $after->get_data()['serialNumbers'] && true === $vj['voided'] && ! isset( $vj['barcodes'] ) );
@@ -266,9 +274,10 @@ $rj = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type
 check( 'reschedule: devices of all passes pushed and pass shows the new local time', 2 === count( $wpw_apns->calls ) && '2027-03-08T18:00:00+01:00' === $rj['relevantDate'] && $code2 === $rj['barcodes'][0]['message'] );
 $class_patch = json_decode( http_requests( 'eventTicketClass/' )[0]['body'] ?? '{}', true );
 $posts = array_filter( http_requests( 'walletobjects' ), static fn( $q ) => 'POST' === $q['method'] );
-check( 'reschedule: Google class PATCHed with new date; missing object inserted', '2027-03-08T18:00:00+01:00' === ( $class_patch['dateTime']['start'] ?? '' ) && 2 === count( $posts ) );
+check( 'reschedule: Google class PATCHed with new date; an object the buyer never saved is neither sent nor created (A566)', '2027-03-08T18:00:00+01:00' === ( $class_patch['dateTime']['start'] ?? '' ) && 0 === count( $posts ) && ! http_requests( 'eventTicketObject/' . $obj2_id ) );
 
 /* ---- Code rotation (resend): new generation, old devices get a voided pass ---- */
+Store::mark_remote( 'google', $obj2_id ); // The buyer saved the first generation.
 http_reset();
 http_push( array(), 200, 'eventTicketObject/' );
 http_push( array(), 404, 'eventTicketObject/' );
@@ -283,19 +292,19 @@ preg_match( '/wpcap_ticket=([a-f0-9]{64})/', $resent['body'], $nm );
 $new_code = $nm[1] ?? '';
 $filtered = array( 'message' => $resent['body'] );
 $state2 = Store::state( $ticket2->ticket_id );
-check( 'rotation: core hook starts a new generation and the resend mail carries wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], 'pay.google.com/gp/v/save/' ) );
+check( 'rotation: core hook starts a new generation and the resend mail carries wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], '/wallet/google/save?t=' ) );
 check( 'rotation: devices of the old generation are pushed', 1 === count( $wpw_apns->calls ) );
 $old = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) );
 check( 'rotation: old auth token gets a voided pass without the new code', true === ( $old['voided'] ?? false ) && ! isset( $old['barcodes'] ) && $auth2 === $old['authenticationToken'] );
 check( 'rotation: old token can no longer register', 401 === wpw_status( WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devD', 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2, array( 'pushToken' => 'abcdefabcdef1234' ) ) ) ) );
 check( 'rotation: unregister with old token still works', 200 === wpw_status( WebService::unregister_device( wpw_rest( 'DELETE', array( 'device' => 'devC', 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) ) );
-preg_match( '#(https://example\.test/wp-json/wp-pass-captain/v1/wallet/apple/download/\S+)#', $filtered['message'], $dm );
+preg_match( '#(https://example\.test/wp-json/pass-captain/v1/wallet/apple/download/\S+)#', $filtered['message'], $dm );
 parse_str( (string) parse_url( $dm[1] ?? '', PHP_URL_QUERY ), $dq );
 $new_pass = wpw_pass_json( WebService::download( wpw_rest( 'GET', array( 'serial' => $ticket2->public_id, 'sig' => $dq['sig'] ?? '' ) ) ) );
 check( 'rotation: new download link serves the new code', $new_code === ( $new_pass['barcodes'][0]['message'] ?? '' ) && $auth2 !== $new_pass['authenticationToken'] );
 $google_rows = Store::passes( $ticket2->ticket_id, 'google' );
 $obj_reqs = http_requests( 'eventTicketObject/' );
-check( 'rotation: old Google object retired (INACTIVE), new generation object created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) );
+check( 'rotation: old Google object retired (INACTIVE, replaced without data), new generation pass row created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'PUT' === ( $obj_reqs[0]['method'] ?? '' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) && ! isset( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['barcode'] ) );
 check( 'rotation: repeated hook call for the same code is idempotent', array() === Service::on_code_rotated( $ticket2->ticket_id, $new_code ) );
 $wpdb->insert( "{$p}wpcap_ticket_assignments", array( 'ticket_id' => $ticket2->ticket_id, 'buyer_email' => 'wpw2@example.com', 'attendee_email' => 'neu@example.com', 'attendee_name' => 'Neue Inhaberin', 'status' => 'assigned', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 Store::register_device( 'devOld', 'pass.test.wpcap', $ticket2->public_id, 'dd00dd00dd00dd00', hash( 'sha256', $auth2 ) ); // a device still on the old generation
@@ -333,10 +342,19 @@ $type3 = make_type( 10, 10, 0 );
 $occ3 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type3" );
 $r3 = Orders::create( array( 'email' => 'wpw3@example.com', 'items' => array( array( 'ticket_type_id' => $type3, 'quantity' => 3 ) ), 'idempotency_key' => 'wpw-3' ) );
 $mail3 = wpw_ticket_mail();
-foreach ( tickets( $r3['order_id'] ) as $i => $t3 ) {
-	$pj3 = json_decode( wpw_unzip( $mail3['files'][ 'ticket-' . substr( $t3->public_id, 0, 12 ) . '.pkpass' ] ?? '' )['pass.json'] ?? '{}', true );
-	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $pj3['authenticationToken'] ?? '', array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
+// R2: several tickets → no .pkpass per ticket; passes are created by the wallet_issue job after the commit.
+check( 'wallet mail (R2): several tickets get one collection link and no .pkpass attachments', ! array_filter( array_keys( $mail3['files'] ), static fn( $n ) => str_ends_with( $n, '.pkpass' ) ) && 1 === substr_count( $mail3['body'], '/wallet/order/' ) );
+for ( $i = 0; $i < 3; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
+foreach ( $wpdb->get_results( "SELECT job_id,payload FROM {$p}wpcap_jobs WHERE job_type='wallet_issue' AND status='queued'" ) as $issue_job ) {
+	Service::handle_job( false, 'wallet_issue', json_decode( $issue_job->payload, true ) );
+	$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $issue_job->job_id );
 }
+foreach ( tickets( $r3['order_id'] ) as $i => $t3 ) {
+	$auth3 = Store::secrets( Store::state( $t3->ticket_id ) )['auth'] ?? '';
+	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $auth3, array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
+}
+// One buyer saved a ticket of this date to Google Wallet: the class exists there (A566).
+Store::mark_remote( 'google', Store::passes( (int) tickets( $r3['order_id'] )[0]->ticket_id, 'google' )[0]->serial_number );
 http_reset();
 for ( $i = 0; $i < 4; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
 $jobs_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='wallet_sync'" );
@@ -356,6 +374,13 @@ Service::flush();
 $big = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
 check( 'dispatch: more than INLINE_LIMIT tickets go to the job queue only', 'queued' === $big->status && Service::INLINE_LIMIT + 5 === count( json_decode( $big->payload, true )['ticket_ids'] ) );
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $big->job_id );
+// A374: at the end of a web request (shutdown) changed tickets are only queued; nothing is pushed inline.
+$wpw_apns->calls = array();
+Service::queue( array( (int) $ticket2->ticket_id ) );
+Service::flush_on_shutdown();
+$a374_job = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
+check( 'A374: shutdown flush only queues the push (no inline provider call, job stays queued)', array() === $wpw_apns->calls && 'queued' === $a374_job->status && array( (int) $ticket2->ticket_id ) === json_decode( $a374_job->payload, true )['ticket_ids'] );
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $a374_job->job_id );
 
 /* ---- Rotation for reason 'print' (Printing::rotate_codes) ---- */
 $print_code = bin2hex( random_bytes( 32 ) );

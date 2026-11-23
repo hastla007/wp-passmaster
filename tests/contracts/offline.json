@@ -1,0 +1,120 @@
+{
+  "contract": "offline",
+  "version": "1.0",
+  "description": "Offline-Scanner pass-captain/v1/app/offline/… (Geräte-Bearer-Token). Requests sind Parameter mit Platzhaltern, Responses Shapes; \"package payload\" ist die signierte Paket-JSON im Feld payload.",
+  "endpoints": {
+    "GET /app/offline/keys": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "keys": [
+          {
+            "key_id": "string",
+            "alg": "string",
+            "public_key": "string",
+            "status": "string",
+            "created_at": "string",
+            "valid_until": "string|null"
+          }
+        ],
+        "server_time": "string"
+      }
+    },
+    "GET /app/offline/occurrences": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "occurrences": [
+          {
+            "occurrence_id": "int",
+            "event_id": "int",
+            "event": "string",
+            "starts_at": "string",
+            "ends_at": "string|null",
+            "timezone": "string",
+            "status": "string",
+            "rules": {
+              "max_offline_hours": "int",
+              "duplicate_policy": "string",
+              "attendee_names": "bool"
+            }
+          }
+        ],
+        "device_id": "string",
+        "server_time": "string"
+      }
+    },
+    "GET /app/offline/package": {
+      "direction": "inbound",
+      "request": {
+        "occurrence_id": "{{occurrence_id}}"
+      },
+      "response": {
+        "alg": "string",
+        "key_id": "string",
+        "payload": "string",
+        "signature": "string",
+        "kind": "string",
+        "cursor": "string",
+        "count": "int",
+        "expires_at": "string"
+      }
+    },
+    "package payload": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "format": "string",
+        "v": "int",
+        "kind": "string",
+        "site": "string",
+        "device_id": "string",
+        "key_id": "string",
+        "event": {
+          "id": "int",
+          "name": "string"
+        },
+        "occurrence": {
+          "id": "int",
+          "starts_at": "string",
+          "ends_at": "string|null",
+          "timezone": "string",
+          "status": "string",
+          "doors_open_at": "string|null"
+        },
+        "issued_at": "string",
+        "expires_at": "string",
+        "since": "string|null",
+        "cursor": "string",
+        "rules": {
+          "max_offline_hours": "int",
+          "duplicate_policy": "string",
+          "attendee_names": "bool"
+        },
+        "device_area_id": "int|null",
+        "hash": "string",
+        "ticket_types": [
+          {
+            "id": "int",
+            "name": "string",
+            "areas": [],
+            "policy": "string",
+            "multi": "bool",
+            "id_check": "bool",
+            "min_age": "int",
+            "hint": "string"
+          }
+        ],
+        "areas": [],
+        "tickets": [
+          {
+            "h": "string",
+            "s": "string",
+            "t": "int",
+            "?n": "string"
+          }
+        ]
+      }
+    }
+  }
+}

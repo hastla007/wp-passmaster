@@ -1,26 +1,479 @@
 <?php
-/** Event-scoped capability checks. */
+/**
+ * Central access checks: capability + event staff assignment + optional per-user scope.
+ *
+ * Layers (all must pass; administrators with manage_options skip layers 2 and 3):
+ *  1. capability of the role (current_user_can),
+ *  2. event assignment in wpcap_event_staff for that capability; service providers
+ *     (wpcap_service_bookings) instead need a provider record linked to their user
+ *     and assigned to the resource (wpcap_service_providers/wpcap_resource_providers,
+ *     can_access_resource()),
+ *  2b. narrower assignments (A144, wpcap_staff_assignments): a team member limited to single
+ *     occurrences for a capability only reaches those occurrences with it (assigned_occurrence());
+ *     capability-free occurrence checks use the union of the person's team capabilities; entry areas
+ *     are enforced by the admission module (Admission\Areas::check()),
+ *  3. optional scope of the user (A119, opt-in, user meta `<site prefix>wpcap_access_scope`, per site
+ *     like update_user_option() – A470: partner ids and locations belong to one site of a network):
+ *     - locations: only occurrences whose location (occurrences.location, compared trimmed and
+ *       case-insensitive) is listed; an event is reachable when at least one of its occurrences is,
+ *       occurrence-level checks (orders, tickets, check-ins, lists, exports) use the exact location;
+ *     - partners: only events linked to one of the listed partners (wpcap_partner_events);
+ *       `linked_partners` adds the partners the user is linked to (wpcap_partner_users).
+ *     Users without scope keep the previous behaviour. Filter `wpcap_access_scope`.
+ *
+ * Occurrence-level staff (wpcap_occurrence_staff, W9): access to single dates only – used for admission
+ * (check-in/out, scanner, attendee lists of that date); it never grants event-wide access. Time-limited
+ * support access (Security\SupportAccess) counts as an event assignment while it is active.
+ *
+ * @package PassCaptain
+ */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Access {
+	/**
+	 * Base name of the user meta with the scope: ['locations' => string[], 'partners' => int[],
+	 * 'linked_partners' => bool]. Stored per site under scope_meta_key() (A470); the unprefixed key
+	 * of earlier versions applied to every site of a network and is no longer read.
+	 */
+	const SCOPE_META = 'wpcap_access_scope';
+
+	/**
+	 * User meta key of the scope on the current site: the site's table prefix + SCOPE_META, as
+	 * update_user_option() stores per-site options (wp_wpcap_access_scope, wp_2_wpcap_access_scope).
+	 * Users are network-wide, the partner ids and locations of a scope are not (A470).
+	 */
+	public static function scope_meta_key() {
+		global $wpdb;
+		$prefix = method_exists( $wpdb, 'get_blog_prefix' ) ? (string) $wpdb->get_blog_prefix() : (string) $wpdb->prefix;
+		return $prefix . self::SCOPE_META;
+	}
+
+	/**
+	 * Upgrade to schema 3.10.19 (A470): copies the scopes stored under the former network-wide key
+	 * to the per-site key of the current site. On a network every site the user belongs to gets the
+	 * copy on its own upgrade – exactly the scope that applied there before, so the upgrade never
+	 * widens anybody's access; administrators then adjust the per-site scopes (partner ids are
+	 * site-local). A per-site scope that exists already is kept. Single sites drop the old key.
+	 *
+	 * @return int Number of users whose scope was copied.
+	 */
+	public static function migrate_legacy_scopes() {
+		global $wpdb;
+		if ( empty( $wpdb->usermeta ) || ! function_exists( 'update_user_meta' ) ) { return 0; }
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT user_id, meta_value FROM {$wpdb->usermeta} WHERE meta_key=%s", self::SCOPE_META ) );
+		$key = self::scope_meta_key();
+		$network = function_exists( 'is_multisite' ) && is_multisite();
+		$blog = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1;
+		$copied = 0;
+		foreach ( $rows as $row ) {
+			$user_id = (int) $row->user_id;
+			if ( ! $user_id ) { continue; }
+			if ( $network && function_exists( 'is_user_member_of_blog' ) && ! is_user_member_of_blog( $user_id, $blog ) ) { continue; }
+			$value = function_exists( 'maybe_unserialize' ) ? maybe_unserialize( $row->meta_value ) : $row->meta_value;
+			$current = get_user_meta( $user_id, $key, true );
+			if ( is_array( $value ) && ( '' === $current || false === $current || null === $current ) ) {
+				update_user_meta( $user_id, $key, self::normalize( $value ) );
+				++$copied;
+			}
+			if ( ! $network && function_exists( 'delete_user_meta' ) ) { delete_user_meta( $user_id, self::SCOPE_META ); }
+		}
+		if ( $copied ) { Audit::record( 'access_scope_migrated', 'site', $blog, array( 'users' => $copied, 'network' => $network ) ); }
+		return $copied;
+	}
+
+	/** Whether the user holds the capability (current user through current_user_can()). */
+	public static function user_has( $user_id, $capability ) {
+		$user_id = (int) $user_id;
+		if ( ! $user_id ) { return false; }
+		return $user_id === (int) get_current_user_id() ? current_user_can( $capability ) : user_can( $user_id, $capability );
+	}
+
+	/** Administrators (manage_options) are never scoped. */
+	public static function is_global( $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		return self::user_has( $user_id, 'manage_options' );
+	}
+
 	public static function can_access_event( $event_id, $capability ) {
 		$user_id = get_current_user_id();
 		if ( ! $user_id || ! current_user_can( $capability ) ) {
 			return false;
 		}
-		if ( user_can( $user_id, 'manage_options' ) ) {
-			return true;
+		if ( self::is_global( $user_id ) ) {
+			// Administrators: no assignment needed; event_in_scope() is true for them (is_global()).
+			return self::event_in_scope( $event_id, $user_id );
 		}
 		global $wpdb;
-		return (bool) $wpdb->get_var(
+		$assigned = (bool) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id = %d AND user_id = %d AND capability = %s LIMIT 1",
+				'SELECT 1 FROM %i WHERE event_id = %d AND user_id = %d AND capability = %s LIMIT 1', $wpdb->prefix . 'wpcap_event_staff',
 				absint( $event_id ),
 				$user_id,
 				sanitize_key( $capability )
 			)
 		);
+		// Time-limited support access (Security\SupportAccess) covers every event while it is active; the
+		// user's location/partner scope (A119) still applies.
+		return ( $assigned || Security\SupportAccess::covers( $user_id, $capability ) ) && self::event_in_scope( $event_id, $user_id );
+	}
+
+	/**
+	 * Occurrence-level check: event access for the capability (or a date assignment in
+	 * wpcap_occurrence_staff for exactly this occurrence) and the occurrence inside the user's
+	 * location/partner scope and narrower assignments (A119/A144). Use this wherever the occurrence is
+	 * known (tickets, check-ins, orders).
+	 *
+	 * @param int    $occurrence_id Occurrence.
+	 * @param string $capability    Capability the user must also hold through a role.
+	 * @param int    $event_id      Unused (kept for callers that pass the known event; the row is read anyway).
+	 */
+	public static function can_access_occurrence( $occurrence_id, $capability, $event_id = 0 ) {
+		unset( $event_id );
+		$occurrence = self::occurrence_row( $occurrence_id );
+		if ( ! $occurrence ) { return false; }
+		if ( ! self::can_access_event( (int) $occurrence->event_id, $capability ) && ! self::has_occurrence_assignment( $occurrence_id, $capability ) ) {
+			return false;
+		}
+		return self::occurrence_in_scope( $occurrence_id, 0, $capability );
+	}
+
+	/** Whether the current user holds the capability and is assigned to exactly this date. */
+	public static function has_occurrence_assignment( $occurrence_id, $capability ) {
+		$user_id = get_current_user_id();
+		$occurrence_id = absint( $occurrence_id );
+		if ( ! $user_id || ! $occurrence_id || ! current_user_can( $capability ) ) { return false; }
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE occurrence_id=%d AND user_id=%d AND capability=%s LIMIT 1', $wpdb->prefix . 'wpcap_occurrence_staff', $occurrence_id, $user_id, sanitize_key( $capability ) ) );
+	}
+
+	/**
+	 * Whether the user may work on at least one date of the event (event-level or occurrence-level).
+	 * For lists and device pairing; every single scan is still checked per occurrence.
+	 */
+	public static function can_access_event_any_date( $event_id, $capability ) {
+		if ( self::can_access_event( $event_id, $capability ) ) { return true; }
+		$user_id = get_current_user_id();
+		if ( ! $user_id || ! current_user_can( $capability ) ) { return false; }
+		if ( ! self::event_in_scope( $event_id, $user_id ) ) { return false; }
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE event_id=%d AND user_id=%d AND capability=%s LIMIT 1', $wpdb->prefix . 'wpcap_occurrence_staff', absint( $event_id ), $user_id, sanitize_key( $capability ) ) );
+	}
+
+	/**
+	 * Occurrence ids of an event the user may access: null = the whole event, [] = none.
+	 *
+	 * @return int[]|null
+	 */
+	public static function occurrence_scope( $event_id, $capability ) {
+		if ( self::can_access_event( $event_id, $capability ) ) { return null; }
+		$user_id = get_current_user_id();
+		if ( ! $user_id || ! current_user_can( $capability ) ) { return array(); }
+		global $wpdb;
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE event_id=%d AND user_id=%d AND capability=%s', $wpdb->prefix . 'wpcap_occurrence_staff', absint( $event_id ), $user_id, sanitize_key( $capability ) ) ) );
+	}
+
+	/** Event ids with at least one date assignment of the current user for the capability. */
+	public static function occurrence_event_ids( $capability ) {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) { return array(); }
+		global $wpdb;
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE user_id=%d AND capability=%s', $wpdb->prefix . 'wpcap_occurrence_staff', $user_id, sanitize_key( $capability ) ) ) );
+	}
+
+	/**
+	 * Whether a narrower occurrence assignment (A144) admits the occurrence: true for administrators,
+	 * for people without occurrence assignments and when the occurrence is among the assigned ones.
+	 *
+	 * @param int         $occurrence_id Occurrence.
+	 * @param string|null $capability    Capability of the check; null = union of the team capabilities.
+	 * @param int         $user_id       User (0 = current).
+	 */
+	public static function assigned_occurrence( $occurrence_id, $capability = null, $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		if ( ! $user_id || ! StaffAssignments::has_occurrence_limits( $user_id ) || self::is_global( $user_id ) ) { return true; }
+		$occurrence = self::occurrence_row( $occurrence_id );
+		if ( ! $occurrence ) { return false; }
+		$limited = StaffAssignments::limited_occurrences( $user_id, (int) $occurrence->event_id, $capability );
+		return null === $limited || in_array( (int) $occurrence->occurrence_id, $limited, true );
+	}
+
+	/** Whether the user has narrower occurrence assignments that apply (non-administrators only). */
+	private static function occurrence_limited( $user_id ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		return $user_id && StaffAssignments::has_occurrence_limits( $user_id ) && ! self::is_global( $user_id );
+	}
+
+	/**
+	 * Service-level check (A143): the user holds the capability and may work with the resource
+	 * (wpcap_resources). Service providers (ServiceProviders::USER_CAP) need an active provider record
+	 * linked to their user and assigned to exactly this resource – the event alone is not enough;
+	 * every other capability uses the event check. Administrators reach every resource.
+	 */
+	public static function can_access_resource( $resource_id, $capability = ServiceProviders::USER_CAP ) {
+		global $wpdb;
+		$user_id = (int) get_current_user_id();
+		if ( ! $user_id || ! current_user_can( $capability ) ) { return false; }
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", absint( $resource_id ) ) );
+		if ( ! $event_id ) { return false; }
+		if ( self::is_global( $user_id ) ) { return self::event_in_scope( $event_id, $user_id ); }
+		if ( ServiceProviders::USER_CAP !== $capability ) { return self::can_access_event( $event_id, $capability ); }
+		return ServiceProviders::user_has_resource( $user_id, $resource_id ) && self::event_in_scope( $event_id, $user_id );
+	}
+
+	/**
+	 * Normalised scope of a user or null (no restriction).
+	 *
+	 * @return array{locations: string[], partners: int[]|null}|null
+	 */
+	public static function scope( $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		if ( ! $user_id || self::is_global( $user_id ) ) { return null; }
+		$raw = function_exists( 'get_user_meta' ) ? get_user_meta( $user_id, self::scope_meta_key(), true ) : array();
+		$scope = self::normalize( is_array( $raw ) ? $raw : array() );
+		if ( ! empty( $scope['linked_partners'] ) ) {
+			$linked = Privacy::has_table( 'wpcap_partner_users' ) ? Partners\Repository::partners_of_user( $user_id ) : array();
+			$scope['partners'] = array_values( array_unique( array_merge( (array) $scope['partners'], $linked ) ) );
+		}
+		unset( $scope['linked_partners'] );
+		/**
+		 * Scope of a non-administrator (A119). Return ['locations' => string[], 'partners' => int[]|null];
+		 * an empty location list and partners null mean "no restriction".
+		 *
+		 * @param array $scope   Normalised scope.
+		 * @param int   $user_id User.
+		 */
+		$scope = apply_filters( 'wpcap_access_scope', $scope, $user_id );
+		$scope = is_array( $scope ) ? $scope : array();
+		$locations = self::normalize( array( 'locations' => $scope['locations'] ?? array() ) )['locations'];
+		$partners = isset( $scope['partners'] ) && is_array( $scope['partners'] ) ? array_values( array_unique( array_filter( array_map( 'absint', $scope['partners'] ) ) ) ) : null;
+		if ( ! $locations && null === $partners ) { return null; }
+		return array( 'locations' => $locations, 'partners' => $partners );
+	}
+
+	/**
+	 * Cleans scope input (user profile form, user meta).
+	 *
+	 * @param array $input locations (string[] or text with one location per line), partners (int[]),
+	 *                     linked_partners (bool).
+	 * @return array{locations: string[], partners: int[]|null, linked_partners: bool}
+	 */
+	public static function normalize( array $input ) {
+		$locations = $input['locations'] ?? array();
+		if ( is_string( $locations ) ) { $locations = preg_split( '/\r\n|\r|\n/', $locations ); }
+		$clean = array();
+		foreach ( (array) $locations as $location ) {
+			$location = mb_substr( trim( sanitize_text_field( (string) $location ) ), 0, 190 );
+			if ( '' !== $location ) { $clean[ self::location_key( $location ) ] = $location; }
+		}
+		$partners = null;
+		if ( isset( $input['partners'] ) && is_array( $input['partners'] ) && $input['partners'] ) {
+			$partners = array_values( array_unique( array_filter( array_map( 'absint', $input['partners'] ) ) ) );
+			$partners = $partners ? $partners : null;
+		}
+		$linked = ! empty( $input['linked_partners'] );
+		if ( $linked && null === $partners ) { $partners = array(); }
+		return array( 'locations' => array_values( $clean ), 'partners' => $partners, 'linked_partners' => $linked );
+	}
+
+	/**
+	 * Stores the scope of a user on the current site (empty input removes it). Only administrators
+	 * of this site may call this; other sites of a network keep their own scope (A470).
+	 */
+	public static function set_scope( $user_id, array $input ) {
+		$user_id = absint( $user_id );
+		if ( ! $user_id || ! current_user_can( 'manage_options' ) ) { return false; }
+		$scope = self::normalize( $input );
+		if ( ! $scope['locations'] && null === $scope['partners'] && ! $scope['linked_partners'] ) {
+			if ( function_exists( 'delete_user_meta' ) ) { delete_user_meta( $user_id, self::scope_meta_key() ); } else { update_user_meta( $user_id, self::scope_meta_key(), array() ); }
+		} else {
+			update_user_meta( $user_id, self::scope_meta_key(), $scope );
+		}
+		Audit::record( 'access_scope_set', 'user', $user_id, $scope + array( 'site' => function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 1 ) );
+		return true;
+	}
+
+	/** Comparison key of a location: trimmed, case-insensitive. */
+	public static function location_key( $location ) {
+		return mb_strtolower( trim( (string) $location ) );
+	}
+
+	/** Whether the event lies in the user's scope (true without scope). */
+	public static function event_in_scope( $event_id, $user_id = 0 ) {
+		$scope = self::scope( $user_id );
+		if ( null === $scope ) { return true; }
+		$event_id = absint( $event_id );
+		if ( ! $event_id || ! self::partner_ok( $event_id, $scope ) ) { return false; }
+		if ( ! $scope['locations'] ) { return true; }
+		global $wpdb;
+		list( $sql, $args ) = self::location_clause( 'location', $scope['locations'] );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND $sql LIMIT 1", array_merge( array( $event_id ), $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+	}
+
+	/**
+	 * Whether the occurrence lies in the user's scope and narrower occurrence assignments (true
+	 * without either).
+	 *
+	 * @param int         $occurrence_id Occurrence.
+	 * @param int         $user_id       User (0 = current).
+	 * @param string|null $capability    Capability of the check (A144); null = union of the team capabilities.
+	 */
+	public static function occurrence_in_scope( $occurrence_id, $user_id = 0, $capability = null ) {
+		if ( ! self::assigned_occurrence( $occurrence_id, $capability, $user_id ) ) { return false; }
+		$scope = self::scope( $user_id );
+		if ( null === $scope ) { return true; }
+		$occurrence = self::occurrence_row( $occurrence_id );
+		if ( ! $occurrence || ! self::partner_ok( (int) $occurrence->event_id, $scope ) ) { return false; }
+		if ( ! $scope['locations'] ) { return true; }
+		return in_array( self::location_key( $occurrence->location ), array_map( array( __CLASS__, 'location_key' ), $scope['locations'] ), true );
+	}
+
+	/** Whether a location may be used by the user (true without location scope). */
+	public static function location_in_scope( $location, $user_id = 0 ) {
+		$scope = self::scope( $user_id );
+		if ( null === $scope || ! $scope['locations'] ) { return true; }
+		return in_array( self::location_key( $location ), array_map( array( __CLASS__, 'location_key' ), $scope['locations'] ), true );
+	}
+
+	/**
+	 * Whether every occurrence of the event lies in the user's scope and occurrence assignments
+	 * (event-wide figures; true without either). $capability narrows the assignment check (A144).
+	 */
+	public static function event_fully_in_scope( $event_id, $user_id = 0, $capability = null ) {
+		$scope = self::scope( $user_id );
+		if ( null === $scope && ! self::occurrence_limited( $user_id ) ) { return true; }
+		if ( null !== $scope && ! self::event_in_scope( $event_id, $user_id ) ) { return false; }
+		global $wpdb;
+		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d", absint( $event_id ) ) ) as $occurrence_id ) {
+			if ( ! self::occurrence_in_scope( (int) $occurrence_id, $user_id, $capability ) ) { return false; }
+		}
+		return true;
+	}
+
+	/**
+	 * Whether every occurrence of the order lies in the user's scope and occurrence assignments
+	 * (orders without items: only unscoped, unlimited users). $capability narrows the assignment check (A144).
+	 */
+	public static function order_in_scope( $order_id, $user_id = 0, $capability = null ) {
+		if ( null === self::scope( $user_id ) && ! self::occurrence_limited( $user_id ) ) { return true; }
+		$occurrences = self::order_occurrence_ids( $order_id );
+		if ( ! $occurrences ) { return false; }
+		foreach ( $occurrences as $occurrence_id ) {
+			if ( ! self::occurrence_in_scope( $occurrence_id, $user_id, $capability ) ) { return false; }
+		}
+		return true;
+	}
+
+	/** Distinct occurrence ids an order has items for. */
+	public static function order_occurrence_ids( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.occurrence_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d", absint( $order_id ) ) ) );
+	}
+
+	/**
+	 * Restricts an event id list to the current user's scope.
+	 *
+	 * @param int[]|null $event_ids Null = all events (then every event in scope is returned).
+	 * @return int[]|null Null only when the user has no scope and the input was null.
+	 */
+	public static function filter_event_ids( $event_ids, $user_id = 0 ) {
+		$scope = self::scope( $user_id );
+		if ( null === $scope ) { return $event_ids; }
+		if ( is_array( $event_ids ) && ! $event_ids ) { return array(); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$where = '1=1';
+		$args = array();
+		if ( is_array( $event_ids ) ) { $where .= ' AND e.event_id IN (' . implode( ',', array_map( 'absint', $event_ids ) ) . ')'; }
+		if ( null !== $scope['partners'] ) {
+			if ( ! $scope['partners'] || ! Privacy::has_table( 'wpcap_partner_events' ) ) { return array(); }
+			$where .= " AND e.event_id IN (SELECT pe.event_id FROM {$p}wpcap_partner_events pe WHERE pe.partner_id IN (" . implode( ',', array_map( 'absint', $scope['partners'] ) ) . '))';
+		}
+		if ( $scope['locations'] ) {
+			list( $sql, $loc_args ) = self::location_clause( 'o.location', $scope['locations'] );
+			$where .= " AND EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE o.event_id=e.event_id AND $sql)";
+			$args = array_merge( $args, $loc_args );
+		}
+		$query = "SELECT e.event_id FROM {$p}wpcap_events e WHERE $where";
+		return array_map( 'absint', $wpdb->get_col( $args ? $wpdb->prepare( $query, $args ) : $query ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ids cast, values as placeholders.
+	}
+
+	/**
+	 * SQL fragment (" AND alias.occurrence_id IN (…)", integers only, so it can be embedded in
+	 * queries that are prepared afterwards) restricting an occurrences alias to the user's scope;
+	 * '' without scope. Used by admin lists that join wpcap_occurrences.
+	 */
+	public static function occurrence_scope_sql( $alias = 'o', $user_id = 0 ) {
+		$scope = self::scope( $user_id );
+		$alias = preg_replace( '/[^A-Za-z0-9_]/', '', (string) $alias );
+		$sql = '';
+		if ( null !== $scope ) {
+			$ids = self::scoped_occurrence_ids( $scope );
+			$sql = $ids ? " AND {$alias}.occurrence_id IN (" . implode( ',', $ids ) . ')' : ' AND 1=0';
+		}
+		$excluded = self::unassigned_occurrence_ids( $user_id );
+		if ( $excluded ) { $sql .= " AND {$alias}.occurrence_id NOT IN (" . implode( ',', $excluded ) . ')'; }
+		return $sql;
+	}
+
+	/**
+	 * Occurrences a user with narrower occurrence assignments (A144) does not reach with any of their
+	 * team capabilities (the other occurrences of the limited events); empty when not limited.
+	 *
+	 * @return int[]
+	 */
+	private static function unassigned_occurrence_ids( $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		if ( ! self::occurrence_limited( $user_id ) ) { return array(); }
+		global $wpdb;
+		$excluded = array();
+		$events = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_staff_assignments WHERE user_id=%d AND scope='occurrence'", $user_id ) ) );
+		foreach ( $events as $event_id ) {
+			$allowed = StaffAssignments::limited_occurrences( $user_id, $event_id );
+			if ( null === $allowed ) { continue; }
+			foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d", $event_id ) ) as $occurrence_id ) {
+				if ( ! in_array( (int) $occurrence_id, $allowed, true ) ) { $excluded[] = (int) $occurrence_id; }
+			}
+		}
+		return $excluded;
+	}
+
+	/** Occurrence ids inside a (non-null) scope. */
+	private static function scoped_occurrence_ids( array $scope ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$where = '1=1';
+		$args = array();
+		if ( null !== $scope['partners'] ) {
+			if ( ! $scope['partners'] || ! Privacy::has_table( 'wpcap_partner_events' ) ) { return array(); }
+			$where .= " AND o.event_id IN (SELECT pe.event_id FROM {$p}wpcap_partner_events pe WHERE pe.partner_id IN (" . implode( ',', array_map( 'absint', $scope['partners'] ) ) . '))';
+		}
+		if ( $scope['locations'] ) {
+			list( $clause, $args ) = self::location_clause( 'o.location', $scope['locations'] );
+			$where .= ' AND ' . $clause;
+		}
+		$query = "SELECT o.occurrence_id FROM {$p}wpcap_occurrences o WHERE $where";
+		return array_map( 'absint', $wpdb->get_col( $args ? $wpdb->prepare( $query, $args ) : $query ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ids cast, values as placeholders.
+	}
+
+	/** [sql with placeholders, args] for "column in one of the locations" (trimmed, case-insensitive). */
+	private static function location_clause( $column, array $locations ) {
+		$keys = array_values( array_unique( array_map( array( __CLASS__, 'location_key' ), $locations ) ) );
+		return array( 'LOWER(TRIM(' . $column . ')) IN (' . implode( ',', array_fill( 0, count( $keys ), '%s' ) ) . ')', $keys );
+	}
+
+	private static function partner_ok( $event_id, array $scope ) {
+		if ( null === $scope['partners'] ) { return true; }
+		if ( ! $scope['partners'] || ! Privacy::has_table( 'wpcap_partner_events' ) ) { return false; }
+		global $wpdb;
+		$partner = (int) $wpdb->get_var( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_events WHERE event_id=%d", absint( $event_id ) ) );
+		return $partner && in_array( $partner, $scope['partners'], true );
+	}
+
+	private static function occurrence_row( $occurrence_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id,location FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
 	}
 }
