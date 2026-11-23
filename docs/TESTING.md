@@ -676,6 +676,7 @@ Screenshots fehlgeschlagener Tests als Artefakt `e2e-artifacts-<bein>`.
 | `scanner.test.js` | Video vor dem Start verborgen; Kamera verweigert/fehlt → Meldung, manueller Code checkt ein, zweiter Scan abgelehnt; Fake-Kamera → Video läuft (alle Engines) |
 | `offline-scanner.test.js` | PWA: Kopplung, signiertes Paket, Scan offline → lokale Entscheidung + Warteschlange, Doppelscan abgelehnt (gelb „Eben hier eingelassen“), Sync nach Reconnect |
 | `woocommerce-blocks.test.js` | Blocks-Checkout mit Teilnehmer-Fieldset, ungültige E-Mail blockiert, Angaben am Woo-Auftrag (ohne `WPCAP_WOO_ZIP` übersprungen) |
+| `conditions.test.js` | A321, Bedingungen näher an der Praxis: Reflow bei 320 CSS-px (= 1280 px bei 400 % Zoom) für Eventseite, zwei Event-Shortcodes auf einer Seite, Bestellportal, Ticketseite und Servicebuchung (auch mit Teilnehmerblöcken und Fehlerzusammenfassung); dunkles Farbschema (Layout, axe-Kontrast, wenn `axe-core` in `tests/a11y` installiert ist); Rechts-nach-links bei 320 px mit Mengen-Stepper; Live-Regionen (Summe, Mengenansage, Fokus bleibt auf „+“); Nicht-JSON-Antwort (Proxy-HTML 502, Bestellung kam an) → lesbarer Fehler, erneutes Senden setzt dieselbe Bestellung fort; zwei Shortcodes: keine doppelten IDs, beschriftete Mengenfelder, unabhängige Formulare; Zurück/Vor nach bestätigter Bestellung → keine zweite Bestellung |
 
 ## Restore-Probe (`tests/drills/restore-drill.sh`)
 
@@ -725,6 +726,12 @@ Werkzeugen des Datenbank-Containers (Client = Server-Version). Bei Fehlschlag Pr
   in keiner Engine mit einem echten Kamerabild geprüft (Fake-Kameras liefern ein Testbild).
 - **a11y-Gate** nur in Chromium (axe-Ergebnisse sind engine-unabhängig; Tastaturverhalten in Firefox/Safari
   deckt die Screenreader-Abnahme ab).
+- **A321, noch offen nach `conditions.test.js`:** Kalender- und Saalplan-Widgets, Portal-Dialoge, Kasse
+  (POS) und die PWA unter Reflow/Dark Mode/RTL; ein echtes RTL-Sprachpaket (der Test setzt `dir="rtl"` auf der
+  deutschen Seite); Tastatur-Scanner (HID-Eingabe) und mehrere Shortcode-Arten gemischt auf einer Seite.
+  Lokal ohne PHP 8.5 lässt sich die Testseite nicht aktivieren (Plugin-Voraussetzung); geprüft wurde
+  `conditions.test.js` am 23.11.2026 mit Chromium 1243 (Playwright 1.63) gegen eine Kopie mit gesenkter
+  PHP-Voraussetzung: 7/7.
 - **Echte Zahlungsanbieter:** Stripe, PayPal und Mollie sind nur gegen nachgebaute APIs getestet; Abnahme gegen
   die Sandboxes (Zahlung, Webhook, Teil-/Vollerstattung) ist manuell ([RELEASE.md](RELEASE.md)).
 - **WooCommerce-Checkout E2E:** Der Blocks-Test läuft in CI (Bein chromium) gegen das aktuelle WooCommerce; der

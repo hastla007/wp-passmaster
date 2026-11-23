@@ -6,6 +6,8 @@
  *   php tests/e2e/helper.php /path/to/wordpress assign <event_id> <occ_id>  → assigns the newest paired device
  *   php tests/e2e/helper.php /path/to/wordpress ticket <code>               → ticket status by code
  *   php tests/e2e/helper.php /path/to/wordpress order <public_id>           → payment status and tickets
+ *   php tests/e2e/helper.php /path/to/wordpress orders-count <email>        → number of orders of a buyer
+ *   php tests/e2e/helper.php /path/to/wordpress page <slug> <content>       → URL of a page with that content
  *
  * @package PassCaptain
  */
@@ -85,6 +87,17 @@ switch ( $cmd ) {
 	case 'buyer':
 		// Newest order of an e-mail address with the account it was placed with (REST nonce → customer_user_id).
 		echo wp_json_encode( array( 'order' => $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_user_id,payment_status FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id DESC LIMIT 1", (string) ( $argv[3] ?? '' ) ) ) ) );
+		break;
+	case 'orders-count':
+		// A321: number of orders of an e-mail address (an unclear answer followed by a retry must not create a second one).
+		echo wp_json_encode( array( 'count' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE customer_email=%s", (string) ( $argv[3] ?? '' ) ) ) ) );
+		break;
+	case 'page':
+		// A321: published page with the given content (e.g. two shortcodes on one page); reused by slug.
+		$slug = sanitize_title( (string) ( $argv[3] ?? '' ) );
+		$existing = get_page_by_path( $slug );
+		$id = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_name' => $slug, 'post_title' => $slug, 'post_content' => (string) ( $argv[4] ?? '' ) ) );
+		echo wp_json_encode( array( 'url' => get_permalink( $id ) ) );
 		break;
 	case 'woo-order':
 		$wc = wc_get_order( (int) ( $argv[3] ?? 0 ) );
