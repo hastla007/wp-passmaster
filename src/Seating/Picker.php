@@ -22,7 +22,18 @@ final class Picker {
 			'selected' => __( 'ausgewählt', 'pass-captain' ),
 			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
 			'companion' => __( 'Begleitplatz (nur mit Rollstuhlplatz)', 'pass-captain' ),
-			'listToggle' => __( 'Plätze als Liste anzeigen', 'pass-captain' ),
+			'listToggle' => __( 'Plätze als Liste', 'pass-captain' ),
+			// A090: map/list switch, seat size, fit and the legend of the seat marks.
+			'view' => __( 'Ansicht', 'pass-captain' ),
+			'viewMap' => __( 'Saalplan', 'pass-captain' ),
+			'viewList' => __( 'Liste', 'pass-captain' ),
+			'fit' => __( 'Ganzer Saal', 'pass-captain' ),
+			'seatLarge' => __( 'Große Sitze', 'pass-captain' ),
+			/* translators: %d: minimum seat size in pixels */
+			'seatLargeOn' => __( 'Große Sitze (mindestens %d px) eingeschaltet.', 'pass-captain' ),
+			/* translators: %d: minimum seat size in pixels */
+			'seatLargeOff' => __( 'Normale Sitzgröße (mindestens %d px).', 'pass-captain' ),
+			'companionShort' => __( 'Begleitplatz', 'pass-captain' ),
 			'yourSeats' => __( 'Deine Plätze', 'pass-captain' ),
 			'none' => __( 'Noch keine Plätze gewählt.', 'pass-captain' ),
 			'remove' => __( 'Entfernen', 'pass-captain' ),
@@ -46,8 +57,7 @@ final class Picker {
 			/* translators: %s: seat labels */
 			'bestDone' => __( 'Vorgeschlagen: %s. Du kannst die Auswahl im Plan oder in der Liste ändern.', 'pass-captain' ),
 			'bestNone' => __( 'Bitte wähle zuerst die Anzahl der Tickets – oder es sind keine passenden Plätze mehr frei.', 'pass-captain' ),
-			'listHint' => __( 'Auf kleinen Bildschirmen ist die Platzliste oft einfacher zu bedienen.', 'pass-captain' ),
-			'listShow' => __( 'Platzliste öffnen', 'pass-captain' ),
+			'listHint' => __( 'Auf kleinen Bildschirmen zeigen wir zuerst die Platzliste. Den Saalplan erreichst du über „Saalplan“; dort mit zwei Fingern zoomen.', 'pass-captain' ),
 			// A610: fallback when the answer for a closed date carries no message of its own.
 			'closed' => __( 'Für diesen Termin können keine Plätze mehr gebucht werden.', 'pass-captain' ),
 		);
