@@ -3715,28 +3715,39 @@ final class Orders {
 
 	/**
 	 * Safety net for issuances whose retry job could not be queued (e.g. the database connection was
-	 * lost after the payment committed): issues the missing tickets of paid orders. Idempotent (the
-	 * issuance locks the order row and only creates what is missing); runs with the job queue (cron).
-	 * See also sweep_unissued() (A343: paid orders without any ticket get a retry job and are reported).
+	 * lost after the payment committed): issues the missing tickets of paid orders right away, without
+	 * the grace period of sweep_unissued(). Idempotent (the issuance locks the order row and only creates
+	 * what is missing); runs with the job queue (cron).
+	 *
+	 * Same window and hand-over as the A343 sweep: only orders paid within UNISSUED_LOOKBACK (older ones
+	 * are reported by the Doctor check, no automatic mail of old tickets), and an order this sweep could
+	 * not complete gets the sweep's retry job (fixed key, backoff, dead letter) and is not picked again -
+	 * so a few orders that never complete (e.g. an exchange supplement) cannot hold the batch forever.
+	 * While the order still has an open issuance job (`ticket_issue`, `ticket_issue_retry`), that job stays
+	 * its only retry: the order is tried again on the next run, no second job is queued.
 	 *
 	 * @return int Number of orders whose tickets were issued.
 	 */
 	public static function reconcile_issuance( $limit = 20 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		// Orders of the last 30 days only (index paid_created), so the sweep stays cheap on large sites.
 		$ids = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.created_at>=%s AND ord.status='complete' AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders',
-			gmdate( 'Y-m-d H:i:s', Clock::now() - 30 * DAY_IN_SECONDS ), $p . 'wpcap_order_items', $p . 'wpcap_tickets',
+			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.status='complete' AND ord.updated_at>=%s AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i j WHERE j.idempotency_key=SHA2(CONCAT('ticket-issue-sweep|', ord.order_id), 256)) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders',
+			gmdate( 'Y-m-d H:i:s', Clock::now() - self::UNISSUED_LOOKBACK ), $p . 'wpcap_order_items', $p . 'wpcap_tickets', $p . 'wpcap_jobs',
 			max( 1, absint( $limit ) )
 		) );
 		$done = 0;
 		foreach ( (array) $ids as $order_id ) {
-			self::$issuing_from_job = true; // No extra retry job: the next sweep retries.
+			self::$issuing_from_job = true; // No retry job of the issuance itself: see the hand-over below.
 			try {
-				if ( true === self::issue_and_email( (int) $order_id ) && 0 === self::missing_tickets( (int) $order_id ) ) { ++$done; }
+				$complete = true === self::issue_and_email( (int) $order_id ) && 0 === self::missing_tickets( (int) $order_id );
 			} finally {
 				self::$issuing_from_job = false;
+			}
+			if ( $complete ) {
+				++$done;
+			} elseif ( ! (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE job_type IN ('ticket_issue','ticket_issue_retry') AND status IN ('queued','running') AND payload=%s", $p . 'wpcap_jobs', wp_json_encode( array( 'order_id' => (int) $order_id ) ) ) ) ) {
+				self::queue_sweep_job( (int) $order_id );
 			}
 		}
 		return $done;
@@ -3848,14 +3859,24 @@ final class Orders {
 		) );
 		$queued = 0;
 		foreach ( array_map( 'intval', (array) $ids ) as $order_id ) {
-			$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', 'ticket-issue-sweep|' . $order_id ) ) );
-			if ( $before ) { continue; } // Already swept once: the Doctor check reports what is still open.
-			if ( true === Jobs::enqueue( 'ticket-issue-sweep|' . $order_id, 'ticket_issue_retry', array( 'order_id' => $order_id ) ) ) {
-				Audit::record( 'ticket_issue_swept', 'order', $order_id, array() );
-				++$queued;
-			}
+			if ( self::queue_sweep_job( $order_id ) ) { ++$queued; }
 		}
 		return $queued;
+	}
+
+	/**
+	 * Queues the one `ticket_issue_retry` job of the issuance sweeps for an order (fixed key, shared by
+	 * sweep_unissued() and reconcile_issuance()). False when the order was swept before - the Doctor check
+	 * reports what is still open - or the job could not be queued.
+	 */
+	private static function queue_sweep_job( $order_id ) {
+		global $wpdb;
+		$key = 'ticket-issue-sweep|' . absint( $order_id );
+		$before = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE idempotency_key=%s', $wpdb->prefix . 'wpcap_jobs', hash( 'sha256', $key ) ) );
+		if ( $before ) { return false; }
+		if ( true !== Jobs::enqueue( $key, 'ticket_issue_retry', array( 'order_id' => absint( $order_id ) ) ) ) { return false; }
+		Audit::record( 'ticket_issue_swept', 'order', absint( $order_id ), array() );
+		return true;
 	}
 
 	/**

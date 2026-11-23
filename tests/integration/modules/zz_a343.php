@@ -53,8 +53,8 @@ wpcap_test_fault( '/^INSERT INTO \S*wpcap_tickets \(/', 'lock_timeout', array( '
 Orders::confirm_manual_payment( $a343_old['order_id'] );
 wpcap_test_faults_clear();
 $wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type IN ('ticket_issue','ticket_issue_retry')" );
-// Merged design: the job queue also re-issues paid orders without tickets created in the last 30 days
-// (Orders::reconcile_issuance()); "long ago" therefore means created more than 30 days ago.
+// The job queue also re-issues paid orders without tickets (Orders::reconcile_issuance()), within the same
+// two days as the sweep (Z1, before: 30 days); "long ago" means paid more than two days ago.
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET updated_at=%s, created_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS ), $a343_old['order_id'] ) );
 check( 'A343: the hourly cron runs the sweep', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Plugin.php' ), "add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'sweep_unissued' )" ) );
 $a343_swept = Orders::sweep_unissued( 1000 );
