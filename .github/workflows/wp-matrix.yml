@@ -4,19 +4,18 @@ name: WordPress version matrix
 # and REST in real WordPress installs, plus the upgrade/rollback/restore drill against the previous
 # release (tests/restore/drill.sh). Runs on every push/PR and weekly against the newest WordPress.
 on:
+  # Branches are checked through their pull request only; push runs only on main (no duplicate runs).
   push:
-    # Dependabot branches run once, through their pull request (no duplicate push run).
-    branches-ignore:
-      - 'dependabot/**'
+    branches: [main]
   pull_request:
   schedule:
     - cron: '41 4 * * 2'
   workflow_dispatch:
 
-# A new push supersedes the running check of the same branch (main keeps every run).
+# A new push to a pull request supersedes its running check; main keeps every run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
