@@ -207,7 +207,8 @@ final class Invoices {
 		$total = max( 0, (int) $total );
 		$tax = max( 0, min( (int) $tax, $total ) );
 		$order = Orders::get( (int) ( $refund['order_id'] ?? 0 ) );
-		$items = $order ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_rate_bp FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) : array();
+		$items = $order ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor,tax_rate_bp' . ServiceFee::columns( '' ) . ' FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
+		$fee_weights = array();
 		if ( ! $items ) {
 			return array( array( 'tax_rate_bp' => 0, 'net_minor' => $total - $tax, 'tax_minor' => $tax, 'total_minor' => $total ) );
 		}
@@ -220,13 +221,17 @@ final class Invoices {
 		if ( $ticket_ids ) {
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') GROUP BY ticket_type_id', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ticket_ids ) ) );
 			foreach ( $rows as $row ) { $counts[ (int) $row->ticket_type_id ] = (int) $row->n; }
+			// A425: per-ticket service fee lines of the refunded tickets weigh with their own rate.
+			$fee_weights = ServiceFee::refund_weights( $items, $counts );
 		}
 		$weights = array();
 		foreach ( $items as $index => $item ) {
 			$type = (int) $item->ticket_type_id;
 			$discount = null !== $stored && isset( $stored[ $type ] ) ? min( (int) $item->line_total_minor, $stored[ $type ] ) : $split[ $index ];
 			$line = max( 0, (int) $item->line_total_minor - $discount );
-			if ( $counts ) {
+			if ( isset( $fee_weights[ $index ] ) ) {
+				$line = (int) $fee_weights[ $index ][1];
+			} elseif ( $counts ) {
 				$used = min( (int) $item->quantity, $counts[ $type ] ?? 0 );
 				$counts[ $type ] = max( 0, ( $counts[ $type ] ?? 0 ) - $used );
 				$line = (int) round( $line * $used / max( 1, (int) $item->quantity ) );
@@ -335,7 +340,7 @@ final class Invoices {
 		$tax = (int) $tax;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		if ( null === $items ) {
-			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
+			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . ServiceFee::columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
 		}
 		if ( null === $discount ) {
 			$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
@@ -497,6 +502,8 @@ final class Invoices {
 					$n -= $share;
 				}
 			}
+			// A425: the per-ticket service fee of the refunded tickets (own lines, possibly with an own tax rate).
+			foreach ( ServiceFee::refund_weights( $items, $counts ) as $i => $fee_weight ) { $weights[ $i ] = $fee_weight; }
 		}
 		if ( ! array_filter( array_column( $weights, 1 ) ) ) {
 			// Amount-only refund: weighted by what is left of each line (all paid lines when nothing is left).
@@ -1333,7 +1340,7 @@ final class Invoices {
 		$out = array();
 		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
 			$out += array_fill_keys( $chunk, array() );
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY order_id,item_id', $chunk ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid_columns() returns a fixed column list built from literals.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . ServiceFee::columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY order_id,item_id', $chunk ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid_columns() returns a fixed column list built from literals.
 				$out[ (int) $item->order_id ][] = $item;
 			}
 		}

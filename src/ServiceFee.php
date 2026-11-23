@@ -116,6 +116,63 @@ final class ServiceFee {
 		return sprintf( __( 'zzgl. %s Bearbeitungsgebühr je Bestellung', 'pass-captain' ), Frontend\Format::money( $order_minor, (string) $currency ) );
 	}
 
+	/** Tax of the fee (owner decision 23.11.2026): 'ticket' (like its ticket line, default) or 'own'. */
+	public static function tax_mode() {
+		return 'own' === (string) Settings::get( 'service_fee_tax' ) ? 'own' : 'ticket';
+	}
+
+	/**
+	 * Own tax of a fee line ("eigenes Steuerprofil"): the active tax profile of the configured tax class
+	 * for the place of supply and date of its ticket line (same resolution as ticket lines:
+	 * Sales\TaxProfiles for the event country, Tax\Profiles for an occurrence with a venue country);
+	 * without a matching profile the rate setting (service_fee_tax_rate), else the ticket line's rate.
+	 * Null in mode 'ticket'.
+	 *
+	 * Filter `wpcap_service_fee_tax` (array|null $tax, object $type, object|null $occurrence, string $kind).
+	 *
+	 * @param array       $line       Line of Orders::create() (type, tax_rate_bp, tax_info).
+	 * @param object|null $occurrence Occurrence row of the line.
+	 * @param string      $now        Sale time (UTC).
+	 * @param string      $source     Sales channel.
+	 * @param string      $kind       KIND_TICKET or KIND_ORDER.
+	 * @return array|null {rate_bp, tax_info, tax_profile}
+	 */
+	public static function own_tax( array $line, $occurrence, $now, $source, $kind = self::KIND_TICKET ) {
+		if ( 'own' !== self::tax_mode() ) { return null; }
+		$probe = clone $line['type'];
+		$probe->tax_class = sanitize_key( (string) Settings::get( 'service_fee_tax_class' ) ) ?: 'service';
+		$fallback = (string) Settings::get( 'service_fee_tax_rate' );
+		$fallback_bp = '' === trim( $fallback ) ? null : Admin\Forms::parse_percent_bp( $fallback );
+		$ticket_info = (array) ( $line['tax_info'] ?? array() );
+		$country = (string) ( $ticket_info['country'] ?? Tax\Profiles::venue_country( $occurrence ) );
+		$tax = null;
+		$profile = $occurrence ? Sales\TaxProfiles::for_line( $probe, $occurrence, $now ) : null;
+		if ( $profile ) {
+			$tax = array(
+				'rate_bp' => (int) $profile['rate_bp'],
+				'tax_info' => array( 'rate_bp' => (int) $profile['rate_bp'], 'source' => Tax\Profiles::SOURCE_PROFILE, 'profile_id' => (int) $profile['tax_profile_id'], 'version' => (string) ( $profile['snapshot']['version'] ?? '' ), 'country' => (string) ( $profile['snapshot']['country'] ?? $country ) ),
+				'tax_profile' => $profile,
+			);
+		} else {
+			$probe->tax_rate_bp = null === $fallback_bp ? (int) ( $line['tax_rate_bp'] ?? 0 ) : (int) $fallback_bp;
+			$resolved = Tax\Profiles::resolve( $probe, $occurrence, $now, $source );
+			if ( Tax\Profiles::SOURCE_PROFILE !== $resolved['source'] ) {
+				$resolved['source'] = null === $fallback_bp ? (string) ( $ticket_info['source'] ?? Tax\Profiles::SOURCE_TYPE ) : Tax\Profiles::SOURCE_SETTING;
+			}
+			$tax = array( 'rate_bp' => (int) $resolved['rate_bp'], 'tax_info' => $resolved, 'tax_profile' => null );
+		}
+		/**
+		 * Own tax of a service fee line (mode "eigenes Steuerprofil").
+		 *
+		 * @param array       $tax        rate_bp, tax_info (Tax\Profiles::line_columns() input), tax_profile (Sales\TaxProfiles::for_line() result or null).
+		 * @param object      $type       Ticket type of the line the fee belongs to.
+		 * @param object|null $occurrence Occurrence row.
+		 * @param string      $kind       ticket or order.
+		 */
+		$tax = apply_filters( 'wpcap_service_fee_tax', $tax, $line['type'], $occurrence, $kind );
+		return is_array( $tax ) && isset( $tax['rate_bp'] ) ? $tax : null;
+	}
+
 	/** Whether the checkout of these types may show a fee (display only). */
 	public static function shown_for( array $types ) {
 		if ( self::config()['order_minor'] > 0 ) { return true; }
@@ -134,7 +191,8 @@ final class ServiceFee {
 	 *
 	 * @param array $selected Lines of Orders::create() (type, quantity, line_total, discount_minor, tax_rate_bp, tax_info).
 	 * @param int   $payable  Order total after discounts (no fee on free orders).
-	 * @param array $context  currency, email.
+	 * @param array $context  currency, email; occurrences (id => row), now, source for the own tax
+	 *                         (setting service_fee_tax = own, own_tax()).
 	 * @return array{lines: array[], total_minor:int, tax_minor:int, snapshot: array}|null Null = no fee.
 	 */
 	public static function for_order( array $selected, $payable, array $context = array() ) {
@@ -163,6 +221,17 @@ final class ServiceFee {
 			$lines[] = array( 'index' => $first, 'kind' => self::KIND_ORDER, 'unit_minor' => $per_order, 'total_minor' => $per_order, 'rate_bp' => (int) $selected[ $first ]['tax_rate_bp'] );
 		}
 		if ( ! $lines ) { return null; }
+		// Own tax profile of the fee (else the ticket line's rate, tax info and profile apply in Orders::create()).
+		foreach ( $lines as $i => $fee_line ) {
+			$parent = $selected[ $fee_line['index'] ];
+			$occurrence = $context['occurrences'][ (int) ( $parent['type']->occurrence_id ?? 0 ) ] ?? null;
+			$own = self::own_tax( $parent, $occurrence, (string) ( $context['now'] ?? Clock::mysql() ), (string) ( $context['source'] ?? '' ), $fee_line['kind'] );
+			if ( $own ) {
+				$lines[ $i ]['rate_bp'] = (int) $own['rate_bp'];
+				$lines[ $i ]['tax_info'] = $own['tax_info'];
+				$lines[ $i ]['tax_profile'] = $own['tax_profile'];
+			}
+		}
 		$total = 0;
 		$tax = 0;
 		$by_kind = array( self::KIND_TICKET => 0, self::KIND_ORDER => 0 );
@@ -176,7 +245,7 @@ final class ServiceFee {
 			'lines' => $lines,
 			'total_minor' => $total,
 			'tax_minor' => $tax,
-			'snapshot' => array( 'total_minor' => $total, 'tax_minor' => $tax, 'ticket_minor' => $by_kind[ self::KIND_TICKET ], 'order_minor' => $by_kind[ self::KIND_ORDER ] ),
+			'snapshot' => array( 'total_minor' => $total, 'tax_minor' => $tax, 'ticket_minor' => $by_kind[ self::KIND_TICKET ], 'order_minor' => $by_kind[ self::KIND_ORDER ], 'tax' => self::tax_mode() ),
 		);
 	}
 
@@ -191,6 +260,39 @@ final class ServiceFee {
 		$snapshot = json_decode( (string) $order->price_snapshot, true );
 		$fee = is_array( $snapshot ) && is_array( $snapshot['service_fee'] ?? null ) ? $snapshot['service_fee'] : null;
 		return $fee && (int) ( $fee['total_minor'] ?? 0 ) > 0 ? $fee : null;
+	}
+
+	/**
+	 * Extra columns for order line queries whose rows go into refund splits (fee_kind, unit_price_minor);
+	 * '' before the schema upgrade.
+	 */
+	public static function columns( $alias = 'oi' ) {
+		$a = '' !== $alias ? $alias . '.' : '';
+		return self::ready() ? ",{$a}fee_kind,{$a}unit_price_minor AS fee_unit_minor" : '';
+	}
+
+	/**
+	 * Weights of service fee lines for a ticket refund (Invoices::refund_line_parts(), credit_note_split()):
+	 * each per-ticket fee line of a refunded ticket type takes the share of the refunded tickets (gross
+	 * and VAT of the line × tickets / tickets it covers). The per-order fee has no weight: it goes back
+	 * with the last ticket as the rest that the other lines have no room for.
+	 *
+	 * @param object[] $items  Order lines in item order (with fee_kind/fee_unit_minor from columns()).
+	 * @param int[]    $counts Ticket type id => refunded tickets.
+	 * @return array<int, array{0:int,1:int,2:int}> Line index => [tickets 0, gross, VAT].
+	 */
+	public static function refund_weights( array $items, array $counts ) {
+		$out = array();
+		foreach ( $items as $i => $item ) {
+			if ( self::KIND_TICKET !== (string) ( $item->fee_kind ?? '' ) ) { continue; }
+			$n = (int) ( $counts[ (int) $item->ticket_type_id ] ?? 0 );
+			if ( $n < 1 ) { continue; }
+			$line = (object) array( 'fee_kind' => self::KIND_TICKET, 'unit_price_minor' => (int) ( $item->fee_unit_minor ?? $item->unit_price_minor ?? 0 ), 'line_total_minor' => (int) $item->line_total_minor );
+			$covered = self::covered( $line );
+			$share = min( $n, $covered );
+			$out[ $i ] = array( 0, intdiv( (int) $item->line_total_minor * $share, $covered ), intdiv( (int) $item->tax_minor * $share, $covered ) );
+		}
+		return $out;
 	}
 
 	/** Whether an order line (row with fee_kind) is a service fee line. */

@@ -94,6 +94,11 @@ final class Settings {
 			// A425: presale/service fee of the own online checkout (gross, minor units; 0 = off).
 			'service_fee_ticket_minor'  => 0,
 			'service_fee_order_minor'   => 0,
+			// Owner decision 23.11.2026: tax of the fee 'ticket' (like its ticket line, ancillary service) or
+			// 'own' (tax class of the tax profiles; rate fallback when no active profile matches, '' = ticket rate).
+			'service_fee_tax'           => 'ticket',
+			'service_fee_tax_class'     => 'service',
+			'service_fee_tax_rate'      => '',
 			// Postponed occurrence: buyers may request a refund in the order portal (with approval) until
 			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
 			'reschedule_refund_request' => 1,

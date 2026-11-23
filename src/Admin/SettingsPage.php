@@ -31,6 +31,31 @@ final class SettingsPage {
 	const CAP = 'manage_options';
 
 	/** Field definitions grouped by section. */
+	/** Tax classes for the service fee (A425): those of the tax profiles, plus "service" and the stored value. */
+	public static function fee_tax_classes() {
+		$classes = array( 'service' );
+		try {
+			$classes = array_merge( $classes, \PassCaptain\Sales\TaxProfiles::classes() );
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Table missing (before the upgrade): the defaults are enough.
+		}
+		$current = sanitize_key( (string) Settings::get( 'service_fee_tax_class' ) );
+		if ( '' !== $current ) { $classes[] = $current; }
+		$classes = array_values( array_unique( array_filter( array_map( 'sanitize_key', $classes ) ) ) );
+		return array_combine( $classes, $classes );
+	}
+
+	/** Service fee tax rate fallback: '' or a percent ("19", "7,7"); invalid input is refused. */
+	public static function sanitize_fee_tax_rate( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return ''; }
+		$bp = Forms::parse_percent_bp( $value );
+		if ( null === $bp ) {
+			return new \WP_Error( 'wpcap_service_fee_tax_rate', __( '„Steuersatz der Servicegebühr“ ist ungültig. Beispiel: 20 oder 7,7 (leer = Satz der Ticketposition).', 'pass-captain' ) );
+		}
+		return Forms::percent_input( $bp );
+	}
+
 	public static function sections() {
 		return array(
 			'general' => array(
@@ -190,9 +215,30 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'service_fee_ticket_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Ticket', 'pass-captain' ), 'description' => __( '0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen.', 'pass-captain' ) ),
-					'service_fee_order_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Bestellung', 'pass-captain' ), 'description' => __( '0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout.', 'pass-captain' ) ),
+					'service_fee_order_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Bestellung', 'pass-captain' ), 'description' => __( '0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen.', 'pass-captain' ) ),
+					'service_fee_tax' => array(
+						'type' => 'choice',
+						'label' => __( 'Steuer der Servicegebühr', 'pass-captain' ),
+						'options' => array(
+							'ticket' => __( 'wie das Ticket (Nebenleistung)', 'pass-captain' ),
+							'own' => __( 'eigenes Steuerprofil', 'pass-captain' ),
+						),
+						'description' => __( '„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile.', 'pass-captain' ),
+					),
+					'service_fee_tax_class' => array(
+						'type' => 'choice',
+						'label' => __( 'Steuerklasse der Servicegebühr', 'pass-captain' ),
+						'options' => self::fee_tax_classes(),
+						'description' => __( 'Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben.', 'pass-captain' ),
+					),
+					'service_fee_tax_rate' => array(
+						'type' => 'text',
+						'label' => __( 'Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)', 'pass-captain' ),
+						'description' => __( 'Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition.', 'pass-captain' ),
+						'sanitize' => array( __CLASS__, 'sanitize_fee_tax_rate' ),
+					),
 				),
-				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten mit dem Steuersatz der zugehörigen Ticketposition. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket. Bitte Preisangaben (Gesamtpreis inkl. Pflichtgebühren) und Steuersatz mit der Steuerberatung prüfen.', 'pass-captain' ),
+				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket. Bitte Preisangaben (Gesamtpreis inkl. Pflichtgebühren) und Steuersatz mit der Steuerberatung prüfen.', 'pass-captain' ),
 			),
 			'vouchers' => array(
 				'title' => __( 'Gutscheine', 'pass-captain' ),

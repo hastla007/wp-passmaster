@@ -462,7 +462,7 @@ final class Orders {
 			}
 			// A425: presale/service fee (off by default): own order lines with the VAT rate of their ticket
 			// line, never discounted; the order subtotal and total include it, the snapshot freezes it.
-			$service_fee = $fee_channel ? ServiceFee::for_order( $selected, $total, array( 'currency' => $currency, 'email' => $email ) ) : null;
+			$service_fee = $fee_channel ? ServiceFee::for_order( $selected, $total, array( 'currency' => $currency, 'email' => $email, 'occurrences' => $occurrences, 'now' => $now, 'source' => (string) $capacity_context['source'] ) ) : null;
 			if ( $service_fee ) {
 				$subtotal += (int) $service_fee['total_minor'];
 				$total += (int) $service_fee['total_minor'];
@@ -587,8 +587,13 @@ final class Orders {
 					'fee_kind' => (string) $fee_line['kind'],
 				);
 				if ( $counted ) { $item['counted_qty'] = 0; }
-				$item += Tax\Profiles::line_columns( $parent['tax_info'] );
-				if ( $parent['tax_profile'] ) { $item['tax_profile_id'] = (int) $parent['tax_profile']['tax_profile_id']; }
+				// Tax like the ticket line, or the fee's own tax profile (setting service_fee_tax).
+				$fee_tax_profile = array_key_exists( 'tax_info', $fee_line ) ? $fee_line['tax_profile'] : $parent['tax_profile'];
+				$item += Tax\Profiles::line_columns( array_key_exists( 'tax_info', $fee_line ) ? $fee_line['tax_info'] : $parent['tax_info'] );
+				if ( $fee_tax_profile ) {
+					$item['tax_profile_id'] = (int) $fee_tax_profile['tax_profile_id'];
+					if ( array_key_exists( 'tax_info', $fee_line ) && ! empty( $fee_tax_profile['snapshot'] ) ) { $item['line_snapshot'] = wp_json_encode( array( 'tax' => $fee_tax_profile['snapshot'] ) ); }
+				}
 				$wpdb->insert( $items_table, $item );
 				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			}

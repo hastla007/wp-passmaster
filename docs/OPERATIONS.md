@@ -727,9 +727,25 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
 - **Bestellung:** eigene Zeilen in `wpcap_order_items` mit `fee_kind` `ticket` bzw. `order` und Menge 0
   (kein Einlass, kein Kontingent). `subtotal_minor` und `total_minor` der Bestellung enthalten die Gebühr,
   `price_snapshot.service_fee` friert die Beträge ein; Rabatte mindern sie nicht.
-- **Steuer:** wie die zugehörige Ticketposition (gleicher Satz, gleiche Steuerprofil-Spalten); die
-  Gebühr je Bestellung folgt der ersten kostenpflichtigen Position. Ein eigener Steuersatz für die Gebühr ist
-  nicht vorgesehen (fachlich zu klären, siehe unten).
+- **Steuer (Einstellung „Steuer der Servicegebühr“, Entscheidung vom 23.11.2026):**
+  - **„wie das Ticket (Nebenleistung)“** (Standard, bisheriges Verhalten): gleicher Satz und gleiche
+    Steuerprofil-Spalten wie die zugehörige Ticketposition; die Gebühr je Bestellung folgt der ersten
+    kostenpflichtigen Position.
+  - **„eigenes Steuerprofil“**: Die Gebührenzeilen nehmen das aktive Steuerprofil der eingestellten
+    **Steuerklasse der Servicegebühr** (Standard `service`; Auswahl aus den Steuerklassen unter Verkauf →
+    Steuerprofile) für denselben Leistungsort und dasselbe Datum wie ihre Ticketposition (Eventland bzw.
+    Veranstaltungsort, Leistungs-/Verkaufsdatum; `Sales\TaxProfiles` und `Tax\Profiles` wie bei Tickets). Ohne
+    passendes aktives Profil gilt der **Steuersatz der Servicegebühr ohne passendes Steuerprofil** (Quelle
+    `setting`, Admin: „Steuersatz der Servicegebühr (Einstellung)“), ist er leer, der Satz der Ticketposition.
+    Satz, Profil-ID, Version und Profil-Snapshot stehen auf der Gebührenzeile (`tax_rate_bp`, `tax_source`,
+    `tax_profile_id`, `line_snapshot.tax`); `price_snapshot.service_fee.tax` nennt den Modus.
+  - Die Einstellung gilt für neue Bestellungen; bestehende behalten ihre Zeilen. Rechnung (Positionen und
+    USt-Aufstellung je Satz), Rechnungskorrektur (Aufteilung je Satz: die Gebühr je Ticket eines erstatteten
+    Tickets wird mit dem Satz der Gebührenzeile gebucht), Fiskalbeleg (Gebührenpositionen mit ihrem Satz),
+    Bericht (Steuersätze, „davon Servicegebühren“) und Buchhaltungsexport folgen der Gebührenzeile. Die
+    Belegzeile je Ticketart (`wpcap_fiscal_document_items`, eine Zeile je Ticketart) trägt weiter den Satz der
+    Ticketposition und die Summen inkl. Gebühr.
+  - Filter `wpcap_service_fee_tax` ändert das eigene Steuerprofil je Gebührenzeile.
 - **Preisangabe (Entscheidung der Inhaberin vom 23.11.2026; DE PAngV § 3, AT PrAG, EU-Verbraucherrecht):**
   Die Gebühr **je Ticket** ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen: Preis je Ticketart auf
   Eventkarte/Eventseite („26,50 € … inkl. 1,50 € Servicegebühr“), Preis im Kartenkopf („ab …“), Live-Stand

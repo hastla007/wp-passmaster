@@ -37,6 +37,8 @@ final class Profiles {
 	const SOURCE_TYPE = 'ticket_type';
 	const SOURCE_PROFILE = 'profile';
 	const SOURCE_EXTERNAL = 'external';
+	/** Rate from the plugin settings (A425: service fee with its own tax, no active profile matched). */
+	const SOURCE_SETTING = 'setting';
 
 	/** Per-request caches. */
 	private static $ready = null;
@@ -173,6 +175,7 @@ final class Profiles {
 			return sprintf( __( 'Steuerprofil %1$s, Version %2$s (#%3$d)', 'pass-captain' ), $country, (string) $item->tax_profile_version, (int) $item->tax_profile_id );
 		}
 		if ( self::SOURCE_EXTERNAL === $source ) { return __( 'vom Verkaufskanal vorgegeben', 'pass-captain' ); }
+		if ( self::SOURCE_SETTING === $source ) { return __( 'Steuersatz der Servicegebühr (Einstellung)', 'pass-captain' ); }
 		if ( self::SOURCE_TYPE === $source ) {
 			if ( '' === $country ) { return __( 'Satz der Ticketart', 'pass-captain' ); }
 			/* translators: %s: country code */
