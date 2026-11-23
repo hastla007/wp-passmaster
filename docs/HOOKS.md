@@ -688,6 +688,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_loaded` (Action) | `string $api_version` (`PublicApi::VERSION`) | Öffentliche Add-on-API: Kern ist geladen (Ende von `Plugin::run()`, auf `plugins_loaded`); feuert einmal je Request. |
 | `wpcap_activation_lock_wait` | `int $seconds` (20) | So lange wartet die Aktivierung auf die Upgrade-Sperre, wenn gerade ein anderes Schema-Upgrade derselben Site läuft; danach überlässt sie das Schema diesem Lauf (A512). |
 | `wpcap_network_install_batch` | `int $sites` (25) | Höchstzahl der Sites je Lauf des Cron-Ereignisses `wpcap_network_install` nach netzwerkweiter Aktivierung (A287). |
+| `wpcap_network_install_policy_batch` | `int $sites` (500) | Höchstzahl der Sites je Lauf von `wpcap_network_install`, deren Lösch-Zustimmung vor ihrer Einrichtung nach `wpcap_uninstall_policy` verlegt wird (Schutz vor der `uninstall.php` der alten Kopie). |
 | `wpcap_network_install_budget` | `int $seconds` (15) | Zeitbudget je Lauf von `wpcap_network_install`; danach plant sich der Lauf neu ein (A287). |
 | `wpcap_modules` | `string[] $classes` | Liste der Modulklassen (`src/Modules`). |
 | `wp_pass_captain_review_provider_v1` | `object|null $provider, int $major` (1) | A667: Review-Provider registrieren (Vertrag `review` 1.0.0, [CONTRACTS.md](CONTRACTS.md#review-teilnahmevertrag-v1)): Objekt mit `receive( array $envelope )` und optional `contract_version()`. |

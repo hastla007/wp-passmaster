@@ -219,25 +219,20 @@ final class Plugin {
 		return $tables;
 	}
 
-	/** Network activation: sites installed in the activation request at most (the rest via cron, see activate()). */
-	const NETWORK_ACTIVATION_SITES = 25;
-
-	/** Network activation: seconds after which the remaining sites are deferred. */
-	const NETWORK_ACTIVATION_SECONDS = 15;
-
 	/**
 	 * Activation. Network-wide on a multisite network only the current site is installed right away;
-	 * every other site gets the uninstall opt-in migration (cheap, see Settings::migrate_uninstall_policy())
-	 * and a single upgrade cron event, and NetworkInstall installs the sites in background batches (A287).
-	 * A large network therefore no longer times out in the activation request.
+	 * NetworkInstall migrates the uninstall opt-in of every other site (cheap, see
+	 * Settings::migrate_uninstall_policy(); up to NetworkInstall::POLICY_BATCH sites per run) and installs
+	 * the sites in background batches (A287). A large network therefore no longer times out in the
+	 * activation request.
 	 */
 	public static function activate( $network_wide = false ) {
 		self::activate_site();
 		if ( is_multisite() && $network_wide ) {
 			// A287: the other sites are installed lazily (their next admin/cron request) and in
 			// background batches – never all inside the activation request (timeout on large networks).
-			// The uninstall opt-in protection of sites with plugin data runs per site in those batches
-			// (NetworkInstall::install_site()).
+			// The uninstall opt-in protection of sites with plugin data runs ahead of those batches
+			// (NetworkInstall::sweep_policies()) and again in NetworkInstall::install_site().
 			NetworkInstall::start();
 		}
 	}
