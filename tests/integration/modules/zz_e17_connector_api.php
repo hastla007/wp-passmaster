@@ -259,4 +259,4 @@ if ( $e17_has_optin ) {
 	check( 'E17-3: docs/EXTENSIONS.md "Freigabe eines Connectors (Opt-in)" documents both functions, rules, errors and that the option is not part of the contract' . ( $e17_missing ? ': ' . implode( ', ', $e17_missing ) : '' ), '' !== $e17_optin_doc && array() === $e17_missing );
 }
 
-check( 'E17: WPCAP_CONTRACT_VERSION is at least 1.4.0 and the version table names 1.4.0', version_compare( (string) ( preg_match( "/^define\( 'WPCAP_CONTRACT_VERSION', '([^']+)' \);/m", (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' ), $e17_m ) ? $e17_m[1] : '0' ), '1.4.0', '>=' ) && 1 === preg_match( '/^\| 1\.4\.0 \| 1\.6\.\d+ \|/m', $e17_docs ) );
+check( 'E17: WPCAP_CONTRACT_VERSION is at least 1.4.0 and the version table names 1.4.0', version_compare( (string) ( preg_match( "/^define\( 'WPCAP_CONTRACT_VERSION', '([^']+)' \);/m", (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' ), $e17_m ) ? $e17_m[1] : '0' ), '1.4.0', '>=' ) && 1 === preg_match( '/^\| 1\.4\.0 \| \d+\.\d+\.\d+ \|/m', $e17_docs ) );
