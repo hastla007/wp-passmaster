@@ -51,6 +51,9 @@ if ( ! function_exists( 'check' ) ) {
 	exit;
 }
 
+// Shared helpers (after the worker branch: they need the WooCommerce fakes of the bootstrap).
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 global $wpdb;
 $p = $wpdb->prefix;
 if ( ! function_exists( 'esc_js' ) ) { function esc_js( $s ) { return addslashes( (string) $s ); } }

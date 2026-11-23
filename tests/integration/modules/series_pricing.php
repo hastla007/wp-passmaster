@@ -7,6 +7,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Modules\Series;
 use PassCaptain\Orders;
 use PassCaptain\Series\Generator;
@@ -18,30 +20,6 @@ global $wpdb;
 $p = $wpdb->prefix;
 wpcap_test_reset_transients();
 
-/** Series with occurrences $day_offsets days from today at 19:00 Vienna; types copied from a template. */
-function sp_series( array $day_offsets, $type_capacity = 50, $price = 2500, array $extra_types = array(), $occ_capacity = 0 ) {
-	global $wpdb;
-	$p = $wpdb->prefix;
-	$tpl_type = make_type( $type_capacity, 10, $price, $occ_capacity );
-	$tpl_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$tpl_type" );
-	$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$tpl_occ" );
-	foreach ( $extra_types as $name => $cfg ) {
-		$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $tpl_occ, 'name' => $name, 'price_minor' => $cfg['price'], 'currency' => 'EUR', 'capacity' => $cfg['capacity'] ?? 0, 'max_per_order' => 10, 'status' => 'active' ) );
-	}
-	$dates = array_map( static fn( $d ) => gmdate( 'Y-m-d', time() + $d * 86400 ), $day_offsets );
-	$r = Generator::create( array( 'event_id' => $event, 'template_occurrence_id' => $tpl_occ, 'freq' => 'dates', 'dates' => implode( "\n", $dates ), 'time' => '19:00', 'duration_minutes' => 60, 'timezone' => 'Europe/Vienna', 'name' => 'P3 ' . uniqid() ) );
-	$types = array();
-	foreach ( $r['created'] as $occ ) {
-		foreach ( $wpdb->get_results( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=" . (int) $occ . ' ORDER BY ticket_type_id' ) as $t ) { $types[ $occ ][ $t->name ] = (int) $t->ticket_type_id; }
-	}
-	return array( 'series_id' => (int) $r['series_id'], 'event_id' => $event, 'occurrences' => $r['created'], 'types' => $types );
-}
-function sp_buy( $type_id, $qty, $key, array $internal = array( 'skip_rate_limit' => true ), array $extra = array() ) {
-	return Orders::create( array( 'email' => 'sp-' . preg_replace( '/[^a-z0-9]/', '', $key ) . '@example.com', 'items' => array( array( 'ticket_type_id' => $type_id, 'quantity' => $qty ) + ( $extra['item'] ?? array() ) ), 'idempotency_key' => 'sp-' . $key ) + ( $extra['payload'] ?? array() ), $internal );
-}
-function sp_rule( array $fields ) {
-	return (object) ( $fields + array( 'rule_id' => 1, 'type_name' => '', 'priority' => 0, 'until_at' => null, 'hours_before' => 0, 'sold_pct' => 0, 'weekdays' => '', 'time_from' => '', 'time_to' => '', 'price_mode' => 'fixed', 'amount' => 1000 ) );
-}
 
 echo "Series pricing: tier selection and boundaries (pure)\n";
 $eb_in = Pricing::normalize( array( 'kind' => 'early_bird', 'until' => '2027-03-01T00:00', 'price_mode' => 'fixed', 'amount' => '19,90' ), 'Europe/Vienna' );

@@ -6,6 +6,9 @@
  * Included from run.php (runs after the module tests, so their fakes and fixtures exist).
  */
 // phpcs:ignoreFile
+
+// REST route stub for a single run (a full run defines it earlier, e.g. p3_allocations.php).
+if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
 use PassCaptain\Settings;
 use PassCaptain\Security\Vault;
 use PassCaptain\Security\Redact;

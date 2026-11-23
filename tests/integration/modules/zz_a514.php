@@ -3,14 +3,15 @@
  * A514: multisite uninstall – sites without plugin data count as agreeing, so network-wide user meta
  * is removed once every site that has data opted in; network options wpcap_* (sitemeta) and the
  * Action Scheduler groups are removed. uninstall.php runs in a child process
- * (zz_x2_uninstall/child.php, x2_uninstall_run() from zz_a372.php).
+ * (zz_x2_uninstall/child.php, x2_uninstall_run() from lib/fixtures_shared.php).
  * Included from run.php (uses check()).
  */
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 echo "A514: multisite uninstall – empty sites, sitemeta, Action Scheduler\n";
 
-if ( ! function_exists( 'x2_uninstall_run' ) ) { require __DIR__ . '/zz_a372.php'; }
 
 $x2_a514_sitemeta = array( 'wpcap_network_install', 'wpcap_legacy_copy_seen', 'wpcap_future_flag' );
 // Site 1 opted in, site 2 never had the plugin (no tables/options), site 3 opted in.

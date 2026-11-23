@@ -9,6 +9,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Integrations\WooCommerce\Attendees;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
@@ -16,58 +18,9 @@ use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 global $wpdb;
 $p = $wpdb->prefix;
 
-class Wpcap_Test_Woo_Order extends WC_Order {
-	public string $payment_method = '';
-	public string $status = 'pending';
-	public string $total = '0';
-	public array $refund_list = array();
-	public function get_payment_method() { return $this->payment_method; }
-	public function get_status() { return $this->status; }
-	public function get_total() { return $this->total; }
-	public function get_total_refunded() { return array_sum( array_map( static fn( $r ) => (float) $r->amount, $this->refund_list ) ); }
-	public function get_refunds() { return array_reverse( $this->refund_list ); } // newest first, like WooCommerce
-}
-class Wpcap_Test_Woo_Refund extends WC_Order {
-	public string $amount = '0';
-	public string $reason = '';
-	public function get_amount() { return $this->amount; }
-	public function get_reason() { return $this->reason; }
-}
 
-function woo_t_order( $id, array $lines, $method = '' ) {
-	static $product_id = 8800, $item_id = 8900;
-	$order = new Wpcap_Test_Woo_Order( $id );
-	$order->payment_method = $method;
-	$total = 0;
-	foreach ( $lines as list( $type_id, $qty, $line_total ) ) {
-		$product = new WC_Product( ++$product_id );
-		$product->update_meta_data( Woo::PRODUCT_META, $type_id );
-		$GLOBALS['wpcap_test_products'][ $product_id ] = $product;
-		$order->items[] = new WC_Order_Item_Product( ++$item_id, $product, $qty, $line_total );
-		$total += (float) $line_total;
-	}
-	$order->total = (string) $total;
-	return $order;
-}
 
-function woo_t_refund( $id, Wpcap_Test_Woo_Order $order, $amount, array $lines ) {
-	static $item_id = 9500;
-	$refund = new Wpcap_Test_Woo_Refund( $id );
-	$refund->amount = (string) $amount;
-	foreach ( $lines as list( $line_index, $qty, $line_total ) ) {
-		$original = $order->items[ $line_index ];
-		$item = new WC_Order_Item_Product( ++$item_id, $original->get_product(), -$qty, (string) -$line_total );
-		$item->update_meta_data( '_refunded_item_id', $original->get_id() );
-		$refund->items[] = $item;
-	}
-	$order->refund_list[] = $refund;
-	return $refund;
-}
 
-function woo_t_field( $type_id, $key, $label, $type = 'text', $required = 1 ) {
-	global $wpdb;
-	$wpdb->insert( "{$wpdb->prefix}wpcap_participant_fields", array( 'ticket_type_id' => $type_id, 'field_key' => $key, 'label' => $label, 'field_type' => $type, 'required' => $required, 'purpose' => 'Namensschild', 'status' => 'active' ) );
-}
 
 echo "WooCommerce: participant fields in the checkout\n";
 $type = make_type( 10 );

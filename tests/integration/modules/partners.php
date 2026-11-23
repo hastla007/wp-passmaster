@@ -10,6 +10,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Partners\AdminPage as PartnerAdmin;
 use PassCaptain\Partners\Api as PartnerApi;
@@ -33,17 +35,6 @@ $m1 = gmdate( 'Y-m', strtotime( 'first day of -2 month' ) );
 $m2 = gmdate( 'Y-m', strtotime( 'first day of -1 month' ) );
 $m0 = gmdate( 'Y-m', strtotime( 'first day of -3 month' ) );
 
-function pa_event_of_type( $type ) {
-	global $wpdb;
-	return (int) $wpdb->get_var( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=" . (int) $type );
-}
-function pa_order( $items, $key, $created_at, $pay = true ) {
-	global $wpdb;
-	$r = Orders::create( array( 'email' => "$key@example.com", 'items' => $items, 'idempotency_key' => $key . '-' . uniqid() ) );
-	if ( $pay ) { Orders::confirm_manual_payment( $r['order_id'] ); }
-	$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET created_at=%s WHERE order_id=%d", $created_at, $r['order_id'] ) );
-	return (int) $r['order_id'];
-}
 function pa_refund( $order_id, array $ticket_ids, $completed_at ) {
 	global $wpdb;
 	$r = PassCaptain\Refunds::request( $order_id, $ticket_ids, 'Test', 'pa-ref-' . uniqid() );

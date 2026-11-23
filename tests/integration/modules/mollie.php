@@ -6,6 +6,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Modules\Mollie;
 use PassCaptain\Mollie\MollieGateway;
 use PassCaptain\Orders;
@@ -21,19 +23,6 @@ global $wpdb;
 $p = $wpdb->prefix;
 $api_key = 'test_' . str_repeat( 'Ab1', 10 );
 
-function mollie_payment( $id, $status, $order, array $extra = array() ) {
-	return array_merge( array( 'resource' => 'payment', 'id' => $id, 'status' => $status, 'amount' => array( 'value' => MollieGateway::format_amount( (int) $order['total_minor'], $order['currency'] ), 'currency' => $order['currency'] ), 'metadata' => array( 'order' => $order['public_id'] ), '_links' => array( 'checkout' => array( 'href' => 'https://www.mollie.com/checkout/select-method/' . $id ) ) ), $extra );
-}
-function mollie_webhook( $id ) {
-	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/mollie/webhook' );
-	$req->set_body( 'id=' . $id );
-	$req['provider'] = 'mollie';
-	return $req;
-}
-function mollie_deliver( $gateway, $id ) {
-	$event = $gateway->verify_webhook( mollie_webhook( $id ) );
-	return is_wp_error( $event ) ? $event : Webhooks::process( 'mollie', $event );
-}
 
 echo "Mollie: registration and amounts\n";
 Registry::reset();

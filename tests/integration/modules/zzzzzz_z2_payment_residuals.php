@@ -18,6 +18,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\BoxOffice\DeviceGatewayInterface;
 use PassCaptain\BoxOffice\Devices;
 use PassCaptain\BoxOffice\Service as Z2Pos;

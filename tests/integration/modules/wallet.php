@@ -1,6 +1,8 @@
 <?php
 /** Wallet module (Apple .pkpass + PassKit web service + APNs, Google Wallet). Included from run.php. */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Orders;
 use PassCaptain\Settings;
 use PassCaptain\Modules\Wallet;
@@ -83,18 +85,6 @@ $test_pass = AdminPage::test_pass();
 check( 'wallet admin: test pass download is a zip', is_string( $test_pass ) && "PK\x03\x04" === substr( $test_pass, 0, 4 ) );
 
 /* ---- helpers ---- */
-function wpw_unzip( $bytes ) {
-	$file = tempnam( sys_get_temp_dir(), 'wpw' );
-	file_put_contents( $file, $bytes );
-	$zip = new ZipArchive();
-	$out = array();
-	if ( true === $zip->open( $file ) ) {
-		for ( $i = 0; $i < $zip->numFiles; $i++ ) { $name = $zip->getNameIndex( $i ); $out[ $name ] = $zip->getFromName( $name ); }
-		$zip->close();
-	}
-	unlink( $file );
-	return $out;
-}
 function wpw_verify_signature( $manifest, $der, $ca_file, &$certs = null ) {
 	$dir = sys_get_temp_dir();
 	$b = 'wpwboundary' . bin2hex( random_bytes( 4 ) );

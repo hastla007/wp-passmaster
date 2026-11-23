@@ -12,6 +12,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
 use PassCaptain\ServiceBookings;
@@ -68,23 +70,6 @@ add_filter( 'wpcap_payment_gateways', $svc_gateways );
 PassCaptain\Payments\Registry::reset();
 $svc_real_wpdb = $wpdb;
 
-/** Paid booking: hold → order (fake provider) → attach → payment. Returns [booking_id, order_id, access_token]. */
-function svc_paid( $slot_id, $type_id, $email, $qty = 1 ) {
-	global $wpdb;
-	$b = svc_book( $slot_id, $email, $qty );
-	if ( is_wp_error( $b ) ) { return array( $b, 0, '' ); }
-	$before = count( $GLOBALS['wpcap_test_mails'] );
-	$o = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type_id, 'quantity' => $qty ) ), 'idempotency_key' => 'svcpaid-' . uniqid( '', true ) ) );
-	if ( is_wp_error( $o ) ) { return array( $o, 0, '' ); }
-	$token = '';
-	foreach ( array_slice( $GLOBALS['wpcap_test_mails'], $before ) as $m ) { if ( preg_match( '/wpcap_access=([a-f0-9]{64})/', $m['body'], $mm ) ) { $token = $mm[1]; } }
-	$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_orders SET payment_provider='svc_fake' WHERE order_id=" . (int) $o['order_id'] );
-	ServiceBookings::attach_order( $b['booking_id'], $o['order_id'] );
-	Orders::confirm_external_payment( $o['order_id'], 'svc-pay-' . $o['order_id'] );
-	return array( (int) $b['booking_id'], (int) $o['order_id'], $token );
-}
-function svc_tickets_of( $booking_id ) { return array_map( 'intval', (array) json_decode( (string) ServiceBookings::get( $booking_id )->ticket_ids, true ) ); }
-function svc_ticket_status( $ticket_id ) { global $wpdb; return (string) $wpdb->get_var( "SELECT status FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=" . (int) $ticket_id ); }
 function svc_jobs( $type ) { global $wpdb; return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_jobs WHERE job_type=%s AND status='queued'", $type ) ); }
 function svc_slot_past( $slot_id, $hours_ago_end = 2 ) {
 	global $wpdb;

@@ -18,6 +18,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Campaigns;
 use PassCaptain\Integrations\Vouchers\Bridge;
 use PassCaptain\Integrations\Vouchers\Checkout as Y3Vouchers;

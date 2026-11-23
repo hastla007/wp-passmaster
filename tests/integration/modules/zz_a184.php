@@ -10,6 +10,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Payments\PayPalGateway;
 use PassCaptain\Payments\Registry;

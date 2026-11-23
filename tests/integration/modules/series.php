@@ -7,6 +7,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Modules\Series;
 use PassCaptain\Series\Generator;
 use PassCaptain\Series\Rules;

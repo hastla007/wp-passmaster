@@ -7,6 +7,8 @@
  * Included from run.php after modules/woocommerce.php (uses woo_t_order(), woo_t_refund()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Jobs;
 use PassCaptain\Orders;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;

@@ -7,6 +7,8 @@
  * Included from run.php after modules/mollie.php (uses mollie_payment(), mollie_webhook()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Modules\Mollie;
 use PassCaptain\Mollie\MollieGateway;
 use PassCaptain\Orders;

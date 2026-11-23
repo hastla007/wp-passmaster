@@ -8,6 +8,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\BoxOffice\Page as PosPage;
 use PassCaptain\BoxOffice\Service as Pos;
 use PassCaptain\BoxOffice\TerminalRegistry;
@@ -22,23 +24,6 @@ if ( ! function_exists( 'nl2br' ) ) { function nl2br( $s ) { return str_replace(
 global $wpdb;
 $p = $wpdb->prefix;
 
-if ( ! function_exists( 'wpb_occurrence_of' ) ) {
-	function wpb_occurrence_of( $type_id ) {
-		global $wpdb;
-		return (int) $wpdb->get_var( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=" . (int) $type_id );
-	}
-	function wpb_event_of_type( $type_id ) {
-		global $wpdb;
-		return (int) $wpdb->get_var( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=" . (int) $type_id );
-	}
-	function wpb_add_type( $occurrence_id, $name, $price, $tax_bp, $capacity ) {
-		global $wpdb;
-		$wpdb->insert( "{$wpdb->prefix}wpcap_ticket_types", array( 'occurrence_id' => $occurrence_id, 'name' => $name, 'price_minor' => $price, 'currency' => 'EUR', 'capacity' => $capacity, 'max_per_order' => 10, 'tax_rate_bp' => $tax_bp, 'status' => 'active' ) );
-		return (int) $wpdb->insert_id;
-	}
-	function wpb_key() { return 'test-' . bin2hex( random_bytes( 10 ) ); }
-	function wpb_seq( $number ) { return (int) substr( (string) $number, -6 ); }
-}
 
 echo "Box office: sessions and sales\n";
 // Start from a clean state for user 1 (earlier runs in the same DB prefix are reinstalled by the bootstrap).
