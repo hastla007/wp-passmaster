@@ -85,10 +85,13 @@ gesetzt ist); `WPCAP_TEST_SKIP='<Regex>'` lässt Module aus. Gemeinsame Stubs un
 `admin_paid_order()`), `fixtures_mobile.php` (`WP_REST_Response`, `rest_url()`, `app_call()`,
 `ticket_code_for()`) jeweils an der Stelle ihrer Kerndatei, `fixtures_wp.php` (Template-Stubs wie `esc_url()`,
 `selected()`, `submit_button()`) und `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) vor der ersten
-Moduldatei. Wer eine Hilfsfunktion in mehreren Modulen braucht, legt sie dort ab statt in einem Modul. Noch
-modulgebunden sind u. a. `wpb_*` (`boxoffice.php`), `sp_*` (`series_pricing.php`), `woo_t_*`
-(`woocommerce.php`) und `q1_*` (`zz_a277.php`); manche Module setzen außerdem Zustand anderer Module voraus
-(registrierte Module, Einstellungen).
+Moduldatei. Hilfsfunktionen, die mehrere Module nutzen (`wpb_*`, `sp_*`, `woo_t_*` mit den
+WooCommerce-Testklassen, `q1_*`, `mollie_*` u. a.), liegen in `fixtures_shared.php`, der Test-Fiskaladapter
+in `fixtures_fiscal.php`; die Module laden sie mit `require_once`. Wer eine Hilfsfunktion in mehreren
+Modulen braucht, legt sie dort ab statt in einem Modul; `modules/zz_helpers_guard.php` schlägt fehl, wenn
+ein Modul eine Hilfsfunktion aufruft, die nur ein anderes Modul definiert. Ausnahme bleibt
+`zzzzz_x3_residuals.php` (`w9_*` aus `zzzzz_w9_access.php`); manche Module setzen außerdem Zustand anderer
+Module voraus (registrierte Module, Einstellungen).
 
 Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
 der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).
