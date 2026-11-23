@@ -885,7 +885,7 @@ final class Controller {
 		}
 		$order = self::order_with_access( $public_id, Credentials::token( $request ) );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', 3 ) );
+		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', \PassCaptain\RateLimit::configured( 'rate_portal_resend_per_hour' ) ) );
 		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend|' . $order->public_id, $limit, HOUR_IN_SECONDS ) ) {
 			/* translators: %d: allowed resends per hour */
 			return new \WP_Error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'pass-captain' ), $limit ), array( 'status' => 429 ) );
@@ -980,10 +980,10 @@ final class Controller {
 			/**
 			 * Assignments (name/e-mail changes) per order and hour through the order portal (A635).
 			 *
-			 * @param int    $limit Default 20.
+			 * @param int    $limit Setting rate_portal_assign_per_hour (default 20, SET-PC-38).
 			 * @param object $order Order row.
 			 */
-			$per_order = max( 1, (int) apply_filters( 'wpcap_portal_assign_rate_limit', 20, $order ) );
+			$per_order = max( 1, (int) apply_filters( 'wpcap_portal_assign_rate_limit', \PassCaptain\RateLimit::configured( 'rate_portal_assign_per_hour' ), $order ) );
 			if ( ! \PassCaptain\RateLimit::allow( 'portal-assign|' . $order->public_id, $per_order, HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}

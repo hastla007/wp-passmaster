@@ -24,6 +24,20 @@ final class RateLimit {
 	/** Backend that served the last hit (diagnostics, tests). */
 	public static $last_backend = '';
 
+	/**
+	 * SET-PC-38: limit an operator set for a rate (settings rate_*, default = the former fixed value).
+	 * A stored value outside the register limits (only possible without the settings screen) is
+	 * raised to the safe lower bound; filters of the callers still have the last word.
+	 */
+	public static function configured( $key ) {
+		$default = (int) ( Settings::defaults()[ $key ] ?? 1 );
+		$value = Settings::get( $key, $default );
+		$value = is_numeric( $value ) ? (int) $value : $default;
+		$entry = SettingsSchema::get( $key );
+		if ( is_array( $entry ) && 'int' === $entry['type'] ) { $value = min( (int) $entry['max'], max( (int) $entry['min'], $value ) ); }
+		return max( 1, $value );
+	}
+
 	/** Records a hit; returns false once more than $limit hits happened in the current window. */
 	public static function allow( $bucket, $limit, $window = 60 ) {
 		list( $key, $window, $slot ) = self::key( $bucket, $window );

@@ -216,6 +216,8 @@ final class Page {
 		<button class="button"><?php esc_html_e( 'Zuordnen', 'pass-captain' ); ?></button></p></form>
 		<?php endif; ?>
 
+		<?php self::render_ticket_pdf(); ?>
+
 		<?php if ( current_user_can( 'manage_options' ) ) : ?>
 		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<?php Forms::open_form( 'wpcap_print_settings' ); ?>
@@ -418,6 +420,112 @@ final class Page {
 	public static function with_header( array $header, $rows ) {
 		yield $header;
 		foreach ( $rows as $row ) { yield $row; }
+	}
+
+	/* ------------------------------------------------------------------ Ticket PDF (SET-PC-33) */
+
+	/** Whether the current user may edit the ticket PDF settings of $event_id (0 = the global setting). */
+	public static function can_edit_ticket_pdf( $event_id ) {
+		if ( current_user_can( 'manage_options' ) ) { return true; }
+		return $event_id > 0 && Scope::can_event( (int) $event_id, 'wpcap_manage_events' );
+	}
+
+	/** Further languages of the footer (every language except the site language). */
+	private static function footer_locales() {
+		return array_values( array_diff( \PassCaptain\Mail\Admin::locales(), array( \PassCaptain\Mail\Mailer::site_locale() ) ) );
+	}
+
+	/**
+	 * Saves logo and footer of ticket PDFs (SET-PC-33): event_id 0 = the global setting "ticket_pdf",
+	 * otherwise the event's override (empty fields = use the global value). Every value is checked by
+	 * the settings register; errors are reported, nothing is corrected silently.
+	 *
+	 * @param array $in event_id, logo, footer, translations[locale], legal_links (global only).
+	 * @return array|\WP_Error ['saved' => stored values]
+	 */
+	public static function save_ticket_pdf( array $in ) {
+		$event_id = absint( $in['event_id'] ?? 0 );
+		if ( ! self::can_edit_ticket_pdf( $event_id ) ) { return Forms::forbidden(); }
+		$raw = array(
+			'logo' => is_scalar( $in['logo'] ?? null ) ? trim( (string) $in['logo'] ) : '',
+			'footer' => is_scalar( $in['footer'] ?? null ) ? (string) $in['footer'] : '',
+		);
+		$checked = \PassCaptain\SettingsSchema::check_group( 'ticket_pdf', $raw );
+		$errors = is_wp_error( $checked ) ? (array) ( $checked->get_error_data()['messages'] ?? array( $checked->get_error_message() ) ) : array();
+		$checked = is_wp_error( $checked ) ? array() : $checked;
+		if ( ! empty( $checked['logo'] ) && ! Templates::logo( (int) $checked['logo'] ) ) {
+			$errors[] = __( 'Das Logo muss ein JPEG- oder PNG-Bild aus der Mediathek sein (höchstens 1 MB).', 'pass-captain' );
+		}
+		$translations = array();
+		foreach ( (array) ( is_array( $in['translations'] ?? null ) ? $in['translations'] : array() ) as $locale => $text ) {
+			$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) $locale );
+			if ( '' === $locale || ! is_scalar( $text ) || '' === trim( (string) $text ) ) { continue; }
+			$one = \PassCaptain\SettingsSchema::check_group( 'ticket_pdf', array( 'footer' => (string) $text ) );
+			if ( is_wp_error( $one ) ) { $errors[] = $one->get_error_message(); continue; }
+			$translations[ $locale ] = (string) $one['footer'];
+		}
+		if ( $errors ) { return Forms::error( 'wpcap_ticket_pdf_invalid', implode( ' ', $errors ) ); }
+		$values = array(
+			'logo' => (int) ( $checked['logo'] ?? 0 ),
+			'footer' => trim( (string) ( $checked['footer'] ?? '' ) ),
+			'translations' => $translations,
+		);
+		if ( $event_id ) {
+			$values = array_filter( $values );
+			$saved = \PassCaptain\EventOverrides::save( $event_id, 'ticket_pdf', $values );
+			return is_wp_error( $saved ) ? $saved : array( 'saved' => $values );
+		}
+		// The unchanged built-in text is stored as '' so every language keeps its own translation.
+		if ( str_replace( "\r\n", "\n", $values['footer'] ) === \PassCaptain\TicketPdf::default_footer() ) { $values['footer'] = ''; }
+		$values['legal_links'] = Forms::flag( $in, 'legal_links' ) ? 1 : 0;
+		Settings::update( array( 'ticket_pdf' => $values ) );
+		return array( 'saved' => $values );
+	}
+
+	public static function handle_ticket_pdf() {
+		Forms::verify( 'wpcap_print_ticket_pdf' );
+		$in = Forms::post();
+		$event_id = absint( $in['event_id'] ?? 0 );
+		Forms::finish( self::save_ticket_pdf( $in ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG, $event_id ? array( 'pdf_event' => $event_id ) : array() ) . '#wpcap-ticket-pdf' );
+	}
+
+	/** Form "Ticket-PDF: Logo und Fußzeile" (global for administrators, per event for event managers). */
+	private static function render_ticket_pdf() {
+		$events = Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ) );
+		$event_id = absint( Forms::query_arg( 'pdf_event', 0 ) );
+		if ( $event_id && ! self::can_edit_ticket_pdf( $event_id ) ) { $event_id = 0; }
+		if ( ! $event_id && ! current_user_can( 'manage_options' ) ) {
+			if ( ! $events ) { return; }
+		}
+		$global = \PassCaptain\TicketPdf::settings_for_event( 0 );
+		$own = $event_id ? \PassCaptain\EventOverrides::get( $event_id, 'ticket_pdf' ) : array();
+		echo '<h2 id="wpcap-ticket-pdf">' . esc_html__( 'Ticket-PDF: Logo und Fußzeile', 'pass-captain' ) . '</h2>';
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p><label>' . esc_html__( 'Bearbeiten für', 'pass-captain' ) . ' ';
+		$choices = ( current_user_can( 'manage_options' ) ? array( 0 => __( 'alle Events (Standard)', 'pass-captain' ) ) : array() ) + $events;
+		Forms::select( 'pdf_event', $choices, (string) $event_id );
+		echo '</label> <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
+		$overridden = array_intersect_key( $events, array_flip( \PassCaptain\EventOverrides::events( 'ticket_pdf' ) ) );
+		if ( $overridden ) {
+			echo '<p class="description">' . esc_html__( 'Eigene Einstellungen haben:', 'pass-captain' ) . ' ';
+			$links = array();
+			foreach ( $overridden as $id => $name ) { $links[] = '<a href="' . esc_url( Forms::page_url( self::SLUG, array( 'pdf_event' => (int) $id ) ) . '#wpcap-ticket-pdf' ) . '">' . esc_html( $name ) . '</a>'; }
+			echo implode( ', ', $links ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		}
+		Forms::open_form( 'wpcap_print_ticket_pdf' );
+		echo '<input type="hidden" name="event_id" value="' . (int) $event_id . '"><table class="form-table"><tbody>';
+		$logo = $event_id ? (int) ( $own['logo'] ?? 0 ) : (int) $global['logo'];
+		echo '<tr><th scope="row"><label for="wpcap-tpdf-logo">' . esc_html__( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) . '</label></th><td><input type="number" min="0" step="1" class="small-text" id="wpcap-tpdf-logo" name="logo" value="' . esc_attr( $logo ? (string) $logo : '' ) . '"><p class="description">' . esc_html( $event_id ? __( 'Leer = Logo der Standardeinstellung. Ein Logo in der Druckvorlage des Events hat Vorrang.', 'pass-captain' ) : __( 'Oben links auf jedem Ticket-PDF; leer = kein Logo. Ein Logo in der Druckvorlage hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
+		$footer = $event_id ? (string) ( $own['footer'] ?? '' ) : ( '' !== (string) $global['footer'] ? (string) $global['footer'] : \PassCaptain\TicketPdf::default_footer() );
+		echo '<tr><th scope="row"><label for="wpcap-tpdf-footer">' . esc_html__( 'Fußzeile', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-tpdf-footer" name="footer" class="large-text" rows="2">' . esc_textarea( $footer ) . '</textarea><p class="description">' . esc_html( $event_id ? __( 'Leer = Fußzeile der Standardeinstellung.', 'pass-captain' ) : __( 'Unten auf jeder Ticketseite, höchstens drei Zeilen. Der Filter wpcap_ticket_pdf_footer hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
+		$translations = $event_id ? (array) ( $own['translations'] ?? array() ) : (array) $global['translations'];
+		foreach ( self::footer_locales() as $locale ) {
+			/* translators: %s: locale code, e.g. en_US */
+			echo '<tr><th scope="row"><label for="wpcap-tpdf-' . esc_attr( $locale ) . '">' . esc_html( sprintf( __( 'Fußzeile für %s (optional)', 'pass-captain' ), $locale ) ) . '</label></th><td><textarea id="wpcap-tpdf-' . esc_attr( $locale ) . '" name="translations[' . esc_attr( $locale ) . ']" class="large-text" rows="2">' . esc_textarea( (string) ( $translations[ $locale ] ?? '' ) ) . '</textarea><p class="description">' . esc_html__( 'Für Tickets in dieser Sprache. Leer = die Fußzeile oben (bzw. der eingebaute Text in dieser Sprache).', 'pass-captain' ) . '</p></td></tr>';
+		}
+		if ( ! $event_id ) {
+			echo '<tr><th scope="row">' . esc_html__( 'Rechtliche Links', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="legal_links" value="1"' . checked( ! empty( $global['legal_links'] ), true, false ) . '> ' . esc_html__( 'Impressum und Datenschutzerklärung in der Fußzeile und auf der Ticketseite verlinken', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Adressen unter Einstellungen → Rechtstexte. Ohne Adresse erscheint kein Link.', 'pass-captain' ) . '</p></td></tr>';
+		}
+		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></p></form>';
 	}
 
 	public static function handle_settings() {

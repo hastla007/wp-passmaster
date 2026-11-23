@@ -245,7 +245,7 @@ final class OrdersPage {
 			);
 		}
 		$content = \PassCaptain\Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $entries ) {
-			return \PassCaptain\TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+			return \PassCaptain\TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => \PassCaptain\TicketPdf::default_footer() ) );
 		} );
 		\PassCaptain\Audit::record( 'admin_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'missing' => $missing, 'scope' => '' === $only ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', \PassCaptain\Frontend\Format::order_reference( $order->public_id ) );

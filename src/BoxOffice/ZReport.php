@@ -427,6 +427,11 @@ final class ZReport {
 	 * number, reference to the sale receipt, refunded tickets, VAT per rate, method, register/shift.
 	 */
 	public static function payout_receipt_html( $mv ) {
+		return (string) Service::in_receipt_locale( static function () use ( $mv ) { return self::render_payout_receipt_html( $mv ); } ); // SET-PC-39
+	}
+
+	/** payout_receipt_html() in the current language. */
+	private static function render_payout_receipt_html( $mv ) {
 		global $wpdb;
 		$sale = Service::sale( $mv->sale_id );
 		$cur = $mv->currency;

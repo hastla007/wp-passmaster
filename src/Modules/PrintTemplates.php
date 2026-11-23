@@ -69,13 +69,29 @@ final class PrintTemplates {
 	}
 
 	public static function settings_defaults() {
-		return array( 'print_attach_invoice_pdf' => 0 );
+		return array(
+			'print_attach_invoice_pdf' => 0,
+			// SET-PC-33: logo (media id, 0 = none) and footer of ticket PDFs ('' = built-in text), footer per
+			// language (locale => text), imprint/privacy links in the footer. Per event: EventOverrides.
+			'ticket_pdf' => array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1 ),
+		);
 	}
 
 	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
 	public static function settings_schema() {
 		return array(
 			'print_attach_invoice_pdf' => array( 'type' => 'bool', 'label' => __( 'Rechnung als PDF anhängen', 'pass-captain' ), 'help' => __( 'Rechnungen werden als PDF an die Bestätigungsmail angehängt.', 'pass-captain' ), 'page' => 'wpcap-print' ),
+			'ticket_pdf' => array(
+				'type' => 'group',
+				'label' => __( 'Ticket-PDF: Logo und Fußzeile', 'pass-captain' ),
+				'help' => __( 'Logo und Fußzeile der Ticket-PDFs (E-Mail, Bestellportal, Verwaltung), Fußzeile je Sprache, Links zu Impressum und Datenschutz; je Event übersteuerbar. Ein Logo in der Druckvorlage hat Vorrang, der Filter wpcap_ticket_pdf_footer ebenso.', 'pass-captain' ),
+				'page' => 'wpcap-print',
+				'fields' => array(
+					'logo' => array( 'type' => 'int', 'min' => 0, 'max' => PHP_INT_MAX, 'label' => __( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) ),
+					'footer' => array( 'type' => 'textarea', 'label' => __( 'Fußzeile', 'pass-captain' ) ),
+					'legal_links' => array( 'type' => 'bool', 'label' => __( 'Impressum und Datenschutz in der Fußzeile verlinken', 'pass-captain' ) ),
+				),
+			),
 		);
 	}
 
@@ -94,6 +110,7 @@ final class PrintTemplates {
 			'wpcap_print_batch_cancel'  => array( Page::class, 'handle_batch_cancel' ),
 			'wpcap_attendee_list'       => array( Page::class, 'handle_attendee_list' ),
 			'wpcap_print_settings'      => array( Page::class, 'handle_settings' ),
+			'wpcap_print_ticket_pdf'    => array( Page::class, 'handle_ticket_pdf' ),
 			'wpcap_invoice_pdf'         => array( InvoicePdf::class, 'handle_admin_download' ),
 		);
 	}

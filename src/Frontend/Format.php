@@ -98,7 +98,9 @@ final class Format {
 			/* translators: PHP date() format of dates in mails, tickets and documents of this language, e.g. "m/d/Y" or "j F Y" */
 			$format = _x( 'd.m.Y', 'date format', 'pass-captain' );
 		} else {
-			$format = (string) get_option( 'date_format' );
+			// SET-PC-36: own format for documents, otherwise the WordPress setting.
+			$format = (string) \PassCaptain\Settings::get( 'document_date_format', '' );
+			if ( '' === trim( $format ) ) { $format = (string) get_option( 'date_format' ); }
 		}
 		/**
 		 * Date format (PHP date()) of mails, tickets and documents (A384).
@@ -116,7 +118,8 @@ final class Format {
 			/* translators: PHP date() format of times in mails, tickets and documents of this language, e.g. "g:i a" or "H:i" */
 			$format = _x( 'H:i', 'time format', 'pass-captain' );
 		} else {
-			$format = (string) get_option( 'time_format' );
+			$format = (string) \PassCaptain\Settings::get( 'document_time_format', '' ); // SET-PC-36
+			if ( '' === trim( $format ) ) { $format = (string) get_option( 'time_format' ); }
 		}
 		/**
 		 * Time format (PHP date()) of mails, tickets and documents (A384).
@@ -126,6 +129,14 @@ final class Format {
 		 */
 		$format = (string) apply_filters( 'wpcap_time_format', '' !== $format ? $format : 'H:i', \PassCaptain\Mail\Mailer::active_locale() );
 		return '' !== $format ? $format : 'H:i';
+	}
+
+	/**
+	 * SET-PC-36: time format of {time} on printed tickets and ticket PDFs: the document time format of
+	 * the settings (through time_format(), filter included) or, without one, 24 hours (H:i) as before.
+	 */
+	public static function ticket_time_format() {
+		return '' !== trim( (string) \PassCaptain\Settings::get( 'document_time_format', '' ) ) ? self::time_format() : 'H:i';
 	}
 
 	/** Date and time in the formats of date_format()/time_format() (falls back to d.m.Y H:i). */

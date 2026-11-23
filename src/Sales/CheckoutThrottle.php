@@ -41,7 +41,7 @@ final class CheckoutThrottle {
 	/** Option: last checkout that looked like an unconfigured proxy (array kind, time; not autoloaded). */
 	const SEEN_OPTION = 'wpcap_proxy_suspect_seen';
 
-	/** Holds per network + e-mail and hour. */
+	/** Holds per network + e-mail and hour (default of the setting rate_checkout_email_per_hour, SET-PC-38). */
 	const EMAIL_LIMIT = 8;
 
 	/** Ranges of a reverse proxy / load balancer in front of the site (private, loopback, CGNAT, link-local). */
@@ -94,15 +94,16 @@ final class CheckoutThrottle {
 		$suspect = self::proxy_suspect();
 		if ( '' !== $suspect ) { self::remember( $suspect ); }
 		$factor = 'header' === $suspect ? max( 1, (int) apply_filters( 'wpcap_checkout_proxy_limit_factor', 10 ) ) : 1;
-		$ip_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ), $factor );
+		$ip_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', RateLimit::configured( 'rate_checkout_ip_per_hour' ) ) ), $factor );
 		$attempt_factor = max( 1, (int) apply_filters( 'wpcap_checkout_attempt_factor', 4 ) );
-		$unpaid_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', 10 ) ), $factor );
+		$unpaid_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', RateLimit::configured( 'rate_checkout_unpaid_per_network' ) ) ), $factor );
+		$email_limit = RateLimit::configured( 'rate_checkout_email_per_hour' ); // SET-PC-38 (default EMAIL_LIMIT)
 		$per_network = 'private' !== $suspect;
 		$net_hash = Orders::rate_hash( $network );
 		$buyer_hash = Orders::rate_hash( $network . '|' . $buyer );
 		// Attempts (never taken back).
 		$attempts_ok = ( ! $per_network || RateLimit::hit( 'wpcap_checkout_try_ip_' . $net_hash, self::times( $ip_limit, $attempt_factor ), HOUR_IN_SECONDS ) )
-			&& RateLimit::hit( 'wpcap_checkout_try_' . $buyer_hash, self::EMAIL_LIMIT * $attempt_factor, HOUR_IN_SECONDS );
+			&& RateLimit::hit( 'wpcap_checkout_try_' . $buyer_hash, self::times( $email_limit, $attempt_factor ), HOUR_IN_SECONDS );
 		$counters = array();
 		if ( $per_network ) {
 			$counters['hold'] = array( 'wpcap_checkout_ip_' . $net_hash, $ip_limit, HOUR_IN_SECONDS );
@@ -115,7 +116,7 @@ final class CheckoutThrottle {
 			}
 			$counters['unpaid'] = array( 'wpcap_checkout_unpaid_' . $net_hash, $unpaid_limit, max( 1, min( 60, (int) $hold_minutes ) ) * MINUTE_IN_SECONDS );
 		}
-		$counters['email'] = array( 'wpcap_checkout_' . $buyer_hash, self::EMAIL_LIMIT, HOUR_IN_SECONDS );
+		$counters['email'] = array( 'wpcap_checkout_' . $buyer_hash, $email_limit, HOUR_IN_SECONDS );
 		$counted = array();
 		$refused = ! $attempts_ok;
 		foreach ( $counters as $name => $counter ) {
