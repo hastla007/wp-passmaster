@@ -96,6 +96,7 @@ final class SiteHealth {
 			'rest_anonymous'   => array( __CLASS__, 'test_rest_anonymous' ),
 			'proxy'            => array( __CLASS__, 'test_proxy' ),
 			'db_server'        => array( __CLASS__, 'test_db_server' ),
+			'retention'        => array( __CLASS__, 'test_retention' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -142,6 +143,24 @@ final class SiteHealth {
 			/* translators: 1: minimum MySQL version, 2: minimum MariaDB version */
 			self::p( sprintf( __( 'Pass Captain wird mit MySQL %1$s+ und MariaDB %2$s+ getestet. Ältere Datenbankserver werden nicht gesperrt, sind aber nicht mehr geprüft. Bitte den Datenbankserver beim Hosting aktualisieren.', 'pass-captain' ), self::MIN_MYSQL, self::MIN_MARIADB ) )
 		);
+	}
+
+	/**
+	 * SET-PC-47: reminder while no retention period for attendee and contact data is set (setting
+	 * attendee_retention_days = 0). The technical default stays "no general period" and existing
+	 * installations are not changed; the country preset proposes a period. Status "recommended", never
+	 * critical (no admin notice).
+	 */
+	public static function test_retention() {
+		$days = \PassCaptain\Privacy\Retention::attendee_days();
+		$actions = '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'privacy' ) ) ) . '">' . esc_html__( 'Datenschutz-Einstellungen öffnen', 'pass-captain' ) . '</a></p>';
+		if ( $days > 0 ) {
+			/* translators: %d: number of days */
+			return self::result( 'retention', 'good', __( 'Pass Captain: Löschfrist für Teilnehmerdaten ist festgelegt', 'pass-captain' ), self::p( sprintf( _n( 'Teilnehmerdaten werden %d Tag nach Ende des Termins gelöscht.', 'Teilnehmerdaten werden %d Tage nach Ende des Termins gelöscht.', $days, 'pass-captain' ), $days ) ) );
+		}
+		$text = __( 'In den Datenschutz-Einstellungen ist keine allgemeine Löschfrist für Teilnehmer- und Kontaktdaten festgelegt. Antworten auf Zusatzfelder bleiben dann so lange gespeichert, wie es die Einstellung des jeweiligen Feldes vorsieht – ohne Feldfrist unbegrenzt. Die DSGVO verlangt, personenbezogene Daten nur so lange zu speichern, wie sie gebraucht werden.', 'pass-captain' );
+		$hint = __( 'Lege unter Einstellungen → Datenschutz fest, nach wie vielen Tagen nach dem Termin Teilnehmerdaten gelöscht werden. Das Länderprofil schlägt eine Frist vor (z. B. 365 Tage); lass die Frist von deiner Datenschutzberatung prüfen.', 'pass-captain' );
+		return self::result( 'retention', 'recommended', __( 'Pass Captain: keine Löschfrist für Teilnehmerdaten festgelegt', 'pass-captain' ), self::p( $text ) . self::p( $hint ), $actions );
 	}
 
 	/** Site Health result array. */

@@ -4,8 +4,8 @@
  * current holder on the ticket page (A570).
  *
  * Holder changes – another e-mail address (new code) or another person's name (A569) – are limited by
- * `wpcap_max_holder_changes` (default 1, a transfer counts as well); every change of the name, small
- * corrections included, by `wpcap_max_attendee_name_changes` (default 3). Both are counted on the
+ * `wpcap_max_holder_changes` (setting max_holder_changes, default 1, a transfer counts as well); every change of the name, small
+ * corrections included, by `wpcap_max_attendee_name_changes` (setting max_attendee_name_changes, default 3). Both are counted on the
  * ticket (wpcap_tickets.holder_changes / name_changes, schema 3.10.22) and in the audit log.
  */
 namespace PassCaptain;
@@ -76,7 +76,7 @@ final class TicketAssignments {
 				$wpdb->query( 'ROLLBACK' );
 				return Admission\CodeRotationLock::error( $locked );
 			}
-			$max_changes = max( 0, (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) );
+			$max_changes = self::max_holder_changes( (int) $ticket->ticket_id );
 			if ( self::holder_changes( (int) $ticket->ticket_id ) >= $max_changes ) {
 				$wpdb->query( 'ROLLBACK' );
 				return new \WP_Error( 'wpcap_assignment_limit', __( 'Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; Namen und Angaben können weiterhin korrigiert werden.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -201,6 +201,31 @@ final class TicketAssignments {
 		return ServiceBookings::has_column( 'wpcap_tickets', 'holder_changes' ) && ServiceBookings::has_column( 'wpcap_tickets', 'name_changes' );
 	}
 
+	/** Maximum number of attendee name changes of a ticket: setting max_attendee_name_changes (SET-PC-20, default 3, 0–20), filter keeps precedence. */
+	public static function max_name_changes( $ticket_id ) {
+		$setting = max( 0, min( 20, (int) Settings::get( 'max_attendee_name_changes', 3 ) ) );
+		/**
+		 * Maximum number of changes of the attendee name of a ticket (corrections included) through
+		 * the order portal and the ticket page (A569). Staff corrections are not limited.
+		 *
+		 * @param int $max       Setting max_attendee_name_changes (SET-PC-20, default 3).
+		 * @param int $ticket_id
+		 */
+		return max( 0, (int) apply_filters( 'wpcap_max_attendee_name_changes', $setting, (int) $ticket_id ) );
+	}
+
+	/**
+	 * Maximum number of holder changes of a ticket (assignment, transfer, name change to another person):
+	 * setting max_holder_changes (SET-PC-20, default 1, 0–10), filter wpcap_max_holder_changes keeps
+	 * precedence (receives the setting as default).
+	 *
+	 * @param int $ticket_id Ticket.
+	 */
+	public static function max_holder_changes( $ticket_id ) {
+		$setting = max( 0, min( 10, (int) Settings::get( 'max_holder_changes', 1 ) ) );
+		return max( 0, (int) apply_filters( 'wpcap_max_holder_changes', $setting, (int) $ticket_id ) );
+	}
+
 	/**
 	 * Number of holder changes a ticket already had (assignment to another e-mail address or another
 	 * person's name, A569). Counted on the ticket (wpcap_tickets.holder_changes, schema 3.10.22), so an
@@ -271,20 +296,13 @@ final class TicketAssignments {
 		$renamed = '' !== self::name_key( $before ) && self::name_key( $before ) !== self::name_key( $after );
 		$person = $renamed && ! self::is_name_correction( $before, $after );
 		if ( $renamed ) {
-			/**
-			 * Maximum number of changes of the attendee name of a ticket (corrections included) through
-			 * the order portal and the ticket page (A569). Staff corrections are not limited.
-			 *
-			 * @param int $max       Default 3.
-			 * @param int $ticket_id
-			 */
-			$max_names = max( 0, (int) apply_filters( 'wpcap_max_attendee_name_changes', 3, (int) $ticket_id ) );
+			$max_names = self::max_name_changes( (int) $ticket_id );
 			if ( self::name_changes( $ticket_id ) >= $max_names ) {
 				return new \WP_Error( 'wpcap_assignment_name_limit', __( 'Der Teilnehmername dieses Tickets wurde bereits mehrfach geändert. Weitere Änderungen sind nur über den Veranstalter möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 		}
 		if ( $person && ! $holder_changing ) {
-			$max_changes = max( 0, (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket_id ) );
+			$max_changes = self::max_holder_changes( (int) $ticket_id );
 			if ( self::holder_changes( $ticket_id ) + max( 0, (int) $extra_changes ) >= $max_changes ) {
 				return new \WP_Error( 'wpcap_assignment_limit', __( 'Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; kleine Korrekturen des Namens (Tippfehler) und die Angaben bleiben möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 			}

@@ -155,6 +155,20 @@ final class Settings {
 			'delete_data_on_uninstall'  => 0,
 			// A327: support log also stores debug entries (ends 24 h after switching on; constant WPCAP_DEBUG overrides).
 			'debug_logging'             => 0,
+			// SET-PC-20: buyer rules (defaults = the former fixed values; the filters of the same name keep precedence).
+			'order_access_days'         => 30,
+			'payment_resume_link'       => 'show',
+			'max_attendee_name_changes' => 3,
+			'max_holder_changes'        => 1,
+			'max_line_quantity'         => 100,
+			'manual_open_orders_per_email' => 2,
+			// SET-PC-21: logs and periods (defaults = the former fixed values; filters keep precedence).
+			'log_retention_days'        => 30,
+			'log_min_level'             => 'info',
+			'connector_log_days'        => 30,
+			'print_batch_keep_days'     => 7,
+			'review_no_show_grace_hours' => 6,
+			'offline_default_hours'     => 12,
 			'scanner_show_attendee'     => 0,
 			// A690: terms for the people a ticket is for ('' = Teilnehmende, guests, visitors, custom) and own lines "Alt = Neu".
 			'attendee_terms'            => '',

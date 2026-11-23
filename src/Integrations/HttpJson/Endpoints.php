@@ -522,10 +522,15 @@ final class Endpoints {
 		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,endpoint_id,event,status,attempts,response_code,last_error,created_at,updated_at,delivered_at FROM %i ORDER BY delivery_id DESC LIMIT %d', $table, $limit ) );
 	}
 
-	/** Removes log rows older than the retention (default 30 days, filter wpcap_connector_log_days). */
+	/** Days the delivery log keeps finished rows: setting connector_log_days (SET-PC-21, default 30), filter wpcap_connector_log_days keeps precedence. */
+	public static function log_days() {
+		return max( 1, (int) apply_filters( 'wpcap_connector_log_days', max( 1, min( 365, (int) \PassCaptain\Settings::get( 'connector_log_days', 30 ) ) ) ) );
+	}
+
+	/** Removes log rows older than the retention (log_days()). */
 	public static function purge_old() {
 		global $wpdb;
-		$days = max( 1, (int) apply_filters( 'wpcap_connector_log_days', 30 ) );
+		$days = self::log_days();
 		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('delivered','failed') AND updated_at<%s LIMIT 1000", self::table( 'connector_deliveries' ), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
 	}
 }

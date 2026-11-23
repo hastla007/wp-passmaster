@@ -82,6 +82,25 @@ final class SettingsPage {
 					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert.', 'pass-captain' ) ),
 				),
 			),
+			'buyer' => array(
+				'title' => __( 'Bestellportal und Änderungen durch Käufer', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'order_access_days' => array( 'type' => 'int', 'label' => __( 'Persönlicher Bestelllink gültig (Tage)', 'pass-captain' ), 'min' => 1, 'max' => 3650, 'description' => __( 'So lange ab dem Versand funktioniert der Link zum Bestellportal, mindestens aber so viele Tage nach dem Ende des letzten Termins der Bestellung. Standard: 30. Ein Filter (wpcap_order_access_days) hat Vorrang.', 'pass-captain' ) ),
+					'payment_resume_link' => array(
+						'type' => 'choice',
+						'label' => __( 'Link „Zahlung fortsetzen“ nach abgebrochener Zahlung', 'pass-captain' ),
+						'options' => array(
+							'show' => __( 'anbieten (Standard)', 'pass-captain' ),
+							'hide' => __( 'nicht anbieten', 'pass-captain' ),
+						),
+						'description' => __( 'Solange die Reservierung läuft, können Käufer nach Abbruch oder Fehlschlag die Zahlung derselben Bestellung fortsetzen (Rückkehrseite und Kaufformular). Ohne den Link bleibt nur „Bestellung stornieren“ bzw. eine neue Bestellung.', 'pass-captain' ),
+					),
+					'max_attendee_name_changes' => array( 'type' => 'int', 'label' => __( 'Namensänderungen je Ticket (höchstens)', 'pass-captain' ), 'min' => 0, 'max' => 20, 'description' => __( 'So oft dürfen Käufer den Teilnehmernamen eines Tickets im Bestellportal oder auf der Ticketseite ändern, Tippfehler-Korrekturen eingeschlossen. 0 = gar nicht. Änderungen durch dein Team sind nicht begrenzt. Standard: 3. Ein Filter (wpcap_max_attendee_name_changes) hat Vorrang.', 'pass-captain' ) ),
+					'max_holder_changes' => array( 'type' => 'int', 'label' => __( 'Inhaberwechsel je Ticket (höchstens)', 'pass-captain' ), 'min' => 0, 'max' => 10, 'description' => __( 'So oft darf ein Ticket an eine andere Person gehen: Zuweisung, Übertragung oder Namensänderung auf eine andere Person. 0 = gar nicht. Standard: 1. Ein Filter (wpcap_max_holder_changes) hat Vorrang.', 'pass-captain' ) ),
+					'max_line_quantity' => array( 'type' => 'int', 'label' => __( 'Höchstmenge je Bestellposition', 'pass-captain' ), 'min' => 1, 'max' => 1000, 'description' => __( 'Absolute Obergrenze der Tickets je Position einer Bestellung, als Schutz gegen versehentliche oder missbräuchliche Mengen. Die Höchstmenge je Bestellung der Ticketart gilt zusätzlich. Standard: 100. Ein Filter (wpcap_max_line_quantity) hat Vorrang.', 'pass-captain' ) ),
+				),
+			),
 			'network' => array(
 				'title' => __( 'Proxy / Client-Adresse', 'pass-captain' ),
 				'tab' => 'advanced',
@@ -151,6 +170,8 @@ final class SettingsPage {
 					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ), 'description' => __( 'Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn.', 'pass-captain' ) ),
 					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
 					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
+					'offline_default_hours' => array( 'type' => 'int', 'label' => __( 'Offline-Scanner: Standard-Paketdauer (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 72, 'description' => __( 'Vorschlag für die maximale Offline-Dauer, wenn du ein Event zum ersten Mal für den Offline-Scanner einrichtest: So lange gilt ein Prüfpaket auf dem Gerät. Bereits eingerichtete Events behalten ihren Wert. Standard: 12.', 'pass-captain' ) ),
+					'review_no_show_grace_hours' => array( 'type' => 'int', 'label' => __( 'No-Show-Kulanz nach Terminende (Stunden)', 'pass-captain' ), 'min' => 0, 'max' => 168, 'description' => __( 'Erst so lange nach dem Ende eines Termins gilt ein gültiges Ticket ohne Einlass als „nicht erschienen“ und bekommt keine Bewertungsanfrage. Standard: 6. Ein Filter (wpcap_review_no_show_grace_hours) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'payments' => array(
@@ -173,6 +194,7 @@ final class SettingsPage {
 					'manual_hold_hours' => array( 'type' => 'int', 'label' => __( 'Reservierung bei manueller Zahlung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Endet spätestens mit Beginn des (ersten) Termins.', 'pass-captain' ) ),
 					'manual_hold_max_percent' => array( 'type' => 'int', 'label' => __( 'Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren', 'pass-captain' ), 'min' => 0, 'max' => 100, 'description' => __( 'Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze.', 'pass-captain' ) ),
 					'manual_cutoff_hours' => array( 'type' => 'int', 'label' => __( 'Überweisung nur bis … Stunden vor Beginn anbieten', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht.', 'pass-captain' ) ),
+					'manual_open_orders_per_email' => array( 'type' => 'int', 'label' => __( 'Überweisung: offene Bestellungen je E-Mail-Adresse (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 50, 'description' => __( 'So viele unbezahlte Überweisungsbestellungen darf eine E-Mail-Adresse gleichzeitig haben; darüber lehnt der Checkout ab. Bezahlte und abgelaufene Bestellungen zählen nicht. Standard: 2. Ein Filter (wpcap_manual_open_orders_per_email) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'stripe' => array(
@@ -297,6 +319,26 @@ final class SettingsPage {
 					'retention_order_years' => array( 'type' => 'int', 'label' => __( 'Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; über deren Löschung nach Fristablauf entscheidest du selbst (laufende Prüfungen verlängern die Frist). 0 = nie.', 'pass-captain' ) ),
 					'retention_waitlist_days' => array( 'type' => 'int', 'label' => __( 'Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Gilt für Event- und Termin-Wartelisten. 0 = nie.', 'pass-captain' ) ),
 					'retention_pass_days' => array( 'type' => 'int', 'label' => __( 'Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
+				),
+			),
+			'logs' => array(
+				'title' => __( 'Protokolle und Druckdateien', 'pass-captain' ),
+				'tab' => 'privacy',
+				'fields' => array(
+					'log_retention_days' => array( 'type' => 'int', 'label' => __( 'Support-Protokoll löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 365, 'description' => __( 'Einträge des Support-Protokolls (Betrieb → Support) werden danach gelöscht; Einträge der Stufen „debug“ und „info“ spätestens nach 7 Tagen. Standard: 30. Ein Filter (wpcap_log_retention_days) hat Vorrang.', 'pass-captain' ) ),
+					'log_min_level' => array(
+						'type' => 'choice',
+						'label' => __( 'Support-Protokoll: niedrigste gespeicherte Stufe', 'pass-captain' ),
+						'options' => array(
+							'info' => __( 'Info (Standard)', 'pass-captain' ),
+							'notice' => __( 'Hinweis', 'pass-captain' ),
+							'warning' => __( 'Warnung', 'pass-captain' ),
+							'error' => __( 'Fehler', 'pass-captain' ),
+						),
+						'description' => __( 'Einträge unterhalb dieser Stufe werden nicht gespeichert. Der Debug-Modus (Erweitert → Support und Fehlersuche) speichert für 24 Stunden alles. Ein Filter (wpcap_log_min_level) hat Vorrang.', 'pass-captain' ),
+					),
+					'connector_log_days' => array( 'type' => 'int', 'label' => __( 'Zustellprotokoll der Connectors löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 365, 'description' => __( 'Zugestellte und endgültig fehlgeschlagene Einträge der HTTP/JSON-Connectors werden danach gelöscht. Standard: 30. Ein Filter (wpcap_connector_log_days) hat Vorrang.', 'pass-captain' ) ),
+					'print_batch_keep_days' => array( 'type' => 'int', 'label' => __( 'Druckstapel und ihre PDF-Dateien löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 90, 'description' => __( 'Gerechnet ab der letzten Änderung des Stapels. Die Dateien enthalten Ticketcodes und Namen; lade sie rechtzeitig herunter. Standard: 7. Ein Filter (wpcap_print_batch_keep_days) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'mail' => array(
@@ -883,6 +925,7 @@ final class SettingsPage {
 		<?php endforeach; ?>
 		<?php submit_button( __( 'Einstellungen speichern', 'pass-captain' ) ); ?>
 		</form>
+		<?php if ( 'privacy' === $tab ) { self::render_retention_overview(); } ?>
 		<?php ProHints::render( $tab ); // SET-PC-06: grey hint lines at the end of the tab (empty until a Pro function is sold). ?>
 		<?php
 		foreach ( $sections as $def ) {
@@ -893,6 +936,22 @@ final class SettingsPage {
 		?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * SET-PC-21: read-only table "Was wird wann gelöscht" below the privacy settings, built from the
+	 * effective periods (Privacy\Retention::overview(): settings, then filters).
+	 */
+	public static function render_retention_overview() {
+		$rows = \PassCaptain\Privacy\Retention::overview();
+		echo '<h2 id="wpcap-retention-overview">' . esc_html__( 'Was wird wann gelöscht', 'pass-captain' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Übersicht der gespeicherten Fristen (nur Anzeige). Gelöscht oder anonymisiert wird im täglichen Datenschutz-Lauf bzw. im stündlichen Aufräumlauf. Ein Filter kann eine Frist abweichend festlegen; die Tabelle zeigt den wirksamen Wert.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped wpcap-retention-overview"><thead><tr><th scope="col">' . esc_html__( 'Daten', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gelöscht bzw. anonymisiert', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Einstellung', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$setting = '' !== $row['setting'] ? (string) ( \PassCaptain\SettingsSchema::get( $row['setting'] )['label'] ?? '' ) : '';
+			echo '<tr><td>' . esc_html( $row['data'] ) . '</td><td>' . esc_html( $row['when'] ) . '</td><td>' . ( '' !== $setting ? esc_html( $setting ) : esc_html__( 'fest (Filter wpcap_privacy_retention_days)', 'pass-captain' ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/** admin-post action of the "Verbindung testen" button (A295). */

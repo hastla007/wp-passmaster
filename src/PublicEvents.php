@@ -169,7 +169,8 @@ final class PublicEvents {
 				'unclearAnswer' => __( 'Wir haben keine eindeutige Antwort erhalten, ob deine Bestellung angelegt wurde. Sieh bitte in dein E-Mail-Postfach oder sende das Formular unverändert erneut ab – es wird dabei keine zweite Bestellung angelegt.', 'pass-captain' ),
 				/* translators: %s: short order number */
 				'pendingOrder' => __( 'Deine Bestellung %s wartet noch auf die Zahlung.', 'pass-captain' ),
-				'resumePayment' => __( 'Zahlung fortsetzen', 'pass-captain' ),
+				// SET-PC-20: '' = setting payment_resume_link off, the pending-order notice shows no payment link.
+				'resumePayment' => \PassCaptain\Payments\ReturnNotice::resume_enabled() ? __( 'Zahlung fortsetzen', 'pass-captain' ) : '',
 				'pendingHint' => __( 'Sendest du das Formular unverändert erneut ab, wird dieselbe Bestellung fortgesetzt. Mit geänderter Auswahl entsteht eine neue Bestellung; die Reservierung der alten verfällt dann automatisch.', 'pass-captain' ),
 				/* translators: %d: hold minutes */
 				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'pass-captain' ), // n>1: checkout.js uses pendingOne for 1

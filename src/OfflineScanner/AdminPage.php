@@ -37,7 +37,7 @@ final class AdminPage {
 		if ( ! self::can( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$rules = Rules::save( $event_id, array(
 			'enabled' => Forms::flag( $in, 'enabled' ),
-			'max_offline_hours' => Forms::int( $in, 'max_offline_hours', 12 ),
+			'max_offline_hours' => Forms::int( $in, 'max_offline_hours', Rules::default_hours() ),
 			'duplicate_policy' => Forms::choice( $in, 'duplicate_policy', Rules::POLICIES, '' ),
 			'include_attendee' => Forms::flag( $in, 'include_attendee' ),
 		) );

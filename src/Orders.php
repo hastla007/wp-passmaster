@@ -172,7 +172,7 @@ final class Orders {
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
 		// only an absolute safety cap against absurd quantities before any row is locked.
-		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
+		$line_cap = self::max_line_quantity();
 		$clean_lines = array();
 		$shown_state = array();
 		foreach ( $lines as $line ) {
@@ -2785,7 +2785,15 @@ final class Orders {
 	const PENDING_LINK_DAYS = 7;
 
 	/**
-	 * End of the order portal access (A424): `wpcap_order_access_days` (default 30) days from now, but at least as
+	 * Absolute cap of the quantity of one order line (checked before any row is locked): setting
+	 * max_line_quantity (SET-PC-20, default 100, 1–1000), filter wpcap_max_line_quantity keeps precedence.
+	 */
+	public static function max_line_quantity() {
+		return max( 1, (int) apply_filters( 'wpcap_max_line_quantity', max( 1, min( 1000, (int) Settings::get( 'max_line_quantity', 100 ) ) ) ) );
+	}
+
+	/**
+	 * End of the order portal access (A424): setting order_access_days (SET-PC-20, default 30; filter `wpcap_order_access_days`) days from now, but at least as
 	 * many days after the end of the order's last date, so the link still works at and after the event.
 	 *
 	 * @param int $order_id Order (0 = only the days from now).
@@ -2793,7 +2801,7 @@ final class Orders {
 	 */
 	public static function access_until( $order_id = 0 ) {
 		global $wpdb;
-		$days = max( 1, min( 3650, (int) apply_filters( 'wpcap_order_access_days', 30 ) ) );
+		$days = max( 1, min( 3650, (int) apply_filters( 'wpcap_order_access_days', max( 1, min( 3650, (int) Settings::get( 'order_access_days', 30 ) ) ) ) ) ); // SET-PC-20.
 		$until = Clock::now() + $days * DAY_IN_SECONDS;
 		if ( absint( $order_id ) ) {
 			$last = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(COALESCE(o.ends_at,o.starts_at)) FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
@@ -2984,7 +2992,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		// A holder change by assignment counts against the same limit as a transfer.
-		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) ) {
+		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= TicketAssignments::max_holder_changes( (int) $ticket->ticket_id ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}

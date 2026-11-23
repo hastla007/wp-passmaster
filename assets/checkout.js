@@ -1334,7 +1334,8 @@
 		p.appendChild(el('strong', {}, entry.reference));
 		p.appendChild(document.createTextNode(parts[1] || ''));
 		notice.appendChild(p);
-		notice.appendChild(el('a', { href: entry.redirect, class: 'wp-element-button wpcap-resume-payment' }, t.resumePayment || 'Continue payment'));
+		// SET-PC-20: an empty text means the shop does not offer "Zahlung fortsetzen".
+		if (t.resumePayment !== '') notice.appendChild(el('a', { href: entry.redirect, class: 'wp-element-button wpcap-resume-payment' }, t.resumePayment || 'Continue payment'));
 		notice.appendChild(el('p', { class: 'wpcap-hint' }, t.pendingHint || ''));
 		form.insertBefore(notice, form.firstChild);
 	}

@@ -240,6 +240,15 @@ final class Events {
 	/* ------------------------------------------------------------------ No-show (cron) */
 
 	/**
+	 * Hours after the end of a date before a missing admission counts as no-show (A669): setting
+	 * review_no_show_grace_hours (SET-PC-21, default 6), filter wpcap_review_no_show_grace_hours keeps precedence.
+	 */
+	public static function no_show_grace_hours() {
+		$setting = max( 0, min( 168, (int) \PassCaptain\Settings::get( 'review_no_show_grace_hours', self::NO_SHOW_GRACE_HOURS ) ) );
+		return max( 0, (int) apply_filters( 'wpcap_review_no_show_grace_hours', $setting ) );
+	}
+
+	/**
 	 * experience_excluded no_show for valid event tickets without a valid admission, once the date has
 	 * ended (plus grace). Tickets already recorded are skipped in SQL (event id computed with SHA2).
 	 *
@@ -250,8 +259,7 @@ final class Events {
 		if ( ! Outbox::ready() || ! Outbox::multi_ready() ) { return 0; }
 		$p = $wpdb->prefix;
 		$now = \PassCaptain\Clock::now();
-		/** Hours after the end of a date before a missing admission counts as no-show (A669). */
-		$grace = max( 0, (int) apply_filters( 'wpcap_review_no_show_grace_hours', self::NO_SHOW_GRACE_HOURS ) );
+		$grace = self::no_show_grace_hours();
 		$until = gmdate( 'Y-m-d H:i:s', $now - $grace * HOUR_IN_SECONDS );
 		$from = gmdate( 'Y-m-d H:i:s', $now - self::NO_SHOW_WINDOW_DAYS * DAY_IN_SECONDS );
 		$ids = $wpdb->get_col( $wpdb->prepare(
