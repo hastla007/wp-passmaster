@@ -190,7 +190,7 @@ final class EventRequests {
 			return mb_substr( 'message' === $key ? sanitize_textarea_field( $value ) : sanitize_text_field( $value ), 0, $max );
 		};
 		$email      = sanitize_email( (string) ( is_scalar( $values['email'] ?? null ) ? $values['email'] : '' ) );
-		$now        = current_time( 'mysql', true );
+		$now        = \PassCaptain\Clock::mysql();
 		$saved      = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT IGNORE INTO {$wpdb->prefix}wpcap_event_requests (event_id,form_id,entry_id,idempotency_key,status,name,email,phone,message,created_at,updated_at) VALUES (%d,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -250,7 +250,7 @@ final class EventRequests {
 				$wpdb->delete( $wpdb->prefix . self::TABLE, array( 'request_id' => (int) $row->request_id ), array( '%d' ) );
 				$action = 'event_request_removed';
 			} else {
-				$now = current_time( 'mysql', true );
+				$now = \PassCaptain\Clock::mysql();
 				$wpdb->update(
 					$wpdb->prefix . self::TABLE,
 					array(
@@ -332,7 +332,7 @@ final class EventRequests {
 	 */
 	private static function decide( $request_id, $status, $order_id = 0 ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		return 1 === (int) $wpdb->update(
 			$wpdb->prefix . self::TABLE,
 			array(

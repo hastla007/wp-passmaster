@@ -163,7 +163,7 @@ final class EventForms {
 			'form_id'        => absint( $form['id'] ),
 			'form_public_id' => substr( sanitize_key( (string) ( $form['public_id'] ?? '' ) ), 0, 64 ),
 			'form_title'     => mb_substr( sanitize_text_field( (string) ( $form['title'] ?? '' ) ), 0, 190 ),
-			'updated_at'     => current_time( 'mysql', true ),
+			'updated_at'     => \PassCaptain\Clock::mysql(),
 		);
 		if ( $old ) {
 			$wpdb->update( $wpdb->prefix . self::TABLE, $row, array( 'event_id' => $event_id ), array( '%d', '%d', '%s', '%s', '%s' ), array( '%d' ) );
