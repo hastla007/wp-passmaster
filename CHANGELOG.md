@@ -58,6 +58,11 @@ Die beiden Entwicklungslinien von 1.5 sind zusammengeführt: die Audit-Linie (Ve
 - **Lieferkette (A658):** jsQR-Herkunft mit Version und npm-Prüfsumme belegt; der Saalplan-Editor setzt keine Handler-/Link-Attribute und nur gültige Farben.
 - **Bestellliste (A411):** Sammelaktion „Zahlung bestätigen“, Sortierung, Ansichten, Bildschirmoption und „Filter zurücksetzen“.
 - **Code (A401):** REST-Routen und Datenbankschema in kleinere Methoden aufgeteilt, ohne Verhaltensänderung.
+- **Druckvorlagen (A685, A686):** Logo, Akzent- und Textfarbe mit Kontrastprüfung, fünf barrierearme Startvorlagen; Teilnehmerfelder per `{field:Schlüssel}`, neue Etikettenformate (24 und 14 pro A4, vier A6-Badges), Sortierung des Stapeldrucks und PDF-Vorschau.
+- **Begriffe (A690):** „Gäste“, „Besucher:innen“ oder eigene Ersetzungen für Website und E-Mails; Kalender, Pässe und Servicebuchung im Theme überschreibbar.
+- **Saalplan mobil (A090):** Sitzformen je Kategorie, Zustandszeichen, große Sitze, Pinch-Zoom und Verschieben, Liste als gleichwertige Ansicht.
+- **Mobile-API 1.2 (A687):** Sammel-Ein-/Auslass (`/app/scan/batch`), Versionsauskunft `/app/info`, Versions-Header für Mindestversionen von Kern und App.
+- **Scanner-Geräte (A688):** Ablauf des Offline-Pakets sichtbar; Sammel-Check-in/-out in der Ticketliste mit Bestätigung, Ergebnisbericht und idempotentem Wiederholen.
 - **Entscheidung 17 (endgültig):** Die Connectoren BoatingSchool und LearnBoating sind eigene, nicht verkaufte Projektprodukte mit eigenem Produktschlüssel, nicht Teil von Pass Captain Pro (Doku angepasst).
 
 ### Behobene Fehler aus der Zusammenführung

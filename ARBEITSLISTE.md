@@ -203,7 +203,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - src/Admin/Menu.php:71ff flache Submenüs; keine Checkliste; Verkauft/Kapazität nur in Termin-/Ticketart-Tabelle (EventsPage.php:677)
 - [x] **A089** Web-Scanner-Ergebnis wie PWA und Hilfscode — _OFFEN_ (TODO L404; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/scanner.js ohne Ton/Vibration/Erstnutzungsanzeige; kein Hilfscode (short_code nur Gästelisten)
-- [ ] **A090** Saalplan mobil: Sitzgröße, Zoom/Pan, Legende mit Form, Liste — _OFFEN_ (TODO L405; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A090** Saalplan mobil: Sitzgröße, Zoom/Pan, Legende mit Form, Liste — _OFFEN_ (TODO L405; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/seating/picker.js:133-160 Legende nur Farbe, kein Zoom/Pan, Liste nur eingeklappt (details)
 - [x] **A091** Ticketseite/PDF: Teilnehmer, Adresse, Einlass, Bestellnr., Wallet, Dateiname — _OFFEN_ (TODO L406; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/TicketPage.php:30 ohne Teilnehmer/Bestellnr./Wallet; PDF-Name tickets-<public_id>.pdf (Orders.php:1428)
@@ -1489,13 +1489,13 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A683** [OPTIMIERUNG] Self-Service: gesperrte Felder und Fristen je Feld konfigurierbar — _Konzept 15.11._ (TODO L1021; Konzept/Roadmap 2026-11-15)
 - [x] **A684** [OPTIMIERUNG] Teilnehmerverwaltung: Filter nach Event/Termin/Ticketart/Status, Sortierung, vollständiger Export — _Konzept 15.11._ (TODO L1022; Konzept/Roadmap 2026-11-15)
   - Erledigt: Ticketliste (`Admin/TicketsPage`, `Queries::search_tickets`) mit Termin- und Ticketart-Filter (nach Eventwahl), Sortierung (neueste/älteste, Termin, Ticketart, Name), Zustand bleibt nach Aktionen und beim Blättern erhalten, CSV-Teilnehmerliste des gewählten Termins (A611-Spalten); Test zz_a684.
-- [ ] **A685** [OPTIMIERUNG] Ticketdesign: Logo, Farben, mehrere barrierearme Startvorlagen — _Konzept 15.11._ (TODO L1028; Konzept/Roadmap 2026-11-15)
-- [ ] **A686** [OPTIMIERUNG] Druck: Teilnehmerfeld-Mapping, weitere Etikettenformate, Sortierung, Vorschau — _Konzept 15.11._ (TODO L1029; Konzept/Roadmap 2026-11-15)
-- [ ] **A687** [OPTIMIERUNG] Mobile-API: Suche, Batch-Aktionen, Mindest-Core-Version; MOBILE-API.md aktualisieren (§7 veraltet, alter Shortcode) — _Konzept 15.11._ (TODO L1034; Konzept/Roadmap 2026-11-15)
+- [x] **A685** [OPTIMIERUNG] Ticketdesign: Logo, Farben, mehrere barrierearme Startvorlagen — _Konzept 15.11._ (TODO L1028; Konzept/Roadmap 2026-11-15)
+- [x] **A686** [OPTIMIERUNG] Druck: Teilnehmerfeld-Mapping, weitere Etikettenformate, Sortierung, Vorschau — _Konzept 15.11._ (TODO L1029; Konzept/Roadmap 2026-11-15)
+- [x] **A687** [OPTIMIERUNG] Mobile-API: Suche, Batch-Aktionen, Mindest-Core-Version; MOBILE-API.md aktualisieren (§7 veraltet, alter Shortcode) — _Konzept 15.11._ (TODO L1034; Konzept/Roadmap 2026-11-15)
   - Teilweise umgesetzt im zusammengeführten Stand, siehe `docs/MOBILE-API.md` (§7 und Routen `/app/offline/*` berichtigt, Test in `tests/integration/modules/zzzzzzzz_z16_docs_events.php`); offen: Suche, Batch-Aktionen, Mindest-Core-Version.
-- [ ] **A688** [OPTIMIERUNG] Geräteliste: Paketablauf anzeigen; Massen-Check-in/-out mit Bestätigung, Ergebnisbericht, idempotentem Retry — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
+- [x] **A688** [OPTIMIERUNG] Geräteliste: Paketablauf anzeigen; Massen-Check-in/-out mit Bestätigung, Ergebnisbericht, idempotentem Retry — _Konzept 15.11._ (TODO L1037; Konzept/Roadmap 2026-11-15)
 - [x] **A689** [OPTIMIERUNG] Erinnerungen: Opt-out und List-Unsubscribe — _Konzept 15.11._ (TODO L1054; Konzept/Roadmap 2026-11-15)
-- [ ] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1055; Konzept/Roadmap 2026-11-15)
+- [x] **A690** [OPTIMIERUNG] Konfigurierbare Begriffe (Teilnehmende/Gäste …) und weitere überschreibbare Vorlagen — _Konzept 15.11._ (TODO L1055; Konzept/Roadmap 2026-11-15)
 - [x] **A691** [OPTIMIERUNG] Release-Matrix: Status je Funktion (vorhanden/teilweise/nicht geplant/Releaseziel) für Core und Pro — _Konzept 15.11._ (TODO L1062; Konzept/Roadmap 2026-11-15)
   - Erledigt: `docs/RELEASE-MATRIX.md` – Funktionen im Marktvergleich (vorhanden/teilweise/offen/nicht geplant, Kern/Pro) und E2E-Abläufe mit automatisierter Prüfstelle und manuellem Rest.
 - [x] **A692** [OPTIMIERUNG] docs/WEBHOOKS.md veraltet (order.refunded existiert), Webhook-Version in die Vertragstabelle — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15)
