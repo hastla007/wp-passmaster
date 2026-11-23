@@ -3083,8 +3083,7 @@ final class Orders {
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'occurrences' => count( $occurrence_ids ), 'run_id' => (int) $run->run_id ) + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
-		/** A674: the event is cancelled (committed); its occurrences follow in the run (wpcap_occurrence_cancelled each). */
-		do_action( 'wpcap_event_cancelled', $event_id, array( 'occurrence_ids' => $occurrence_ids, 'run_id' => (int) $run->run_id ) );
+		// PC-9: wpcap_event_cancelled fires from the run once the dates are cancelled and the tickets revoked (BulkRuns).
 		return self::event_cancellation_result( BulkRuns::drive( $run ) );
 	}
 

@@ -47,7 +47,7 @@ annehmen kann (auch Freitext), steht in [HOOKS.md](HOOKS.md#suite-katalog-seit-w
 | Auslass | `wpcap_ticket_checked_out` | `int $ticket_id, array $context` | nach dem Auslass | nein |
 | Termin verschoben | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` (UTC) | Admin ändert die Startzeit eines Termins mit ausgegebenen Tickets, nach dem gelungenen UPDATE | nein |
 | Termin abgesagt | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | nach dem gelungenen Statuswechsel, einmal je Termin | nein |
-| Event abgesagt | `wpcap_event_cancelled` | `int $event_id` | nach Widerruf, Benachrichtigung und Audit-Eintrag | nein |
+| Event abgesagt | `wpcap_event_cancelled` | `int $event_id, array $context` (`occurrence_ids`, `run_id`) | einmal je Absage, nachdem alle Termine abgesagt und alle Tickets widerrufen sind (PC-9) | nein |
 | Einwilligung widerrufen | `wpcap_consent_withdrawn` | `int $consent_id, object $consent` | nach dem Widerruf | **ja:** `$consent` ist die Einwilligungszeile einer Person |
 | Beleg erzeugt | `wp_pass_captain_invoice_created_v1` | `int $id, string $type, array $context` | nach dem Commit, einmal je Beleg | nein (IDs und Belegnummer) |
 | Kunden-Mail wird gesendet | `wpcap_mail_before_send` | `array $prepared, array $message` | unmittelbar vor `wp_mail()` | **ja:** Empfängeradresse, Mailtext, Anhänge (Ticket-PDF mit Code) |

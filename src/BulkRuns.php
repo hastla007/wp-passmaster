@@ -476,11 +476,35 @@ final class BulkRuns {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid' ORDER BY t.ticket_id LIMIT %d", (int) $run->object_id, self::batch() ) );
-		if ( ! $ids ) { return self::next( $run, 'released' ); }
+		if ( ! $ids ) {
+			self::next( $run, 'released' );
+			self::announce_event_cancelled( $run );
+			return true;
+		}
 		$revoked = Orders::revoke_ids( $ids );
 		self::save( $run, array( 'revoked' => $run->revoked + count( $revoked ) ) );
 		Orders::fire_revoked( $revoked, 'event_cancelled' );
 		return (bool) $revoked;
+	}
+
+	/**
+	 * PC-9: wpcap_event_cancelled fires once per event cancellation, after every date of the event was
+	 * cancelled and every ticket of it revoked (occurrence runs and safety net done), before the capacity
+	 * release and the event mails. The run remembers it (data event_announced, saved before the action),
+	 * so a resumed or repeated run never fires it again.
+	 */
+	private static function announce_event_cancelled( $run ) {
+		if ( ! empty( $run->data['event_announced'] ) ) { return; }
+		$run->data['event_announced'] = 1;
+		self::save( $run, array( 'payload' => wp_json_encode( $run->data ) ) );
+		/**
+		 * An event was cancelled: committed, its dates are cancelled and its tickets revoked.
+		 *
+		 * @param int   $event_id Event id.
+		 * @param array $context  occurrence_ids (cancelled dates), run_id (BulkRuns run; 0 before the schema
+		 *                        upgrade). Further keys may be added.
+		 */
+		do_action( 'wpcap_event_cancelled', (int) $run->object_id, array( 'occurrence_ids' => array_map( 'intval', (array) ( $run->data['occurrence_ids'] ?? array() ) ), 'run_id' => (int) $run->run_id ) );
 	}
 
 	/** Capacity of the event's orders stopped counting (open orders reported it when cancelled). */
