@@ -415,6 +415,74 @@ Für dieses Repository bleibt daraus genau eine Abhängigkeit: Pass Captain Pro 
 - [ ] **C7 · Regeln je Produkt.** Im Connector (nicht im Kern) festlegen, ob ein Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst; Zuordnung BoatingSchool-/LearnBoating-Kursprodukt ↔ Pass-Captain-Ticketart, idempotent bei Wiederholung, Erstattung nimmt Kurszugang zurück.
 - [ ] **C8 · Tests und Abnahme.** Stub-Connector im Kern-Test (Vertrag, Opt-in, keine Lizenzprüfung im Kern – Wächtertest A2 bleibt grün); in den Connector-Repos Tests für gültige, abgelaufene, fremde Lizenz und fehlende Kundenfreigabe; E2E Kauf → Ticket + Kurszugang → Erstattung. *Stand 23.11.2026: Kernteil erledigt (Stub-Connector-Test `zz_a705_a708`, Wächtertest grün); Lizenzfälle und E2E liegen in den Connector-Repositories.*
 
+## Einstellungen für den Verkauf (Analyse vom 23.11.2026)
+
+Quelle: Analyse der Lizenz-Sitzung, `captain-pro` Branch `claude/sharp-mendel-xiiwf3`, `docs/settings/README.md` und `SETTINGS-pass.md` (Stand main 1.6.0; hier nicht lesbar, Text per Nachricht übernommen). Rahmen der Suite (Inhaber, 23.11.2026): ein Register je Plugin als einzige Quelle; Länderprofile mit gleichen Schlüsseln `DE`, `AT`, `CH`, `EU`, `OTHER` als Vorschlag mit Vorher/Nachher, nie still überschreiben, rechtlich gewichtige Werte „ungeprüft“ bis zur Freigabe; Geschäftspolitik ist Einstellung mit sicherer Vorgabe plus Filter (Filter gewinnt, S2), technische Werte bleiben Konstanten; Export/Import (JSON, ohne Geheimnisse, mit Vorschau), Zurücksetzen, Änderungsprotokoll mit alt/neu, WP-CLI `get|set|list|export|import|reset`; jede Einstellung mit Hilfetext und Prüfung, die meldet statt still zu korrigieren. Pro-Hinweis (S1, vom Inhaber auch in dieser Sitzung am 23.11.2026 bestätigt): graue reine Textzeile am Ende des Reiters, ausblendbar, ohne Feld, ohne Funktions- und Lizenzcode; das Add-on meldet ein Feld mit derselben `id` an und ersetzt die Zeile (Hinweiszeile = `{id, reiter, titel, text, link, ersetzt_durch}`). Rechtliches wird nicht festgelegt: Einstellung + neutrale Vorgabe + Hinweis „Rechtsprüfung“. „Erledigt“ heißt zusätzlich: Tests grün, Doku/HOOKS.md, Texte in allen mitgelieferten Sprachen, Hilfetext am Feld.
+
+### KRITISCH
+- [ ] **SET-PC-01 · Einstellungs-Register.** `PassCaptain\SettingsSchema` beschreibt jeden Wert (Schlüssel, Typ, Standard, Grenzen, Reiter/Seite, Beschriftung, Hilfetext, Rechtsprüfung ja/nein, geheim, landabhängig, Recht); Kernseite und alle 16 Modulseiten und Einzel-Optionen lesen und prüfen darüber (`src/Settings.php`, `src/Admin/SettingsPage.php`, `src/Security/Policy.php`, Modulformulare). Erledigt: kein Formular prüft selbst; Test: jeder Schlüssel aus `Settings::defaults()` hat eine Beschreibung; Filter `wp_pass_captain_settings_schema_v1` für Add-ons; bestehende `…_settings_defaults_v1`/`…_settings_sections_v1` bleiben. Voraussetzung für -02, -05 bis -13.
+- [ ] **SET-PC-02 · Länderprofile DE, AT, CH, EU, OTHER** (`src/CountryPresets.php`, Daten + Filter `wp_pass_captain_country_presets_v1`): setzt als Vorschlag mit Vorschau seller_country, Standardwährung/Währungsliste, Schwelle Käuferadresse, Aufbewahrungsjahre, Kleinunternehmer- und Widerrufstexte, SMS-Vorwahlen, Rechnungsnummern-Muster, Kontenrahmen, Datumsformat, ersten Wochentag, Kassenpflicht-Hinweis; Audit mit alt/neu. Braucht: Rechtsprüfung aller Werte je Land; E2 (Empfehlung DE, AT, CH zuerst).
+- [ ] **SET-PC-03 · Rechnungsnummern einstellbar:** Muster `{prefix}{year}{yy}{number}`, Stellenzahl, Startnummer (nur nach oben), je Jahr neu ja/nein; ebenso Korrekturbeleg, Kassenbon, Partner-Abrechnung, Gutschrift; Lückenlosigkeit und Lückenprüfung bleiben; Filter `wp_pass_captain_invoice_number_v1`; Tests Jahreswechsel/Startnummer/Musterwechsel. Braucht: Rechtsprüfung (Musterwechsel im laufenden Jahr).
+- [ ] **SET-PC-04 · Standardtexte mit Rechtsgewicht neutralisieren** (Widerrufstexte mit § 312g BGB/§ 18 FAGG, Kleinunternehmer-Text nur DE/AT, Schwellen-Hinweis): neutraler Standard, landesspezifisch aus dem Länderprofil, Kennzeichen „Rechtsprüfung“; bestehende Installationen behalten ihren Text (Migrationstest). Braucht: Rechtsprüfung, SET-PC-02.
+- [ ] **SET-PC-05 · Kassenpflicht-Sperre je Land** statt fest DE/AT (`src/BoxOffice/Service.php`): Einstellung `boxoffice_fiscal_required_countries`, Bestätigungstext je Land, Filter `wp_pass_captain_boxoffice_fiscal_required_v1`, Test IT/FR/HU. Braucht: Rechtsprüfung je Land; E3.
+- [ ] **SET-PC-06 · Pro-Hinweiszeile (Kern).** Statische Textliste `src/Admin/ProHints.php` (Texte aus der Analyse, Abschnitt 3.2), Block „Erweiterungen“ am Ende je Reiter, nur `manage_options`, je Person ausblendbar; Add-on-Feld mit gleicher Kennung ersetzt die Zeile. `docs/FREE-PREMIUM.md` Regeln 1 und 4 und Wächtertest neu fassen (Textliste erlaubt, Lizenz- und Funktionscode weiter verboten); Test „Add-on-Feld ersetzt Zeile“. Entscheidung E1 = (a), bestätigt 23.11.2026.
+- [ ] **SET-PC-07 · Pro-Hinweiszeile (Add-on).** Pass Captain Pro meldet seine Einstellungen als Felder im Register an. Braucht: anderes Repository (captain-pro, Lizenz-Sitzung), SET-PC-01, -06.
+- [ ] **SET-PC-08 · Währung als Einstellung:** `currencies`, `default_currency`; neue Ticketarten, Kassen, Rabattcodes, SMS-Kosten übernehmen den Standard statt fest EUR; Filter `wpcap_currencies` behält Vorrang; Test CHF ohne EUR.
+- [ ] **SET-PC-09 · Anrede vereinheitlichen:** Quelltexte der Einstellungen durchgehend „du“ (u. a. `SettingsPage.php` „die Sie nicht nutzen“, „entscheiden Sie“, „Ihren SMTP-Dienst“), Prüfskript; Sprachdatei `de_DE_formal` („Sie“) anlegen und in `Localization` wählbar.
+
+### WICHTIG
+- [ ] **SET-PC-10 · Export/Import der Einstellungen (JSON)** mit Plugin- und Schemaversion, ohne Geheimnisse, Import mit Vorschau, Prüfung über das Register, Audit; auch Modulwerte, Einzel-Optionen, Mail-Vorlagen, wahlweise Steuerprofile/Druckvorlagen; Rundlauf-Test. Braucht: -01.
+- [ ] **SET-PC-11 · Auf Standard zurücksetzen** je Feld/Abschnitt/gesamt mit Bestätigung; Geheimnisse und Deinstallations-Wahl ausgenommen; Audit mit alten Werten. Braucht: -01.
+- [ ] **SET-PC-12 · WP-CLI** `wp pass-captain settings list|get|set|reset|export|import|preset`; Geheimnisse nur setzen. Braucht: -01, -10.
+- [ ] **SET-PC-13 · Änderungsprotokoll mit Werten** (alt/neu, Geheimnisse und lange Texte als Prüfsumme, Quelle Seite/CLI/Import/Länderprofil), Ansicht „Einstellungen – Verlauf“, auch für Modulseiten. Braucht: -01.
+- [ ] **SET-PC-14 · Rechnung: Layout und Pflichtangaben:** Logo, Fußzeile, Zahlungsziel/-hinweis, frei benennbare Verkäufer-Kennungen, Sprache der Rechnung; Vorschau; alte Rechnungen unverändert. Braucht: Rechtsprüfung je Land.
+- [ ] **SET-PC-15 · Leistungsdatum für Positionen ohne Termin** wählbar (Zahlungsdatum, Gültigkeitsbeginn, Zeitraum): `invoice_service_date_fallback`. Braucht: Rechtsprüfung.
+- [ ] **SET-PC-16 · Storno durch Käufer:** Stornogebühr (fest/Prozent), Automatik ohne Freigabe, je Event übersteuerbar; Servicegebühr-Regel ist seit 23.11.2026 umgesetzt (A425). Braucht: Rechtsprüfung; E5 (Staffeln = Pro).
+- [ ] **SET-PC-17 · Zusätzliche Einwilligungs-Haken im Checkout** (Text je Sprache, Pflicht, Reihenfolge, Event-Auswahl, Version und Nachweis, nie vorangekreuzt). Braucht: Rechtsprüfung der Formulierungen (Betreiber).
+- [ ] **SET-PC-18 · Mindestalter als Regel:** `default_min_age`, `min_age_checkbox`, Hinweistext je Sprache. Braucht: Rechtsprüfung (Jugendschutz).
+- [ ] **SET-PC-19 · Impressum- und Datenschutz-Link als Einstellung**, Ausgabe in Checkout, Mails, Ticketseite; Platzhalter `{imprint_url}`, `{privacy_url}`.
+- [ ] **SET-PC-20 · Geschäftsregeln heben, Paket A (Käufer):** Portal-Zugang Tage, Link „Zahlung fortsetzen“, Namensänderungen, Inhaberwechsel, Höchstmenge je Position, offene Überweisungsbestellungen je E-Mail; Standard = heutiger Wert, Filter behält Vorrang. Braucht: -01.
+- [ ] **SET-PC-21 · Geschäftsregeln heben, Paket B (Protokolle, Fristen):** Support-Protokoll Tage/Stufe, Connector-Protokoll, Druckstapel, No-Show-Kulanz, Warteliste-Sperrfrist, Offline-Paketdauer; Übersicht „was wird wann gelöscht“ im Reiter Datenschutz. Braucht: -01.
+- [ ] **SET-PC-22 · Pro: feste Fristen einstellbar** (E-Rechnungs-Aufbewahrung, Check-in-Protokoll der Schreib-API). Braucht: anderes Repository (captain-pro).
+- [ ] **SET-PC-23 · Bargeld-Rundung und Stückelung je Währung** (aus/0,05/0,10), Rundungszeile in Bon, Z-Bericht und Export. Braucht: Rechtsprüfung, Steuerberatung.
+- [ ] **SET-PC-24 · Länder und Adressfelder:** Länderliste der Rechnungsadresse als Einstellung, optionales Feld Region, `seller_country` als Auswahl mit Prüfung.
+- [ ] **SET-PC-25 · Kleinunternehmer- und Steuerhinweise je Land** aus dem Länderprofil, Reverse-Charge-Hinweis je Sprache. Braucht: Rechtsprüfung, -02.
+- [ ] **SET-PC-26 · Fiskal-Profile: Vorlagen je Land/Kanal**, Filter `wp_pass_captain_fiscal_profile_templates_v1`, Aktivierung bleibt an den Prüfvermerk gebunden. Braucht: Rechtsprüfung je Land.
+- [ ] **SET-PC-27 · Eigenes Recht `wpcap_manage_settings`**, Rollenfelder als Auswahl statt Freitext. Braucht: E6 (Empfehlung: einführen).
+- [ ] **SET-PC-28 · Hilfetext und Prüfung an jedem Feld:** rund 30 Kernfelder ohne Hilfetext, `payment_poll_after_minutes` definieren, IBAN/BIC prüfen, gekappte Zahlen melden statt still ändern; Test „jedes Feld hat Hilfetext“. Braucht: -01.
+- [ ] **SET-PC-29 · WooCommerce-Einstellungen gebündelt** im Pass-Captain-Reiter (ein Speicherort, zwei Ansichten) plus Reservierungszeit, Ausstellen bei Status, Teilnehmerdaten im Woo-Checkout. Braucht: -01.
+- [ ] **SET-PC-30 · Netzwerk-Vorgaben (Multisite)**, Standardwerte für neue Unterseiten und Sperren je Wert. Braucht: -01; E7.
+
+### OPTIMIERUNG
+- [ ] **SET-PC-31 · Einrichtungsassistent** (Land → Rechnungssteller → Zahlungsart → Rechtstexte → erstes Event). Braucht: -02.
+- [ ] **SET-PC-32 · Suche und Übersicht „Alle Einstellungen“** mit Wert, Standard und Quelle. Braucht: -01.
+- [ ] **SET-PC-33 · Ticket-PDF: Logo und Fußzeile als Feld** (je Sprache, je Event übersteuerbar, Filter bleiben).
+- [ ] **SET-PC-34 · Erinnerungen je Event übersteuerbar.**
+- [ ] **SET-PC-35 · Servicegebühr prozentual** mit Mindest-/Höchstwert. Braucht: E5.
+- [ ] **SET-PC-36 · Kalender: erster Wochentag, Datums-/Zeitformat für Dokumente als Einstellung.**
+- [ ] **SET-PC-37 · DATEV-Konten als Tabelle** im Formular. Braucht: Steuerberatung für Standardwerte.
+- [ ] **SET-PC-38 · Ratenlimits für Betreiber** (Checkout je IP/E-Mail, Warteliste, Portal) mit sicheren Untergrenzen. Braucht: -01.
+- [ ] **SET-PC-39 · Kasse: Schichtregeln** (Differenz-Toleranz, Zählpflicht, Bon-Sprache, Blindzählung als Standard).
+- [ ] **SET-PC-40 · Zahlungsarten nach Regel** (je Event, Betrag, Land).
+- [ ] **SET-PC-41 · Pro: E-Rechnung weitere Länder** (Peppol mit Versand, FatturaPA, ebInterface). Braucht: anderes Repository; E4; Rechtsprüfung.
+- [ ] **SET-PC-42 · Schweizer QR-Rechnung** (Kern frei wie GiroCode laut Empfehlung). Braucht: E4.
+- [ ] **SET-PC-43 · Pro: neue Rechteschlüssel vormerken** (`pass.template_designer`, `pass.cancellation_rules`, `pass.accounting_exports`, `pass.settings_sync`). Braucht: anderes Repository; E8.
+- [ ] **SET-PC-44 · Bedienbarkeit der Einstellungsseiten** (Tastatur, `aria-describedby`, Fehlerliste mit Sprungmarken, Kontrast der Hinweiszeilen), Prüfliste in `docs/ACCESSIBILITY.md`. Braucht: -01.
+
+### Wartet auf Inhaber (Vorlage mit Empfehlung bei der Lizenz-Sitzung)
+- E2 Länder der ersten Profile (Empfehlung DE, AT, CH) · E3 Kassenpflicht-Sperre für weitere Länder (Empfehlung: Sperre mit Bestätigungs-Ausweg je Land mit Fiskal-Vorschlag) · E4 weitere E-Rechnungsformate/QR-Rechnung (Empfehlung: Formate unter `pass.e_invoicing`, Netz-Versand neuer Schlüssel, QR-Rechnung frei) · E5 Storno-Staffeln und Gebührenregeln als Pro (Empfehlung: Frist + ein Wert frei, Staffeln Pro) · E6 eigenes Recht `wpcap_manage_settings` (Empfehlung: einführen) · E7 Netzwerk-Vorgaben (Empfehlung: Vorgaben frei, Verteilen Pro) · E8 vier neue Pro-Schlüssel · E9 Deinstallation im Add-on (captain-pro).
+- Abweichungen vom Suite-Rahmen, die die Inhaberin bestätigen muss: Quelltexte von Pass Captain sind Deutsch (Rahmen: Englisch; A304) und Preise brutto (Rahmen: „Preise netto“).
+
+## Prüfphase Einstellungen und neue Funktionen (Auftrag des Inhabers vom 23.11.2026)
+
+Sechs unabhängige Experten je Plugin prüfen am laufenden Plugin (nicht nur am Text), schreiben jeden Befund als eigene `- [ ]`-Aufgabe mit Schweregrad, Fundstelle und Nachstellung hierher und reparieren ihn mit Test. Erledigt erst, wenn die Befunde behoben oder begründet als „wartet auf Inhaber“/„Rechtsprüfung“ gekennzeichnet sind und die CI grün ist. Läuft nach jedem größeren Baustein (Register, Länderprofile, Geschäftsregeln, Pro-Hinweis) und einmal am Ende über alles, auch über die neuen Funktionen der letzten Wochen (Lesefassade, Leistungsdatum, Form Captain am Event, Servicegebühr, Connector-Lesedienst, Gutschein-Abgleich …).
+- [ ] **SET-PC-P1 · Einstellungen und Daten:** Vorgabe, Prüfung, Speichern, Wirkung im Code (keine toten Werte), Filter gewinnt, Migration ohne Verhaltensänderung, Export/Import-Rundlauf, Zurücksetzen, WP-CLI, Änderungsprotokoll, Multisite.
+- [ ] **SET-PC-P2 · Abläufe von Anfang bis Ende** mit geänderten Einstellungen (Grenzwerte, 0, leer, Maximum, Widersprüche), klassische und Block-Kasse, HPOS, Zeitzonen und Fristen über Mitternacht/Jahreswechsel, Wiederholungen und Doppelklicks, Rückwärtskompatibilität.
+- [ ] **SET-PC-P3 · Länder, Steuer und Recht:** Länderprofile, Vorschau, nichts still überschrieben, Währung, Zahlen-/Datumsformat, Steuerfälle, Pflichttexte, Einwilligungen, Fristen; kennzeichnet Rechtsprüfung, legt nichts Rechtliches fest.
+- [ ] **SET-PC-P4 · Sicherheit und Datenschutz:** Rechte und Nonces jeder Einstellungs- und Importaktion, Geheimnisse nie im Export/Protokoll, Ein-/Ausgaben, Aufbewahrung, Löschung und Auskunft mit den neuen Fristen, Protokolle, Deinstallation.
+- [ ] **SET-PC-P5 · Bedienung, Sprache und Barrierefreiheit:** Hilfetext und Fehlermeldung an jedem Feld, Tastatur und Screenreader, verständliche Sprache, de_DE „du“ und de_DE_formal „Sie“ vollständig, Hinweiszeilen unaufdringlich und ausblendbar, mobile Ansicht.
+- [ ] **SET-PC-P6 · Free/Pro-Grenze, Verträge und Betrieb:** kein Lizenzcode/keine Rechteschlüssel im Kern (Wächtertest), Hinweiszeile ohne Funktionscode, Add-on ersetzt die Zeile, Verhalten ohne Add-on/ohne Lizenz/mit Lizenz, Vertragsversion und Hook-Doku, Leistung (Abfragen, Autoload), Mindestplattform und CI-Matrix, Aktualisierung von der Vorversion.
+
 ## Zusätzlich entdeckte offene Aufgaben aus Code, Roadmaps und Betriebsdokumentation
 
 Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst. Sie ergänzen die bestehenden Backlog-Punkte, statt deren erledigte Grundlagen zurückzunehmen.
