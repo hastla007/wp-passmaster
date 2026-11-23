@@ -301,6 +301,10 @@ final class SettingsManager {
 			$error = is_wp_error( $checked ) ? $checked->get_error_message() : '';
 			$new = is_wp_error( $checked ) ? $value : $checked;
 			$changed = '' === $error && ! self::same( $current[ $key ] ?? null, $new );
+			if ( $changed && null !== ( $current[ $key ] ?? null ) ) { // A stored value that only differs by normalisation (e.g. a lower-case BIC) is no change.
+				$normalised = self::check_import_value( $key, $current[ $key ], $current );
+				$changed = is_wp_error( $normalised ) || ! self::same( $normalised, $new );
+			}
 			if ( '' !== $error ) { ++$errors; }
 			if ( $changed ) { ++$changes; }
 			$rows[] = array(

@@ -12,7 +12,6 @@ $pp_saved = get_option( Settings::OPTION, array() );
 Settings::update( array( 'billing_required_threshold_minor' => 25000, 'refund_approval_threshold' => 15000 ) );
 $pp_doc = SettingsManager::export();
 $pp_prev = SettingsManager::preview( wp_json_encode( $pp_doc ) );
-if ( 0 !== $pp_prev['changes'] || 0 !== $pp_prev['errors'] ) { echo '     debug: ' . wp_json_encode( array_filter( (array) ( $pp_prev['rows'] ?? $pp_prev ), static fn( $r ) => ! is_array( $r ) || ! empty( $r['changed'] ) || ! empty( $r['error'] ) ) ) . "\n"; }
 check( 'P1-1: an unchanged export has no changes in the preview (money stays in minor units)', 0 === $pp_prev['changes'] && 0 === $pp_prev['errors'] );
 Settings::update( array( 'billing_required_threshold_minor' => 100 ) );
 SettingsManager::import( wp_json_encode( $pp_doc ) );
@@ -21,6 +20,12 @@ check( 'P1-1: the DE preset does not propose its own threshold again', ! in_arra
 check( 'P1-1: CLI money values are minor units like "get" prints them', 2500 === (int) PassCaptain\Ops\SettingsCli::set_value( 'billing_required_threshold_minor', '2500' ) );
 check( 'P1-1: form input stays in major units', 1250 === SettingsSchema::validate( 'refund_approval_threshold', '12,50' ) );
 // 3: field sanitize callbacks and prefix normalisation also apply outside the settings screen.
+Settings::update( array( 'bank_bic' => 'BKAUATWW' ) );
+$pp_raw = get_option( Settings::OPTION, array() );
+$pp_raw['bank_bic'] = 'bkauatww'; // Stored before the register normalised BICs.
+update_option( Settings::OPTION, $pp_raw );
+Settings::flush();
+check( 'P1-1: a value that only differs by normalisation is not counted as a change', 0 === SettingsManager::preview( wp_json_encode( array_merge( $pp_doc, array( 'settings' => array( 'bank_bic' => 'BKAUATWW' ) ) ) ) )['changes'] );
 check( 'P1-3: an unreadable payment rule is refused by the CLI', is_wp_error( PassCaptain\Ops\SettingsCli::set_value( 'payment_rules', 'garbage | foo=1' ) ) );
 check( 'P1-3: invoice prefix is normalised like on the settings screen', 'RECHNUNG20' === PassCaptain\Ops\SettingsCli::set_value( 'invoice_prefix', 'rechnung 2026/ä' ) );
 // 6: resetting the proxy header also resets the derived header.

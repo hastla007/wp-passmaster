@@ -14,8 +14,7 @@ check( 'SET-PC-08: CHF without EUR: only CHF is offered and is the default', arr
 $sp08_c = PassCaptain\Campaigns::create( array( 'name' => 'SP08', 'code' => 'SP08CHF', 'kind' => 'fixed', 'value' => 100 ) );
 check( 'SET-PC-08: a new discount code without currency takes the default currency', ! is_wp_error( $sp08_c ) && 'CHF' === (string) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( "SELECT currency FROM {$GLOBALS['wpdb']->prefix}wpcap_campaigns WHERE campaign_id=%d", (int) ( $sp08_c["campaign_id"] ?? 0 ) ) ) );
 $sp08_r = PassCaptain\BoxOffice\Registers::save( array( 'name' => 'SP08 Kasse ' . wp_generate_password( 6, false ) ) );
-$sp08_rc = is_wp_error( $sp08_r ) ? $sp08_r->get_error_code() : (string) ( PassCaptain\BoxOffice\Registers::get( (int) $sp08_r )->currency ?? '' );
-if ( 'CHF' !== $sp08_rc ) { echo '     debug: ' . $sp08_rc . ' ' . Localization::default_currency() . "\n"; }
+$sp08_rc = is_wp_error( $sp08_r ) ? $sp08_r->get_error_code() : (string) ( $sp08_r->currency ?? '' ); // save() returns the row.
 check( 'SET-PC-08: a register without currency takes the default currency', 'CHF' === $sp08_rc );
 Settings::update( array( 'currencies' => 'CHF', 'default_currency' => 'EUR' ) );
 check( 'SET-PC-08: the default currency is always offered', array( 'EUR', 'CHF' ) === Localization::currencies() && 'EUR' === Localization::default_currency() );
