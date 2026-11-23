@@ -275,12 +275,21 @@
 		if (!box) return;
 		let total = 0;
 		let currency = '';
+		// A425: service fee (display only; data-fee per paid ticket, data-order-fee once per paid order).
+		let fee = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
-			total += n * (Number(qty.dataset.price) || 0);
+			const price = Number(qty.dataset.price) || 0;
+			total += n * price;
+			if (price > 0) fee += n * (Number(qty.dataset.fee) || 0);
 			if (n) currency = qty.dataset.currency || currency;
 		});
-		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+		const typesBox = form.querySelector('.wpcap-types');
+		if (total > 0 && typesBox) fee += Number(typesBox.dataset.orderFee) || 0;
+		if (total <= 0) fee = 0;
+		total += fee;
+		form.dataset.feeEstimate = String(fee);
+		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, currency)) : '') : '';
 		// A602: the sum next to the order button (visual only; the estimate above is the live region).
 		const near = form.querySelector('.wpcap-submit-total');
 		if (near) near.textContent = total > 0 ? fill(t.submitTotal || '%s', [money(total, currency)]) : '';
@@ -309,7 +318,8 @@
 				const d = await r.json().catch(function () { return {}; });
 				if (code.value.trim() !== value) return; // Changed meanwhile.
 				if (r.ok && box) {
-					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor, d.currency), money(d.discount_minor, d.currency), money(d.total_minor, d.currency)]);
+					const fee = Number(form.dataset.feeEstimate) || 0;
+					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor + fee, d.currency), money(d.discount_minor, d.currency), money(d.total_minor + fee, d.currency)]) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, d.currency)) : '');
 				} else if (409 === r.status && box && !single) {
 					box.textContent = (t.estimate || '%s').replace('%s', money(total, d.currency || '')) + ' ' + (t.codeInvalid || '');
 				}

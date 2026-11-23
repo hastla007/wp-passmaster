@@ -1763,8 +1763,20 @@ final class Refunds {
 		$discounts = (array) Orders::snapshot_line_discounts( $order );
 		$unit = array();
 		$all = 0;
-		foreach ( self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,SUM(quantity) AS quantity,SUM(line_total_minor) AS line_total FROM %i WHERE order_id=%d GROUP BY ticket_type_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) ) as $item ) {
+		// A425: the per-ticket service fee is part of the ticket's share (grouped with its type); the
+		// per-order fee belongs to no ticket and goes back with the last one (calculate()).
+		$fees = ServiceFee::ready();
+		$sql = $fees
+			? "SELECT ticket_type_id,SUM(quantity) AS quantity,SUM(line_total_minor) AS line_total,MAX(unit_price_minor) AS fee_unit,fee_kind FROM %i WHERE order_id=%d GROUP BY ticket_type_id,fee_kind ORDER BY fee_kind='ticket'"
+			: 'SELECT ticket_type_id,SUM(quantity) AS quantity,SUM(line_total_minor) AS line_total FROM %i WHERE order_id=%d GROUP BY ticket_type_id';
+		foreach ( self::checked( $wpdb->get_results( $wpdb->prepare( $sql, $p . 'wpcap_order_items', (int) $order->order_id ) ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- one of two literal queries.
 			$type = (int) $item->ticket_type_id;
+			$kind = (string) ( $item->fee_kind ?? '' );
+			if ( '' !== $kind ) {
+				$all += (int) $item->line_total;
+				if ( ServiceFee::KIND_TICKET === $kind && isset( $unit[ $type ] ) ) { $unit[ $type ] += (int) $item->fee_unit; }
+				continue;
+			}
 			$line = max( 0, (int) $item->line_total - (int) ( $discounts[ $type ] ?? 0 ) );
 			$all += $line;
 			$unit[ $type ] = $line / max( 1, (int) $item->quantity );
@@ -1788,14 +1800,30 @@ final class Refunds {
 		$p = $wpdb->prefix;
 		if ( ! $ticket_ids ) { return array( 0, 0, 0 ); }
 		$unit = array();
-		$items = (array) self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor' . ( OrderLines::ready() ? ',discount_minor' : '' ) . ' FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
+		$fees = ServiceFee::ready();
+		$items = (array) self::checked( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,unit_price_minor,line_total_minor,tax_minor' . ( OrderLines::ready() ? ',discount_minor' : '' ) . ( $fees ? ',fee_kind' : '' ) . ' FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
 		// Line totals are stored before the order discount, the line VAT after it: the gross that carries this VAT
 		// is the discounted line total (same allocation as in reports and settlements).
 		$discount = isset( $order->discount_minor ) ? (int) $order->discount_minor : (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", (int) $order->order_id ) );
 		$discounted = \PassCaptain\Reports\Data::allocate_discount( $items, $discount );
+		$fee_lines = array();
 		foreach ( array_values( $items ) as $i => $item ) {
+			if ( ServiceFee::is_fee_line( $item ) ) {
+				$fee_lines[ $i ] = $item;
+				continue;
+			}
 			$q = max( 1, (int) $item->quantity );
 			$unit[ (int) $item->ticket_type_id ] = array( (int) $item->line_total_minor / $q, (int) $item->tax_minor / $q, (int) $discounted[ $i ] / $q );
+		}
+		// A425: a ticket's share includes its per-ticket service fee (same VAT rate as the ticket line); the
+		// per-order fee is no ticket's share.
+		foreach ( $fee_lines as $i => $item ) {
+			$type = (int) $item->ticket_type_id;
+			if ( ServiceFee::KIND_TICKET !== (string) $item->fee_kind || ! isset( $unit[ $type ] ) ) { continue; }
+			$n = ServiceFee::covered( $item );
+			$unit[ $type ][0] += (int) $item->line_total_minor / $n;
+			$unit[ $type ][1] += (int) $item->tax_minor / $n;
+			$unit[ $type ][2] += (int) $discounted[ $i ] / $n;
 		}
 		$ids = array_values( array_map( 'absint', $ticket_ids ) );
 		$gross = 0.0;

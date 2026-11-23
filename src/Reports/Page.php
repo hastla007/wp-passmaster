@@ -157,6 +157,14 @@ final class Page {
 			// Guest list comps (GuestLists module): shown separately, not part of sales/revenue.
 			__( 'Freikarten (nicht im Umsatz)', 'pass-captain' ) => (string) (int) ( $report['comps']['tickets'] ?? 0 ),
 		);
+		foreach ( (array) ( $report['service_fees'] ?? array() ) as $fee_currency => $fee ) {
+			// A425: service fees are part of the gross sales above.
+			/* translators: %s: VAT amount */
+			$fee_tax = sprintf( __( 'USt %s', 'pass-captain' ), Scope::money( (int) $fee['tax'], (string) $fee_currency ) );
+			/* translators: %s: currency code */
+			$fee_label = sprintf( __( 'davon Servicegebühren (%s)', 'pass-captain' ), $fee_currency );
+			$summary[ $fee_label ] = Scope::money( (int) $fee['gross'], (string) $fee_currency ) . ' (' . $fee_tax . ')';
+		}
 		$summary = self::metrics( $summary, $report, $filters );
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';

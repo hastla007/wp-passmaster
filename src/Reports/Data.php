@@ -349,6 +349,8 @@ final class Data {
 			'channels' => $channels,
 			'credit_notes' => $credit,
 			'comps' => $comps,
+			// A425: service fees of the sales in the range (gross and VAT per currency; part of gross/revenue above).
+			'service_fees' => \PassCaptain\ServiceFee::totals( array_keys( $order_scope ) ),
 			'occurrences' => $occurrences,
 			'histogram_occurrence' => $histogram_occ,
 			'histogram' => $histogram_occ ? self::checkin_histogram( $histogram_occ ) : array(),

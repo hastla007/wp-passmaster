@@ -140,6 +140,7 @@ final class Plugin {
 		Terms::register(); // A690: configurable terms ("Gäste" instead of "Teilnehmende") in front-end texts and mails.
 		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
+		ServiceFee::register(); // A425: names service fee lines on invoices.
 		Payments\Cases::register(); // Double payments / payments for closed orders / failed provider refunds.
 		Payments\Reconcile::register(); // Void open PSP sessions on cancellation, poll stuck pending orders.
 		Integrations\Vouchers\Checkout::register();

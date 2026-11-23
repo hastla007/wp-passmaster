@@ -185,6 +185,15 @@ final class SettingsPage {
 					'portal_refund_request_hours' => array( 'type' => 'int', 'label' => __( 'Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 8760, 'description' => __( '0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe.', 'pass-captain' ) ),
 				),
 			),
+			'service_fee' => array(
+				'title' => __( 'Servicegebühr', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'service_fee_ticket_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Ticket', 'pass-captain' ), 'description' => __( '0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen.', 'pass-captain' ) ),
+					'service_fee_order_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Bestellung', 'pass-captain' ), 'description' => __( '0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout.', 'pass-captain' ) ),
+				),
+				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten mit dem Steuersatz der zugehörigen Ticketposition. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket. Bitte Preisangaben (Gesamtpreis inkl. Pflichtgebühren) und Steuersatz mit der Steuerberatung prüfen.', 'pass-captain' ),
+			),
 			'vouchers' => array(
 				'title' => __( 'Gutscheine', 'pass-captain' ),
 				'tab' => 'general',
@@ -741,6 +750,7 @@ final class SettingsPage {
 			<?php if ( 'legal' === $id && '' !== self::terms_warning() ) : ?>
 				<div class="notice notice-warning inline"><p><?php echo esc_html( self::terms_warning() ); ?></p></div>
 			<?php endif; ?>
+			<?php if ( ! empty( $def['description'] ) ) : ?><p class="description"><?php echo esc_html( (string) $def['description'] ); ?></p><?php endif; ?>
 			<?php if ( 'legal' === $id ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: locale code */ __( 'Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung.', 'pass-captain' ), Settings::legal_default_locale() ) ); ?></p>
 			<?php endif; ?>

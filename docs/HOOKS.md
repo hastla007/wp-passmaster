@@ -677,6 +677,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_vat_id_validate` | `true|WP_Error $valid, string $vat_id, array $billing` | Optionale Online-Prüfung der UID (z. B. VIES); `true` akzeptiert, `false` oder `WP_Error` (Meldung wird angezeigt) lehnt ab. Standard: keine externe Abfrage. |
 | `wpcap_billing_required_threshold` | `int $minor` (Einstellung `billing_required_threshold_minor`), `string $currency` | Bestellsumme, ab der im öffentlichen Checkout Rechnungsdaten Pflicht sind (0 = aus); je Währung überschreibbar. |
 | `wpcap_invoice_items` | `object[] $items, object $order` | Rechnungszeilen einer Bestellung (Zeilen mit `name`, `event_name`, `starts_at`, `timezone`), z. B. Umtauschgebühren ergänzen. |
+| `wpcap_service_fee` | `array $fee` (`ticket` → [Ticketart-ID → Gebühr je Ticket], `order_minor`), `array $selected` (Bestellzeilen), `array $context` (`currency`, `email`) | A425: Servicegebühr einer Bestellung im eigenen Online-Checkout ändern oder streichen (z. B. je Event); Beträge brutto in Kleinsteinheiten, 0 = keine. Läuft in der Bestelltransaktion, keine Abfragen mit Sperren. |
 
 ### WooCommerce
 

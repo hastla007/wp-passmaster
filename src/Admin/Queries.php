@@ -673,7 +673,12 @@ final class Queries {
 	public static function order_items( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $order_id ) ) );
+		$items = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $order_id ) ) );
+		foreach ( $items as $item ) {
+			// A425: service fee lines are named as such (quantity 0: no admission).
+			if ( \PassCaptain\ServiceFee::is_fee_line( $item ) ) { $item->name = \PassCaptain\ServiceFee::label( $item, (string) $item->name ); }
+		}
+		return $items;
 	}
 
 	/** Tickets of an order with attendee name/e-mail and participant answers (label => answer). */

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.18.2';
+	const DB_VERSION = '3.18.3';
 
 	public static function install() {
 		global $wpdb;
@@ -223,6 +223,7 @@ final class Installer {
 				min_age tinyint(3) unsigned NOT NULL DEFAULT 0,
 				staff_note varchar(190) NOT NULL DEFAULT '',
 				attendee_name_required tinyint(1) unsigned NOT NULL DEFAULT 0,
+				service_fee_minor bigint(20) unsigned NULL DEFAULT NULL,
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
@@ -295,6 +296,7 @@ final class Installer {
 				tax_profile_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				tax_profile_version varchar(32) NOT NULL DEFAULT '',
 				tax_country char(2) NOT NULL DEFAULT '',
+				fee_kind varchar(10) NOT NULL DEFAULT '',
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),

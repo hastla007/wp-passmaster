@@ -579,6 +579,13 @@ final class EventsPage {
 		}
 		$checks = \PassCaptain\AdmissionChecks::parse( $in );
 		if ( is_wp_error( $checks ) ) { return Forms::error( $checks->get_error_code(), $checks->get_error_message() ); }
+		// A425: own service fee per ticket of this type (empty = the setting, 0 = none); only when submitted.
+		$service_fee = false;
+		if ( array_key_exists( 'service_fee', $in ) && \PassCaptain\ServiceFee::ready() ) {
+			$raw_fee = trim( is_scalar( $in['service_fee'] ) ? (string) $in['service_fee'] : '' );
+			$service_fee = '' === $raw_fee ? null : Forms::parse_money( $raw_fee, Forms::currency_decimals( $currency ) );
+			if ( '' !== $raw_fee && null === $service_fee ) { return Forms::error( 'wpcap_type_service_fee', __( 'Die Servicegebühr ist ungültig. Beispiel: 1,50 (leer = Einstellung)', 'pass-captain' ), 400, 'service_fee' ); }
+		}
 		$capacity = Forms::int( $in, 'capacity' );
 		$status = Forms::choice( $in, 'status', array( 'active', 'paused' ), 'active' );
 		global $wpdb;
@@ -644,6 +651,10 @@ final class EventsPage {
 		if ( \PassCaptain\ParticipantFields::name_switch_ready() ) {
 			// A552: every ticket of this type needs the attendee's name.
 			$data['attendee_name_required'] = Forms::flag( $in, 'attendee_name_required' ) ? 1 : 0;
+			$formats[] = '%d';
+		}
+		if ( false !== $service_fee ) {
+			$data['service_fee_minor'] = $service_fee;
 			$formats[] = '%d';
 		}
 		if ( array_key_exists( 'visibility', $in ) ) {
@@ -1812,6 +1823,9 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $v( 'max_per_order', (string) ( $type ? (int) $type->max_per_order : 10 ) ) ); ?>"<?php echo $bad( 'max_per_order' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $v( 'sales_start', $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ) ); ?>"<?php echo $bad( 'sales_start' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $v( 'sales_end', $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ) ); ?>"<?php echo $bad( 'sales_end' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termine) gilt online höchstens bis Terminende', 'pass-captain' ); ?></span></td></tr>
+			<?php if ( \PassCaptain\ServiceFee::ready() ) : $wpcap_fee = $type && null !== ( $type->service_fee_minor ?? null ) ? Forms::money_input( (int) $type->service_fee_minor, Forms::currency_decimals( $currency ) ) : ''; ?>
+			<tr><th><label for="wpcap-tt-fee"><?php esc_html_e( 'Servicegebühr je Ticket', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-fee" name="service_fee" type="text" inputmode="decimal" size="10" aria-describedby="wpcap-tt-fee-help" value="<?php echo esc_attr( $v( 'service_fee', $wpcap_fee ) ); ?>"<?php echo $bad( 'service_fee' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description" id="wpcap-tt-fee-help"><?php echo esc_html( sprintf( /* translators: %s: default fee per ticket from the settings */ __( 'Leer = Einstellung (%s), 0 = keine. Nur im eigenen Online-Checkout, mit dem Steuersatz dieser Ticketart.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'service_fee_ticket_minor' ), $currency ) ) ); ?></span></td></tr>
+			<?php endif; ?>
 			<tr><th><label for="wpcap-tt-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-tt-desc" name="description" class="large-text" rows="2" maxlength="1000" aria-describedby="wpcap-tt-desc-hint"><?php echo esc_textarea( $type ? (string) ( $type->description ?? '' ) : '' ); ?></textarea><p class="description" id="wpcap-tt-desc-hint"><?php esc_html_e( 'Kurzer Hinweis unter der Ticketart, z. B. „inkl. Garderobe“ oder „nur mit Schülerausweis“.', 'pass-captain' ); ?></p></td></tr>
 			<tr><th><label for="wpcap-tt-pos"><?php esc_html_e( 'Reihenfolge', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-pos" name="position" type="number" min="0" max="65535" value="<?php echo esc_attr( (string) ( $type ? (int) ( $type->position ?? 0 ) : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Kleinere Zahlen stehen auf der Eventseite weiter oben.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-attname"><?php esc_html_e( 'Name je Ticket', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'attendee_name', array( 'optional' => __( 'Optional abfragen', 'pass-captain' ), 'required' => __( 'Pflichtangabe (personalisiertes Ticket)', 'pass-captain' ), 'off' => __( 'Nicht abfragen', 'pass-captain' ) ), $type ? \PassCaptain\Orders::attendee_name_mode( $type->attendee_name ?? '' ) : 'optional', 'wpcap-tt-attname' ); ?></td></tr>

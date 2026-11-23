@@ -378,6 +378,14 @@ final class Fiscalization {
 		$now = current_time( 'mysql', true );
 		$unmapped_types = array();
 		$ticket_sellers = array();
+		// A425: service fee lines (own order lines, inserted before this hook) by ticket type.
+		$fee_lines = array();
+		if ( \PassCaptain\ServiceFee::ready() ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,fee_kind,unit_price_minor,line_total_minor,tax_minor,tax_rate_bp FROM %i WHERE order_id=%d AND fee_kind<>'' ORDER BY item_id", $p . 'wpcap_order_items', absint( $order_id ) ) ) as $fee_line ) {
+				$fee_lines[ (int) $fee_line->ticket_type_id ][] = $fee_line;
+			}
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
+		}
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id LEFT JOIN %i c ON c.seller_id=s.seller_id LEFT JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $p . 'wpcap_ticket_sellers', $p . 'wpcap_legal_sellers', $p . 'wpcap_fiscal_configs', $p . 'wpcap_fiscal_profiles', $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
@@ -452,6 +460,23 @@ final class Fiscalization {
 			);
 			$groups[ $seller_id ]['gross_minor'] += $gross;
 			$groups[ $seller_id ]['tax_minor'] += $tax;
+			// A425: service fee lines of this ticket type belong on the same receipt.
+			foreach ( $fee_lines[ $type_id ] ?? array() as $fee_line ) {
+				$fee_gross = (int) $fee_line->line_total_minor;
+				$fee_tax = min( $fee_gross, max( 0, (int) $fee_line->tax_minor ) );
+				$groups[ $seller_id ]['items'][] = array(
+					'ticket_type_id' => $type_id,
+					'description' => sanitize_text_field( \PassCaptain\ServiceFee::label( $fee_line, (string) ( $line['type']->name ?? '' ) ) ),
+					'seller_mode' => $mapping->seller_mode,
+					'quantity' => \PassCaptain\ServiceFee::covered( $fee_line ),
+					'gross_minor' => $fee_gross,
+					'tax_rate_bp' => absint( $fee_line->tax_rate_bp ),
+					'tax_minor' => $fee_tax,
+					'service_fee' => (string) $fee_line->fee_kind,
+				);
+				$groups[ $seller_id ]['gross_minor'] += $fee_gross;
+				$groups[ $seller_id ]['tax_minor'] += $fee_tax;
+			}
 		}
 		// A fiscal receipt that leaves out paid ticket lines of the same order would be wrong: fail closed.
 		if ( $has_mapping && $unmapped_types ) { throw new \RuntimeException( 'fiscal_ticket_unmapped' ); }
@@ -525,12 +550,21 @@ final class Fiscalization {
 			) );
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			$document_id = (int) $wpdb->insert_id;
+			// One row per ticket type (primary key): a service fee position (A425) adds its amounts to the row of
+			// its ticket type, so refund adjustments per type include it; the receipt items keep it separate.
+			$type_rows = array();
 			foreach ( $group['items'] as $item ) {
 				if ( empty( $item['ticket_type_id'] ) ) { continue; }
-				$saved = $wpdb->insert( "{$p}wpcap_fiscal_document_items", array(
-					'document_id' => $document_id, 'ticket_type_id' => (int) $item['ticket_type_id'], 'seller_mode' => $item['seller_mode'],
-					'quantity' => (int) $item['quantity'], 'gross_minor' => (int) $item['gross_minor'], 'tax_rate_bp' => (int) $item['tax_rate_bp'], 'tax_minor' => (int) $item['tax_minor'],
-				) );
+				$type_key = (int) $item['ticket_type_id'];
+				if ( ! isset( $type_rows[ $type_key ] ) ) {
+					$type_rows[ $type_key ] = array( 'document_id' => $document_id, 'ticket_type_id' => $type_key, 'seller_mode' => $item['seller_mode'], 'quantity' => 0, 'gross_minor' => 0, 'tax_rate_bp' => (int) $item['tax_rate_bp'], 'tax_minor' => 0 );
+				}
+				if ( empty( $item['service_fee'] ) ) { $type_rows[ $type_key ]['quantity'] += (int) $item['quantity']; }
+				$type_rows[ $type_key ]['gross_minor'] += (int) $item['gross_minor'];
+				$type_rows[ $type_key ]['tax_minor'] += (int) $item['tax_minor'];
+			}
+			foreach ( $type_rows as $type_row ) {
+				$saved = $wpdb->insert( "{$p}wpcap_fiscal_document_items", $type_row );
 				if ( false === $saved ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			}
 		}

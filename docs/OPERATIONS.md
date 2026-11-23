@@ -712,6 +712,36 @@ Installationen von vor Schema 3.10.9, die die Zahlungsarten nie gespeichert hatt
 Bankverbindung, zeigt der Zahlungen-Tab „(nicht vollständig konfiguriert)“ und Administratoren sehen auf
 dem Dashboard und den Plugin-Seiten einen Hinweis mit Link zur Einrichtung.
 
+## Vorverkaufs-/Servicegebühr (A425)
+
+Standardmäßig aus. Unter **Einstellungen → Allgemein → Servicegebühr** gibt es eine Gebühr **je Ticket** und
+eine **je Bestellung** (Bruttobeträge); im Ticketart-Formular lässt sich die Gebühr je Ticket abweichend
+festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee_minor`, Schema 3.18.3).
+
+- **Wo sie gilt:** nur im eigenen Online-Checkout und nur für kostenpflichtige Positionen. Keine Gebühr bei
+  kostenlosen Bestellungen, Positionen, die nach Rabatt nichts kosten, Kasse, WooCommerce, Partner-API,
+  Admin-Reservierungen, Freikarten, Wartelisten-Angeboten und Servicebuchungen. Filter `wpcap_service_fee`
+  ändert sie je Bestellung.
+- **Bestellung:** eigene Zeilen in `wpcap_order_items` mit `fee_kind` `ticket` bzw. `order` und Menge 0
+  (kein Einlass, kein Kontingent). `subtotal_minor` und `total_minor` der Bestellung enthalten die Gebühr,
+  `price_snapshot.service_fee` friert die Beträge ein; Rabatte mindern sie nicht.
+- **Steuer:** wie die zugehörige Ticketposition (gleicher Satz, gleiche Steuerprofil-Spalten); die
+  Gebühr je Bestellung folgt der ersten kostenpflichtigen Position. Ein eigener Steuersatz für die Gebühr ist
+  nicht vorgesehen (fachlich zu klären, siehe unten).
+- **Anzeige:** Eventseite „zzgl. … Servicegebühr“ je Ticketart und Summe mit „inkl. Servicegebühr …“;
+  Bestellübersicht in Mail und Bestellportal, Admin-Bestellansicht und Rechnung als eigene Position
+  („Servicegebühr (Ticketart)“ mit Anzahl Tickets, „Servicegebühr je Bestellung“); Bericht: „davon
+  Servicegebühren“ je Währung (Teil des Bruttoumsatzes). Fiskalisierung: die Gebühren stehen als eigene
+  Positionen auf dem Beleg des Verkäufers ihrer Ticketposition (Belegsumme = Bestellsumme); die Belegzeile je
+  Ticketart (`wpcap_fiscal_document_items`) enthält ihre Beträge.
+- **Erstattung:** nach den bestehenden Regeln (`Refunds::calculate()`): ein erstattetes Ticket nimmt seine
+  Gebühr je Ticket mit, die Gebühr je Bestellung geht mit dem letzten Ticket zurück (Vollerstattung =
+  Bestellsumme). Wer die Gebühr einbehalten will, nutzt den Abzug der Erstattung (`deduct_minor`).
+- **Offen (Betreiber/Steuerberatung):** Preisangaben gegenüber Verbrauchern müssen Pflichtgebühren im
+  Gesamtpreis zeigen (DE PAngV, AT PrAG) – die Eventseite nennt die Gebühr neben dem Ticketpreis, nicht im
+  Preis; ob die Gebühr als Nebenleistung den Steuersatz des Tickets teilt, ob sie bei Absage durch den
+  Veranstalter immer zurückgeht und wem sie in Partnerabrechnungen zusteht, ist nicht entschieden.
+
 ## Zahlungsanbieter: Test- und Live-Modus (A274)
 
 - **Stripe**: Der Modus (Einstellungen → Zahlungen → Stripe, Standard „Test“) muss zum Secret Key passen:

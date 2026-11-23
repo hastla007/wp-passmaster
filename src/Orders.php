@@ -254,6 +254,10 @@ final class Orders {
 		}
 		$entered_codes = Sales\Visibility::input_codes( is_array( $payload['campaign_codes'] ?? null ) ? $payload['campaign_codes'] : array() );
 		$public_checkout = ! $external && '' === $namespace;
+		// A425: the service fee applies to the own online ticket checkout only (no staff, adapter, comp,
+		// waitlist or service booking channel). The column check runs before the transaction starts.
+		$fee_channel = $public_checkout && ! $comp && ! $door_sale && empty( $internal['source'] ) && empty( $internal['skip_rate_limit'] ) && ServiceFee::ready();
+		$service_fee = null;
 		$commit_unknown = false;
 		self::begin();
 		try {
@@ -452,6 +456,15 @@ final class Orders {
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}
+			// A425: presale/service fee (off by default): own order lines with the VAT rate of their ticket
+			// line, never discounted; the order subtotal and total include it, the snapshot freezes it.
+			$service_fee = $fee_channel ? ServiceFee::for_order( $selected, $total, array( 'currency' => $currency, 'email' => $email ) ) : null;
+			if ( $service_fee ) {
+				$subtotal += (int) $service_fee['total_minor'];
+				$total += (int) $service_fee['total_minor'];
+				$tax_total += (int) $service_fee['tax_minor'];
+				if ( ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+			}
 			$snapshot = array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) );
 			if ( $discount ) {
 				$snapshot['line_discounts'] = array();
@@ -461,6 +474,7 @@ final class Orders {
 				// Lines whose unit price was changed by `wpcap_ticket_unit_price` (e.g. series price tiers).
 				$snapshot['unit_price_adjustments'] = $price_rules;
 			}
+			if ( $service_fee ) { $snapshot['service_fee'] = $service_fee['snapshot']; }
 			$price_snapshot = wp_json_encode( $snapshot );
 
 			if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
@@ -554,6 +568,26 @@ final class Orders {
 				$deltas[ $type_id ][ $unit ] = ( $deltas[ $type_id ][ $unit ] ?? 0 ) + (int) $line['quantity'];
 				$occurrence_of[ $type_id ] = (int) $line['type']->occurrence_id;
 			}
+			foreach ( $service_fee ? $service_fee['lines'] : array() as $fee_line ) {
+				// A425: fee line next to its ticket line: quantity 0 = no admission and no inventory.
+				$parent = $selected[ $fee_line['index'] ];
+				$item = array(
+					'order_id' => $order_id,
+					'ticket_type_id' => (int) $parent['type']->ticket_type_id,
+					'quantity' => 0,
+					'unit_price_minor' => (int) $fee_line['unit_minor'],
+					'line_total_minor' => (int) $fee_line['total_minor'],
+					'tax_rate_bp' => (int) $fee_line['rate_bp'],
+					'tax_minor' => (int) $fee_line['tax_minor'],
+					'discount_minor' => 0,
+					'fee_kind' => (string) $fee_line['kind'],
+				);
+				if ( $counted ) { $item['counted_qty'] = 0; }
+				$item += Tax\Profiles::line_columns( $parent['tax_info'] );
+				if ( $parent['tax_profile'] ) { $item['tax_profile_id'] = (int) $parent['tax_profile']['tax_profile_id']; }
+				$wpdb->insert( $items_table, $item );
+				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
+			}
 			if ( $counted && ! CapacityCounters::add( $deltas, $occurrence_of ) ) {
 				throw new \RuntimeException( 'db_busy' );
 			}
@@ -616,7 +650,7 @@ final class Orders {
 			// The free order exists, its tickets do not yet: a retry with the same key issues them.
 			return $issued;
 		}
-		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'service_fee_minor' => $service_fee ? (int) $service_fee['total_minor'] : 0, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
 	}
 
 	/**
@@ -2850,19 +2884,22 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order = self::get( $order_id );
 		if ( ! $order ) { return array(); }
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,' . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.unit_price_minor,' . ( ServiceFee::ready() ? 'oi.fee_kind,' : '' ) . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column lists built from literals.
 		$lines = array_values( array_filter( (array) $lines, static function ( $l ) { return ! OrderLines::is_moved_in( $l ); } ) );
 		$after = OrderLines::after_discount( $lines, (int) $order->discount_minor );
 		$out = array();
 		foreach ( $lines as $i => $line ) {
 			if ( (int) $line->quantity < 1 && (int) $after[ $i ] < 1 ) { continue; }
+			$fee = ServiceFee::is_fee_line( $line );
 			$out[] = array(
 				'event' => (string) $line->event_name,
-				'ticket' => (string) $line->name,
+				// A425: a service fee line is named as such and counts the tickets it covers.
+				'ticket' => $fee ? ServiceFee::label( $line, (string) $line->name ) : (string) $line->name,
 				'when' => self::format_start( $line->starts_at, $line->timezone ),
-				'quantity' => (int) $line->quantity,
+				'quantity' => $fee ? ServiceFee::covered( $line ) : (int) $line->quantity,
 				'gross_minor' => (int) $after[ $i ],
 				'currency' => (string) $order->currency,
+				'fee' => $fee,
 			);
 		}
 		return $out;
