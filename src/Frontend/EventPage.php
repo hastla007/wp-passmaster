@@ -205,7 +205,8 @@ final class EventPage {
 				$offer = array(
 					'@type' => 'Offer',
 					'name' => (string) $type->name,
-					'price' => \PassCaptain\Localization::money_decimal( Orders::unit_price( $type, $occ, 1 ), (string) $type->currency ),
+					// A425: total price incl. the per-ticket service fee (Google: include mandatory fees).
+					'price' => \PassCaptain\Localization::money_decimal( \PassCaptain\ServiceFee::shown_unit( $type, Orders::unit_price( $type, $occ, 1 ) ), (string) $type->currency ),
 					'priceCurrency' => (string) $type->currency,
 					'availability' => 'scheduled' !== $occ->status ? 'https://schema.org/Discontinued' : ( null !== $available && $available < 1 ? 'https://schema.org/SoldOut' : ( $type->sales_start && $type->sales_start > \PassCaptain\Clock::mysql() ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock' ) ),
 				);

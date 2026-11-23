@@ -128,7 +128,7 @@ check( 'A425: the report reconciles with fee lines', array() === PassCaptain\Rep
 // Checkout display: data attributes and the estimate text.
 $a425_tpl = (string) file_get_contents( WPCAP_PATH . 'templates/event-card.php' );
 $a425_js = (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
-check( 'A425: event card exposes the fee (data-fee, data-order-fee, "zzgl. … Servicegebühr")', false !== strpos( $a425_tpl, 'data-fee=' ) && false !== strpos( $a425_tpl, 'data-order-fee=' ) && false !== strpos( $a425_tpl, 'zzgl. %s Servicegebühr' ) );
+check( 'A425: event card exposes the fee (data-fee, data-order-fee, fee notes; zz_a425_display.php checks the rendered card)', false !== strpos( $a425_tpl, 'data-fee=' ) && false !== strpos( $a425_tpl, 'data-order-fee=' ) && false !== strpos( $a425_tpl, 'ServiceFee::included_note(' ) && false !== strpos( $a425_tpl, 'ServiceFee::order_note(' ) );
 check( 'A425: checkout estimate adds the fee', false !== strpos( $a425_js, 'dataset.orderFee' ) && false !== strpos( $a425_js, 't.estimateFee' ) );
 check( 'A425: per_ticket() follows the type, then the setting', 99 === ServiceFee::per_ticket( (object) array( 'price_minor' => 1, 'service_fee_minor' => 99 ) ) && 150 === ServiceFee::per_ticket( (object) array( 'price_minor' => 1, 'service_fee_minor' => null ) ) && 0 === ServiceFee::per_ticket( (object) array( 'price_minor' => 0, 'service_fee_minor' => null ) ) );
 

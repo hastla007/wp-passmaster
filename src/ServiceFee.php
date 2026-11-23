@@ -58,6 +58,64 @@ final class ServiceFee {
 		return max( 0, null === $own || '' === $own ? self::config()['ticket_minor'] : (int) $own );
 	}
 
+	/**
+	 * Fees as shown to buyers before they buy (price display, PAngV/PrAG; owner decision 23.11.2026):
+	 * the per-ticket fee of the type (0 for free types) and the per-order fee. The fee charged at checkout
+	 * comes from for_order() (filter `wpcap_service_fee`); a site that changes it there per order keeps
+	 * the display in line with the filter `wpcap_service_fee_shown`.
+	 *
+	 * @param object|null $type Ticket type row (null: only the per-order fee is asked for).
+	 * @return array{ticket_minor:int, order_minor:int}
+	 */
+	public static function shown( $type = null ) {
+		$fee = array(
+			'ticket_minor' => self::ready() && is_object( $type ) ? self::per_ticket( $type ) : 0,
+			'order_minor' => self::ready() ? self::config()['order_minor'] : 0,
+		);
+		/**
+		 * Service fee shown on event cards, event pages, the live state, REST /events and JSON-LD
+		 * (display only; the checkout computes the fee with `wpcap_service_fee`).
+		 *
+		 * @param array       $fee  ticket_minor (per ticket of this type), order_minor (per order).
+		 * @param object|null $type Ticket type row, null when only the per-order fee is asked for.
+		 */
+		$fee = (array) apply_filters( 'wpcap_service_fee_shown', $fee, $type );
+		return array(
+			'ticket_minor' => max( 0, (int) ( $fee['ticket_minor'] ?? 0 ) ),
+			'order_minor' => max( 0, (int) ( $fee['order_minor'] ?? 0 ) ),
+		);
+	}
+
+	/**
+	 * Unit price as shown to buyers: the ticket price including its per-ticket fee (a free ticket stays
+	 * free and carries no fee).
+	 *
+	 * @param object   $type Ticket type row.
+	 * @param int|null $unit Current unit price (price rules, tiers); null = $type->price_minor.
+	 */
+	public static function shown_unit( $type, $unit = null ) {
+		$unit = null === $unit ? (int) ( $type->price_minor ?? 0 ) : (int) $unit;
+		if ( $unit <= 0 || ! is_object( $type ) ) { return $unit; }
+		$probe = clone $type;
+		$probe->price_minor = $unit;
+		return $unit + self::shown( $probe )['ticket_minor'];
+	}
+
+	/** Note next to a price that includes the per-ticket fee ("inkl. 1,50 € Servicegebühr"); '' without fee. */
+	public static function included_note( $fee_minor, $currency ) {
+		if ( (int) $fee_minor <= 0 ) { return ''; }
+		/* translators: %s: service fee per ticket included in the shown price */
+		return sprintf( __( 'inkl. %s Servicegebühr', 'pass-captain' ), Frontend\Format::money( (int) $fee_minor, (string) $currency ) );
+	}
+
+	/** Note next to the prices for the per-order fee ("zzgl. 2,00 € Bearbeitungsgebühr je Bestellung"); '' without fee. */
+	public static function order_note( $currency, $order_minor = null ) {
+		$order_minor = null === $order_minor ? self::shown()['order_minor'] : (int) $order_minor;
+		if ( $order_minor <= 0 ) { return ''; }
+		/* translators: %s: processing fee charged once per order */
+		return sprintf( __( 'zzgl. %s Bearbeitungsgebühr je Bestellung', 'pass-captain' ), Frontend\Format::money( $order_minor, (string) $currency ) );
+	}
+
 	/** Whether the checkout of these types may show a fee (display only). */
 	public static function shown_for( array $types ) {
 		if ( self::config()['order_minor'] > 0 ) { return true; }

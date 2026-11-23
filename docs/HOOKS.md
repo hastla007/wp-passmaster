@@ -684,6 +684,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_billing_required_threshold` | `int $minor` (Einstellung `billing_required_threshold_minor`), `string $currency` | Bestellsumme, ab der im öffentlichen Checkout Rechnungsdaten Pflicht sind (0 = aus); je Währung überschreibbar. |
 | `wpcap_invoice_items` | `object[] $items, object $order` | Rechnungszeilen einer Bestellung (Zeilen mit `name`, `event_name`, `starts_at`, `timezone`), z. B. Umtauschgebühren ergänzen. |
 | `wpcap_service_fee` | `array $fee` (`ticket` → [Ticketart-ID → Gebühr je Ticket], `order_minor`), `array $selected` (Bestellzeilen), `array $context` (`currency`, `email`) | A425: Servicegebühr einer Bestellung im eigenen Online-Checkout ändern oder streichen (z. B. je Event); Beträge brutto in Kleinsteinheiten, 0 = keine. Läuft in der Bestelltransaktion, keine Abfragen mit Sperren. |
+| `wpcap_service_fee_shown` | `array $fee` (`ticket_minor` je Ticket dieser Ticketart, `order_minor` je Bestellung), `object\|null $type` (Ticketart, `null` = nur die Gebühr je Bestellung) | A425: angezeigte Servicegebühr (Eventkarte, Kartenkopf, Live-Stand, 409-Preismeldungen, REST `/events`, JSON-LD). Nur Anzeige: wer die Gebühr über `wpcap_service_fee` je Bestellung ändert, hält die Anzeige hiermit gleich (PAngV/PrAG: angezeigter Preis = verlangter Preis). |
 
 ### WooCommerce
 

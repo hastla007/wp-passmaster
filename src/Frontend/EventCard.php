@@ -228,11 +228,14 @@ final class EventCard {
 		return __( 'Tickets verfügbar', 'pass-captain' );
 	}
 
-	/** "19,90 €" when all prices are equal, else "ab 9,90 €" (lowest price of the types still on sale). */
+	/**
+	 * "19,90 €" when all prices are equal, else "ab 9,90 €" (lowest price of the types still on sale).
+	 * A425: prices include the per-ticket service fee (PAngV/PrAG total price).
+	 */
 	public static function price_from( array $types ) {
 		if ( ! $types ) { return ''; }
 		$open = array_filter( $types, static function ( $type ) { return null === $type->available || (int) $type->available > 0; } );
-		$prices = array_map( static function ( $type ) { return (int) $type->price_minor; }, $open ? $open : $types );
+		$prices = array_map( static function ( $type ) { return \PassCaptain\ServiceFee::shown_unit( $type ); }, $open ? $open : $types );
 		$min = min( $prices );
 		// A409: a card whose types are all free says "kostenlos" instead of "0,00 €".
 		if ( 0 === $min && 0 === max( $prices ) ) { return Format::price( 0, $types[0]->currency ); }
@@ -293,6 +296,8 @@ final class EventCard {
 			'available' => $available,
 			'availability' => self::availability_text( $available ),
 			'price' => self::price_from( $types ),
+			// A425: per-order fee shown next to the price ('' without fee or for free cards).
+			'order_fee' => $types && ! Format::all_free( $types ) ? \PassCaptain\ServiceFee::order_note( $types[0]->currency ) : '',
 			'badges' => self::badges( $row, $available, array( 'next' => $next, 'doors' => false, 'view' => 'card' ) ),
 			'dates' => $dates,
 			'visible_types' => self::thresholds()['visible_types'],

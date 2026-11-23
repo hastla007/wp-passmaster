@@ -196,8 +196,10 @@ final class PublicEvents {
 				'orderTotal' => __( 'Gesamtbetrag: %s.', 'pass-captain' ),
 				// A165: shown while a busy server is retried automatically (same order attempt).
 				'retrying' => __( 'Gerade ist viel los. Wir versuchen es automatisch noch einmal …', 'pass-captain' ),
-				/* translators: %s: formatted service fee amount (A425) */
-				'estimateFee' => __( 'inkl. Servicegebühr %s', 'pass-captain' ),
+				/* translators: %s: formatted per-ticket service fees included in the sum (A425) */
+				'estimateFee' => __( 'inkl. %s Servicegebühr', 'pass-captain' ),
+				/* translators: %s: formatted processing fee per order included in the sum (A425) */
+				'estimateOrderFee' => __( 'inkl. %s Bearbeitungsgebühr je Bestellung', 'pass-captain' ),
 				// Error summary and inline field errors.
 				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'pass-captain' ),
 				// A383: the summary line is only shown for two or more problems.
@@ -1013,12 +1015,14 @@ final class PublicEvents {
 			foreach ( $types as $type ) {
 				$max = Frontend\EventCard::quantity_max( $type, $event );
 				if ( null !== $type->available && (int) $type->available < 1 ) { $soldout[] = (int) $type->ticket_type_id; }
-				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
+				// A425: shown prices include the per-ticket service fee; price_minor stays the ticket price.
+				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( ServiceFee::shown_unit( $type, (int) $type->base_price_minor ), $type->currency ) : '';
 				$state_types[ (int) $type->ticket_type_id ] = array(
 					'max' => $max,
 					'available' => null === $type->available ? null : max( 0, (int) $type->available ),
 					'price_minor' => (int) $type->price_minor,
-					'price' => Frontend\Format::price( $type->price_minor, $type->currency ),
+					'service_fee_minor' => ServiceFee::shown_unit( $type ) - (int) $type->price_minor,
+					'price' => Frontend\Format::price( ServiceFee::shown_unit( $type ), $type->currency ),
 					'base_price' => $base,
 					'price_label' => (string) ( $type->price_label ?? '' ),
 					'currency' => (string) $type->currency,

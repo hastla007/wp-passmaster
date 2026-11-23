@@ -38,7 +38,7 @@ final class Contracts {
 	 */
 	public static function versions() {
 		return array(
-			'public'           => '1.1', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560).
+			'public'           => '1.2', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560). 1.2: /events service fee fields (A425).
 			'partner'          => Partners\Api::VERSION . '.0',
 			'developer'        => '1.0',
 			'app'              => Mobile\Api::VERSION,

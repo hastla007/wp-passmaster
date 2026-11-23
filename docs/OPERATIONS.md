@@ -730,8 +730,21 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
 - **Steuer:** wie die zugehörige Ticketposition (gleicher Satz, gleiche Steuerprofil-Spalten); die
   Gebühr je Bestellung folgt der ersten kostenpflichtigen Position. Ein eigener Steuersatz für die Gebühr ist
   nicht vorgesehen (fachlich zu klären, siehe unten).
-- **Anzeige:** Eventseite „zzgl. … Servicegebühr“ je Ticketart und Summe mit „inkl. Servicegebühr …“;
-  Bestellübersicht in Mail und Bestellportal, Admin-Bestellansicht und Rechnung als eigene Position
+- **Preisangabe (Entscheidung der Inhaberin vom 23.11.2026; DE PAngV § 3, AT PrAG, EU-Verbraucherrecht):**
+  Die Gebühr **je Ticket** ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen: Preis je Ticketart auf
+  Eventkarte/Eventseite („26,50 € … inkl. 1,50 € Servicegebühr“), Preis im Kartenkopf („ab …“), Live-Stand
+  (`checkout/live`), Preis in 409-Meldungen „Preis geändert“ (A560/A576, `prices_formatted`/`formatted`),
+  JSON-LD-Angebote der Eventseite und REST `/events` (`display_price_minor`). Die Gebühr **je Bestellung**
+  steht deutlich neben den Preisen („zzgl. 2,00 € Bearbeitungsgebühr je Bestellung“ im Kartenkopf und über den
+  Ticketarten) und ist in jeder Summe vor dem Bestellbutton enthalten (Schätzung „Summe: … inkl. 3,00 €
+  Servicegebühr, inkl. 2,00 € Bearbeitungsgebühr je Bestellung“ und Summe neben dem Button). Kostenlose
+  Ticketarten bleiben „kostenlos“. Der Preisvergleich des Checkouts (`data-price`, `expected_price_minor`,
+  `price_minor` im Live-Stand und in `/events`) bleibt der Ticketpreis ohne Gebühr; REST `/events` liefert
+  zusätzlich `service_fee_minor` und `order_fee_minor` (Vertrag `public` 1.2). Listen- und Kalenderansicht
+  zeigen keine Preise; WooCommerce-Produktpreise bleiben unverändert, weil dort keine Gebühr anfällt.
+  Filter `wpcap_service_fee_shown` gleicht die Anzeige an, wenn `wpcap_service_fee` die Gebühr je Bestellung
+  ändert.
+- **Anzeige nach dem Kauf:** Bestellübersicht in Mail und Bestellportal, Admin-Bestellansicht und Rechnung als eigene Position
   („Servicegebühr (Ticketart)“ mit Anzahl Tickets, „Servicegebühr je Bestellung“); Bericht: „davon
   Servicegebühren“ je Währung (Teil des Bruttoumsatzes). Fiskalisierung: die Gebühren stehen als eigene
   Positionen auf dem Beleg des Verkäufers ihrer Ticketposition (Belegsumme = Bestellsumme); die Belegzeile je
@@ -739,10 +752,10 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
 - **Erstattung:** nach den bestehenden Regeln (`Refunds::calculate()`): ein erstattetes Ticket nimmt seine
   Gebühr je Ticket mit, die Gebühr je Bestellung geht mit dem letzten Ticket zurück (Vollerstattung =
   Bestellsumme). Wer die Gebühr einbehalten will, nutzt den Abzug der Erstattung (`deduct_minor`).
-- **Offen (Betreiber/Steuerberatung):** Preisangaben gegenüber Verbrauchern müssen Pflichtgebühren im
-  Gesamtpreis zeigen (DE PAngV, AT PrAG) – die Eventseite nennt die Gebühr neben dem Ticketpreis, nicht im
-  Preis; ob die Gebühr als Nebenleistung den Steuersatz des Tickets teilt, ob sie bei Absage durch den
-  Veranstalter immer zurückgeht und wem sie in Partnerabrechnungen zusteht, ist nicht entschieden.
+- **Rechtlicher Hinweis:** Die Umsetzung folgt den Entscheidungen der Inhaberin vom 23.11.2026. Die rechtliche
+  und steuerliche Einordnung (Preisangabe, Nebenleistung oder eigene Leistung, Erstattungspflicht,
+  Zurechnung zum Betreiber) ist **keine Rechts- oder Steuerberatung** und sollte vor dem Einsatz von einer
+  Steuerberaterin bzw. einem Steuerberater (und für die Preisangabe ggf. rechtlich) bestätigt werden.
 
 ## Zahlungsanbieter: Test- und Live-Modus (A274)
 
@@ -2125,7 +2138,10 @@ Neben `starts_at`/`ends_at` (UTC, „Y-m-d H:i:s“, unverändert) liefert jeder
 `phase` (A562) und `revision` (A560). Jede Ticketart hat `sales_status` (`on_sale`, `not_started`,
 `ended`, `sold_out`), `sales_start`/`sales_end` (ISO 8601 oder `null`), `online_until` (Ende des
 Online-Verkaufs nach Termin-Phase) und `available` (verbleibende Stück, `null` = unbegrenzt). Die Antwort
-trägt `Cache-Control: no-store`. Vertrag `public` 1.1.
+trägt `Cache-Control: no-store`. Vertrag `public` 1.1. Seit 1.2 (A425) zusätzlich je Ticketart
+`service_fee_minor` (Servicegebühr je Ticket im eigenen Checkout), `display_price_minor` (anzuzeigender Preis
+inkl. dieser Gebühr) und `order_fee_minor` (Bearbeitungsgebühr je Bestellung, nicht bei kostenlosen
+Bestellungen); `price_minor` bleibt der Ticketpreis.
 
 ## Geldbeträge, Rundung und Währungen (A200)
 

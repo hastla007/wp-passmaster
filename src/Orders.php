@@ -379,7 +379,7 @@ final class Orders {
 					$price_rule = Sales\PriceRules::applied( $type_id );
 					// A576: never charge more than the buyer was shown (early bird ended, demand tier, cached page).
 					if ( isset( $expected_prices[ $type_id ] ) && $unit_price > $expected_prices[ $type_id ] ) {
-						$changed_prices[ $type_id ] = array( 'shown_minor' => $expected_prices[ $type_id ], 'unit_minor' => $unit_price, 'formatted' => Frontend\Format::money( $unit_price, $type->currency ), 'name' => (string) $type->name );
+						$changed_prices[ $type_id ] = array( 'shown_minor' => $expected_prices[ $type_id ], 'unit_minor' => $unit_price, 'formatted' => Frontend\Format::money( ServiceFee::shown_unit( $type, $unit_price ), $type->currency ), 'name' => (string) $type->name );
 					}
 				}
 				// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
@@ -1250,7 +1250,7 @@ final class Orders {
 			if ( $price !== (int) $shown['price'] ) {
 				$state = self::shown_state( $occurrence, $now );
 				/* translators: 1: ticket type name, 2: new price */
-				return new \WP_Error( 'wpcap_price_changed', sprintf( __( 'Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), (string) $type->name, Frontend\Format::money( $price, $type->currency ) ), array( 'status' => 409, 'reason' => 'price_changed', 'state' => $state ) );
+				return new \WP_Error( 'wpcap_price_changed', sprintf( __( 'Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), (string) $type->name, Frontend\Format::money( ServiceFee::shown_unit( $type, $price ), $type->currency ) ), array( 'status' => 409, 'reason' => 'price_changed', 'state' => $state ) );
 			}
 		}
 		return null;
@@ -1267,7 +1267,8 @@ final class Orders {
 		$formatted = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $row ) {
 			$prices[ (int) $row->ticket_type_id ] = self::unit_price( $row, $occurrence, 1, array( 'now' => $now ) );
-			$formatted[ (int) $row->ticket_type_id ] = Frontend\Format::money( $prices[ (int) $row->ticket_type_id ], $row->currency );
+			// A425: the displayed price includes the per-ticket service fee (prices[] stays the ticket price).
+			$formatted[ (int) $row->ticket_type_id ] = Frontend\Format::money( ServiceFee::shown_unit( $row, $prices[ (int) $row->ticket_type_id ] ), $row->currency );
 		}
 		return array(
 			'occurrence_id' => (int) $occurrence->occurrence_id,

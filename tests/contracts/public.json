@@ -1,6 +1,6 @@
 {
   "contract": "public",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Öffentliche REST-API pass-captain/v1 (Eventliste, Checkout, Bestellstatus). Requests sind Beispiele mit Platzhaltern, Responses Shapes.",
   "endpoints": {
     "GET /events": {
@@ -30,6 +30,9 @@
               "name": "string",
               "price_minor": "int",
               "regular_price_minor": "int",
+              "service_fee_minor": "int",
+              "display_price_minor": "int",
+              "order_fee_minor": "int",
               "price_label": "string",
               "currency": "string",
               "max_per_order": "int",

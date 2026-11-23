@@ -268,6 +268,20 @@
 		const label = free ? button.dataset.labelFree : button.dataset.labelPaid;
 		if (button.textContent !== label) button.textContent = label;
 	}
+	// A425: " inkl. 3,00 € Servicegebühr, inkl. 2,00 € Bearbeitungsgebühr je Bestellung" for the estimate.
+	function feeNote(form, currency) {
+		const parts = [];
+		const ticketFee = Number(form.dataset.ticketFeeEstimate) || 0;
+		const orderFee = Number(form.dataset.orderFeeEstimate) || 0;
+		if (ticketFee > 0) parts.push((t.estimateFee || '%s').replace('%s', money(ticketFee, currency)));
+		if (orderFee > 0) parts.push((t.estimateOrderFee || t.estimateFee || '%s').replace('%s', money(orderFee, currency)));
+		return parts.length ? ' ' + parts.join(', ') : '';
+	}
+	// A425: price text of a ticket type as shown (ticket price plus its per-ticket service fee).
+	function shownPrice(qty, unit) {
+		const minor = Number(unit) || 0;
+		return minor === 0 ? priceText(0, qty.dataset.currency) : money(minor + (Number(qty.dataset.fee) || 0), qty.dataset.currency);
+	}
 	// Display only: the server recalculates every price at checkout.
 	function renderEstimate(form) {
 		syncSubmitLabel(form);
@@ -276,20 +290,25 @@
 		let total = 0;
 		let currency = '';
 		// A425: service fee (display only; data-fee per paid ticket, data-order-fee once per paid order).
-		let fee = 0;
+		// The per-ticket fee is part of the shown ticket price, the per-order fee is added once; every
+		// total before the order button includes both (PAngV/PrAG) and names them.
+		let ticketFee = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
 			const price = Number(qty.dataset.price) || 0;
 			total += n * price;
-			if (price > 0) fee += n * (Number(qty.dataset.fee) || 0);
+			if (price > 0) ticketFee += n * (Number(qty.dataset.fee) || 0);
 			if (n) currency = qty.dataset.currency || currency;
 		});
 		const typesBox = form.querySelector('.wpcap-types');
-		if (total > 0 && typesBox) fee += Number(typesBox.dataset.orderFee) || 0;
-		if (total <= 0) fee = 0;
+		let orderFee = total > 0 && typesBox ? Number(typesBox.dataset.orderFee) || 0 : 0;
+		if (total <= 0) { ticketFee = 0; orderFee = 0; }
+		const fee = ticketFee + orderFee;
 		total += fee;
 		form.dataset.feeEstimate = String(fee);
-		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, currency)) : '') : '';
+		form.dataset.ticketFeeEstimate = String(ticketFee);
+		form.dataset.orderFeeEstimate = String(orderFee);
+		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) + feeNote(form, currency) : '';
 		// A602: the sum next to the order button (visual only; the estimate above is the live region).
 		const near = form.querySelector('.wpcap-submit-total');
 		if (near) near.textContent = total > 0 ? fill(t.submitTotal || '%s', [money(total, currency)]) : '';
@@ -319,7 +338,7 @@
 				if (code.value.trim() !== value) return; // Changed meanwhile.
 				if (r.ok && box) {
 					const fee = Number(form.dataset.feeEstimate) || 0;
-					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor + fee, d.currency), money(d.discount_minor, d.currency), money(d.total_minor + fee, d.currency)]) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, d.currency)) : '');
+					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor + fee, d.currency), money(d.discount_minor, d.currency), money(d.total_minor + fee, d.currency)]) + feeNote(form, d.currency);
 				} else if (409 === r.status && box && !single) {
 					box.textContent = (t.estimate || '%s').replace('%s', money(total, d.currency || '')) + ' ' + (t.codeInvalid || '');
 				}
@@ -638,8 +657,13 @@
 		if (!state || (info.reason !== 'occurrence_changed' && info.reason !== 'price_changed')) return;
 		if (typeof state.revision === 'number') form.dataset.revision = String(state.revision);
 		const prices = state.prices || {};
+		const formatted = state.prices_formatted || {};
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
-			if (Object.prototype.hasOwnProperty.call(prices, qty.dataset.type)) qty.dataset.price = String(prices[qty.dataset.type]);
+			if (!Object.prototype.hasOwnProperty.call(prices, qty.dataset.type)) return;
+			qty.dataset.price = String(prices[qty.dataset.type]);
+			// A425: the price next to the type follows too (server text incl. the per-ticket service fee).
+			const text = typeof formatted[qty.dataset.type] === 'string' ? formatted[qty.dataset.type] : shownPrice(qty, prices[qty.dataset.type]);
+			setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), Number(prices[qty.dataset.type]) === 0 ? priceText(0, qty.dataset.currency) : text);
 		});
 		const card = form.closest('.wpcap-event');
 		const time = card && card.querySelector('.wpcap-fact-date time');
@@ -1035,7 +1059,8 @@
 			if (row && Number.isInteger(row.unit_minor)) {
 				qty.dataset.price = String(row.unit_minor);
 				// A458: the price next to the ticket type is the new one too, not only the estimate.
-				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.unit_minor === 0 ? priceText(0, qty.dataset.currency) : (row.formatted || money(row.unit_minor, qty.dataset.currency)));
+				// A425: the server's text includes the per-ticket service fee; without it the form adds data-fee.
+				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.unit_minor === 0 ? priceText(0, qty.dataset.currency) : (row.formatted || shownPrice(qty, row.unit_minor)));
 			}
 		});
 		renderEstimate(form);

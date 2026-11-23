@@ -442,7 +442,7 @@ final class Controller {
 			// Hidden types never, code-only types only with a matching ?code= (Sales\Visibility).
 			$type_rows = \PassCaptain\Sales\Visibility::filter_listing( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' ORDER BY ticket_type_id ASC" ), \PassCaptain\Http::str( $request->get_param( 'code' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			foreach ( $type_rows as $type_row ) {
-				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end' ) ) );
+				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'service_fee_minor' ) ) );
 				$types_of[ (int) $type['occurrence_id'] ][] = $type;
 			}
 			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
@@ -485,11 +485,17 @@ final class Controller {
 				'revision' => (int) ( $occurrence->revision ?? 0 ),
 				'tickets' => array_map( static function ( $type ) use ( $occurrence, $phase_row, $available, $now, $row ) {
 					$left = array_key_exists( (int) $type['ticket_type_id'], $available ) ? $available[ (int) $type['ticket_type_id'] ] : 0;
+					$unit = \PassCaptain\Orders::unit_price( (object) $type, $occurrence );
+					$shown = \PassCaptain\ServiceFee::shown_unit( (object) $type, $unit );
 					return array(
 					'ticket_type_id' => (int) $type['ticket_type_id'],
 					'name' => $type['name'],
 					// Effective (tier) price; regular_price_minor is the stored list price.
-					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type, $occurrence ),
+					'price_minor' => $unit,
+					// A425: per-ticket service fee of the own checkout and the price to display (PAngV: incl. fee).
+					'service_fee_minor' => $shown - $unit,
+					'display_price_minor' => $shown,
+					'order_fee_minor' => \PassCaptain\ServiceFee::shown()['order_minor'],
 					'regular_price_minor' => (int) $type['price_minor'],
 					'price_label' => \PassCaptain\Orders::price_label( (object) $type, $occurrence ),
 					'currency' => $type['currency'],
