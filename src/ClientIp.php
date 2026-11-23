@@ -76,7 +76,7 @@ final class ClientIp {
 	/** Trusted proxy entries (IP or CIDR), validated. */
 	public static function trusted_proxies() {
 		// N03: the same list as RateLimit (setting, constant/env WPCAP_TRUSTED_PROXIES, filter).
-		return array_values( array_filter( RateLimit::trusted_proxies(), array( __CLASS__, 'valid_range' ) ) );
+		return RateLimit::trusted_proxies();
 	}
 
 	/** Whether $range is an IPv4/IPv6 address or CIDR range. */

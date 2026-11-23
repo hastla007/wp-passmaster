@@ -303,11 +303,9 @@ final class RateLimit {
 	 */
 	public static function client_network( $ip = null ) {
 		$ip = null === $ip ? self::client_ip() : (string) $ip;
-		if ( false === filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) { return $ip; }
-		$packed = inet_pton( $ip );
-		if ( false === $packed || 16 !== strlen( $packed ) ) { return $ip; }
-		if ( 0 === strncmp( $packed, str_repeat( "\0", 10 ) . "\xff\xff", 12 ) ) { return (string) inet_ntop( substr( $packed, 12 ) ); } // IPv4-mapped.
-		return (string) inet_ntop( substr( $packed, 0, 8 ) . str_repeat( "\0", 8 ) ) . '/64';
+		// N03: the same key as ClientIp::limit_key() with a fixed /64 (IPv4-mapped addresses as IPv4).
+		$key = ClientIp::limit_key( $ip, 64 );
+		return '' !== $key ? $key : $ip;
 	}
 
 	/**
@@ -354,10 +352,8 @@ final class RateLimit {
 		if ( is_string( $env ) && '' !== $env ) { $raw .= ',' . $env; }
 		$list = array_filter( array_map( 'trim', preg_split( '/[\s,;]+/', $raw ) ) );
 		$list = (array) apply_filters( 'wpcap_trusted_proxies', array_values( $list ) );
-		return array_values( array_filter( array_map( 'strval', $list ), static function ( $entry ) {
-			$ip = explode( '/', $entry, 2 )[0];
-			return false !== filter_var( $ip, FILTER_VALIDATE_IP );
-		} ) );
+		// N03: one validation for all callers – an address or a CIDR range with a possible prefix length.
+		return array_values( array_filter( array_map( 'trim', array_map( 'strval', $list ) ), array( ClientIp::class, 'valid_range' ) ) );
 	}
 
 	private static function is_trusted( $ip, array $trusted ) {

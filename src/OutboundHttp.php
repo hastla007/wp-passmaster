@@ -44,7 +44,7 @@ final class OutboundHttp {
 	);
 	/** Non-public IPv6 ranges; embedded IPv4 (mapped, NAT64, 6to4) is checked separately. */
 	const BLOCKED_V6 = array(
-		'::/128', '::1/128', '100::/64', '2001::/23', '2001:db8::/32', 'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8',
+		'::/128', '::1/128', '::ffff:0:0:0/96', '100::/64', '2001::/23', '2001:db8::/32', 'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8',
 	);
 
 	private static $hooked = false;
@@ -278,8 +278,8 @@ final class OutboundHttp {
 		return $out;
 	}
 
-	/** A and AAAA addresses of a host (filter `wpcap_outbound_resolve` replaces DNS). */
-	private static function resolve( $host ) {
+	/** A and AAAA addresses of a host (filter `wpcap_outbound_resolve` replaces DNS); also used by Security\OutboundHttp (N03). */
+	public static function resolve( $host ) {
 		$filtered = apply_filters( 'wpcap_outbound_resolve', null, $host );
 		if ( is_array( $filtered ) ) {
 			$ips = $filtered;

@@ -65,7 +65,7 @@ Wer Datenbank und `wp-config.php` gemeinsam erbeutet, kann die Werte entschlüss
 Für vom Admin konfigurierbare Ziele – Webhooks, HTTP/JSON-Connectors, generischer SMS-Anbieter, Fiskaldienste – gilt `Security\OutboundHttp`:
 
 - nur `https`; keine Zugangsdaten in der URL; nicht-kanonische IP-Schreibweisen (`0x7f.1`, `2130706433`) werden abgelehnt;
-- der Host wird aufgelöst, **jede** Adresse muss öffentlich sein: Loopback, RFC 1918, CGNAT (100.64/10), Link-Local inkl. Cloud-Metadaten (169.254.169.254), ULA (fc00::/7), fe80::/10, Multicast, reservierte und Dokumentationsnetze, IPv4-mapped und NAT64-IPv6 sowie `localhost`, `*.local`, `*.internal` sind gesperrt;
+- der Host wird aufgelöst, **jede** Adresse muss öffentlich sein: Loopback, RFC 1918, CGNAT (100.64/10), Link-Local inkl. Cloud-Metadaten (169.254.169.254), ULA (fc00::/7), fe80::/10, Multicast, reservierte und Dokumentationsnetze, IPv4-mapped und NAT64-IPv6 sowie `localhost`, `*.local`, `*.internal` sind gesperrt. Die Adressprüfung ist dieselbe wie beim zentralen Guard `PassCaptain\OutboundHttp` (Liste unten, u. a. 168.63.129.16, 2001::/23, 64:ff9b:1::/48 und `::ffff:0:a.b.c.d`; N03);
 - die Prüfung läuft beim Speichern **und** vor jedem Versand (DNS-Rebinding nach dem Anlegen wird erkannt); zusätzlich `wp_safe_remote_*`;
 - keine Weiterleitungen (3xx = Fehlversuch), Timeout max. 15 s, Antwortgröße begrenzt (Webhooks/SMS 64 KB, Fiskal 512 KB), optionale JSON-Prüfung;
 - Fehlermeldungen enthalten weder URL-Parameter noch Header oder Bodies.
@@ -322,7 +322,8 @@ Der Guard erzwingt:
   Der Host wird **einmal** aufgelöst (A und AAAA); **jede** Adresse muss öffentlich sein. Gesperrt sind u. a.
   0/8, 10/8, 100.64/10, 127/8, 169.254/16 (inkl. Metadaten 169.254.169.254), 172.16/12, 192.0.0/24,
   192.168/16, 198.18/15, Dokumentationsnetze, Multicast, 240/4, 168.63.129.16 (Azure) sowie ::, ::1,
-  fc00::/7 (inkl. AWS-IMDS fd00:ec2::254), fe80::/10, fec0::/10, ff00::/8, 2001::/23, 2001:db8::/32; in
+  fc00::/7 (inkl. AWS-IMDS fd00:ec2::254), fe80::/10, fec0::/10, ff00::/8, 2001::/23, 2001:db8::/32,
+  64:ff9b:1::/48 und IPv4-übersetzte Adressen (`::ffff:0:0:0/96`); in
   IPv4-mapped (`::ffff:a.b.c.d`), NAT64 (`64:ff9b::/96`) und 6to4 (`2002::/16`) wird die eingebettete
   IPv4-Adresse geprüft.
 - **DNS-Rebinding:** Die Verbindung wird über `CURLOPT_RESOLVE` (Action `http_api_curl`) auf die geprüfte

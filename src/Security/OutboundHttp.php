@@ -26,16 +26,6 @@ final class OutboundHttp {
 	const MAX_BYTES = 1048576;
 	const MAX_TIMEOUT = 15;
 
-	/** Blocked IPv4 ranges (CIDR). */
-	const BLOCKED_V4 = array(
-		'0.0.0.0/8', '10.0.0.0/8', '100.64.0.0/10', '127.0.0.0/8', '169.254.0.0/16', '172.16.0.0/12',
-		'192.0.0.0/24', '192.0.2.0/24', '192.88.99.0/24', '192.168.0.0/16', '198.18.0.0/15', '198.51.100.0/24',
-		'203.0.113.0/24', '224.0.0.0/4', '240.0.0.0/4', '255.255.255.255/32',
-	);
-
-	/** Blocked IPv6 ranges (CIDR). */
-	const BLOCKED_V6 = array( '::/128', '::1/128', 'fc00::/7', 'fe80::/10', 'fec0::/10', 'ff00::/8', '2001:db8::/32', '100::/64', '2001::/32', '2002::/16' );
-
 	/** Ranges a local service may use when allow_local is set (loopback and private networks). */
 	const LOCAL_V4 = array( '127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16' );
 	const LOCAL_V6 = array( '::1/128', 'fc00::/7' );
@@ -43,20 +33,12 @@ final class OutboundHttp {
 	/** Host names that never leave the machine / cloud network. */
 	const BLOCKED_HOST_SUFFIXES = array( 'localhost', '.localhost', '.local', '.internal', '.localdomain', '.home.arpa', '.lan' );
 
+	/**
+	 * Whether $ip lies in $cidr (IPv4/IPv6; IPv4-mapped peers match IPv4 ranges; an impossible prefix
+	 * length never matches). Same matcher as the proxy list (\PassCaptain\ClientIp::in_ranges(), N03).
+	 */
 	public static function ip_in_cidr( $ip, $cidr ) {
-		list( $net, $bits ) = array_pad( explode( '/', $cidr, 2 ), 2, null );
-		$ip_bin = @inet_pton( (string) $ip ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-		$net_bin = @inet_pton( (string) $net ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-		if ( false === $ip_bin || false === $net_bin || strlen( $ip_bin ) !== strlen( $net_bin ) ) { return false; }
-		$bits = null === $bits ? strlen( $ip_bin ) * 8 : (int) $bits;
-		$bytes = intdiv( $bits, 8 );
-		if ( substr( $ip_bin, 0, $bytes ) !== substr( $net_bin, 0, $bytes ) ) { return false; }
-		$rest = $bits % 8;
-		if ( $rest ) {
-			$mask = ( 0xff << ( 8 - $rest ) ) & 0xff;
-			if ( ( ord( $ip_bin[ $bytes ] ) & $mask ) !== ( ord( $net_bin[ $bytes ] ) & $mask ) ) { return false; }
-		}
-		return true;
+		return \PassCaptain\ClientIp::valid_range( (string) $cidr ) && \PassCaptain\ClientIp::in_ranges( (string) $ip, array( (string) $cidr ) );
 	}
 
 	/** IPv4 address embedded in IPv4-mapped (::ffff:a.b.c.d), IPv4-compatible or NAT64 (64:ff9b::) IPv6. */
@@ -70,18 +52,13 @@ final class OutboundHttp {
 		return null;
 	}
 
-	/** True when the address is a public unicast address. */
+	/**
+	 * True when the address is a public unicast address. One classifier for both outbound guards (N03):
+	 * \PassCaptain\OutboundHttp::is_public_ip() (RFC 6890 special-purpose ranges, cloud metadata,
+	 * embedded IPv4 in mapped, translated, NAT64 and 6to4 addresses).
+	 */
 	public static function is_public_ip( $ip ) {
-		$ip = trim( (string) $ip, '[] ' );
-		if ( false === filter_var( $ip, FILTER_VALIDATE_IP ) ) { return false; }
-		if ( false === filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
-			$v4 = self::embedded_v4( $ip );
-			if ( null !== $v4 ) { return self::is_public_ip( $v4 ); }
-			foreach ( self::BLOCKED_V6 as $cidr ) { if ( self::ip_in_cidr( $ip, $cidr ) ) { return false; } }
-			return true;
-		}
-		foreach ( self::BLOCKED_V4 as $cidr ) { if ( self::ip_in_cidr( $ip, $cidr ) ) { return false; } }
-		return true;
+		return \PassCaptain\OutboundHttp::is_public_ip( $ip );
 	}
 
 	private static function is_local_ip( $ip ) {
@@ -93,22 +70,11 @@ final class OutboundHttp {
 		return false;
 	}
 
-	/** All addresses of a host (filter wpcap_outbound_resolve can supply them, e.g. in tests). */
+	/** All addresses of a host (filter wpcap_outbound_resolve can supply them, e.g. in tests); same resolver as \PassCaptain\OutboundHttp (N03). */
 	public static function resolve( $host ) {
 		$host = strtolower( trim( (string) $host, '[] ' ) );
 		if ( false !== filter_var( $host, FILTER_VALIDATE_IP ) ) { return array( $host ); }
-		$ips = function_exists( 'apply_filters' ) ? apply_filters( 'wpcap_outbound_resolve', null, $host ) : null;
-		if ( is_array( $ips ) ) { return array_values( array_filter( array_map( 'strval', $ips ) ) ); }
-		$ips = array();
-		$v4 = function_exists( 'gethostbynamel' ) ? gethostbynamel( $host ) : false;
-		if ( is_array( $v4 ) ) { $ips = $v4; }
-		if ( function_exists( 'dns_get_record' ) && defined( 'DNS_AAAA' ) ) {
-			$records = @dns_get_record( $host, DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
-			foreach ( is_array( $records ) ? $records : array() as $record ) {
-				if ( ! empty( $record['ipv6'] ) ) { $ips[] = $record['ipv6']; }
-			}
-		}
-		return array_values( array_unique( $ips ) );
+		return \PassCaptain\OutboundHttp::resolve( $host );
 	}
 
 	/**
