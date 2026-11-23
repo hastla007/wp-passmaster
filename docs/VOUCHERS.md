@@ -20,9 +20,25 @@ Wie die Einlösung umsatzsteuerlich behandelt wird, hängt von der **Art des Gut
 
 ## Wie die Art bestimmt wird
 
-1. **Angabe von Voucher Captain**: Das Vertragsfeld `treatment` hat Vorrang: `payment` = Mehrzweckgutschein, `single` oder `discount` = Preisminderung (Einzweck). Sonst: Liefert das Angebot (`quote()`), die Reservierung oder beim Ticketdienst `$source` ein Feld `purpose`, `voucher_purpose`, `voucher_type`, `tax_type`, `vat_type` oder `tax_treatment` (auch verschachtelt unter `voucher`), wird es ausgewertet. Erkannt werden `single`/`multi`, `single_purpose`/`multi_purpose`, `SPV`/`MPV`, `Einzweck(gutschein)`/`Mehrzweck(gutschein)` sowie die Wahrheitswerte `single_purpose`, `is_single_purpose`, `multi_purpose`, `is_multi_purpose`. Andere Werte (z. B. `voucher_type: value`) werden ignoriert.
+1. **Angabe von Voucher Captain**: Das Vertragsfeld `treatment` hat Vorrang: `payment` = Mehrzweckgutschein, `single` = Einzweckgutschein, `discount` = Rabattcode (siehe unten). Sonst: Liefert das Angebot (`quote()`), die Reservierung oder beim Ticketdienst `$source` ein Feld `purpose`, `voucher_purpose`, `voucher_type`, `tax_type`, `vat_type` oder `tax_treatment` (auch verschachtelt unter `voucher`), wird es ausgewertet. Erkannt werden `single`/`multi`, `single_purpose`/`multi_purpose`, `SPV`/`MPV`, `Einzweck(gutschein)`/`Mehrzweck(gutschein)`, für Rabattcodes `discount`/`promotion`/`Rabatt(code)`/`Preisnachlass` sowie die Wahrheitswerte `single_purpose`, `is_single_purpose`, `multi_purpose`, `is_multi_purpose`. Andere Werte (z. B. `voucher_type: value`) werden ignoriert.
 2. **Filter** `wpcap_voucher_purpose( $purpose, $voucher, $context )`: erhält die Angabe aus Schritt 1 (oder `null`) und kann sie festlegen oder überschreiben, z. B. nach Code-Präfix oder Veranstaltung.
 3. **Einstellung** *Pass Captain → Einstellungen → Gutscheine → „Gutscheine standardmäßig als Mehrzweckgutschein behandeln“* (`voucher_default_purpose`, Standard `multi`).
+4. **Prüfung des Einzweckgutscheins**: Ein Einzweckgutschein ist nur einer, wenn Ort der Leistung und geschuldete
+   Steuer beim Verkauf feststehen (Art. 30a MwStSystRL). Liefert Voucher Captain zum Einzweckgutschein die
+   Umsatzsteuer des Verkaufs (`sale_tax` = `rate_bp` in Basispunkten und `country`, im Angebot, in der Reservierung
+   oder beim Ticketdienst in `$source`), gilt er nur für Tickets mit genau diesem Satz, deren Leistungsort im selben
+   Land liegt (Land der Bestellzeile = Veranstaltungsland des Termins, sonst Land des Rechnungsstellers; Filter
+   `wpcap_voucher_tax_country( $country, $context )`). Weicht der Satz einer Ticketposition oder das Land ab, wird
+   die Einlösung als **Mehrzweckgutschein** (Zahlungsmittel, USt bei Einlösung) gebucht; die Bestellung vermerkt
+   `purpose_changed` = `single_rate` bzw. `single_country`. Servicegebühr-Zeilen zählen nicht mit. Ohne `sale_tax`
+   bleibt es bei der Angabe aus Schritt 1–3.
+
+**Rabattcodes** (`discount`): Aktionscodes von Voucher Captain sind keine Gutscheine im Sinne des
+Umsatzsteuerrechts (für sie wurde nichts bezahlt), sondern ein Preisnachlass. Sie mindern Preis und Umsatzsteuer wie
+ein Einzweckgutschein, auf der Rechnung steht aber nur „Eingelöster Rabattcode …: als Preisnachlass berücksichtigt“ –
+**nicht** „Umsatzsteuer bereits beim Verkauf abgerechnet“. Sie begründen keine Forderung gegen einen
+Gutscheinverkäufer (keine Zeile in der Veranstalter-Abrechnung; `TicketService::settlement_value_minor()` = 0) und
+werden wie Einzweckgutscheine abgelehnt, sobald ein Fiskalbeleg (möglicherweise) übermittelt wurde.
 
 Die ermittelte Art wird in der Bestellung gespeichert (`orders.voucher_snapshot`, Feld `purpose`) und gilt für Rechnung, Erstattungen und Abrechnung dieser Bestellung. Bestellungen aus älteren Versionen ohne `purpose` werden weiter als Einzweckgutschein (Preisnachlass) behandelt – so wurden sie gebucht.
 
@@ -95,6 +111,7 @@ Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 ## Pflichten des Betreibers
 
 - **Art festlegen**: Für jede Gutscheinart prüfen, ob Ort der Leistung und Steuersatz beim Verkauf feststehen. Veranstaltungen in mehreren Ländern oder mit unterschiedlichen Steuersätzen sprechen für Mehrzweckgutscheine. Die Art möglichst in Voucher Captain hinterlegen; die Standardeinstellung ist nur der Rückfall.
+- **Umgebuchte Einzweckgutscheine** (`purpose_changed`): Wurde ein als Einzweckgutschein verkaufter Gutschein für Tickets mit anderem Steuersatz oder Leistungsort eingelöst, war er umsatzsteuerlich von Anfang an ein Mehrzweckgutschein. Pass Captain versteuert dann die Einlösung; die beim Gutscheinverkauf ausgewiesene Umsatzsteuer muss der Gutscheinverkäufer berichtigen (Rechnung über den Gutschein korrigieren). Das klärt der Betreiber mit der Steuerberatung.
 - **Gutscheinverkauf buchen**: Einzweckgutscheine sind beim Verkauf umsatzsteuerpflichtig (Rechnung über den Gutschein mit USt); Mehrzweckgutscheine nicht (Beleg ohne USt-Ausweis, z. B. als Zahlungsmittel/Anzahlung).
 - **Einlösung buchen**: Mehrzweckgutscheine erst bei der Einlösung als Umsatz versteuern (Rechnung von Pass Captain); den Gutscheinbetrag gegen das Gutschein-Verbindlichkeitskonto verbuchen. Einzweckgutscheine: keine erneute Umsatzsteuer.
 - **Verfallene Gutscheine**: Nicht eingelöste Mehrzweckgutscheine sind in der Regel kein steuerbarer Umsatz; Einzweckgutscheine wurden bereits versteuert. Die Behandlung klärt der Betreiber mit der Steuerberatung.
@@ -115,7 +132,8 @@ Erst nach dem Bezahlt-Setzen wird der Gutschein wie gewohnt belastet (`commit`).
 
 | Feld | Bedeutung |
 |---|---|
-| `purpose` | `single` oder `multi` |
+| `purpose` | `single`, `multi` oder `discount` (Rabattcode) |
+| `purpose_changed` | `single_rate` / `single_country`: als Einzweckgutschein gemeldet, wegen abweichender USt des Verkaufs als Mehrzweckgutschein gebucht |
 | `amount_minor` | Eingelöster Gutscheinbetrag (Ticketdienst/Einzweck: Gutscheinwert) |
 | `amount_paid_by_voucher` | Mit Mehrzweckgutschein bezahlter Betrag (Einzweck: 0) |
 | `gross_minor`, `gross_tax_minor` | Bruttobetrag und USt der Bestellung vor der Einlösung |

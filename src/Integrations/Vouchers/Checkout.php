@@ -16,6 +16,12 @@
  * - Single-purpose voucher ("single"): VAT was due when the voucher was sold, so the redemption is a
  *   price reduction: total, discount, the per-line discount split (price_snapshot.line_discounts) and
  *   line VAT are reduced; unsent fiscal documents are rebuilt, a sent one refuses the voucher.
+ * - Promotion code ("discount"): no voucher in the sense of the VAT rules (nothing was paid for it), a
+ *   plain price reduction – booked like a single-purpose voucher, but the invoice does not claim that VAT
+ *   was charged when it was sold, and it creates no claim against a voucher seller.
+ * - A single-purpose voucher is one only for supplies with the VAT of its sale: when the provider sends that
+ *   VAT (`sale_tax`) and a ticket line has another rate or place of supply, the redemption is booked as a
+ *   multi-purpose voucher (see effective_purpose()).
  * - Multi-purpose voucher ("multi", default): the redemption is a means of payment. Order lines,
  *   discount_minor and tax_minor keep the full consideration; only the amount due (orders.total_minor,
  *   which every gateway, webhook amount check and refund cap uses as the cash amount) is reduced. The
@@ -45,6 +51,8 @@ final class Checkout {
 	/** Voucher purposes (VAT treatment). */
 	const PURPOSE_SINGLE = 'single';
 	const PURPOSE_MULTI = 'multi';
+	/** Promotion code of the voucher plugin: reduces price and VAT like a single-purpose voucher, but no VAT was charged in advance. */
+	const PURPOSE_DISCOUNT = 'discount';
 
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
@@ -148,6 +156,7 @@ final class Checkout {
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
 		$purpose = self::purpose( array( 'quote' => $quote, 'reservation' => $reservation ), array( 'source' => 'checkout', 'order_id' => (int) $order_id, 'code_hint' => substr( $code, -4 ) ) );
+		list( $purpose, $purpose_changed ) = self::effective_purpose( $purpose, array( 'quote' => $quote, 'reservation' => $reservation ), self::tax_lines( $items ), array( 'source' => 'checkout', 'order_id' => (int) $order_id ) );
 		// Split of the voucher over the order lines, proportional to what is paid for each line after
 		// campaign discounts (PAY-4/PAY-6): single-purpose → part of the line discount, multi-purpose →
 		// part of the line paid by voucher. Refunds take the voucher share of a ticket from it.
@@ -168,9 +177,12 @@ final class Checkout {
 		}
 		$voucher_lines = Orders::allocate( $paid_lines, $amount );
 		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'purpose' => $purpose, 'gross_minor' => $old_total, 'gross_tax_minor' => (int) $order->tax_minor, 'voucher_lines' => $voucher_lines, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
-		// Single-purpose vouchers change the price: fiscal documents already sent (or possibly sent) to the
-		// provider cannot follow any more, so the voucher is refused (docs/VOUCHERS.md).
-		$fiscal = self::PURPOSE_SINGLE === $purpose && class_exists( \PassCaptain\Modules\Fiscalization::class ) ? \PassCaptain\Modules\Fiscalization::order_documents_state( (int) $order_id ) : 'none';
+		if ( '' !== $purpose_changed ) {
+			$snapshot['purpose_changed'] = $purpose_changed;
+		}
+		// Single-purpose vouchers and promotion codes change the price: fiscal documents already sent (or
+		// possibly sent) to the provider cannot follow any more, so the voucher is refused (docs/VOUCHERS.md).
+		$fiscal = self::reduces_price( $purpose ) && class_exists( \PassCaptain\Modules\Fiscalization::class ) ? \PassCaptain\Modules\Fiscalization::order_documents_state( (int) $order_id ) : 'none';
 		if ( 'locked' === $fiscal ) {
 			Bridge::release( (array) $reservation, 'wpcap-release-' . $order->public_id );
 			return new \WP_Error( 'wpcap_voucher_fiscal_locked', __( 'Der Gutschein kann nicht mehr angewendet werden, weil für diese Bestellung bereits ein Fiskalbeleg übermittelt wird.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -186,6 +198,7 @@ final class Checkout {
 			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
 		} else {
 			// Single-purpose: VAT was paid when the voucher was sold; the redemption reduces price and VAT.
+			// Promotion code: a plain price reduction, booked the same way.
 			// The voucher becomes part of the line discounts (price_snapshot.line_discounts), so invoice,
 			// reports, partner settlements, refunds and the fiscal document use the reduced line amounts;
 			// line VAT is computed again on the reduced line amount (same rule as the checkout).
@@ -220,7 +233,7 @@ final class Checkout {
 			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$wpdb->query( 'COMMIT' );
-		Audit::record( 'voucher_reserved', 'order', (int) $order_id, array( 'amount_minor' => $amount, 'purpose' => $purpose ) );
+		Audit::record( 'voucher_reserved', 'order', (int) $order_id, array_filter( array( 'amount_minor' => $amount, 'purpose' => $purpose, 'purpose_changed' => $purpose_changed ) ) );
 		if ( 0 === $new_total ) {
 			// Fully paid by voucher: confirm like a free order (commit follows via wpcap_order_paid).
 			Orders::confirm_external_payment( (int) $order_id, 'voucher' );
@@ -591,7 +604,8 @@ final class Checkout {
 	/* ------------------------------------------------------------------ Voucher purpose (VAT treatment) */
 
 	/**
-	 * Purpose of a voucher: 'single' (Einzweckgutschein) or 'multi' (Mehrzweckgutschein).
+	 * Purpose of a voucher: 'single' (Einzweckgutschein), 'multi' (Mehrzweckgutschein) or 'discount'
+	 * (promotion code, plain price reduction).
 	 *
 	 * 1. Data from Voucher Captain (quote, reservation, source …; see purpose_from_data()),
 	 * 2. filter `wpcap_voucher_purpose( $purpose|null, $voucher, $context )` (may decide or override),
@@ -612,12 +626,13 @@ final class Checkout {
 	/** Purpose stated in provider data (common keys, also nested in quote/reservation/voucher), or null. */
 	public static function purpose_from_data( $data, $depth = 0 ) {
 		if ( ! is_array( $data ) || $depth > 3 ) { return null; }
-		// Contract field of ProviderInterface::quote(): payment = multi-purpose voucher; single and
-		// discount = price reduction (single-purpose voucher / plain discount).
+		// Contract field of ProviderInterface::quote(): payment = multi-purpose voucher; single = single-purpose
+		// voucher; discount = promotion code (plain price reduction, no VAT charged in advance).
 		if ( isset( $data['treatment'] ) && is_scalar( $data['treatment'] ) ) {
 			$treatment = strtolower( trim( (string) $data['treatment'] ) );
 			if ( 'payment' === $treatment ) { return self::PURPOSE_MULTI; }
-			if ( in_array( $treatment, array( 'single', 'discount' ), true ) ) { return self::PURPOSE_SINGLE; }
+			if ( 'single' === $treatment ) { return self::PURPOSE_SINGLE; }
+			if ( 'discount' === $treatment ) { return self::PURPOSE_DISCOUNT; }
 		}
 		foreach ( array( 'purpose', 'voucher_purpose', 'voucher_type', 'tax_type', 'vat_type', 'tax_treatment' ) as $key ) {
 			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) {
@@ -641,13 +656,83 @@ final class Checkout {
 		return null;
 	}
 
-	/** 'single'|'multi' for the usual spellings (SPV/MPV, Einzweck/Mehrzweck …), null for anything else. */
+	/** 'single'|'multi'|'discount' for the usual spellings (SPV/MPV, Einzweck/Mehrzweck, Rabatt …), null for anything else. */
 	public static function normalize_purpose( $value ) {
 		if ( ! is_scalar( $value ) ) { return null; }
 		$v = preg_replace( '/[^a-z]/', '', strtolower( (string) $value ) );
 		if ( in_array( $v, array( 'single', 'singlepurpose', 'singlepurposevoucher', 'spv', 'einzweck', 'einzweckgutschein' ), true ) ) { return self::PURPOSE_SINGLE; }
 		if ( in_array( $v, array( 'multi', 'multipurpose', 'multipurposevoucher', 'mpv', 'mehrzweck', 'mehrzweckgutschein' ), true ) ) { return self::PURPOSE_MULTI; }
+		if ( in_array( $v, array( 'discount', 'promotion', 'promo', 'promocode', 'rabatt', 'rabattcode', 'rabattaktion', 'preisnachlass' ), true ) ) { return self::PURPOSE_DISCOUNT; }
 		return null;
+	}
+
+	/** Whether a purpose reduces price and VAT of the order (single-purpose voucher, promotion code). */
+	public static function reduces_price( $purpose ) {
+		return self::PURPOSE_MULTI !== $purpose;
+	}
+
+	/**
+	 * A single-purpose voucher is one only for supplies whose place of supply and VAT were known when it was
+	 * sold (Art. 30a MwStSystRL, § 3 Abs. 14 UStG, § 4 Abs. 9 öUStG). When the voucher plugin sends the VAT of
+	 * the sale (`sale_tax` = rate_bp and country) and a ticket line carries another rate or is taxed in another
+	 * country (the line's place of supply, filter `wpcap_voucher_tax_country`), the voucher cannot be a
+	 * single-purpose one for these tickets: the redemption is booked as a multi-purpose voucher (means of
+	 * payment, VAT at redemption). Without sale data nothing changes.
+	 *
+	 * @param string $purpose Purpose from purpose().
+	 * @param array  $data    Voucher data (quote, reservation, ticket service source).
+	 * @param array  $lines   Ticket lines: rate_bp (int) and country (ISO code, '' = seller country).
+	 * @param array  $context Order or ticket context (passed to the filter).
+	 * @return array{0:string,1:string} Purpose and the reason of a change ('' | 'single_rate' | 'single_country').
+	 */
+	public static function effective_purpose( $purpose, array $data, array $lines, array $context = array() ) {
+		if ( self::PURPOSE_SINGLE !== $purpose ) { return array( $purpose, '' ); }
+		$sale = self::sale_tax_from_data( $data );
+		if ( null === $sale ) { return array( $purpose, '' ); }
+		foreach ( $lines as $line ) {
+			$own = \PassCaptain\Tax\Profiles::country( $line['country'] ?? '' );
+			/**
+			 * Country in which a ticket line is taxed, compared with the country of a single-purpose voucher's sale.
+			 *
+			 * @param string $country Place of supply of the line (venue country, else the seller country).
+			 * @param array  $context source, order_id or ticket_type_id, and the line (rate_bp, country).
+			 */
+			$country = \PassCaptain\Tax\Profiles::country( (string) apply_filters( 'wpcap_voucher_tax_country', '' !== $own ? $own : \PassCaptain\Tax\Profiles::seller_country(), $context + array( 'line' => $line ) ) );
+			if ( '' !== $sale['country'] && '' !== $country && $sale['country'] !== $country ) { return array( self::PURPOSE_MULTI, 'single_country' ); }
+		}
+		foreach ( $lines as $line ) {
+			if ( (int) ( $line['rate_bp'] ?? 0 ) !== $sale['rate_bp'] ) { return array( self::PURPOSE_MULTI, 'single_rate' ); }
+		}
+		return array( $purpose, '' );
+	}
+
+	/** VAT of the voucher sale from the plugin data (`sale_tax`, also nested in quote/reservation/voucher/source), else null. */
+	public static function sale_tax_from_data( $data, $depth = 0 ) {
+		if ( ! is_array( $data ) || $depth > 3 ) { return null; }
+		if ( isset( $data['sale_tax'] ) && is_array( $data['sale_tax'] ) && isset( $data['sale_tax']['rate_bp'] ) && is_numeric( $data['sale_tax']['rate_bp'] ) ) {
+			return array( 'rate_bp' => (int) $data['sale_tax']['rate_bp'], 'country' => \PassCaptain\Tax\Profiles::country( $data['sale_tax']['country'] ?? '' ) );
+		}
+		foreach ( array( 'quote', 'reservation', 'voucher', 'source' ) as $key ) {
+			$found = isset( $data[ $key ] ) ? self::sale_tax_from_data( $data[ $key ], $depth + 1 ) : null;
+			if ( null !== $found ) { return $found; }
+		}
+		return null;
+	}
+
+	/**
+	 * Ticket lines of an order for effective_purpose(): VAT rate and place of supply. Service fee lines are
+	 * left out (a voucher for tickets says nothing about the platform's fee).
+	 *
+	 * @param object[] $items Order lines (Orders::items_for_order()).
+	 * @return array<int, array{rate_bp:int,country:string}>
+	 */
+	public static function tax_lines( array $items ) {
+		$lines = array();
+		foreach ( $items as $item ) {
+			if ( '' !== (string) ( $item->fee_kind ?? '' ) ) { continue; }
+			$lines[] = array( 'rate_bp' => (int) $item->tax_rate_bp, 'country' => (string) ( $item->tax_country ?? '' ) );
+		}
+		return $lines;
 	}
 
 	/** Purpose recorded in a snapshot; snapshots of older versions were always treated as discounts. */

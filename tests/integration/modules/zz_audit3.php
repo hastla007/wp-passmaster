@@ -399,7 +399,7 @@ check( 'A030: sections for guest lists (Art. 14), waitlist offers, buyer limits,
 
 echo "Audit 3: voucher provider treatment field (A031)\n";
 $C = PassCaptain\Integrations\Vouchers\Checkout::class;
-check( 'A031: treatment payment → multi-purpose, single/discount → single-purpose (reduction)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) );
+check( 'A031: treatment payment → multi-purpose, single → single-purpose, discount → promotion code (both reduce the price)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'discount' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) && $C::reduces_price( 'discount' ) && $C::reduces_price( 'single' ) );
 check( 'A031: explicit purpose fields still work without treatment', 'multi' === $C::purpose_from_data( array( 'voucher_type' => 'MPV' ) ) && null === $C::purpose_from_data( array( 'amount_minor' => 100 ) ) );
 
 echo "Audit 3: wpcap_order_paid fires before issuance for paid and free orders (A032)\n";

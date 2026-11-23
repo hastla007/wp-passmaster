@@ -1550,7 +1550,7 @@ final class Invoices {
 	/**
 	 * Section "Zahlungen" of an invoice with a voucher: multi-purpose vouchers are listed as payments (code
 	 * masked) followed by the remaining amount paid; the VAT breakdown above stays on the full amounts.
-	 * Single-purpose vouchers were a price reduction and only get a note. Empty for invoices without voucher.
+	 * Single-purpose vouchers and promotion codes were a price reduction and only get a note. Empty for invoices without voucher.
 	 *
 	 * @return array{rows: array<int, array{0:string,1:int,2:bool}>, notes: string[]} Rows: label, amount (minor), bold.
 	 */
@@ -1566,6 +1566,10 @@ final class Invoices {
 				$voucher_total += $amount;
 				/* translators: %s: masked voucher code */
 				$out['rows'][] = array( sprintf( __( 'Bezahlt mit Gutschein %s (Mehrzweckgutschein)', 'pass-captain' ), $code ), -$amount, false );
+			} elseif ( Integrations\Vouchers\Checkout::PURPOSE_DISCOUNT === ( $voucher['purpose'] ?? '' ) ) {
+				// Promotion code: a plain price reduction – no VAT was charged in advance, so no such statement.
+				/* translators: %s: masked code */
+				$out['notes'][] = sprintf( __( 'Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt.', 'pass-captain' ), $code );
 			} else {
 				/* translators: %s: masked voucher code */
 				$out['notes'][] = sprintf( __( 'Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt.', 'pass-captain' ), $code );

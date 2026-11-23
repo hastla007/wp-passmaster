@@ -8,9 +8,11 @@ interface ProviderInterface {
 	/**
 	 * Return an immutable quote or WP_Error for the supplied cart context. Keys: `amount_minor`, `currency`
 	 * and optionally `treatment` – "payment" (multi-purpose voucher: VAT unchanged, shown as a payment),
-	 * "single" (single-purpose voucher: VAT already charged at sale) or "discount" (price reduction; booked
-	 * like a single-purpose voucher). Without `treatment` the purpose fields (`purpose`, `voucher_type`, …)
-	 * are read, else the setting "Gutscheinart" applies (default: multi-purpose).
+	 * "single" (single-purpose voucher: VAT already charged at sale) or "discount" (promotion code: price
+	 * reduction booked like a single-purpose voucher, but no VAT was charged in advance). Without `treatment`
+	 * the purpose fields (`purpose`, `voucher_type`, …) are read, else the setting "Gutscheinart" applies
+	 * (default: multi-purpose). Optional `sale_tax` (rate_bp, country) of a single-purpose voucher: the VAT of
+	 * its sale; tickets with another rate or place of supply redeem it as a multi-purpose voucher.
 	 */
 	public function quote( array $context );
 	/** Reserve a quoted voucher application for an idempotency key. */
