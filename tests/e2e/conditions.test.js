@@ -50,7 +50,9 @@ async function overflow(p) {
 			if (!r.width || getComputedStyle(el).position === 'fixed') return false;
 			return rtl ? r.left < -1 : r.right > width + 1;
 		}).slice(0, 5).map((el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : ''));
-		return { scroll: document.documentElement.scrollWidth, width, wide };
+		// Elements whose own content (e.g. an unbreakable word) is wider than their box.
+		const over = Array.from(document.querySelectorAll('body *')).filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === 'visible').slice(0, 5).map((el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '') + ' (content ' + el.scrollWidth + ' > ' + el.clientWidth + ' px)');
+		return { scroll: document.documentElement.scrollWidth, width, wide: wide.concat(over) };
 	});
 }
 async function assertReflow(p, what) {
