@@ -50,6 +50,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.2.0 | 1.6.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 | 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`) (PASS-E17-01); additiv |
+| 1.4.0 | 1.6.0 | zusätzlich der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`) und der [Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors) (`wpcap_connector_audit()`) (PASS-E17-01); additiv |
 
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
@@ -125,6 +126,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\TicketDetails` (`ticket()`, `order()`, `VERSION`, `EMAIL_CAP`), `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | 1.6.0 (Vertrag 1.4.0) |
+| `PassCaptain\Integrations\ConnectorAudit::record()`, `wpcap_connector_audit()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Api\Auth::request_can()`, `wpcap_api_request_can()` | 1.5.0 |
 | `PassCaptain\Integrations\Vouchers\Reconciliation` (`orders()`, `VERSION`, `MAX_LIMIT`) | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\BoxOffice\DeviceGatewayInterface` | 1.5.0 |
@@ -154,6 +156,7 @@ ihnen stehen im `CHANGELOG.md`.
 | Ticketausgabe von außen | `wp_pass_captain_ticket_service_v1` (Dienst abrufen) | Versionierter Dienst | `src/Integrations/Vouchers/TicketService.php` |
 | Gutschein-Abgleich (nur lesend) | `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` | Versionierte PHP-API (`VERSION`) | `src/Integrations/Vouchers/Reconciliation.php` |
 | Connectoren (CRM, Kalender, Buchhaltung) | `wp_pass_captain_connectors_v1` + `PassCaptain\Integrations\ConnectorInterface` | Versionierter Filter | `src/Integrations/ConnectorRegistry.php` |
+| Protokolleintrag eines Connectors | `wpcap_connector_audit()` | Funktion (Vertrag 1.4.0) | `src/Integrations/ConnectorAudit.php` |
 | Hintergrundjobs | `PassCaptain\Jobs::enqueue()` + `wp_pass_captain_process_job_v1` | Versionierter Filter | `src/Jobs.php` |
 | E-Mail-Typen | `wpcap_mail_types`, `wpcap_mail`, `wpcap_mail_before_send` | Filter/Action | `src/Mail/Types.php`, `src/Mail/Mailer.php` |
 | Checkout-Felder | `wpcap_checkout_form_fields`, `wpcap_checkout_payload_keys`, `wpcap_order_creating` | Action/Filter | `templates/event-card.php`, `src/Orders.php` |
@@ -342,6 +345,34 @@ Einlass, Opt-in, Idempotenz, Wiederholung, keine personenbezogenen Daten, Suite-
 
 Der mitgelieferte HTTP/JSON-Connector bietet weiterhin die acht Ereignisse des Vertrags 1.0.0 zur Auswahl an;
 `voucher_redeemed` und `ticket_revoked` erreichen ihn nicht (er bestätigt nicht gewählte Ereignisse ohne Versand).
+
+### Protokolleintrag eines Connectors
+
+Seit Vertragsversion 1.4.0 (Plugin 1.6.0, PASS-E17-01) schreibt ein Connector Einträge ins Audit-Log des Kerns über
+eine öffentliche Funktion statt über die interne Klasse `PassCaptain\Audit` (die bleibt intern und ohne
+Versionszusage): `wpcap_connector_audit( $source, $action, $object_type = '', $object_id = 0, $details = [] )`
+(`PassCaptain\Integrations\ConnectorAudit::record()`), Rückgabe `true` oder `WP_Error`.
+
+```php
+$result = wpcap_connector_audit( 'my_connector', 'course_access_granted', 'ticket', $ticket_id, array( 'course_id' => 12, 'result' => 'ok' ) );
+if ( is_wp_error( $result ) ) { /* wpcap_connector_audit_source | _invalid | _rate_limited | _failed */ }
+```
+
+| Parameter | Regel |
+|---|---|
+| `$source` | Schlüssel eines über `wp_pass_captain_connectors_v1` registrierten Connectors (freigegeben oder nicht); steht im Eintrag als Angabe `source` |
+| `$action` | Code (`a-z`, `0-9`, `_`, 2–48 Zeichen, beginnt mit einem Buchstaben); gespeichert als `connector_log_<action>`, damit ein Connector nie wie der Kern schreibt (der Kern selbst nutzt dieses Präfix nicht) |
+| `$object_type` | `connector` (Vorgabe bei `''`), `order`, `ticket`, `occurrence`, `event`, `refund` |
+| `$object_id` | nicht negative ganze Zahl (0 für `connector`) |
+| `$details` | höchstens 10 flache Angaben; Schlüssel sind Codes (`a-z`, `0-9`, `_`, höchstens 32 Zeichen) ohne Teile wie `email`, `mail`, `name`, `phone`, `address`, `ip`, `token`, `code`, `source` (`ConnectorAudit::FORBIDDEN_KEY_PARTS`); Werte sind Ganzzahlen, Kommazahlen, Wahrheitswerte, `null` oder Codes (Buchstaben, Ziffern, `_ . : -`, höchstens 64 Zeichen – also kein Leerzeichen, kein `@`, kein Freitext) |
+
+Verstößt ein Teil gegen die Regeln, wird der ganze Eintrag mit `WP_Error` abgelehnt (`wpcap_connector_audit_source`
+oder `wpcap_connector_audit_invalid` mit `field`, Status 400); nichts wird stillschweigend gekürzt. Je Connector und
+Minute sind höchstens 60 Einträge möglich (`ConnectorAudit::RATE_LIMIT`), danach `wpcap_connector_audit_rate_limited`
+(Status 429). Der Eintrag trägt wie jeder Audit-Eintrag den angemeldeten Benutzer (in Hintergrundjobs 0) und läuft
+durch dieselbe Schwärzung. Die Einträge erscheinen unter „Audit-Log“ mit der Aktion `connector_log_…`. Personenbezogene
+Daten gehören nicht hinein; wer eine Person meint, nennt das Ticket oder die Bestellung über `$object_type` und
+`$object_id`.
 
 ### Mitgelieferte Connectoren
 

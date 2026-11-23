@@ -27,12 +27,23 @@ wpcap_test_reset_transients();
 PassCaptain\Settings::update( array( 'require_terms' => 0 ) );
 
 $e17_docs = (string) file_get_contents( WPCAP_PATH . 'docs/EXTENSIONS.md' );
-$e17_section = static function ( $heading ) use ( $e17_docs ) {
-	$start = strpos( $e17_docs, "\n## " . $heading . "\n" );
+// Text of a section of docs/EXTENSIONS.md up to the next heading of level 2 or 3.
+$e17_section = static function ( $heading, $level = '##' ) use ( $e17_docs ) {
+	$start = strpos( $e17_docs, "\n" . $level . ' ' . $heading . "\n" );
 	if ( false === $start ) { return ''; }
-	$end = strpos( $e17_docs, "\n## ", $start + 4 );
-	return false === $end ? substr( $e17_docs, $start ) : substr( $e17_docs, $start, $end - $start );
+	$from = $start + strlen( $heading ) + 4;
+	$ends = array_filter( array( strpos( $e17_docs, "\n## ", $from ), strpos( $e17_docs, "\n### ", $from ) ), static fn( $pos ) => false !== $pos );
+	return $ends ? substr( $e17_docs, $start, min( $ends ) - $start ) : substr( $e17_docs, $start );
 };
+
+/** Minimal connector for the source and opt-in checks. */
+final class E17_Stub_Connector implements PassCaptain\Integrations\ConnectorInterface {
+	public function __construct( private string $k ) {}
+	public function key() { return $this->k; }
+	public function version() { return '1.0.0'; }
+	public function capabilities() { return array( 'tickets' ); }
+	public function deliver( $event_name, array $payload, $idempotency_key ) { return true; }
+}
 
 /* ---- Part 1: read service ---- */
 
@@ -131,6 +142,68 @@ if ( $e17_has_read ) {
 	check( 'E17-1: unknown and invalid ids give null', $e17_all_null && null === wpcap_get_order_ticket_details( (string) $e17_tickets[0]->public_id ) );
 	check( 'E17-1: wpcap_read_holder_email is a plugin capability (removed on uninstall), not granted to a role package', in_array( 'wpcap_read_holder_email', PassCaptain\Capabilities::all(), true ) && ! in_array( 'wpcap_read_holder_email', PassCaptain\Capabilities::CORE, true ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'src/Installer.php' ), 'wpcap_read_holder_email' ) );
 	$GLOBALS['wpcap_test_users'] = $e17_users_before;
+}
+
+/* ---- Part 2: audit entry of a connector ---- */
+
+$e17_has_audit = function_exists( 'wpcap_connector_audit' ) && class_exists( PassCaptain\Integrations\ConnectorAudit::class );
+check( 'E17-2: wpcap_connector_audit() exists (contract 1.4.0)', $e17_has_audit );
+if ( $e17_has_audit ) {
+	$e17_key = 'e17-lb_' . substr( md5( uniqid( '', true ) ), 0, 8 );
+	$e17_filter = static function ( $list ) use ( $e17_key ) { $list[] = new E17_Stub_Connector( $e17_key ); return $list; };
+	add_filter( 'wp_pass_captain_connectors_v1', $e17_filter );
+	$e17_count = static function ( $action ) use ( $wpdb, $p ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action=%s", $action ) ); };
+	$e17_ok = wpcap_connector_audit( $e17_key, 'course_access_granted', 'ticket', 42, array( 'course_id' => 12, 'result' => 'ok', 'retry' => false, 'ratio' => 0.5, 'lb_ref' => 'lb:course-12.v2', 'none' => null ) );
+	$e17_row = $wpdb->get_row( $wpdb->prepare( "SELECT user_id, action, object_type, object_id, details FROM {$p}wpcap_audit_logs WHERE action='connector_log_course_access_granted' AND details LIKE %s ORDER BY audit_id DESC LIMIT 1", '%' . $wpdb->esc_like( $e17_key ) . '%' ) );
+	check( 'E17-2: a valid entry is written with prefix connector_log_, own source, object and the details', true === $e17_ok && $e17_row && 'ticket' === $e17_row->object_type && 42 === (int) $e17_row->object_id && array( 'source' => $e17_key, 'course_id' => 12, 'result' => 'ok', 'retry' => false, 'ratio' => 0.5, 'lb_ref' => 'lb:course-12.v2', 'none' => null ) === json_decode( (string) $e17_row->details, true ) );
+	check( 'E17-2: object type defaults to connector with ID 0', true === wpcap_connector_audit( $e17_key, 'sync_finished' ) && 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='connector_log_sync_finished' AND object_type='connector' AND object_id=0 AND details LIKE %s", '%' . $wpdb->esc_like( $e17_key ) . '%' ) ) );
+	$e17_core_prefixed = array();
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( WPCAP_PATH . 'src', FilesystemIterator::SKIP_DOTS ) ) as $e17_file ) {
+		if ( 'php' === $e17_file->getExtension() && preg_match( "/Audit::record\\( '" . PassCaptain\Integrations\ConnectorAudit::ACTION_PREFIX . '/', (string) file_get_contents( $e17_file->getPathname() ) ) ) { $e17_core_prefixed[] = $e17_file->getFilename(); }
+	}
+	check( 'E17-2: the core itself writes no audit action with the connector prefix connector_log_ (no look-alike entries)' . ( $e17_core_prefixed ? ': ' . implode( ', ', $e17_core_prefixed ) : '' ), 'connector_log_' === PassCaptain\Integrations\ConnectorAudit::ACTION_PREFIX && array() === $e17_core_prefixed );
+	$e17_refused = array(
+		'unregistered source' => array( 'e17_not_registered', 'sync', '', 0, array(), 'wpcap_connector_audit_source' ),
+		'source with spaces' => array( 'E17 LB', 'sync', '', 0, array(), 'wpcap_connector_audit_source' ),
+		'action free text' => array( $e17_key, 'Kurs freigegeben', '', 0, array(), 'wpcap_connector_audit_invalid' ),
+		'action too long' => array( $e17_key, str_repeat( 'a', 49 ), '', 0, array(), 'wpcap_connector_audit_invalid' ),
+		'unknown object type' => array( $e17_key, 'sync', 'wpcap_orders', 1, array(), 'wpcap_connector_audit_invalid' ),
+		'negative object id' => array( $e17_key, 'sync', 'ticket', -1, array(), 'wpcap_connector_audit_invalid' ),
+		'e-mail as value' => array( $e17_key, 'sync', 'ticket', 1, array( 'user' => 'e17-person@example.com' ), 'wpcap_connector_audit_invalid' ),
+		'free text value' => array( $e17_key, 'sync', 'ticket', 1, array( 'note' => 'Max Mustermann kam zu spät' ), 'wpcap_connector_audit_invalid' ),
+		'personal key email' => array( $e17_key, 'sync', 'ticket', 1, array( 'holder_email' => 'x' ), 'wpcap_connector_audit_invalid' ),
+		'personal key name' => array( $e17_key, 'sync', 'ticket', 1, array( 'first_name' => 'x' ), 'wpcap_connector_audit_invalid' ),
+		'personal key ip' => array( $e17_key, 'sync', 'ticket', 1, array( 'client_ip' => '1.2.3.4' ), 'wpcap_connector_audit_invalid' ),
+		'code key' => array( $e17_key, 'sync', 'ticket', 1, array( 'ticket_code' => 'ABC' ), 'wpcap_connector_audit_invalid' ),
+		'reserved key source' => array( $e17_key, 'sync', 'ticket', 1, array( 'source' => 'core' ), 'wpcap_connector_audit_invalid' ),
+		'nested value' => array( $e17_key, 'sync', 'ticket', 1, array( 'data' => array( 'a' => 1 ) ), 'wpcap_connector_audit_invalid' ),
+		'numeric key' => array( $e17_key, 'sync', 'ticket', 1, array( 0 => 'x' ), 'wpcap_connector_audit_invalid' ),
+		'too many details' => array( $e17_key, 'sync', 'ticket', 1, array_combine( array_map( static fn( $i ) => 'k' . $i, range( 1, 11 ) ), range( 1, 11 ) ), 'wpcap_connector_audit_invalid' ),
+		'value too long' => array( $e17_key, 'sync', 'ticket', 1, array( 'ref' => str_repeat( 'a', 65 ) ), 'wpcap_connector_audit_invalid' ),
+		'infinite float' => array( $e17_key, 'sync', 'ticket', 1, array( 'ratio' => INF ), 'wpcap_connector_audit_invalid' ),
+	);
+	$e17_wrong = array();
+	$e17_sync_before = $e17_count( 'connector_log_sync' );
+	foreach ( $e17_refused as $e17_label => $e17_case ) {
+		$e17_r = wpcap_connector_audit( ...array_slice( $e17_case, 0, 5 ) );
+		if ( ! is_wp_error( $e17_r ) || $e17_case[5] !== $e17_r->get_error_code() || 400 !== ( $e17_r->get_error_data()['status'] ?? 0 ) ) { $e17_wrong[] = $e17_label; }
+	}
+	check( 'E17-2: invalid source, action, object, personal or free-text details are refused as a whole (' . count( $e17_refused ) . ' cases)' . ( $e17_wrong ? ': ' . implode( ', ', $e17_wrong ) : '' ), array() === $e17_wrong && $e17_sync_before === $e17_count( 'connector_log_sync' ) && 0 === $e17_count( 'connector_log_kurs freigegeben' ) );
+	// Rate-safe: at most RATE_LIMIT entries per connector and minute; another connector is not affected.
+	$e17_flood = 'e17_flood_' . substr( md5( uniqid( '', true ) ), 0, 8 );
+	$e17_flood_filter = static function ( $list ) use ( $e17_flood ) { $list[] = new E17_Stub_Connector( $e17_flood ); return $list; };
+	add_filter( 'wp_pass_captain_connectors_v1', $e17_flood_filter );
+	$e17_results = array();
+	for ( $e17_i = 0; $e17_i <= PassCaptain\Integrations\ConnectorAudit::RATE_LIMIT; $e17_i++ ) { $e17_results[] = wpcap_connector_audit( $e17_flood, 'flood', '', 0, array( 'n' => $e17_i ) ); }
+	$e17_last = end( $e17_results );
+	$e17_written = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='connector_log_flood' AND details LIKE %s", '%' . $wpdb->esc_like( $e17_flood ) . '%' ) );
+	check( 'E17-2: rate-safe: ' . PassCaptain\Integrations\ConnectorAudit::RATE_LIMIT . ' entries per connector and minute, then wpcap_connector_audit_rate_limited (429); other connectors unaffected', 60 === PassCaptain\Integrations\ConnectorAudit::RATE_LIMIT && PassCaptain\Integrations\ConnectorAudit::RATE_LIMIT === $e17_written && is_wp_error( $e17_last ) && 'wpcap_connector_audit_rate_limited' === $e17_last->get_error_code() && 429 === ( $e17_last->get_error_data()['status'] ?? 0 ) && true === wpcap_connector_audit( $e17_key, 'still_allowed' ) );
+	remove_filter( 'wp_pass_captain_connectors_v1', $e17_flood_filter );
+	remove_filter( 'wp_pass_captain_connectors_v1', $e17_filter );
+	$e17_audit_doc = $e17_section( 'Protokolleintrag eines Connectors', '###' );
+	$e17_missing = array_values( array_filter( array( '`wpcap_connector_audit(', 'Vertragsversion 1.4.0', '`connector_log_<action>`', '`source`', '`wpcap_connector_audit_source`', '`wpcap_connector_audit_invalid`', '`wpcap_connector_audit_rate_limited`', 'höchstens 60', 'höchstens 10' ), static fn( $w ) => false === strpos( $e17_audit_doc, $w ) ) );
+	$e17_object_doc = array_values( array_filter( PassCaptain\Integrations\ConnectorAudit::OBJECT_TYPES, static fn( $t ) => false === strpos( $e17_audit_doc, '`' . $t . '`' ) ) );
+	check( 'E17-2: docs/EXTENSIONS.md "Protokolleintrag eines Connectors" documents function, version, rules, object types and error codes' . ( $e17_missing || $e17_object_doc ? ': ' . implode( ', ', array_merge( $e17_missing, $e17_object_doc ) ) : '' ), '' !== $e17_audit_doc && array() === $e17_missing && array() === $e17_object_doc && 10 === PassCaptain\Integrations\ConnectorAudit::MAX_DETAILS );
 }
 
 check( 'E17: WPCAP_CONTRACT_VERSION is at least 1.4.0 and the version table names 1.4.0', version_compare( (string) ( preg_match( "/^define\( 'WPCAP_CONTRACT_VERSION', '([^']+)' \);/m", (string) file_get_contents( WPCAP_PATH . 'pass-captain.php' ), $e17_m ) ? $e17_m[1] : '0' ), '1.4.0', '>=' ) && 1 === preg_match( '/^\| 1\.4\.0 \| 1\.6\.\d+ \|/m', $e17_docs ) );

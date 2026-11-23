@@ -161,3 +161,20 @@ if ( ! function_exists( 'wpcap_get_order_ticket_details' ) ) {
 		return PassCaptain\Api\TicketDetails::order( $id, (array) $args );
 	}
 }
+
+if ( ! function_exists( 'wpcap_connector_audit' ) ) {
+	/**
+	 * Audit entry of a connector without personal data (contract 1.4.0, PASS-E17-01), see
+	 * PassCaptain\Integrations\ConnectorAudit::record(). Rate-limited per connector.
+	 *
+	 * @param string $source      Key of a connector registered through wp_pass_captain_connectors_v1.
+	 * @param string $action      Action code, stored as connector_log_<action>.
+	 * @param string $object_type connector|order|ticket|occurrence|event|refund ('' = connector).
+	 * @param int    $object_id   Object ID.
+	 * @param array  $details     Flat details: code keys, values int/float/bool/null or codes.
+	 * @return true|WP_Error
+	 */
+	function wpcap_connector_audit( $source, $action, $object_type = '', $object_id = 0, $details = array() ) {
+		return PassCaptain\Integrations\ConnectorAudit::record( $source, $action, $object_type, $object_id, $details );
+	}
+}
