@@ -77,6 +77,11 @@ final class PublicApi {
 		'wpcap_connector_audit'          => '1.4.0', // PASS-E17-01: audit entry of a connector.
 		'wpcap_set_connector_enabled'    => '1.4.0', // PASS-E17-01: opt-in instead of writing the option.
 		'wpcap_is_connector_enabled'     => '1.4.0',
+		'wpcap_resend_ticket_mail'       => '1.4.0', // PC-7: public actions (contract actions 1.0.0).
+		'wpcap_revoke_ticket'            => '1.4.0',
+		'wpcap_cancel_event'             => '1.4.0',
+		'wpcap_reschedule_occurrence'    => '1.4.0',
+		'wpcap_confirm_attendance'       => '1.4.0',
 	);
 
 	/** Public global functions (see FUNCTIONS). */

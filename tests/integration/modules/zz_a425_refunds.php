@@ -134,17 +134,18 @@ $fr_g1 = Refunds::request( $fr_g, array(), 'Absage', 'fr-g1' );
 check( 'A425 refunds: a later staff refund of a cancelled date refunds the fee (2500 + 150 + 200)', is_array( $fr_g1 ) && 2850 === (int) $fr_g1['amount_minor'] && 350 === (int) $fr_g1['fee_minor'] );
 Settings::update( array( 'auto_refund_cancelled' => 1 ) );
 
-// 8. Workflow command event.cancel (whole event).
+// 8. Public action wpcap_cancel_event() (whole event, PC-7).
+require_once WPCAP_PATH . 'src/functions.php';
 $fr_h_type = fr_type();
 $fr_h = fr_order( $fr_h_type );
 $fr_h_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types t ON t.occurrence_id=o.occurrence_id WHERE t.ticket_type_id=%d", $fr_h_type ) );
-$fr_h_cmd = PassCaptain\Workflow\Commands::ready() ? PassCaptain\Workflow\Commands::execute( 'event.cancel', array( 'event_id' => $fr_h_event, 'reason' => 'Unwetter' ), 'fr-cancel-' . substr( md5( uniqid( '', true ) ), 0, 12 ) ) : null;
+$fr_h_cmd = wpcap_cancel_event( $fr_h_event, 'Unwetter', array( 'idempotency_key' => 'fr-cancel-' . substr( md5( uniqid( '', true ) ), 0, 12 ) ) );
 if ( 'cancelled' !== $wpdb->get_var( "SELECT status FROM {$p}wpcap_events WHERE event_id=$fr_h_event" ) || ! fr_refunds( $fr_h ) ) {
 	Orders::resume_event_cancellation( $fr_h_event );
 }
 PassCaptain\Jobs::process_due( 50 );
 $fr_h_rows = fr_refunds( $fr_h );
-check( 'A425 refunds: event.cancel (workflow command) refunds the whole order incl. both fees', is_array( $fr_h_cmd ) && 'cancelled' === $fr_h_cmd['result']['status'] && 1 === count( $fr_h_rows ) && 5500 === (int) $fr_h_rows[0]->amount_minor && 500 === (int) $fr_h_rows[0]->fee_minor );
+check( 'A425 refunds: wpcap_cancel_event() refunds the whole order incl. both fees', is_array( $fr_h_cmd ) && 'cancelled' === $fr_h_cmd['status'] && 1 === count( $fr_h_rows ) && 5500 === (int) $fr_h_rows[0]->amount_minor && 500 === (int) $fr_h_rows[0]->fee_minor );
 
 // 9. Filter.
 $fr_filter = static function () { return 'refund'; };
