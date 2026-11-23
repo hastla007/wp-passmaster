@@ -71,6 +71,12 @@ mit den Actions und der Lesefassade). Was davon bleibt:
   nicht mehr gelesen; die Deinstallation entfernt sie mit allen `wpcap_*`-Optionen.
 - Die Ereignis-IDs der ausgehenden Webhooks (`evt_…` aus Typ und fachlicher Kennung) bleiben unverändert.
 
+Wächtertest (wie bei Voucher und Affiliate Captain): `tests/integration/modules/zz_pc7_guard.php` schlägt fehl, sobald
+`src/` wieder einen Workflow-Provider-Filter (`wp_pass_captain_workflow_provider_v*`), Klassen im Namensraum
+`PassCaptain\Workflow`, eine Mail-Übergabe (`wpcap_workflow_mail_handoff`, `handle_mail`) oder `wpcap_workflow_*`-Hooks
+enthält, und prüft, dass `Mailer::deliver()` eine Mail auch dann selbst versendet, wenn ein Plugin anbietet, sie zu
+übernehmen.
+
 ## Öffentliche Aktionsfunktionen (PC-7)
 
 Fünf schlanke PHP-Funktionen (`src/functions.php`, Klasse `PassCaptain\Api\Actions`, Vertrag `actions` 1.0.0, Teil von
