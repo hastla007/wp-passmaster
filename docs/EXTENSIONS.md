@@ -51,6 +51,11 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 | 1.4.0 | 1.6.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`), der [Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors) (`wpcap_connector_audit()`) und die [Freigabe eines Connectors](#freigabe-eines-connectors-opt-in) (`wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()`) (PASS-E17-01); außerdem die öffentlichen Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()` (`PassCaptain\Api\Actions`, Vertrag `actions` 1.0.0, [CONTRACTS.md](CONTRACTS.md#öffentliche-aktionsfunktionen-pc-7)). Entfernt (Suite-Entscheidung D13, PC-7): der Workflow-Providervertrag `wp_pass_captain_workflow_provider_v1` samt Workflow-Commands und Mail-Übergabe – er wurde von Workflow Captain nie genutzt (dessen Adapter arbeitet nur mit den Actions und der Lesefassade); deshalb kein Sprung der ersten Stelle |
 
+**Eine Bedeutung je Version (PC-8):** `1.2.0` bedeutet nur das Leistungsdatum in `Api\Invoices::get()`, `1.3.0` die
+Lesefassade `wpcap_get_*_state()`. Der Arbeitsstand `claude/plugin-todo-liste-2a83v4`, auf dem `1.2.0` schon „Lesefassade“
+hieß, wurde nie veröffentlicht; maßgeblich ist allein diese Tabelle. Wer die Lesefassade braucht, prüft auf `1.3.0` (und
+zusätzlich `function_exists( 'wpcap_get_ticket_state' )`), nicht auf `1.2.0`.
+
 ```php
 $ok = defined( 'WPCAP_VERSION' ) && version_compare( WPCAP_VERSION, '1.5.0', '>=' )
 	&& defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
