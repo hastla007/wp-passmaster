@@ -7,7 +7,7 @@
     "keyboard": "node keyboard.js"
   },
   "devDependencies": {
-    "axe-core": "4.10.3"
+    "axe-core": "4.14.1"
   },
   "peerDependencies": {
     "playwright": ">=1.40"
