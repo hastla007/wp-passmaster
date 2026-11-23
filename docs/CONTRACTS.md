@@ -21,7 +21,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Ticketdienst und Check-in-Dienst für Voucher Captain (`wp_pass_captain_ticket_service_v1`, `wp_pass_captain_checkin_service_v1`) | `ticket_service`, `checkin_service` | 1.0 | [VOUCHERS.md](VOUCHERS.md) |
 | Affiliate Captain (`wpac_record_sale()`, `wpac_record_refund()`) | `affiliate` | 1.0.0 | [EXTENSIONS.md](EXTENSIONS.md) |
 | Ausgehende Webhooks (signierte POSTs, [WEBHOOKS.md](WEBHOOKS.md)) | `webhooks` | `api_version` 2026-11-01, `schema_version` je Ereignistyp (1.0; `order.refunded` 1.1) | [WEBHOOKS.md](WEBHOOKS.md) |
-| Workflow-Commands (`PassCaptain\Workflow\Commands::execute()`) | `workflow_commands` | 1.0.0 (`Commands::VERSION`) | [unten](#workflow-commands-v1) |
+| Öffentliche Aktionsfunktionen (`wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()`) | `actions` | 1.0.0 (`PassCaptain\Api\Actions::VERSION`; `WPCAP_CONTRACT_VERSION` 1.4.0) | [unten](#öffentliche-aktionsfunktionen-pc-7) |
 | Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
 | Lesefunktion Ticket → Bestellung, Event, Termin (`wpcap_get_ticket()`) | `ticket_read` | 1.0.0 (`PassCaptain\Api\Tickets::VERSION`) | [unten](#ticket-lesevertrag-v1) |
@@ -54,7 +54,8 @@ Workflow Captain (und jedes andere Automations-Plugin) nutzt nur
 
 - die `wpcap_*`-Actions ([HOOKS.md](HOOKS.md), Zeitpunkte im [Suite-Katalog](HOOKS.md#suite-katalog-seit-welcher-version-zeitpunkt-grund)),
 - die Lesefassade `wpcap_get_*_state()` ([EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)) und
-- die öffentlichen Aktionsfunktionen (siehe unten).
+- die [öffentlichen Aktionsfunktionen](#öffentliche-aktionsfunktionen-pc-7) `wpcap_resend_ticket_mail()`,
+  `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()` und `wpcap_confirm_attendance()`.
 
 Umschlag, Outbox, Wiederholung und Befehlswarteschlange liegen beim Abnehmer (Workflow Captain und der Adapter in
 Workflow Captain Pro). Bis Plugin 1.6.0 enthielt der Kern einen Vertrag `workflow` 1.0.0
@@ -70,33 +71,41 @@ mit den Actions und der Lesefassade). Was davon bleibt:
   nicht mehr gelesen; die Deinstallation entfernt sie mit allen `wpcap_*`-Optionen.
 - Die Ereignis-IDs der ausgehenden Webhooks (`evt_…` aus Typ und fachlicher Kennung) bleiben unverändert.
 
-## Workflow-Commands v1
+## Öffentliche Aktionsfunktionen (PC-7)
 
-`PassCaptain\Workflow\Commands::execute( $command, array $args, $idempotency_key )` (A676, `src/Workflow/Commands.php`)
-lässt einen Workflow-Provider ausgewählte Aktionen ausführen – nur diese, über die regulären Dienste des Kerns (mit
-deren Prüfungen, Benachrichtigungen und Ereignissen). Zahlung, Erstattung, Ticketausgabe und Ticketcodes haben keinen
-Command.
+Fünf schlanke PHP-Funktionen (`src/functions.php`, Klasse `PassCaptain\Api\Actions`, Vertrag `actions` 1.0.0, Teil von
+`WPCAP_CONTRACT_VERSION` 1.4.0) lassen ein Plugin auf derselben Website – z. B. Workflow Captain aus seinen eigenen
+Abläufen – ausgewählte Aktionen ausführen. Sie rufen die regulären Dienste des Kerns direkt auf (mit deren Prüfungen,
+Benachrichtigungen, Hooks und Audit-Einträgen); es gibt **keine Warteschlange und keinen Umschlag**. Zahlung,
+Erstattung, Ticketausgabe und Ticketcodes haben keine Aktion. Sie ersetzen die Workflow-Commands (A676, bis 1.6.0).
 
-| Command | Capability | Argumente (Pflicht fett) | Dienst |
+| Funktion | Capability | Dienst | Ergebnis (zusätzlich `action`, `replayed`) |
 |---|---|---|---|
-| `mail.resend` | `wpcap_manage_orders` | **`order_id`** (öffentliche ID), `new_codes` (bool, Standard: gespeicherte Codes erneut senden) | `Orders::resend_tickets()` (übertragene Tickets behalten ihren Code) |
-| `ticket.revoke` | `wpcap_manage_orders` | **`ticket_id`** (öffentliche ID), **`reason`** | „Ticket widerrufen“ im Admin (ohne Erstattung) |
-| `event.cancel` | `wpcap_manage_events` | **`event_id`**, **`reason`** | reguläre Eventabsage (inkl. der eingestellten automatischen Erstattung `auto_refund_cancelled`) |
-| `occurrence.reschedule` | `wpcap_manage_events` | **`occurrence_id`**, **`starts_at`** (ISO 8601 mit Zeitzone), `ends_at` | Terminformular (Revision, Benachrichtigung, Verkaufsfenster; Ende und Einlass verschieben sich mit) |
-| `attendance.confirm` | `wpcap_checkin` | **`ticket_id`**, `method` (`manual`, `list`, `session`, `online`) | zulässige Teilnahmebestätigung ohne Scan: nur bezahlte, nicht erstattete, gültige Tickets, ab Terminbeginn; Aktion `wpcap_attendance_confirmed`, Ereignisse `attendance.confirmed` (Workflow) und `experience_completed` (Review, `method` `confirmed`) |
+| `wpcap_resend_ticket_mail( int\|string $order, array $args = array() )` | `wpcap_manage_orders` (+ Zugriff auf die Bestellung) | `Orders::resend_tickets()`: Standard die gespeicherten Codes, `$args['new_codes'] = true` neue Codes; übertragene Tickets behalten ihren Code | `order_id` (öffentliche ID), `status` `sent`, `codes` `kept`\|`new` |
+| `wpcap_revoke_ticket( int\|string $ticket, string $reason, array $args = array() )` | `wpcap_manage_orders` (+ Event-Recht) | „Ticket widerrufen“ im Admin (ohne Erstattung); Grund Pflicht | `ticket_id` (öffentliche ID), `status` `revoked` |
+| `wpcap_cancel_event( int $event_id, string $reason, array $args = array() )` | `wpcap_manage_events` (+ Event-Recht) | reguläre Eventabsage (inkl. der eingestellten automatischen Erstattung `auto_refund_cancelled`); ein schon abgesagtes Event setzt seinen Absagelauf fort | `event_id`, `status` `cancelled`, `run_status`, `complete` (Absagelauf fertig) |
+| `wpcap_reschedule_occurrence( int $occurrence_id, string $starts_at, ?string $ends_at = null, array $args = array() )` | `wpcap_manage_events` (+ Event-Recht) | Terminformular (Revision, Benachrichtigung, Verkaufsfenster); ISO 8601 mit Zeitzone; ohne `$ends_at` verschieben sich Ende und Einlass mit | `occurrence_id`, `status` `rescheduled`, `starts_at` (UTC, ISO 8601) |
+| `wpcap_confirm_attendance( int\|string $ticket, string $method = 'manual', array $args = array() )` | `wpcap_checkin` (+ Einlassrecht für das Event) | zulässige Teilnahmebestätigung ohne Scan (`method`: `manual`, `list`, `session`, `online`): nur bezahlte, nicht erstattete, gültige Tickets eines nicht abgesagten Termins ab Terminbeginn; Audit `attendance_confirmed`, Action `wpcap_attendance_confirmed` (`source` `api`), im Review-Vertrag `experience_completed` mit `method` `confirmed` (einmal je Ticket) | `ticket_id`, `status` `confirmed`, `method` |
 
-- **Allowlist:** unbekannte Commands (`wpcap_workflow_command_unknown`) und Argumente
-  (`wpcap_workflow_command_arg_not_allowed`, `arg`) werden abgelehnt, fehlende Pflichtargumente ebenso
-  (`wpcap_workflow_command_invalid`).
-- **Capability:** der aktuelle Benutzer (der Provider handelt als Benutzer) braucht die Capability des Commands
-  (`wpcap_workflow_forbidden`, 403); zusätzlich gelten die Event-Rechte des jeweiligen Dienstes.
-- **Idempotency-Key** (Pflicht, 8–64 Zeichen `[A-Za-z0-9._:-]`, Tabelle `wpcap_workflow_commands`, Schema 3.10.27):
-  derselbe Key mit demselben Command und denselben Argumenten liefert das gespeicherte Ergebnis (`replayed` = true)
-  bzw. denselben Fehler, ohne erneut auszuführen; derselbe Key mit anderen Argumenten ist ein Konflikt
-  (`wpcap_workflow_idempotency_conflict`, 409); läuft er noch: `wpcap_workflow_command_in_progress`. Vorübergehende
-  Fehler (5xx) verbrauchen den Key nicht.
-- **Audit:** jeder Aufruf als `workflow_command` (Command, Hash des Keys, Ergebnis) – ohne Personendaten. Ergebnisse
-  enthalten nie Ticketcodes, Hilfscodes oder Personendaten.
+- **IDs:** Bestellung und Ticket als interne ID (int oder Ziffernfolge) oder öffentliche ID (32 Hex-Zeichen); Event und
+  Termin als interne ID. Unbekannt: `wpcap_action_not_found` (404).
+- **Optionen `$args`:** `user_id` (die Aktion läuft als dieser Benutzer: dessen Capability wird geprüft, der aktuelle
+  Benutzer wird danach wiederhergestellt; ohne `user_id` gilt der aktuelle Benutzer), `idempotency_key`, bei
+  `wpcap_resend_ticket_mail()` zusätzlich `new_codes`. Unbekannte Optionen und ungültige Argumente werden abgelehnt,
+  nie ignoriert (`wpcap_action_invalid`, 400, `arg`).
+- **Capability:** fehlt sie, passiert nichts (`wpcap_action_forbidden`, 403); zusätzlich gelten die Event-Rechte des
+  jeweiligen Dienstes (deren Fehlercodes werden mit HTTP-Status in `data.status` durchgereicht).
+- **Idempotenz:** ohne `idempotency_key` läuft jede Aktion erneut (die Dienste selbst sind, wo es geht, idempotent:
+  ein widerrufenes Ticket wird nicht noch einmal widerrufen, eine Teilnahme zählt im Review-Vertrag einmal). Mit Key
+  (8–64 Zeichen `[A-Za-z0-9._:-]`, sonst `wpcap_action_idempotency_key`) liefert derselbe Key mit derselben Aktion
+  und denselben Argumenten das gespeicherte Ergebnis (`replayed` = true) bzw. denselben Fehler, ohne erneut
+  auszuführen; derselbe Key mit anderen Argumenten ist ein Konflikt (`wpcap_action_idempotency_conflict`, 409);
+  läuft er noch: `wpcap_action_in_progress` (409). Vorübergehende Fehler (5xx, z. B. `wpcap_action_unavailable`)
+  verbrauchen den Key nicht. Gespeichert in `{prefix}wpcap_workflow_commands` (Tabellenname historisch, Schema 3.10.27).
+- **Audit:** jeder Aufruf nach der Argumentprüfung als `api_action` (Aktion, Objekt-ID, Benutzer, Hash des Keys,
+  Ergebnis) – ohne Personendaten. Ergebnisse enthalten nie Ticketcodes, Hilfscodes oder Personendaten.
+
+Fixture: `tests/contracts/actions.json`; Test `tests/integration/modules/zz_pc7_actions.php`.
 
 ## Review-Teilnahmevertrag v1
 
@@ -126,7 +135,7 @@ Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unveränder
   alles andere wird verworfen, auch was der Filter `wpcap_outbox_event_data` ergänzt).
 - **Ereignisse** (Schema-Version je Typ 1.0):
   - `experience_completed` – einmal je Teilnahme beim **ersten gültigen Einlass** (`wpcap_ticket_checked_in`) oder bei
-    einer ausdrücklich zugelassenen Teilnahmebestätigung (`wpcap_attendance_confirmed`, Command `attendance.confirm`),
+    einer ausdrücklich zugelassenen Teilnahmebestätigung (`wpcap_attendance_confirmed`, `wpcap_confirm_attendance()`),
     nie bei Kauf, Ticketversand oder bloßer Einlösung; nur für bezahlte, nicht erstattete Tickets nicht abgesagter
     Termine/Events. Daten: `participation_id` (öffentliche Ticket-ID), `experience_id` (`occurrence:<id>`), `event_id`,
     `occurrence_id`, `ticket_type_id`, `recipient_ref`, `locale` (Sprache der Bestellung), `outcome` `attended`,
@@ -183,7 +192,7 @@ Ticket Bestellung, Event und Termin brauchen, ohne Datenbanktabellen zu lesen.
 
 ## Fixtures und Tests
 
-Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow_commands`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
+Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `actions`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
 
 - `direction: inbound` (andere rufen Pass Captain auf): `request` ist ein Beispiel mit Platzhaltern `{{name}}`, `response` ist die Shape der Antwort.
 - `direction: outbound` (Pass Captain ruft Voucher Captain oder Affiliate Captain auf): `request` ist die Shape dessen, was Pass Captain sendet, `response` ist ein Beispiel der kleinsten gültigen Antwort der Gegenseite.

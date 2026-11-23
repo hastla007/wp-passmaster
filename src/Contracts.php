@@ -48,7 +48,7 @@ final class Contracts {
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
 			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
-			'workflow_commands' => Workflow\Commands::VERSION, // A676: workflow commands v1.
+			'actions'          => Api\Actions::VERSION, // PC-7: public write actions (wpcap_resend_ticket_mail() …).
 			'review'           => Review\Contract::VERSION, // A667: review participation contract (experience_completed).
 			'ticket_read'      => Api\Tickets::VERSION, // A709: wpcap_get_ticket() read model for suite plugins.
 			'connector'        => Integrations\ConnectorEvents::CONTRACT_VERSION, // A705: connector events (wp_pass_captain_connectors_v1).

@@ -15,9 +15,11 @@ Add-on aktiv oder lizenziert ist; ob ein Empfänger ein Ereignis verarbeiten dar
 | Connector-Ereignisse (`PassCaptain\Integrations\ConnectorInterface`) | PHP-Adapter auf derselben Website, die der Betreiber freigeschaltet hat | über die Job-Queue, ein Job je Ereignis und Connector, Wiederholung mit Backoff, nach acht Versuchen `dead_letter`; stabiler Idempotenzschlüssel je Ereignis und Connector | Vertrag `connector` 1.1.0 (Payload `contract_version`), Payload-Format `version` = 1 | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
 | Ausgehende Webhooks | externe Systeme über HTTPS | Tabelle `wpcap_webhook_deliveries`, Wiederholung mit Backoff bis acht Versuche, Signatur `X-WPCAP-Signature`; Reihenfolge nicht garantiert | `api_version` im Umschlag (`2026-11-01`) | [WEBHOOKS.md](WEBHOOKS.md) |
 
-Einen Eingang für Befehle anderer Plugins (Mail erneut senden, Ticket widerrufen, Termin absagen) gibt es
-nur als PHP-Dienste und REST-Routen mit den Rechten des Kerns; ein eigener Befehlsvertrag für Automationen
-besteht nicht.
+Einen Eingang für Aktionen anderer Plugins gibt es als fünf öffentliche PHP-Funktionen mit den Rechten des Kerns
+(`wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`,
+`wpcap_confirm_attendance()`, [CONTRACTS.md](CONTRACTS.md#öffentliche-aktionsfunktionen-pc-7)) – ohne Warteschlange
+und ohne Umschlag. Einen Workflow-Vertrag, eine Workflow-Outbox oder eine Übergabe von Mails gibt es im Kern nicht
+(PC-7).
 
 ## PHP-Actions nach dem fachlichen Ereignis
 

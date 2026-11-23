@@ -205,3 +205,80 @@ if ( ! function_exists( 'wpcap_is_connector_enabled' ) ) {
 		return PassCaptain\Integrations\ConnectorRegistry::is_enabled( $key );
 	}
 }
+
+/*
+ * Public write actions (contract actions 1.0.0, WPCAP_CONTRACT_VERSION 1.4.0; PC-7), see PassCaptain\Api\Actions.
+ * Each checks the capability of the current user or of $args['user_id'], runs the regular core service,
+ * writes an audit entry and returns a result array (with `action`, `replayed`) or a WP_Error. Optional
+ * $args['idempotency_key'] (8–64 characters): the same key with the same arguments returns the stored result.
+ */
+
+if ( ! function_exists( 'wpcap_resend_ticket_mail' ) ) {
+	/**
+	 * Sends the ticket mail of an order again (capability wpcap_manage_orders).
+	 *
+	 * @param int|string $order Order ID or public order ID.
+	 * @param array      $args  new_codes (bool, default false), user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_resend_ticket_mail( $order, $args = array() ) {
+		return PassCaptain\Api\Actions::resend_ticket_mail( $order, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_revoke_ticket' ) ) {
+	/**
+	 * Revokes a ticket without refund (capability wpcap_manage_orders).
+	 *
+	 * @param int|string $ticket Ticket ID or public ticket ID.
+	 * @param string     $reason Reason (required).
+	 * @param array      $args   user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_revoke_ticket( $ticket, $reason, $args = array() ) {
+		return PassCaptain\Api\Actions::revoke_ticket( $ticket, $reason, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_cancel_event' ) ) {
+	/**
+	 * Cancels an event through the regular cancellation (capability wpcap_manage_events).
+	 *
+	 * @param int    $event_id Event ID.
+	 * @param string $reason   Reason (required).
+	 * @param array  $args     user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_cancel_event( $event_id, $reason, $args = array() ) {
+		return PassCaptain\Api\Actions::cancel_event( $event_id, $reason, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_reschedule_occurrence' ) ) {
+	/**
+	 * Moves a date (capability wpcap_manage_events).
+	 *
+	 * @param int         $occurrence_id Occurrence ID.
+	 * @param string      $starts_at     New start, ISO 8601 with time zone.
+	 * @param string|null $ends_at       New end (ISO 8601) or null to keep the duration.
+	 * @param array       $args          user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_reschedule_occurrence( $occurrence_id, $starts_at, $ends_at = null, $args = array() ) {
+		return PassCaptain\Api\Actions::reschedule_occurrence( $occurrence_id, $starts_at, $ends_at, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_confirm_attendance' ) ) {
+	/**
+	 * Confirms an allowed attendance without a scan (capability wpcap_checkin).
+	 *
+	 * @param int|string $ticket Ticket ID or public ticket ID.
+	 * @param string     $method manual, list, session or online.
+	 * @param array      $args   user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_confirm_attendance( $ticket, $method = 'manual', $args = array() ) {
+		return PassCaptain\Api\Actions::confirm_attendance( $ticket, $method, (array) $args );
+	}
+}

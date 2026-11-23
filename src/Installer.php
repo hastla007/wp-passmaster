@@ -1150,8 +1150,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 			// Event outbox of the review contract (schema 3.10.24, A675/A667; see Suite\Outbox).
 			Suite\Outbox::schema( $wpdb->prefix, $charset ),
-			// Idempotency and results of workflow commands v1 (schema 3.10.27, A676; see Workflow\Commands).
-			Workflow\Commands::schema( $wpdb->prefix, $charset ),
+			// Idempotency keys of the public actions (schema 3.10.27, created for the former workflow commands A676; see Api\Actions).
+			Api\Actions::schema( $wpdb->prefix, $charset ),
 			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).
 			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
 			// Atomic idempotency claims of check-ins (audit R2 #6, src/Checkin.php).

@@ -4,7 +4,7 @@
  * Review\Contract (Suite\Outbox::record()) – after the commit, idempotent, without personal data.
  *
  * - experience_completed: first valid admission of a ticket (wpcap_ticket_checked_in) or an allowed
- *   attendance confirmation (wpcap_attendance_confirmed, command attendance.confirm, A676). Only for
+ *   attendance confirmation (wpcap_attendance_confirmed, wpcap_confirm_attendance()). Only for
  *   paid, not refunded tickets of dates and events that are not cancelled. One per completion cycle:
  *   a new cycle starts only after the admission was undone (experience_excluded check_in_undone).
  * - experience_excluded per ticket: check_in_undone (no valid admission left), refunded, revoked,
@@ -147,10 +147,10 @@ final class Events {
 		return self::complete( $ticket_id, 'check_in', sanitize_key( (string) ( $context['source'] ?? 'web' ) ) );
 	}
 
-	/** wpcap_attendance_confirmed: an explicitly allowed attendance confirmation (A676). */
+	/** wpcap_attendance_confirmed: an explicitly allowed attendance confirmation (wpcap_confirm_attendance()). */
 	public static function confirmed( $ticket_id, $context = array() ) {
 		$context = is_array( $context ) ? $context : array();
-		return self::complete( $ticket_id, 'confirmed', sanitize_key( (string) ( $context['source'] ?? 'command' ) ) );
+		return self::complete( $ticket_id, 'confirmed', sanitize_key( (string) ( $context['source'] ?? 'api' ) ) );
 	}
 
 	private static function complete( $ticket_id, $method, $source ) {
