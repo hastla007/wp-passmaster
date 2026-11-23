@@ -196,9 +196,6 @@ final class Mailer {
 			do_action( 'wpcap_mail_suppressed', $to, (string) ( $message['type'] ?? '' ) );
 			return true;
 		}
-		// A677: an optional mail type the site owner handed to the workflow provider is not sent natively
-		// when the provider takes it; otherwise (no provider, refusal, error) it is sent here as always.
-		if ( \PassCaptain\Workflow\MailHandoff::hand_off( $to, $message ) ) { return true; }
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
 		list( $to, $message ) = self::recipients( $to, $message );

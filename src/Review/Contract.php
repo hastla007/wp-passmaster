@@ -62,7 +62,7 @@ final class Contract extends \PassCaptain\Suite\Contract {
 		'wpcap_review_rejected'           => 'provider: permanent rejection – not retried',
 	);
 
-	/** Object shapes (types as in the workflow contract). */
+	/** Object shapes (types: see Suite\Contract::cast()). */
 	const OBJECTS = array(
 		'participation' => array( 'participation_id' => 'string', 'experience_id' => 'string', 'event_id' => 'int', 'occurrence_id' => 'int', 'ticket_type_id' => 'int', 'recipient_ref' => 'string', 'locale' => 'string' ),
 		'experience' => array( 'experience_id' => 'string', 'scope' => 'string', 'event_id' => 'int', 'occurrence_ids' => 'int[]' ),

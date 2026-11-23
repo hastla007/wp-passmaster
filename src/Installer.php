@@ -1148,8 +1148,8 @@ final class Installer {
 				UNIQUE KEY version (version),
 				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;",
-			// Event outbox of the workflow contract (schema 3.10.24, A675; see Workflow\Outbox).
-			Workflow\Outbox::schema( $wpdb->prefix, $charset ),
+			// Event outbox of the review contract (schema 3.10.24, A675/A667; see Suite\Outbox).
+			Suite\Outbox::schema( $wpdb->prefix, $charset ),
 			// Idempotency and results of workflow commands v1 (schema 3.10.27, A676; see Workflow\Commands).
 			Workflow\Commands::schema( $wpdb->prefix, $charset ),
 			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).

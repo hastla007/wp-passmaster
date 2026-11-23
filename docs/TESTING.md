@@ -277,7 +277,7 @@ nicht – kein Code (Zeichenketten, Klassen- oder Funktionsnamen; Kommentare zä
 anderes Plugin (`Requires Plugins`). Danach laufen die Kernabläufe ohne Add-on und **ohne Netzwerk** (jede
 ausgehende Anfrage wird über `pre_http_request` protokolliert und abgelehnt): kostenloser und kostenpflichtiger
 Checkout, Zahlungsbestätigung mit Ticketausgabe, Mail und PDF, Übertragung, Erstattung, Check-in, Terminänderung,
-Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Workflow-Outbox (ohne Provider). Der Test verlangt, dass
+Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Review-Outbox (ohne Provider). Der Test verlangt, dass
 dabei keine einzige HTTP-Anfrage entsteht – also auch keine an einen Lizenzserver.
 
 ## Kein Lizenz- oder Updater-Code im Kern (A661)

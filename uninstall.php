@@ -29,7 +29,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 function wpcap_uninstall_site() {
 	global $wpdb;
 	// Same list as PassCaptain\Plugin::cron_hooks() (the plugin classes are not loaded here).
-	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_workflow_dispatch', 'wpcap_process_fiscal_order', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process', 'wpcap_page_cache_sales_window', 'wpcap_mollie_refresh_methods', 'wpcap_network_install' ) as $hook ) {
+	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_outbox_dispatch', 'wpcap_workflow_dispatch', 'wpcap_process_fiscal_order', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process', 'wpcap_page_cache_sales_window', 'wpcap_mollie_refresh_methods', 'wpcap_network_install' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
 	$legacy_installed = is_file( WP_PLUGIN_DIR . '/wp-pass-captain/wp-pass-captain.php' ); // legacy-slug

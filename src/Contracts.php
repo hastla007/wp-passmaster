@@ -33,7 +33,7 @@ final class Contracts {
 	 *
 	 * @return array<string,string> public, partner, developer, app, offline (REST), voucher_provider,
 	 *                              ticket_service, checkin_service (Voucher Captain bridge), affiliate,
-	 *                              addon (public add-on hooks, PublicApi), workflow (Workflow\Contract),
+	 *                              addon (public add-on hooks, PublicApi), review (Review\Contract),
 	 *                              connector (ConnectorEvents).
 	 */
 	public static function versions() {
@@ -48,7 +48,6 @@ final class Contracts {
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
 			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
-			'workflow'         => Workflow\Contract::VERSION, // A673: workflow provider contract (outbox events).
 			'workflow_commands' => Workflow\Commands::VERSION, // A676: workflow commands v1.
 			'review'           => Review\Contract::VERSION, // A667: review participation contract (experience_completed).
 			'ticket_read'      => Api\Tickets::VERSION, // A709: wpcap_get_ticket() read model for suite plugins.

@@ -1,8 +1,8 @@
 <?php
 /**
- * Common machinery of the versioned Captain-Suite contracts (A667, A673): event allowlist with typed
+ * Common machinery of the versioned Captain-Suite contracts (A667): event allowlist with typed
  * objects, envelope, provider lookup by filter and major version, machine-readable description. A
- * concrete contract (Workflow\Contract, Review\Contract) only declares its constants:
+ * concrete contract (Review\Contract) only declares its constants:
  *
  * NAME, VERSION (SemVer), FILTER (provider filter, called with null and the major version),
  * CAPABILITY, DEPRECATION_MINOR_RELEASES, DEPRECATION_MONTHS, DEPRECATED, ERRORS, OBJECTS, EVENTS

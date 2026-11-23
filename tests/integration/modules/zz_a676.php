@@ -11,12 +11,11 @@
 
 use PassCaptain\Orders;
 use PassCaptain\Workflow\Commands;
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 global $wpdb;
 $p = $wpdb->prefix;
 $x6k_hooks_before = $GLOBALS['wpcap_test_hooks'];
-PassCaptain\Workflow\Events::register();
 PassCaptain\Review\Events::register();
 $x6k_key = static fn( $s ) => 'x6k-' . $s . '-' . substr( md5( uniqid( '', true ) ), 0, 10 );
 $x6k_code = static fn( $r ) => is_wp_error( $r ) ? $r->get_error_code() : 'ok';
@@ -45,7 +44,7 @@ $x6k_rk = $x6k_key( 'revoke' );
 $x6k_rev = Commands::execute( 'ticket.revoke', array( 'ticket_id' => $x6k_t[0]->public_id, 'reason' => 'Doppelt gebucht' ), $x6k_rk );
 $x6k_rev2 = Commands::execute( 'ticket.revoke', array( 'reason' => 'Doppelt gebucht', 'ticket_id' => $x6k_t[0]->public_id ), $x6k_rk );
 check( 'A676: ticket.revoke revokes through the admin service', is_array( $x6k_rev ) && false === $x6k_rev['replayed'] && 'revoked' === $x6k_rev['result']['status'] && 'revoked' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $x6k_t[0]->ticket_id ) );
-check( 'A676: the same key returns the stored result without running again (argument order does not matter)', is_array( $x6k_rev2 ) && true === $x6k_rev2['replayed'] && $x6k_rev['result'] === $x6k_rev2['result'] && 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Outbox::table() . " WHERE event_type='ticket.revoked' AND subject_id=%s", $x6k_t[0]->public_id ) ) );
+check( 'A676: the same key returns the stored result without running again (argument order does not matter)', is_array( $x6k_rev2 ) && true === $x6k_rev2['replayed'] && $x6k_rev['result'] === $x6k_rev2['result'] && 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Outbox::table() . " WHERE event_type='experience_excluded' AND subject_id=%s", $x6k_t[0]->public_id ) ) );
 check( 'A676: the same key with other arguments is a conflict (409)', 'wpcap_workflow_idempotency_conflict' === $x6k_code( Commands::execute( 'ticket.revoke', array( 'ticket_id' => $x6k_t[1]->public_id, 'reason' => 'Doppelt gebucht' ), $x6k_rk ) ) );
 $x6k_fk = $x6k_key( 'r2' );
 $x6k_again = Commands::execute( 'ticket.revoke', array( 'ticket_id' => $x6k_t[0]->public_id, 'reason' => 'Nochmal' ), $x6k_fk );
@@ -66,8 +65,7 @@ check( 'A676: an unknown confirmation method is refused', 'wpcap_workflow_comman
 $wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS ) ), array( 'occurrence_id' => $x6k_occ ) );
 $x6k_conf = Commands::execute( 'attendance.confirm', array( 'ticket_id' => $x6k_t[1]->public_id, 'method' => 'list' ), $x6k_key( 'conf' ) );
 $x6k_rv = $wpdb->get_var( $wpdb->prepare( 'SELECT payload FROM ' . Outbox::table() . " WHERE event_type='experience_completed' AND subject_id=%s", $x6k_t[1]->public_id ) );
-$x6k_wf = $wpdb->get_var( $wpdb->prepare( 'SELECT payload FROM ' . Outbox::table() . " WHERE event_type='attendance.confirmed' AND subject_id=%s", $x6k_t[1]->public_id ) );
-check( 'A676: attendance.confirm records the allowed confirmation (workflow attendance.confirmed, review experience_completed with method confirmed)', is_array( $x6k_conf ) && 'confirmed' === $x6k_conf['result']['status'] && $x6k_rv && 'confirmed' === json_decode( $x6k_rv, true )['data']['method'] && $x6k_wf && 'list' === json_decode( $x6k_wf, true )['data']['method'] );
+check( 'A676: attendance.confirm records the allowed confirmation (review experience_completed with method confirmed)', is_array( $x6k_conf ) && 'confirmed' === $x6k_conf['result']['status'] && $x6k_rv && 'confirmed' === json_decode( $x6k_rv, true )['data']['method'] );
 check( 'A676: a revoked ticket cannot be confirmed', 'wpcap_workflow_attendance_not_allowed' === $x6k_code( Commands::execute( 'attendance.confirm', array( 'ticket_id' => $x6k_t[0]->public_id, 'method' => 'manual' ), $x6k_key( 'revc' ) ) ) );
 
 // occurrence.reschedule through the regular occurrence form.

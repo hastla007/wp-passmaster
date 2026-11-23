@@ -16,7 +16,7 @@ use PassCaptain\Orders;
 use PassCaptain\Review\ContactResolver;
 use PassCaptain\Review\Contract as ReviewContract;
 use PassCaptain\Review\Events as ReviewEvents;
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 global $wpdb;
 $p = $wpdb->prefix;
@@ -24,7 +24,6 @@ $x6m2_hooks_before = $GLOBALS['wpcap_test_hooks'];
 $x6m2_filters_before = $GLOBALS['wpcap_test_filters'];
 unset( $GLOBALS['wpcap_test_filters'][ ReviewContract::FILTER ] );
 ReviewEvents::register();
-PassCaptain\Workflow\Events::register();
 
 /**
  * Stub review plugin: queues completed experiences, drops excluded/cancelled ones, sends at most one

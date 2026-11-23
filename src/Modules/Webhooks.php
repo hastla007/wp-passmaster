@@ -8,6 +8,7 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Admin\Forms;
 use PassCaptain\Webhooks\Dispatcher;
+use PassCaptain\Webhooks\RefundObject;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -166,7 +167,7 @@ final class Webhooks {
 	 * – the refund per order, line and ticket (A675).
 	 */
 	private static function refund_object( $refund_id, $currency ) {
-		$r = \PassCaptain\Workflow\Events::refund( $refund_id );
+		$r = RefundObject::refund( $refund_id );
 		if ( ! $r ) { return array( 'id' => (int) $refund_id, 'amount_minor' => 0, 'currency' => $currency, 'ticket_ids' => array(), 'kind' => 'amount', 'source' => '', 'lines' => array() ); }
 		return array( 'id' => (int) $refund_id, 'amount_minor' => (int) $r['amount_minor'], 'currency' => $r['currency'], 'ticket_ids' => $r['ticket_ids'], 'kind' => $r['kind'], 'source' => $r['source'], 'lines' => $r['lines'] );
 	}
@@ -194,7 +195,7 @@ final class Webhooks {
 		if ( 0 === strpos( (string) $reason, 'native_refund_' ) ) { return 0; }
 		$o = self::order_object( $order_id );
 		if ( ! $o ) { return 0; }
-		$full = \PassCaptain\Workflow\Events::full_refund( $order_id, $reason );
+		$full = RefundObject::full_refund( $order_id, $reason );
 		$o[0]['refund'] = array( 'id' => null, 'source' => sanitize_key( (string) $reason ), 'full' => true, 'kind' => 'full', 'ticket_ids' => $full ? $full['ticket_ids'] : array(), 'lines' => $full ? $full['lines'] : array() );
 		return Dispatcher::emit( 'order.refunded', 'order-full|' . (int) $order_id, $o[0], $o[1] );
 	}

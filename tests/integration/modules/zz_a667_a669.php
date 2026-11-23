@@ -15,7 +15,7 @@ use PassCaptain\Checkin;
 use PassCaptain\Orders;
 use PassCaptain\Review\Contract as ReviewContract;
 use PassCaptain\Review\Events as ReviewEvents;
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 require_once dirname( __DIR__, 2 ) . '/contracts/shape.php';
 
@@ -24,7 +24,6 @@ $p = $wpdb->prefix;
 $x6r_hooks_before = $GLOBALS['wpcap_test_hooks'];
 $x6r_filters_before = $GLOBALS['wpcap_test_filters'];
 ReviewEvents::register();
-PassCaptain\Workflow\Events::register();
 unset( $GLOBALS['wpcap_test_filters'][ ReviewContract::FILTER ] );
 $x6r_t = Outbox::table();
 $x6r_events = static function ( $subject, $type = null ) use ( $wpdb, $x6r_t ) {
@@ -110,10 +109,10 @@ $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket
 do_action( 'wpcap_ticket_checked_in', (int) $x6r_tickets[3]->ticket_id, array( 'checkin_id' => 999997 ) );
 check( 'A667: no completion for a cancelled date', 0 === count( $x6r_events( $x6r_pub[3], 'experience_completed' ) ) );
 
-// Workflow events and review events are delivered to their own providers only.
-$x6r_wf_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $x6r_t WHERE contract='workflow' AND event_type LIKE 'experience%'" );
+// Every outbox row belongs to the review contract (no workflow contract any more, PC-7).
+$x6r_wf_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $x6r_t WHERE contract<>'review' AND subject_id IN ('" . implode( "','", $x6r_pub ) . "')" );
 $x6r_rv_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $x6r_t WHERE contract='review' AND event_type NOT LIKE 'experience%'" );
-check( 'A667: each outbox row belongs to exactly one contract', 0 === $x6r_wf_rows && 0 === $x6r_rv_rows );
+check( 'A667: the outbox only records review events (no workflow event for the same tickets, PC-7)', 0 === $x6r_wf_rows && 0 === $x6r_rv_rows );
 $x6r_fx = wpcap_contract_fixture( 'review' );
 $x6r_fx_ok = array_keys( ReviewContract::EVENTS ) === array_keys( (array) ( $x6r_fx['endpoints'] ?? array() ) );
 foreach ( (array) ( $x6r_fx['endpoints'] ?? array() ) as $x6r_type_name => $x6r_ep ) {

@@ -121,7 +121,6 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `wp_pass_captain_voucher_tickets_revoked_v1` | 1.2.0 |
 | `wp_pass_captain_waitlist_ip_limit_v1` | 1.5.0 |
 | `wp_pass_captain_wallet_provider_v1` | 0.2.0 |
-| `wp_pass_captain_workflow_provider_v1` | 1.5.0 |
 | `PassCaptain\Api\Invoices` (`get()`, `VERSION`), `wpcap_get_invoice()` | 1.5.0 |
 | `PassCaptain\Api\Tickets::get()`, `wpcap_get_ticket()` (Vertrag `ticket_read`, [CONTRACTS.md](CONTRACTS.md#ticket-lesevertrag-v1)) | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |

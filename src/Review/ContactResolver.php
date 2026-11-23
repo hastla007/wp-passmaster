@@ -20,7 +20,7 @@
 namespace PassCaptain\Review;
 
 use PassCaptain\Audit;
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 

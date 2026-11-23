@@ -1,33 +1,32 @@
 <?php
 /**
- * Section "Captain-Suite" on the "Betrieb" page (A670, A678): which versioned contracts the core
- * offers and whether a suite plugin (Workflow Captain, Review Captain or any other provider) is
- * registered for them – contract available, incompatible (other major version) or no provider –,
- * plus per contract the last accepted event, pending and failed events, the last error, the workflow
- * commands and mail handoffs, and what happens without a provider (native fallback).
+ * Section "Captain-Suite" on the "Betrieb" page (A670, A678): which versioned provider contracts the
+ * core offers and whether a suite plugin (Review Captain or any other provider) is registered for
+ * them – contract available, incompatible (other major version) or no provider –, plus per contract
+ * the last accepted event, pending and failed events, the last error and what happens without a
+ * provider (native fallback); then the registered connectors.
+ *
+ * PC-7: there is no workflow contract (and no mail handoff) in the core any more; Workflow Captain
+ * shows its own status in the box of Integrations\WorkflowCaptain\Status (system status page).
  *
  * Read-only diagnosis: the core contains no licence or paid-feature check; a provider decides itself
- * whether a feature of it is paid. The handed-off mail types (A677) are chosen here
- * (capability manage_options, audited in MailHandoff::save()).
+ * whether a feature of it is paid.
  *
  * @package PassCaptain
  */
 
 namespace PassCaptain\Admin;
 
-use PassCaptain\Workflow\MailHandoff;
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SuiteStatus {
 	const CAP = 'manage_options';
-	const HANDOFF_ACTION = 'wpcap_workflow_mail_handoff';
 
 	/** Contracts shown: name => [contract class, label]. */
 	public static function contracts() {
 		return array(
-			'workflow' => array( \PassCaptain\Workflow\Contract::class, __( 'Workflow (z. B. Workflow Captain)', 'pass-captain' ) ),
 			'review' => array( \PassCaptain\Review\Contract::class, __( 'Bewertungen (z. B. Review Captain)', 'pass-captain' ) ),
 		);
 	}
@@ -57,32 +56,20 @@ final class SuiteStatus {
 				'last_error' => '',
 				'last_error_at' => '',
 			);
-			$multi = Outbox::multi_ready();
-			if ( Outbox::ready() && ( $multi || 'workflow' === $name ) ) {
+			if ( Outbox::ready() && Outbox::multi_ready() ) {
 				$t = Outbox::table();
-				$stats = $multi
-					? $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM %i WHERE contract=%s GROUP BY status', $t, $name ) )
-					: $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM %i GROUP BY status', $t ) );
+				$stats = $wpdb->get_results( $wpdb->prepare( 'SELECT status,COUNT(*) AS n,MAX(delivered_at) AS last FROM %i WHERE contract=%s GROUP BY status', $t, $name ) );
 				foreach ( (array) $stats as $s ) {
 					if ( in_array( $s->status, array( 'pending', 'delivering' ), true ) ) { $row['pending'] += (int) $s->n; }
 					if ( 'failed' === $s->status ) { $row['failed'] = (int) $s->n; }
 					if ( 'delivered' === $s->status ) { $row['delivered'] = (int) $s->n; $row['last_delivered_at'] = (string) $s->last; }
 				}
-				$err = $multi
-					? $wpdb->get_row( $wpdb->prepare( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM %i WHERE contract=%s AND last_error<>'' ORDER BY outbox_id DESC LIMIT 1", $t, $name ) )
-					: $wpdb->get_row( $wpdb->prepare( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM %i WHERE last_error<>'' ORDER BY outbox_id DESC LIMIT 1", $t ) );
+				$err = $wpdb->get_row( $wpdb->prepare( "SELECT last_error,COALESCE(next_attempt_at,created_at) AS at FROM %i WHERE contract=%s AND last_error<>'' ORDER BY outbox_id DESC LIMIT 1", $t, $name ) );
 				if ( $err ) { $row['last_error'] = (string) $err->last_error; $row['last_error_at'] = (string) $err->at; }
 			}
 			$out[ $name ] = $row;
 		}
 		return $out;
-	}
-
-	/** Last workflow commands (A676): command, result, time – no arguments. */
-	public static function commands( $limit = 5 ) {
-		global $wpdb;
-		if ( ! \PassCaptain\Workflow\Commands::ready() ) { return array(); }
-		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT command,status,created_at,finished_at FROM %i ORDER BY command_id DESC LIMIT %d', \PassCaptain\Workflow\Commands::table(), max( 1, (int) $limit ) ) );
 	}
 
 	/** Label of a provider state. */
@@ -96,14 +83,6 @@ final class SuiteStatus {
 			return sprintf( __( 'Inkompatibel – der Provider spricht %1$s, der Kern bietet %2$s an; er wird nicht aufgerufen', 'pass-captain' ), '' !== $row['provider_version'] ? $row['provider_version'] : '?', $row['version'] );
 		}
 		return __( 'Vertrag verfügbar – kein Plugin registriert', 'pass-captain' );
-	}
-
-	/** Saves the handed-off mail types (admin-post). */
-	public static function handle_handoff() {
-		$in = Forms::post();
-		Forms::verify( self::HANDOFF_ACTION );
-		$result = MailHandoff::save( array_map( 'strval', (array) ( $in['types'] ?? array() ) ) );
-		Forms::finish( $result, __( 'Mail-Übergabe gespeichert.', 'pass-captain' ), OperationsPage::url() . '#wpcap-suite' );
 	}
 
 	/**
@@ -156,36 +135,11 @@ final class SuiteStatus {
 			echo '<td>' . esc_html( '' !== $row['last_delivered_at'] ? Forms::datetime( $row['last_delivered_at'], wp_timezone_string() ) : '—' ) . '</td>';
 			echo '<td>' . esc_html( (string) $row['pending'] . ' / ' . (string) $row['failed'] ) . '</td>';
 			echo '<td>' . ( '' !== $row['last_error'] ? '<code>' . esc_html( $row['last_error'] ) . '</code><br>' . esc_html( Forms::datetime( $row['last_error_at'], wp_timezone_string() ) ) : '—' ) . '</td>';
-			echo '<td>' . esc_html( 'workflow' === $name ? __( 'Erinnerungen und Mails versendet Pass Captain selbst; Commands stehen dann nicht zur Verfügung.', 'pass-captain' ) : __( 'Keine Bewertungseinladungen; Teilnahmen werden nur festgehalten.', 'pass-captain' ) ) . '</td>';
+			echo '<td>' . esc_html__( 'Keine Bewertungseinladungen; Teilnahmen werden nur festgehalten.', 'pass-captain' ) . '</td>';
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
 
 		self::render_connectors();
-
-		$commands = self::commands();
-		if ( $commands ) {
-			echo '<h3>' . esc_html__( 'Letzte Workflow-Commands', 'pass-captain' ) . '</h3><ul>';
-			foreach ( $commands as $c ) {
-				echo '<li><code>' . esc_html( $c->command ) . '</code> – ' . esc_html( Forms::status_label( (string) $c->status ) ) . ' – ' . esc_html( Forms::datetime( $c->created_at, wp_timezone_string() ) ) . '</li>';
-			}
-			echo '</ul>';
-		}
-
-		$types = MailHandoff::types();
-		$enabled = MailHandoff::enabled();
-		$stats = MailHandoff::stats();
-		echo '<h3>' . esc_html__( 'Optionale Mails an den Workflow-Provider übergeben', 'pass-captain' ) . '</h3>';
-		echo '<p class="description">' . esc_html__( 'Nur optionale Mails. Ticket-, Zahlungs-, Erstattungs- und Absagemails versendet immer Pass Captain. Ist kein kompatibler Provider aktiv oder lehnt er ab, sendet Pass Captain die Mail selbst.', 'pass-captain' ) . '</p>';
-		Forms::open_form( self::HANDOFF_ACTION );
-		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Übergebene Mailtypen', 'pass-captain' ) . '</legend>';
-		foreach ( $types as $type => $label ) {
-			echo '<label><input type="checkbox" name="types[]" value="' . esc_attr( $type ) . '"' . ( in_array( $type, $enabled, true ) ? ' checked' : '' ) . '> ' . esc_html( $label ) . '</label><br>';
-		}
-		echo '</fieldset>';
-		/* translators: 1: number of mails taken by the provider, 2: number of native fallbacks */
-		echo '<p>' . esc_html( sprintf( __( 'Übergeben: %1$d · nativ versendet (Rückfall): %2$d', 'pass-captain' ), (int) $stats['accepted'], (int) $stats['fallback'] ) ) . ( ! empty( $stats['last']['reason'] ) ? ' · <code>' . esc_html( (string) $stats['last']['reason'] ) . '</code>' : '' ) . '</p>';
-		submit_button( __( 'Mail-Übergabe speichern', 'pass-captain' ), 'secondary' );
-		echo '</form>';
 	}
 }

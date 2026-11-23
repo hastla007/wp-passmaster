@@ -2366,15 +2366,17 @@ Schema 3.10.27):
 ## Captain-Suite: Status der Verträge und Provider (A670, A678)
 
 **Pass Captain → Systemstatus → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
-Kern anbietet (`workflow`, `review`; [CONTRACTS.md](CONTRACTS.md)):
+Kern anbietet (heute `review`; [CONTRACTS.md](CONTRACTS.md)), danach die registrierten Connectoren:
 
 - **Status:** „Vertrag verfügbar – kein Plugin registriert“, „Vertrag verfügbar – Provider aktiv (spricht x.y.z)“
   oder „Inkompatibel – der Provider spricht 2.x, der Kern bietet 1.x an; er wird nicht aufgerufen“. Die Anzeige ist
   reine Diagnose: der Kern prüft keine Lizenzen oder Rechte eines Suite-Plugins.
 - **Letzte angenommene Zustellung**, **ausstehende / fehlgeschlagene** Ereignisse der Outbox und der **letzte Fehler**
   (Fehlercode mit Zeitpunkt) je Vertrag.
-- **Ohne Provider:** was dann passiert – Workflow: Erinnerungen und Mails versendet Pass Captain selbst, Commands
-  stehen nicht zur Verfügung; Bewertungen: keine Einladungen, Teilnahmen werden nur festgehalten. Ereignisse warten
-  30 Tage in der Outbox und erreichen ein später installiertes Plugin (Replay).
-- **Letzte Workflow-Commands** (Command, Ergebnis, Zeit – ohne Argumente) und die **Auswahl der übergebenen
-  optionalen Mails** (A677) mit den Zählern „übergeben“ und „nativ versendet (Rückfall)“ samt letztem Grund.
+- **Ohne Provider:** was dann passiert – Bewertungen: keine Einladungen, Teilnahmen werden nur festgehalten.
+  Ereignisse warten 30 Tage in der Outbox und erreichen ein später installiertes Plugin (Replay).
+
+Einen Workflow-Vertrag, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain gibt es im Kern nicht
+mehr (PC-7, [CONTRACTS.md](CONTRACTS.md#kein-workflow-vertrag-im-kern-pc-7)); alle Mails versendet Pass Captain
+selbst. Ob Workflow Captain aktiv ist und Pass Captain kennt, zeigt der Kasten „Workflow Captain“ auf der
+Systemstatusseite (er liest nur `workflow_captain_status_for()` von Workflow Captain).

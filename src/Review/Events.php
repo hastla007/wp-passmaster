@@ -1,7 +1,7 @@
 <?php
 /**
  * Events of the review participation contract (A667, A669): maps the core hooks to outbox events of
- * Review\Contract (Workflow\Outbox::record()) – after the commit, idempotent, without personal data.
+ * Review\Contract (Suite\Outbox::record()) – after the commit, idempotent, without personal data.
  *
  * - experience_completed: first valid admission of a ticket (wpcap_ticket_checked_in) or an allowed
  *   attendance confirmation (wpcap_attendance_confirmed, command attendance.confirm, A676). Only for
@@ -18,12 +18,12 @@
 
 namespace PassCaptain\Review;
 
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Events {
-	/** After the core, module and workflow listeners of the same hooks. */
+	/** After the core and module listeners of the same hooks. */
 	const PRIORITY = 62;
 	const NO_SHOW_GRACE_HOURS = 6;
 	const NO_SHOW_WINDOW_DAYS = 14;

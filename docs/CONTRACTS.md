@@ -1,6 +1,6 @@
 # Schnittstellenverträge und Versionierung
 
-Pass Captain bietet mehrere Schnittstellen, auf die sich andere Programme verlassen: die öffentliche REST-API, die Partner-API, die Entwickler-API, die Mobile-App-API, den Offline-Scanner, die Brücke zu Voucher Captain, den Adapter für Affiliate Captain, den Workflow-Providervertrag und die öffentlichen Hooks für Add-ons. Für jede Schnittstelle gilt dieselbe Versionsregel. Die Prüfung steht in `src/Contracts.php`.
+Pass Captain bietet mehrere Schnittstellen, auf die sich andere Programme verlassen: die öffentliche REST-API, die Partner-API, die Entwickler-API, die Mobile-App-API, den Offline-Scanner, die Brücke zu Voucher Captain, den Adapter für Affiliate Captain, den Review-Teilnahmevertrag und die öffentlichen Hooks für Add-ons. Für jede Schnittstelle gilt dieselbe Versionsregel. Die Prüfung steht in `src/Contracts.php`.
 
 ## Versionsregel
 
@@ -21,7 +21,6 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Ticketdienst und Check-in-Dienst für Voucher Captain (`wp_pass_captain_ticket_service_v1`, `wp_pass_captain_checkin_service_v1`) | `ticket_service`, `checkin_service` | 1.0 | [VOUCHERS.md](VOUCHERS.md) |
 | Affiliate Captain (`wpac_record_sale()`, `wpac_record_refund()`) | `affiliate` | 1.0.0 | [EXTENSIONS.md](EXTENSIONS.md) |
 | Ausgehende Webhooks (signierte POSTs, [WEBHOOKS.md](WEBHOOKS.md)) | `webhooks` | `api_version` 2026-11-01, `schema_version` je Ereignistyp (1.0; `order.refunded` 1.1) | [WEBHOOKS.md](WEBHOOKS.md) |
-| Workflow-Provider (`wp_pass_captain_workflow_provider_v1`, Ereignis-Outbox) | `workflow` | 1.0.0 (`PassCaptain\Workflow\Contract::VERSION`, Schema-Version je Ereignistyp) | [unten](#workflow-providervertrag-v1) |
 | Workflow-Commands (`PassCaptain\Workflow\Commands::execute()`) | `workflow_commands` | 1.0.0 (`Commands::VERSION`) | [unten](#workflow-commands-v1) |
 | Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
@@ -47,66 +46,29 @@ Pass Captain ruft den Anbieter nur über `PassCaptain\Integrations\Vouchers\Brid
 - **Fehler**: Eine Ausnahme des Anbieters wird zu `WP_Error` `wpcap_voucher_provider_error` (Status 503). Ein `WP_Error` `http_request_failed` bzw. ein Timeout wird zu `wpcap_voucher_timeout` (504). Eine Antwort außerhalb des Vertrags (z. B. ein String) wird zu `wpcap_voucher_provider_response` (502). 5xx-Fehler gelten als vorübergehend: Commit und Rückbuchung werden mit demselben Idempotenzschlüssel über die Job-Warteschlange wiederholt.
 - **Kein halb gebuchter Zustand**: Scheitert `quote()` oder `reserve()`, bleiben Bestellung, Beträge, Steuer und Reservierungen unverändert. Im öffentlichen Checkout wird der Bestellversuch storniert und das Kontingent sofort freigegeben. Bei Timeout oder Ausnahme in `reserve()` ruft Pass Captain `release()` mit `['idempotency_key' => 'wpcap-order-<public_id>', 'order_reference' => 'wpcap:<public_id>']` auf, damit eine eventuell doch angelegte Reservierung frei wird. **Anbieter müssen eine Freigabe über den Idempotenzschlüssel der Reservierung akzeptieren** und eine unbekannte Reservierung als bereits freigegeben behandeln. Scheitert der Commit nach der Zahlung, bleibt die Bestellung bezahlt (Tickets gültig), der Gutschein bleibt `reserved`, und der Commit wird wiederholt. Nach dem letzten Versuch wird die Bestellung als `commit_failed` markiert und der Admin informiert.
 
-## Workflow-Providervertrag v1
+## Kein Workflow-Vertrag im Kern (PC-7)
 
-Vertrag `workflow` 1.0.0 (A673, `src/Workflow/Contract.php`) für Workflow Captain oder jedes andere Plugin, das
-auf Geschäftsereignisse von Pass Captain reagieren will. Der Provider nutzt nur diesen Vertrag – keine
-privaten Klassen, keine Tabellen.
+Entscheidung der Inhaberin vom 23.11.2026 nach den Suite-Entscheidungen D13 und D10 (F-12): Der Kern hat **keinen
+eigenen Workflow-Vertrag, keine Ereignis-Outbox für Workflows und keine Übergabe von Mails** an ein anderes Plugin.
+Workflow Captain (und jedes andere Automations-Plugin) nutzt nur
 
-- **Registrierung:** Filter `wp_pass_captain_workflow_provider_v1` (Argumente `null`, Hauptversion `1`) liefert ein
-  Objekt mit `receive( array $envelope )` und optional `contract_version()` (Standard `1.0.0`). SemVer: jede
-  1.x wird angenommen; ein Provider mit anderer Hauptversion, oder dessen Versionsprüfung eine Ausnahme wirft,
-  wird nie aufgerufen (`wpcap_workflow_contract_version`). Der letzte Zustand (`missing`, `incompatible`,
-  `ready`) steht in der Option `wpcap_workflow_status`.
-- **Outbox (A675):** Jedes Ereignis wird nach dem Commit genau einmal in `{prefix}wpcap_event_outbox` geschrieben
-  – unabhängig davon, ob Webhooks abonniert sind, das Webhook-Modul aktiv ist oder ein Provider installiert ist.
-  Die Ereignis-ID (`evt_…`) entsteht aus Typ und einer stabilen fachlichen Kennung (Bestellung, Ticket,
-  Erstattung, Einlasszeile, Revision); feuert ein interner Hook doppelt (Wiederholung, doppelter Webhook des
-  Zahlungsanbieters), bleibt es ein Ereignis. Dieselbe ID trägt der ausgehende Webhook desselben Ereignisses.
-  Aufbewahrung 30 Tage (`wpcap_workflow_retention_days`).
-- **Zustellung:** Cron `wpcap_process_jobs` (und `wpcap_workflow_dispatch` direkt nach einem neuen Ereignis),
-  mindestens einmal, in `sequence`-Reihenfolge; ein fehlschlagendes Ereignis hält spätere nicht auf.
-  `receive()` antwortet mit `true` oder einem Array (angenommen). `WP_Error` `wpcap_workflow_rejected` oder
-  ein `WP_Error` mit `retryable => false` ist endgültig (`failed`); jeder andere `WP_Error`
-  (`wpcap_workflow_temporary`) und jede Ausnahme (`wpcap_workflow_provider_error`) wird mit Backoff wie bei
-  Webhooks wiederholt, höchstens 8 Versuche (`wpcap_workflow_max_attempts`). Ohne (kompatiblen) Provider wird
-  nichts zugestellt und nichts markiert. Nachholen: `PassCaptain\Workflow\Outbox::since( $sequence, $limit,
-  $types )` liefert die Envelopes ab einer Sequenznummer (`replay: true`); `Outbox::replay( $sequence )` stellt
-  sie erneut zu (Capability `manage_options` = `Contract::CAPABILITY`, Audit `workflow_replay`).
-- **Envelope:** `id`, `type`, `contract` (`workflow`), `contract_version`, `schema_version` (je Ereignistyp),
-  `occurred_at` (ISO 8601 UTC), `sequence` (aufsteigend), `attempt`, `replay`, `source` (`plugin`, `version`,
-  `site_id` bei Multisite), `subject` (`type`, `id`: öffentliche Bestell-/Ticket-ID bzw. Event-/Termin-ID) und
-  `data`.
-- **Feld-Allowlist:** `data` enthält nur die Felder aus `Contract::OBJECTS`/`Contract::EVENTS` mit den dort
-  genannten Typen; alles andere wird verworfen (`wpcap_workflow_field_not_allowed` im Debug-Protokoll), auch
-  was der Filter `wpcap_workflow_event_data` ergänzt. **Keine Ticketcodes, Hilfscodes, Zugangstoken, keine
-  Namen, E-Mail-Adressen, Telefonnummern, Anschriften oder Antworten aus Teilnehmerfeldern** – unabhängig vom
-  Webhook-Opt-in `include_pii`. Ob es für Workflows ein eigenes, protokolliertes PII-Opt-in geben soll, ist eine
-  offene Entscheidung (A697).
-- **Ereignisse** (alle Schema 1.0): `order.paid`, `order.cancelled`, `order.refunded`, `refund.reversed`
-  (Bestellung + `refund`), `ticket.issued` (je Ticket, mit `line_id`), `ticket.revoked` (+ `reason`),
-  `ticket.transferred` (+ `source` `portal`/`assign`, `holder_changes`), `ticket.exchanged`
-  (+ `previous_ticket_id`, `exchange`), `ticket.checked_in` / `ticket.checked_out` (+ Zeitpunkt, `source`,
-  `area_id`, `checkin_id`), `attendance.confirmed` (einmal je Ticket beim ersten gültigen Einlass,
-  `method: check_in`), `occurrence.rescheduled` (+ `previous_starts_at`), `occurrence.changed`
-  (+ `changed_fields`, nur Feldnamen), `occurrence.cancelled` (+ `issued_tickets`), `event.cancelled`
-  (+ `occurrence_ids`).
-- **Erstattungen je Bestellung, Zeile und Ticket (A675):** `refund` = `refund_id` (bei Vollerstattung außerhalb
-  des Plugins `null`), `order_id`, `kind` (`tickets`: genau diese Tickets; `amount`: Betrag ohne Tickets;
-  `full`: ganze Bestellung über WooCommerce oder das Dashboard des Zahlungsanbieters), `amount_minor`,
-  `currency`, `source`, `status`, `ticket_ids` (öffentliche IDs) und `lines` (`line_id`, `ticket_type_id`,
-  `quantity`). `refund.reversed` ist das Storno einer Erstattung (beim Anbieter nachträglich gescheitert); die
-  Tickets bleiben widerrufen.
-- **Fehlercodes:** `Contract::ERRORS` (`wpcap_workflow_contract_version`, `…_provider_missing`,
-  `…_unknown_event`, `…_field_not_allowed`, `…_provider_error`, `…_forbidden`, `…_temporary`, `…_rejected`).
-- **Deprecation:** Ein Feld, das wegfallen soll, steht in `Contract::DEPRECATED` (Ereignistyp.Feld => seit,
-  Entfernung, Ersatz), bleibt mindestens zwei Minor-Versionen und sechs Monate erhalten und verschwindet erst
-  mit der nächsten Hauptversion (dann neuer Filter `…_v2`). In 1.0.0 ist nichts veraltet.
-- **Lizenzen:** Der Kern prüft keine Lizenzen oder Rechte; ob eine Provider-Funktion kostenpflichtig ist,
-  entscheidet allein der Provider ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
+- die `wpcap_*`-Actions ([HOOKS.md](HOOKS.md), Zeitpunkte im [Suite-Katalog](HOOKS.md#suite-katalog-seit-welcher-version-zeitpunkt-grund)),
+- die Lesefassade `wpcap_get_*_state()` ([EXTENSIONS.md](EXTENSIONS.md#lesefassade-für-zustände)) und
+- die öffentlichen Aktionsfunktionen (siehe unten).
 
-Fixture: `tests/contracts/workflow.json` (Envelope-Shape je Ereignistyp); `tests/integration/modules/zz_a673_a675.php`
-prüft echte Abläufe dagegen.
+Umschlag, Outbox, Wiederholung und Befehlswarteschlange liegen beim Abnehmer (Workflow Captain und der Adapter in
+Workflow Captain Pro). Bis Plugin 1.6.0 enthielt der Kern einen Vertrag `workflow` 1.0.0
+(`wp_pass_captain_workflow_provider_v1`, Klassen `PassCaptain\Workflow\*`, Mail-Übergabe
+`wpcap_workflow_mail_handoff`); kein Suite-Plugin nutzt ihn (der `PassAdapter` von Workflow Captain Pro arbeitet nur
+mit den Actions und der Lesefassade). Was davon bleibt:
+
+- Die Tabelle `{prefix}wpcap_event_outbox` bedient nur noch den [Review-Teilnahmevertrag](#review-teilnahmevertrag-v1)
+  (`PassCaptain\Suite\Outbox`). Zeilen mit `contract` = `workflow` aus älteren Versionen werden nie zugestellt und
+  nach der Aufbewahrungsfrist (30 Tage) gelöscht. Die Spaltenvorgabe `contract` = `workflow` bleibt historisch
+  stehen (kein Schemawechsel); jede neue Zeile nennt ihren Vertrag.
+- Die Optionen `wpcap_workflow_status`, `wpcap_workflow_mail_handoff` und `wpcap_workflow_mail_handoff_stats` werden
+  nicht mehr gelesen; die Deinstallation entfernt sie mit allen `wpcap_*`-Optionen.
+- Die Ereignis-IDs der ausgehenden Webhooks (`evt_…` aus Typ und fachlicher Kennung) bleiben unverändert.
 
 ## Workflow-Commands v1
 
@@ -136,34 +98,6 @@ Command.
 - **Audit:** jeder Aufruf als `workflow_command` (Command, Hash des Keys, Ergebnis) – ohne Personendaten. Ergebnisse
   enthalten nie Ticketcodes, Hilfscodes oder Personendaten.
 
-### Optionale Mails an den Workflow-Provider übergeben (A677)
-
-Optionale Mails kann die Betreiber:in je Mailtyp an den Workflow-Provider übergeben (`PassCaptain\Workflow\MailHandoff`,
-Auswahl unter **Pass Captain → Systemstatus → Betrieb → Captain-Suite**, Option `wpcap_workflow_mail_handoff`, Recht `manage_options`,
-Audit `workflow_mail_handoff_set`). Übergebbar ist im Kern die **Terminerinnerung** (`queue_wpcap_reminder`, Modul
-Erinnerungen); Add-ons können weitere optionale Typen über `wpcap_workflow_mail_handoff_types` anbieten. Ticket-,
-Zahlungs-, Reservierungs-, Erstattungs-, Absage-/Änderungs-, Übertragungs-, Wartelistenangebots- und Einlassmails
-(`MailHandoff::NEVER`) bleiben immer bei Pass Captain – auch wenn ein Filter oder die Option sie nennt.
-
-- **Provider:** der registrierte Workflow-Provider (kompatible Hauptversion) mit
-  `handle_mail( array $handoff ): true|array|WP_Error`. `$handoff`: `handoff_version` (1.0.0), `type`, `to`, `locale`,
-  `subject`, `body`, `format` (`text`|`html`), `order_id` (öffentliche ID oder leer). Das ist die ausdrücklich gewählte
-  Übergabe dieser Mail – sie enthält deshalb Empfänger und Inhalt; Mails mit Anhang werden nie übergeben.
-- **Nativer Rückfall:** ohne (kompatiblen) Provider, ohne `handle_mail()`, bei einer Ausnahme oder einer Ablehnung
-  versendet Pass Captain die Mail selbst wie bisher. Jede Entscheidung steht im Support-Protokoll (Kanal `mail`, ohne
-  Adresse) und wird gezählt (Option `wpcap_workflow_mail_handoff_stats`: angenommen, Rückfälle, letzte Entscheidung mit
-  Grund `provider_missing`, `provider_incompatible`, `not_supported`, `rejected`, `provider_error`, `attachments`).
-
-### End-to-End-Prüfung mit einem Stub-Workflow-Plugin (A679)
-
-`tests/integration/modules/zz_a679.php` spielt den Vertrag mit einem Stub-Plugin durch: Workflow fehlt (Kernabläufe
-laufen, Ereignisse warten), andere Hauptversion (nie aufgerufen), später installiert (alles kommt einmal und in
-Reihenfolge an, `attempt` 2 nach vorübergehendem Fehler), PII-Redaction auch für Felder, die ein Filter einschleust,
-Duplikate (wiederholte Hooks), Replay mit Capability und `replay` = true, Pull über `since()`, Ablehnung durch das
-Plugin (z. B. dessen eigenes Pro-Recht fehlt oder ist abgelaufen: endgültig, Kern unberührt), deaktiviertes Plugin,
-Multisite (`source.site_id`) und die Commands gegen `tests/contracts/workflow_commands.json`. HPOS und klassische
-WooCommerce-Speicherung sind in der Testlaufzeit nicht unterscheidbar; die Outbox sieht nur Kernbestellungen.
-
 ## Review-Teilnahmevertrag v1
 
 Vertrag `review` 1.0.0 (A667, `src/Review/Contract.php`, gemeinsame Mechanik in `src/Suite/Contract.php`) für Review
@@ -174,10 +108,22 @@ Bewertungsdaten gehören dem Provider. Der Kern bleibt ohne Provider unveränder
 - **Registrierung:** Filter `wp_pass_captain_review_provider_v1` (Argumente `null`, Hauptversion `1`) liefert ein Objekt
   mit `receive( array $envelope )` und optional `contract_version()`; eine andere Hauptversion wird nie aufgerufen
   (`wpcap_review_contract_version`). Letzter Zustand in der Option `wpcap_review_status`.
-- **Zustellung:** dieselbe Ereignis-Outbox wie beim Workflow-Vertrag (Spalte `contract` = `review`, Schema 3.10.27),
-  eigene Zustellung an den Review-Provider mit Reihenfolge, Backoff, höchstens 8 Versuchen und Aufbewahrung 30 Tage;
-  Antworten und Fehlercodes wie beim Workflow-Vertrag mit Präfix `wpcap_review_`. Nachholen:
-  `Outbox::since( $sequence, $limit, array(), 'review' )`, erneut zustellen: `Outbox::replay( $sequence, 'review' )`.
+- **Outbox und Zustellung (A675):** Jedes Ereignis wird nach dem Commit genau einmal in `{prefix}wpcap_event_outbox`
+  geschrieben (`PassCaptain\Suite\Outbox`, Spalte `contract` = `review`, Schema 3.10.27) – auch ohne Provider. Die
+  Ereignis-ID (`evt_…`) entsteht aus Typ und einer stabilen fachlichen Kennung; ein doppelt feuernder Hook bleibt ein
+  Ereignis. Zustellung über Cron `wpcap_process_jobs` (und `wpcap_outbox_dispatch` direkt nach einem neuen
+  Ereignis), mindestens einmal, in `sequence`-Reihenfolge; ein fehlschlagendes Ereignis hält spätere nicht auf.
+  `receive()` antwortet mit `true` oder einem Array (angenommen). `WP_Error` `wpcap_review_rejected` oder ein
+  `WP_Error` mit `retryable => false` ist endgültig (`failed`); jeder andere `WP_Error` (`wpcap_review_temporary`)
+  und jede Ausnahme (`wpcap_review_provider_error`) wird mit Backoff wie bei Webhooks wiederholt, höchstens 8 Versuche
+  (`wpcap_outbox_max_attempts`). Ohne (kompatiblen) Provider wird nichts zugestellt und nichts markiert; Aufbewahrung
+  30 Tage (`wpcap_outbox_retention_days`). Nachholen: `Outbox::since( $sequence, $limit, $types, 'review' )`
+  (Envelopes mit `replay: true`), erneut zustellen: `Outbox::replay( $sequence, 'review' )` (Capability
+  `manage_options` = `Contract::CAPABILITY`, Audit `review_replay`).
+- **Envelope:** `id`, `type`, `contract` (`review`), `contract_version`, `schema_version` (je Ereignistyp),
+  `occurred_at` (ISO 8601 UTC), `sequence` (aufsteigend), `attempt`, `replay`, `source` (`plugin`, `version`,
+  `site_id` bei Multisite), `subject` (`type`, `id`) und `data` (nur die Felder aus `Contract::OBJECTS`/`EVENTS`;
+  alles andere wird verworfen, auch was der Filter `wpcap_outbox_event_data` ergänzt).
 - **Ereignisse** (Schema-Version je Typ 1.0):
   - `experience_completed` – einmal je Teilnahme beim **ersten gültigen Einlass** (`wpcap_ticket_checked_in`) oder bei
     einer ausdrücklich zugelassenen Teilnahmebestätigung (`wpcap_attendance_confirmed`, Command `attendance.confirm`),
@@ -237,7 +183,7 @@ Ticket Bestellung, Event und Termin brauchen, ohne Datenbanktabellen zu lesen.
 
 ## Fixtures und Tests
 
-Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow`, `workflow_commands`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
+Die Verträge liegen als JSON unter `tests/contracts/` (eine Datei je Schnittstelle: `public`, `partner`, `developer`, `app`, `offline`, `voucher-bridge`, `affiliate`, `workflow_commands`, `review`). Jeder Eintrag beschreibt einen Endpunkt bzw. Aufruf:
 
 - `direction: inbound` (andere rufen Pass Captain auf): `request` ist ein Beispiel mit Platzhaltern `{{name}}`, `response` ist die Shape der Antwort.
 - `direction: outbound` (Pass Captain ruft Voucher Captain oder Affiliate Captain auf): `request` ist die Shape dessen, was Pass Captain sendet, `response` ist ein Beispiel der kleinsten gültigen Antwort der Gegenseite.

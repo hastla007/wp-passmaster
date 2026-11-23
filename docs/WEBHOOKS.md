@@ -40,10 +40,9 @@ Zahlungsanbieters) erzeugt `order.refunded` mit `refund.kind = "full"` und `tick
 betroffenen Tickets. Erstattungen über das Plugin senden `order.refunded` je Erstattung; die zugehörige
 Vollerstattungsmeldung wird dann nicht doppelt gesendet.
 
-Dieselben Ereignisse (ohne personenbezogene Daten, auch ohne Opt-in) schreibt der Kern unabhängig von
-Webhook-Abonnements in die Ereignis-Outbox des Workflow-Providervertrags
-([CONTRACTS.md](CONTRACTS.md#workflow-providervertrag-v1)); Webhook und Outbox tragen für dasselbe Ereignis
-dieselbe `id`.
+Die `id` eines Ereignisses ist stabil: Sie entsteht aus Typ und fachlicher Kennung (Bestellung, Ticket,
+Erstattung, Einlasszeile, Revision), ein doppelt feuernder interner Hook erzeugt dieselbe `id`. Eine eigene
+Ereignis-Outbox für Workflows gibt es im Kern nicht (PC-7, [CONTRACTS.md](CONTRACTS.md#kein-workflow-vertrag-im-kern-pc-7)).
 
 Hinweis: Erstattungen, die direkt im Dashboard eines Zahlungsanbieters ausgelöst werden, sowie
 Chargebacks (Stripe-Dispute verloren bzw. Geld abgezogen, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie-Chargeback)

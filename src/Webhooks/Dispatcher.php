@@ -199,8 +199,8 @@ final class Dispatcher {
 		if ( ! in_array( $type, self::EVENTS, true ) ) { return 0; }
 		$subs = $wpdb->get_results( $wpdb->prepare( "SELECT subscription_id,events,include_pii FROM %i WHERE status='active' AND FIND_IN_SET(%s,events)", self::t( 'subscriptions' ), $type ) );
 		if ( ! $subs ) { return 0; }
-		// Same id as the workflow outbox event of the same business event (Workflow\Outbox::event_id()).
-		$event_id = \PassCaptain\Workflow\Outbox::event_id( $type, $dedupe );
+		// Stable id per business event; the same formula as the suite outbox (Suite\Outbox::event_id()).
+		$event_id = \PassCaptain\Suite\Outbox::event_id( $type, $dedupe );
 		$object = apply_filters( 'wpcap_webhook_payload_object', $object, $type );
 		$created = time();
 		$queued = 0;
