@@ -147,6 +147,9 @@ final class Menu {
 			add_filter( 'plugin_action_links_' . plugin_basename( WPCAP_FILE ), array( self::class, 'plugin_action_links' ) );
 		}
 		add_action( 'current_screen', array( self::class, 'help_tabs' ) );
+		// A299: pages without an own menu entry keep the menu entry of the screen they are reached from open.
+		add_filter( 'parent_file', array( self::class, 'linked_parent_file' ) );
+		add_filter( 'submenu_file', array( self::class, 'linked_submenu_file' ), 10, 2 );
 		// admin_post_* only fires in wp-admin/admin-post.php (an admin request): frontend, REST and cron
 		// requests skip building the handler map, which loads every admin screen class (PERF-14).
 		if ( ! function_exists( 'is_admin' ) || is_admin() ) {
@@ -461,8 +464,9 @@ final class Menu {
 			$hook = add_submenu_page( '', $page[2], $page[2], $page[3], $slug, $page[4] );
 			if ( is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( self::class, 'redirect_legacy_page' ) ); }
 		}
-		// Modules hidden under Einstellungen > Funktionen (hidden_modules): reachable by link, no menu entry.
-		foreach ( self::$module_pages[1] as $page ) {
+		// Modules hidden under Einstellungen > Funktionen (hidden_modules) and module pages reached from another
+		// screen (A299, linked_pages()): reachable by link, no menu entry.
+		foreach ( array_merge( self::$module_pages[1], array_filter( self::$module_pages[0], static function ( $page ) { return isset( self::linked_pages()[ (string) ( array_values( (array) $page )[0] ?? '' ) ] ); } ) ) as $page ) {
 			list( $slug, $title, $cap, $callback ) = array_values( (array) $page );
 			add_submenu_page( '', $title, $title, $cap, $slug, $callback );
 		}
@@ -580,6 +584,7 @@ final class Menu {
 		foreach ( $module_pages as $page ) {
 			$page = array_values( (array) $page );
 			list( $slug, $title, $cap, $callback ) = $page;
+			if ( isset( self::linked_pages()[ (string) $slug ] ) ) { continue; } // A299: reached from another screen.
 			$entries[] = array( $slug, $title, $title, $cap, $callback, (string) ( $page[4] ?? '' ) );
 		}
 		// Add-on pages: wp_pass_captain_admin_menu_v1 (list format) and wpcap_admin_pages (A663, keyed format).
@@ -616,6 +621,37 @@ final class Menu {
 		return array(
 			ServiceSlotsPage::SLUG => array( __( 'Service-Zeitfenster', 'pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ) ),
 		);
+	}
+
+	/**
+	 * A299: module pages that are one way into a feature that has its own menu entry elsewhere – they get
+	 * no menu entry of their own, stay registered (links, bookmarks, capability check) and keep the
+	 * menu entry they are reached from highlighted. Mollie is set up under Einstellungen → Zahlungsarten
+	 * (the payments sub-navigation and the provider list link to its page).
+	 *
+	 * @return array<string,string> page slug => slug of the menu entry it belongs to.
+	 */
+	public static function linked_pages() {
+		return array(
+			\PassCaptain\Modules\Mollie::PAGE => SettingsPage::SLUG,
+		);
+	}
+
+	/** Requested admin page slug ('' outside admin.php?page=). */
+	private static function requested_page() {
+		return isset( $_GET['page'] ) && is_string( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the highlighted menu entry.
+	}
+
+	/** Filter parent_file (A299): a linked page belongs to the Pass Captain menu. */
+	public static function linked_parent_file( $parent_file ) {
+		return isset( self::linked_pages()[ self::requested_page() ] ) ? self::SLUG : $parent_file;
+	}
+
+	/** Filter submenu_file (A299): a linked page highlights the entry it is reached from. */
+	public static function linked_submenu_file( $submenu_file, $parent_file = '' ) {
+		unset( $parent_file );
+		$page = self::requested_page();
+		return isset( self::linked_pages()[ $page ] ) ? self::linked_pages()[ $page ] : $submenu_file;
 	}
 
 	/**

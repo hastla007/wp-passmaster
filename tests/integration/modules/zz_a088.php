@@ -49,7 +49,7 @@ sort( $a088_sig_in );
 sort( $a088_sig_out );
 check( 'every page keeps its slug and capability (nothing added, nothing lost)', $a088_sig_in === $a088_sig_out && count( $a088_sig_in ) >= 25 );
 check( 'events overview stays the first entry (top-level link target)', 'pass-captain' === $a088_layout[0][1][0] && 'page' === $a088_layout[0][0] );
-check( 'all module pages are in the menu exactly once', ! array_diff( array_map( static fn( $pg ) => $pg[0], PassCaptain\Modules::admin_pages() ), $a088_slugs ) && count( $a088_slugs ) === count( array_unique( $a088_slugs ) ) );
+check( 'all module pages are in the menu exactly once (except pages reached from another screen, A299)', ! array_diff( array_diff( array_map( static fn( $pg ) => $pg[0], PassCaptain\Modules::admin_pages() ), array_keys( Menu::linked_pages() ) ), $a088_slugs ) && count( $a088_slugs ) === count( array_unique( $a088_slugs ) ) );
 check( 'headings for the further areas in order, none in front of the first area', array( 'sales', 'admission', 'finance', 'communication', 'settings' ) === array_map( static fn( $h ) => $h[1], $a088_heads ) && 'Verkauf' === $a088_heads[0][2] );
 $a088_pos = array_flip( $a088_slugs );
 check( 'pages sit in their area (orders after events, check-ins after orders, reports after refunds, settings last area)', $a088_pos['wpcap-orders'] < $a088_pos['wpcap-checkins'] && $a088_pos['wpcap-checkins'] < $a088_pos['wpcap-refunds'] && $a088_pos['wpcap-series'] < $a088_pos['wpcap-orders'] && $a088_pos['wpcap-devices'] < $a088_pos['wpcap-reports'] && $a088_pos['wpcap-mail-templates'] < $a088_pos['wpcap-settings'] );

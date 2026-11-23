@@ -194,6 +194,8 @@ final class Mollie {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$c = MollieGateway::config();
 		echo '<div class="wrap wpcap-admin"><h1>Mollie</h1>';
+		// A299: no own menu entry; the page is part of Einstellungen → Zahlungsarten.
+		echo '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'payments' ) ) ) . '">' . esc_html__( '← Einstellungen → Zahlungsarten', 'pass-captain' ) . '</a></p>';
 		Forms::render_notices();
 		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
 		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'pass-captain' ) . ' <a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'payments' ) ) ) . '">' . esc_html__( 'Zu den Zahlungsarten', 'pass-captain' ) . '</a></p>';
