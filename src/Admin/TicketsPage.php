@@ -265,22 +265,29 @@ final class TicketsPage {
 
 	/**
 	 * List filters from request values (A684): search, event, date, ticket type, status and sort order; ids of
-	 * dates/types only together with their event, unknown values dropped.
+	 * dates/types only together with their event, unknown values dropped. A411: "order" (asc/desc) of a
+	 * sorted column header.
 	 *
-	 * @param array $q Raw values (s, event_id, occurrence_id, ticket_type_id, status, orderby).
-	 * @return array{search:string,event_id:int,occurrence_id:int,ticket_type_id:int,status:string,orderby:string}
+	 * @param array $q Raw values (s, event_id, occurrence_id, ticket_type_id, status, orderby, order).
+	 * @return array{search:string,event_id:int,occurrence_id:int,ticket_type_id:int,status:string,orderby:string,order:string}
 	 */
 	public static function filters( array $q ) {
 		$event = absint( $q['event_id'] ?? 0 );
 		$status = (string) ( $q['status'] ?? '' );
 		$orderby = (string) ( $q['orderby'] ?? '' );
+		$order = strtolower( (string) ( $q['order'] ?? '' ) );
+		// A411: the sortable ticket column links orderby=ticket with a direction (newest/oldest).
+		if ( 'ticket' === $orderby ) { $orderby = 'asc' === $order ? 'oldest' : 'newest'; }
+		$orderby = array_key_exists( $orderby, Queries::ticket_orders() ) ? $orderby : 'newest';
 		return array(
 			'search' => trim( sanitize_text_field( (string) ( $q['s'] ?? '' ) ) ),
 			'event_id' => $event,
 			'occurrence_id' => $event ? absint( $q['occurrence_id'] ?? 0 ) : 0,
 			'ticket_type_id' => $event ? absint( $q['ticket_type_id'] ?? 0 ) : 0,
 			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
-			'orderby' => array_key_exists( $orderby, Queries::ticket_orders() ) ? $orderby : 'newest',
+			'orderby' => $orderby,
+			// Only the date order has a second direction (sortable date column); "" = the order's default.
+			'order' => 'date' === $orderby && 'desc' === $order ? 'desc' : '',
 		);
 	}
 
@@ -318,6 +325,7 @@ final class TicketsPage {
 			'ticket_type_id' => Forms::int( $in, 'return_type' ),
 			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
 			'orderby' => array_key_exists( $orderby, Queries::ticket_orders() ) && 'newest' !== $orderby ? $orderby : '',
+			'order' => 'date' === $orderby && 'desc' === Forms::text( $in, 'return_order', 4 ) ? 'desc' : '',
 			'paged' => max( 0, Forms::int( $in, 'return_paged' ) ),
 		);
 		if ( 1 === $args['paged'] ) { $args['paged'] = 0; }
@@ -332,6 +340,7 @@ final class TicketsPage {
 		Forms::hidden( 'return_occurrence', (int) ( $filters['occurrence_id'] ?? 0 ) );
 		Forms::hidden( 'return_type', (int) ( $filters['ticket_type_id'] ?? 0 ) );
 		Forms::hidden( 'return_orderby', (string) ( $filters['orderby'] ?? '' ) );
+		Forms::hidden( 'return_order', (string) ( $filters['order'] ?? '' ) );
 		Forms::hidden( 'return_paged', max( 1, (int) $page ) );
 	}
 
@@ -564,6 +573,235 @@ final class TicketsPage {
 		return Queries::search_tickets( $filters, $scope, $page, $per_page, $dates );
 	}
 
+	/* ------------------------------------------------------------------ A411: list table */
+
+	/** Screen option (user meta) with the number of tickets per page. */
+	const PER_PAGE_OPTION = 'wpcap_tickets_per_page';
+	const PER_PAGE_DEFAULT = 30;
+
+	/** GET form the page-number field of the list table submits (the rows hold their own action forms). */
+	const PAGING_FORM = 'wpcap-tickets-paging';
+
+	/** @var array<int,array> Visible values and permissions per ticket of the rendered page. */
+	private static $row_context = array();
+
+	/** List filters from the query string (A684 filters plus the header sort direction, A411). */
+	public static function list_filters() {
+		return self::filters( array(
+			's' => Forms::query_arg( 's' ),
+			'event_id' => Forms::query_arg( 'event_id', 0 ),
+			'status' => Forms::query_arg( 'status' ),
+			'occurrence_id' => Forms::query_arg( 'occurrence_id', 0 ),
+			'ticket_type_id' => Forms::query_arg( 'ticket_type_id', 0 ),
+			'orderby' => Forms::query_arg( 'orderby' ),
+			'order' => Forms::query_arg( 'order' ),
+		) );
+	}
+
+	/** Query arguments of the list state (views, pagination, page-number form). */
+	public static function list_args( array $filters ) {
+		return array_filter( array(
+			's' => (string) ( $filters['search'] ?? '' ),
+			'event_id' => (int) ( $filters['event_id'] ?? 0 ),
+			'occurrence_id' => (int) ( $filters['occurrence_id'] ?? 0 ),
+			'ticket_type_id' => (int) ( $filters['ticket_type_id'] ?? 0 ),
+			'status' => (string) ( $filters['status'] ?? '' ),
+			'orderby' => 'newest' !== ( $filters['orderby'] ?? 'newest' ) ? (string) $filters['orderby'] : '',
+			'order' => (string) ( $filters['order'] ?? '' ),
+		) );
+	}
+
+	/** Columns of the list (without the checkbox column): key => label. */
+	public static function list_columns() {
+		return array(
+			'ticket'   => __( 'Ticket', 'pass-captain' ),
+			'event'    => __( 'Event / Termin', 'pass-captain' ),
+			'buyer'    => __( 'Käufer', 'pass-captain' ),
+			'attendee' => __( 'Teilnehmer', 'pass-captain' ),
+			'status'   => __( 'Status', 'pass-captain' ),
+			'actions'  => __( 'Aktion', 'pass-captain' ),
+		);
+	}
+
+	/** Accessible caption of the list. */
+	public static function list_caption() {
+		return __( 'Gefundene Tickets mit Event, Käufer, Teilnehmer, Status und Aktionen', 'pass-captain' );
+	}
+
+	/**
+	 * Sortable column and direction the column headers show for the current sort order (A411): ticket
+	 * number (newest/oldest, primary key) and date (indexed start of the date). Other orders of the sort
+	 * select have no column.
+	 *
+	 * @return array{0:string,1:string} [orderby, order] or ['', ''].
+	 */
+	public static function header_sort( array $filters ) {
+		switch ( (string) ( $filters['orderby'] ?? 'newest' ) ) {
+			case 'newest':
+				return array( 'ticket', 'desc' );
+			case 'oldest':
+				return array( 'ticket', 'asc' );
+			case 'date':
+				return array( 'date', 'desc' === ( $filters['order'] ?? '' ) ? 'desc' : 'asc' );
+		}
+		return array( '', '' );
+	}
+
+	/**
+	 * Status views above the list (quick filters): key => [label, url, current]. Search, event, date,
+	 * ticket type and sort order are kept; the status is replaced.
+	 */
+	public static function list_views( array $filters ) {
+		$keep = self::list_args( $filters );
+		unset( $keep['status'] );
+		$current = (string) ( $filters['status'] ?? '' );
+		$out = array( 'all' => array( 'label' => __( 'Alle', 'pass-captain' ), 'url' => Forms::page_url( self::SLUG, $keep ), 'current' => '' === $current ) );
+		foreach ( self::STATUSES as $status ) {
+			$out[ $status ] = array( 'label' => Forms::status_label( $status, 'ticket' ), 'url' => Forms::page_url( self::SLUG, $keep + array( 'status' => $status ) ), 'current' => $status === $current );
+		}
+		return $out;
+	}
+
+	/** Whether the list has a filter (without one it asks for a search instead of listing every ticket). */
+	public static function has_filter( array $filters ) {
+		return '' !== $filters['search'] || $filters['event_id'] || '' !== $filters['status'];
+	}
+
+	/**
+	 * One page of the list with the data minimisation of the user's role applied and the read logged
+	 * once (no search terms in the log).
+	 *
+	 * @return array{rows: object[], total: int, notice?: string|null}
+	 */
+	public static function list_data( array $filters, $page, $per_page ) {
+		$page = max( 1, (int) $page );
+		$data = self::search( $filters, $page, ListTables::clamp_per_page( $per_page ) );
+		// Data minimisation per role and read audit (no search terms in the log).
+		$data['rows'] = array_map( array( \PassCaptain\Security\DataPolicy::class, 'ticket_view' ), $data['rows'] );
+		\PassCaptain\Security\AuditTrail::read( 'ticket_search', 'event', (int) $filters['event_id'], array( 'results' => count( $data['rows'] ), 'page' => $page, 'scope' => md5( (string) $filters['search'] ) . $page ) );
+		\PassCaptain\Privacy\AccessLog::list_view( 'ticket_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) );
+		self::$row_context = array();
+		return $data;
+	}
+
+	/** Visible contact data and permissions of a list row (decided once per ticket). */
+	private static function row_context( $ticket ) {
+		$id = (int) $ticket->ticket_id;
+		if ( ! isset( self::$row_context[ $id ] ) ) {
+			// Gate staff: DataPolicy::ticket_view() removes contact fields, so read them defensively.
+			self::$row_context[ $id ] = array(
+				'email' => \PassCaptain\Pii::show( 'attendee_email', '' !== (string) ( $ticket->assigned_email ?? '' ) ? (string) $ticket->assigned_email : (string) ( $ticket->attendee_email ?? '' ) ),
+				'buyer_email' => \PassCaptain\Pii::show( 'buyer_email', (string) ( $ticket->customer_email ?? '' ) ),
+				'attendee_name' => \PassCaptain\Pii::show( 'attendee_name', (string) ( $ticket->attendee_name ?? '' ) ),
+				'can_orders' => Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ),
+				'can_checkin' => Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ),
+			);
+		}
+		return self::$row_context[ $id ];
+	}
+
+	/** Checkbox of a row for the bulk check-in/out (A688; belongs to its form through form="…"), or ''. */
+	public static function checkbox_cell( $ticket ) {
+		$ctx = self::row_context( $ticket );
+		if ( ! $ctx['can_checkin'] || ! in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ) { return ''; }
+		/* translators: %s: ticket id */
+		return '<input type="checkbox" name="ticket_ids[]" form="wpcap-bulk-checkin" value="' . esc_attr( (string) (int) $ticket->ticket_id ) . '" aria-label="' . esc_attr( sprintf( __( 'Ticket %s auswählen', 'pass-captain' ), $ticket->public_id ) ) . '">';
+	}
+
+	/**
+	 * HTML of one cell of the list (escaped).
+	 *
+	 * @param string $column   Column key.
+	 * @param object $ticket   Row (after DataPolicy::ticket_view()).
+	 * @param array  $filters  List filters (carried into the action forms, A414).
+	 * @param int    $page     Current page.
+	 * @param bool   $exchange Whether the exchange module offers "Umbuchen".
+	 */
+	public static function list_cell( $column, $ticket, array $filters, $page, $exchange ) {
+		$ctx = self::row_context( $ticket );
+		switch ( $column ) {
+			case 'ticket':
+				return '<code>' . esc_html( $ticket->public_id ) . '</code><br><small>' . esc_html( $ticket->ticket_name ) . '</small>';
+			case 'event':
+				return esc_html( $ticket->event_name ) . '<br><small>' . esc_html( Forms::datetime( $ticket->starts_at, $ticket->timezone ) ) . '</small>';
+			case 'buyer':
+				$buyer = $ctx['can_orders'] ? '<a href="' . esc_url( OrdersPage::order_url( $ticket->order_id ) ) . '">' . esc_html( $ctx['buyer_email'] ) . '</a>' : esc_html( $ctx['buyer_email'] );
+				/* translators: %s: short order number */
+				return $buyer . '<br><small>' . esc_html( sprintf( __( 'Bestellung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $ticket->order_public_id ) ) ) . '</small>';
+			case 'attendee':
+				return esc_html( trim( $ctx['attendee_name'] . ' ' . ( $ctx['email'] ? '<' . $ctx['email'] . '>' : '' ) ) ?: '—' );
+			case 'status':
+				$html = esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) );
+				return $html . ( $ticket->last_checkin_at ? '<br><small>' . esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ) . '</small>' : '' );
+			case 'actions':
+				ob_start();
+				self::render_actions( $ticket, $filters, $page, $exchange );
+				return (string) ob_get_clean();
+		}
+		return '';
+	}
+
+	/** Action forms of one ticket (revoke, rebook, reissue, correction, check-in, undo); each carries the list state (A414). */
+	private static function render_actions( $ticket, array $filters, $page, $exchange ) {
+		$ctx = self::row_context( $ticket );
+		$email = $ctx['email'];
+		$can_orders = $ctx['can_orders'];
+		$can_checkin = $ctx['can_checkin'];
+		?>
+		<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
+			<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+			<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
+			<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
+			<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
+			</form>
+			<?php if ( $exchange ) : ?><p><a class="button" href="<?php echo esc_url( \PassCaptain\Exchange\AdminPage::url( array( 'ticket_id' => (int) $ticket->ticket_id ) ) ); ?>"><?php esc_html_e( 'Umbuchen', 'pass-captain' ); ?></a></p><?php endif; ?>
+			<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
+			<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
+			</form>
+		<?php endif; ?>
+		<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
+			<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'pass-captain' ); ?></summary>
+			<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
+			<p><label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="attendee_name" maxlength="190" value="<?php echo esc_attr( (string) ( $ticket->attendee_name ?? '' ) ); ?>"></label></p>
+			<p><label><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
+			<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>">
+			<button class="button" type="submit"><?php esc_html_e( 'Korrektur speichern', 'pass-captain' ); ?></button></p>
+			<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden.', 'pass-captain' ); ?></p>
+			</form></details>
+		<?php endif; ?>
+		<?php if ( 'valid' === $ticket->status && $can_checkin ) : ?>
+			<?php
+			$areas = self::checkin_areas( (int) $ticket->event_id );
+			Forms::open_form( 'wpcap_checkin_ticket', 'wpcap_checkin_ticket_' . $ticket->ticket_id );
+			Forms::hidden( 'ticket_id', $ticket->ticket_id );
+			self::return_fields( $filters, $page );
+			Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
+			if ( $areas ) {
+				Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
+			}
+			?>
+			<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket jetzt einchecken? Das gilt wie ein Scan am Einlass.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Einchecken', 'pass-captain' ); ?></button>
+			</form>
+		<?php endif; ?>
+		<?php if ( 'checked_in' === $ticket->status && $can_checkin && current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ) ) : ?>
+			<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
+			<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
+			<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
+			</form>
+		<?php endif; ?>
+		<?php
+	}
+
+	/** Filter set_screen_option_{option}: stores the tickets per page (1–200). */
+	public static function save_per_page( $keep, $option, $value ) {
+		return self::PER_PAGE_OPTION === $option ? ListTables::clamp_per_page( $value ) : $keep;
+	}
+
+	/** load-{hook} of the tickets page: screen option "Tickets pro Seite" (no bulk action of its own; A688 has its own form). */
+	public static function load_screen() {
+		ListTables::add_per_page_option( __( 'Tickets pro Seite', 'pass-captain' ), self::PER_PAGE_OPTION, self::PER_PAGE_DEFAULT );
+	}
+
 	public static function render() {
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
 		if ( array() === $scope && ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) {
@@ -571,24 +809,13 @@ final class TicketsPage {
 		}
 		// Events offered in the filter: event-level scope plus events of assigned dates.
 		$option_scope = null === $scope ? null : array_values( array_unique( array_merge( $scope, Access::occurrence_event_ids( 'wpcap_checkin' ), Access::occurrence_event_ids( 'wpcap_manage_orders' ) ) ) );
-		$filters = self::filters( array(
-			's' => Forms::query_arg( 's' ),
-			'event_id' => Forms::query_arg( 'event_id', 0 ),
-			'status' => Forms::query_arg( 'status' ),
-			'occurrence_id' => Forms::query_arg( 'occurrence_id', 0 ),
-			'ticket_type_id' => Forms::query_arg( 'ticket_type_id', 0 ),
-			'orderby' => Forms::query_arg( 'orderby' ),
-		) );
-		$has_filter = '' !== $filters['search'] || $filters['event_id'] || '' !== $filters['status'];
+		$filters = self::list_filters();
+		$has_filter = self::has_filter( $filters );
 		$page = Forms::current_page();
-		$per_page = 30;
-		$data = $has_filter ? self::search( $filters, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
-		if ( $has_filter ) {
-			// Data minimisation per role and read audit (no search terms in the log).
-			$data['rows'] = array_map( array( \PassCaptain\Security\DataPolicy::class, 'ticket_view' ), $data['rows'] );
-			\PassCaptain\Security\AuditTrail::read( 'ticket_search', 'event', (int) $filters['event_id'], array( 'results' => count( $data['rows'] ), 'page' => $page, 'scope' => md5( (string) $filters['search'] ) . $page ) );
-		}
-		if ( $has_filter ) { \PassCaptain\Privacy\AccessLog::list_view( 'ticket_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) ); }
+		// A411: WP_List_Table with the page size of the screen option; the plain table keeps the default.
+		$table = $has_filter && ListTables::available() ? new TicketsListTable() : null;
+		$per_page = $table ? $table->per_page() : self::PER_PAGE_DEFAULT;
+		$data = $has_filter ? self::list_data( $filters, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
 		// A339: rebooking to another date/ticket type straight from the list (exchange module).
 		$exchange = class_exists( \PassCaptain\Exchange\AdminPage::class ) && \PassCaptain\Modules::enabled( \PassCaptain\Modules\Exchange::class );
 		$status_options = array( '' => __( 'Alle Status', 'pass-captain' ) );
@@ -610,6 +837,7 @@ final class TicketsPage {
 			<?php endif; ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<?php Forms::select( 'orderby', Queries::ticket_orders(), $filters['orderby'], '', Forms::aria_label( __( 'Sortierung', 'pass-captain' ) ) ); ?>
+			<?php if ( '' !== $filters['order'] ) { Forms::hidden( 'order', $filters['order'] ); } // A411: direction of the sorted column. ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 			<?php if ( $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::access_level( (int) $filters['occurrence_id'] ) ) : ?>
 				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'occurrence_id' => (int) $filters['occurrence_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV', 'pass-captain' ); ?></a>
@@ -621,90 +849,45 @@ final class TicketsPage {
 			<p><?php esc_html_e( 'Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen.', 'pass-captain' ); ?></p>
 		<?php else : ?>
 			<?php self::render_bulk_selection( $filters, $page ); ?>
-			<table class="widefat striped">
-				<thead><tr>
-					<td class="check-column"><span class="screen-reader-text"><?php esc_html_e( 'Auswahl für Sammelaktion', 'pass-captain' ); ?></span></td>
-					<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Event / Termin', 'pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Teilnehmer', 'pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
-				</tr></thead>
-				<tbody>
-				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
-				<?php foreach ( $data['rows'] as $ticket ) :
-					// Gate staff: DataPolicy::ticket_view() removes contact fields, so read them defensively.
-					$email = \PassCaptain\Pii::show( 'attendee_email', '' !== (string) ( $ticket->assigned_email ?? '' ) ? (string) $ticket->assigned_email : (string) ( $ticket->attendee_email ?? '' ) );
-					$buyer_email = \PassCaptain\Pii::show( 'buyer_email', (string) ( $ticket->customer_email ?? '' ) );
-					$attendee_name = \PassCaptain\Pii::show( 'attendee_name', (string) ( $ticket->attendee_name ?? '' ) );
-					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
-					$can_checkin = Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id );
-					?>
-					<tr>
-						<td class="check-column"><?php if ( $can_checkin && in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ) : // A688: selection for bulk check-in/out. ?><input type="checkbox" name="ticket_ids[]" form="wpcap-bulk-checkin" value="<?php echo esc_attr( (string) (int) $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s auswählen', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></td>
-						<td><code><?php echo esc_html( $ticket->public_id ); ?></code><br><small><?php echo esc_html( $ticket->ticket_name ); ?></small></td>
-						<td><?php echo esc_html( $ticket->event_name ); ?><br><small><?php echo esc_html( Forms::datetime( $ticket->starts_at, $ticket->timezone ) ); ?></small></td>
-						<td>
-							<?php if ( $can_orders ) : ?><a href="<?php echo esc_url( OrdersPage::order_url( $ticket->order_id ) ); ?>"><?php echo esc_html( $buyer_email ); ?></a>
-							<?php else : ?><?php echo esc_html( $buyer_email ); ?><?php endif; ?>
-							<br><small><?php echo esc_html( sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $ticket->order_public_id ) ) ); ?></small>
-						</td>
-						<td><?php echo esc_html( trim( $attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
-						<td>
-							<?php echo esc_html( Forms::status_label( $ticket->status, 'ticket' ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
-							<?php if ( $ticket->last_checkin_at ) : ?><br><small><?php echo esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ); ?></small><?php endif; ?>
-						</td>
-						<td>
-							<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
-								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
-								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
-								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
-								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
-								</form>
-								<?php if ( $exchange ) : ?><p><a class="button" href="<?php echo esc_url( \PassCaptain\Exchange\AdminPage::url( array( 'ticket_id' => (int) $ticket->ticket_id ) ) ); ?>"><?php esc_html_e( 'Umbuchen', 'pass-captain' ); ?></a></p><?php endif; ?>
-								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
-								<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
-								</form>
-							<?php endif; ?>
-							<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
-								<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'pass-captain' ); ?></summary>
-								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
-								<p><label><?php esc_html_e( 'Name', 'pass-captain' ); ?> <input type="text" name="attendee_name" maxlength="190" value="<?php echo esc_attr( (string) $ticket->attendee_name ); ?>"></label></p>
-								<p><label><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
-								<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>">
-								<button class="button" type="submit"><?php esc_html_e( 'Korrektur speichern', 'pass-captain' ); ?></button></p>
-								<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden.', 'pass-captain' ); ?></p>
-								</form></details>
-							<?php endif; ?>
-							<?php if ( 'valid' === $ticket->status && $can_checkin ) : ?>
-								<?php
-								$areas = self::checkin_areas( (int) $ticket->event_id );
-								Forms::open_form( 'wpcap_checkin_ticket', 'wpcap_checkin_ticket_' . $ticket->ticket_id );
-								Forms::hidden( 'ticket_id', $ticket->ticket_id );
-								self::return_fields( $filters, $page );
-								Forms::hidden( 'idempotency_key', wp_generate_uuid4() );
-								if ( $areas ) {
-									Forms::select( 'area_id', array( 0 => __( '– Einlassbereich –', 'pass-captain' ) ) + $areas, 0, '', 'aria-label="' . esc_attr__( 'Einlassbereich', 'pass-captain' ) . '"' );
-								}
-								?>
-								<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket jetzt einchecken? Das gilt wie ein Scan am Einlass.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Einchecken', 'pass-captain' ); ?></button>
-								</form>
-							<?php endif; ?>
-							<?php if ( 'checked_in' === $ticket->status && $can_checkin && current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ) ) : ?>
-								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
-								<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
-								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
-								</form>
-							<?php endif; ?>
-						</td>
-					</tr>
-				<?php endforeach; ?>
-				</tbody>
-			</table>
-			<?php Forms::pagination( $data['total'], $page, $per_page, Forms::page_url( self::SLUG, array_filter( array( 's' => $filters['search'], 'event_id' => $filters['event_id'], 'occurrence_id' => $filters['occurrence_id'], 'ticket_type_id' => $filters['ticket_type_id'], 'status' => $filters['status'], 'orderby' => 'newest' !== $filters['orderby'] ? $filters['orderby'] : '' ) ) ) ); ?>
+			<?php
+			if ( $table ) {
+				$table->load( $filters, $page, $data, $per_page, $exchange );
+				$table->views();
+				$table->display();
+				ListTables::paging_form( self::PAGING_FORM, self::SLUG, self::list_args( $filters ) );
+			} else {
+				ListTables::render_views( self::list_views( $filters ) );
+				self::render_plain_list( $data, $filters, $page, $exchange );
+				Forms::pagination( $data['total'], $page, self::PER_PAGE_DEFAULT, Forms::page_url( self::SLUG, self::list_args( $filters ) ) );
+			}
+			?>
 		<?php endif; ?>
 		</div>
+		<?php
+	}
+
+	/** Ticket list without WP_List_Table: the former plain table with the same cells. */
+	private static function render_plain_list( array $data, array $filters, $page, $exchange ) {
+		?>
+		<table class="widefat striped">
+			<caption class="screen-reader-text"><?php echo esc_html( self::list_caption() ); ?></caption>
+			<thead><tr>
+				<td class="check-column"><span class="screen-reader-text"><?php esc_html_e( 'Auswahl für Sammelaktion', 'pass-captain' ); ?></span></td>
+				<?php foreach ( self::list_columns() as $label ) : ?><th scope="col"><?php echo esc_html( $label ); ?></th><?php endforeach; ?>
+			</tr></thead>
+			<tbody>
+			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="<?php echo count( self::list_columns() ) + 1; ?>"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php
+			foreach ( $data['rows'] as $ticket ) {
+				echo '<tr><td class="check-column">' . self::checkbox_cell( $ticket ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in checkbox_cell().
+				foreach ( array_keys( self::list_columns() ) as $column ) {
+					echo '<td>' . self::list_cell( $column, $ticket, $filters, $page, $exchange ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in list_cell().
+				}
+				echo '</tr>';
+			}
+			?>
+			</tbody>
+		</table>
 		<?php
 	}
 }
