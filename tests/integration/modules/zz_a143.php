@@ -33,7 +33,7 @@ $wpa143_root = dirname( __DIR__, 3 );
 echo "A143: roles and the documented role/capability matrix\n";
 $wpa143_roles = Installer::role_definitions();
 check( 'service provider role exists with only wpcap_service_bookings', isset( $wpa143_roles['wpcap_service_provider'] ) && array( 'wpcap_service_bookings' ) === $wpa143_roles['wpcap_service_provider'][1] && 'Pass Captain Leistungserbringer' === $wpa143_roles['wpcap_service_provider'][0] );
-check( 'organiser role (wpcap_partner) unchanged: check-in and reports', array( 'wpcap_checkin', 'wpcap_view_reports' ) === $wpa143_roles['wpcap_partner'][1] );
+check( 'organiser role (wpcap_partner) unchanged: check-in (with the undo/redeem capabilities split off it) and reports', array( 'wpcap_checkin', 'wpcap_undo_checkin', 'wpcap_redeem_passes', 'wpcap_view_reports' ) === $wpa143_roles['wpcap_partner'][1] );
 check( 'every capability of a role is a known plugin capability; administrators get all of them', ! array_diff( array_merge( ...array_map( static fn( $d ) => $d[1], array_values( $wpa143_roles ) ) ), Installer::CAPABILITIES ) && in_array( 'wpcap_service_bookings', Installer::CAPABILITIES, true ) );
 check( 'audit log knows every plugin role', array_keys( $wpa143_roles ) == PassCaptain\Privacy\AccessLog::PLUGIN_ROLES );
 $wpa143_uninstall = (string) file_get_contents( $wpa143_root . '/uninstall.php' );

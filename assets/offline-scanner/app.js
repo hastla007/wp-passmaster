@@ -395,7 +395,7 @@
 			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) : '';
 		}
 		if (!res.first_checked_in_at) { return ''; }
-		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.first_checked_in_by ? ' ' + t('durch %1', res.first_checked_in_by) : '') + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : ''); // A595: device or person
+		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.first_checked_in_by ? ' ' + t('durch %1', res.first_checked_in_by) : '') + ((res.first_checked_in_area || res.last_checked_in_area) ? ' · ' + (res.first_checked_in_area || res.last_checked_in_area) : ''); // A595: device or person; entrance of the first admission
 	}
 	function onlineDetail(res) {
 		// A543: refusals carry the server's reason ("Code ersetzt: … übertragen …", "widerrufen: umgetauscht").

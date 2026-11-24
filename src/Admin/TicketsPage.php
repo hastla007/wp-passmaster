@@ -130,7 +130,7 @@ final class TicketsPage {
 	/**
 	 * Undoes a check-in: checked_in → valid, logged as a check-in row with result "undone" (with device
 	 * and source; the audit entry also names the area of the undone admission). Requires wpcap_checkin
-	 * for the ticket's event; refused for refunded tickets and tickets of closed orders and outside the
+	 * for the ticket's event and the capability wpcap_undo_checkin (Checkin::undo_denied()); refused for refunded tickets and tickets of closed orders and outside the
 	 * area binding of staff and device (Checkin::undo_guard(), A590). A reason is required (A547).
 	 *
 	 * @param array $in      ticket_id, reason.
@@ -368,11 +368,13 @@ final class TicketsPage {
 	}
 
 	public static function handle_undo_checkin() {
+		// Check-in plus the own undo capability (split off wpcap_checkin), before the nonce (A145).
+		Forms::require_any_cap( array( 'wpcap_checkin' ) );
+		Forms::require_any_cap( array( \PassCaptain\Capabilities::UNDO_CHECKIN ) );
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
-		// Every form carries its own key: a double submit or a resent POST undoes only once. Without the
-		// check-in capability the answer is a refusal, before any validation (A145).
-		$result = ! current_user_can( 'wpcap_checkin' ) ? Forms::forbidden() : ( '' === Forms::text( $in, 'idempotency_key', 190 )
+		// Every form carries its own key: a double submit or a resent POST undoes only once.
+		$result = ( '' === Forms::text( $in, 'idempotency_key', 190 )
 			? Forms::error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), 400 )
 			: self::undo_checkin( $in ) );
 		$message = ! is_wp_error( $result ) && ! empty( $result['remaining_entries'] )
@@ -689,7 +691,7 @@ final class TicketsPage {
 								<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket jetzt einchecken? Das gilt wie ein Scan am Einlass.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Einchecken', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>
-							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
+							<?php if ( 'checked_in' === $ticket->status && $can_checkin && current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ) ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); Forms::hidden( 'idempotency_key', wp_generate_uuid4() ); ?>
 								<input type="text" name="reason" maxlength="255" required aria-label="<?php esc_attr_e( 'Grund der Rücknahme', 'pass-captain' ); ?>" placeholder="<?php esc_attr_e( 'Grund (Pflicht)', 'pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>

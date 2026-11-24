@@ -618,10 +618,14 @@ final class Checkin {
 	 * undo_roles as well. Everybody else (plain check-in staff) only undoes an own scan – same user or,
 	 * for apps, the same device – within undo_window_minutes (default 5; 0 = never).
 	 *
+	 * Before all of that the user needs the capability wpcap_undo_checkin (undo_capability_error()).
+	 *
 	 * @param array $context device_id of the requesting app (optional).
 	 * @return \WP_Error|null
 	 */
 	public static function undo_denied( $ticket_id, $event_id, array $context = array() ) {
+		$missing = self::undo_capability_error();
+		if ( $missing ) { return $missing; }
 		if ( current_user_can( 'manage_options' ) || Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return null; }
 		$allowed = array_filter( array_map( 'trim', explode( ',', (string) Security\Policy::get( 'undo_roles' ) ) ) );
 		if ( $allowed && array_intersect( $allowed, self::current_roles() ) ) { return null; }
@@ -637,6 +641,17 @@ final class Checkin {
 			? sprintf( /* translators: %d: minutes */ _n( 'Nur eigene Scans der letzten %d Minute können zurückgenommen werden. Bitte die Einlassleitung fragen.', 'Nur eigene Scans der letzten %d Minuten können zurückgenommen werden. Bitte die Einlassleitung fragen.', $minutes, 'pass-captain' ), $minutes )
 			: __( 'Check-ins können nur von der Einlassleitung zurückgenommen werden.', 'pass-captain' );
 		return new \WP_Error( 'wpcap_undo_forbidden', $message, array( 'status' => 403, 'result' => 'forbidden' ) );
+	}
+
+	/**
+	 * Refusal for users without the undo capability (Capabilities::UNDO_CHECKIN, split off wpcap_checkin);
+	 * null when the current user holds it.
+	 *
+	 * @return \WP_Error|null
+	 */
+	public static function undo_capability_error() {
+		if ( current_user_can( Capabilities::UNDO_CHECKIN ) ) { return null; }
+		return new \WP_Error( 'wpcap_undo_capability', __( 'Du darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) );
 	}
 
 	/**
@@ -937,6 +952,8 @@ final class Checkin {
 			$data += self::history( (int) $found['ticket_id'] );
 			// A516: scanners show these times in the occurrence's time zone.
 			$data['timezone'] = (string) ( $found['timezone'] ?? '' );
+			// Whose ticket was used before (same setting and PII rule as an admission).
+			$data += self::attendee_field( $found );
 		}
 		$data += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( ! empty( $found['help_code'] ) ) { $data['help_code'] = true; }
@@ -954,7 +971,7 @@ final class Checkin {
 	}
 
 	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */
-	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'first_checked_in_by', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at', 'timezone' );
+	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'first_checked_in_by', 'first_checked_in_area', 'first_checked_in_staff', 'attendee_name', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code', 'revoked_reason', 'replaced_reason', 'replaced_at', 'timezone' );
 
 	/**
 	 * Admission history of a ticket for the scanner result: first and latest admission (UTC, ISO
@@ -972,13 +989,17 @@ final class Checkin {
 			$legacy = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(result='checked_in')-SUM(result='undone') AS n,MIN(CASE WHEN result='checked_in' THEN created_at END) AS first_at,MAX(CASE WHEN result='checked_in' THEN created_at END) AS last_at,MIN(CASE WHEN result='checked_in' THEN checkin_id END) AS first_id FROM {$p}wpcap_checkins WHERE ticket_id=%d", $ticket_id ) );
 			if ( ! $legacy || (int) $legacy->n <= 0 || ! $legacy->first_at ) { return array(); }
 			$first = $wpdb->get_row( $wpdb->prepare( 'SELECT device_id,user_id FROM %i WHERE checkin_id=%d', $p . 'wpcap_checkins', (int) $legacy->first_id ) );
-			return array_filter( array( 'admissions' => (int) $legacy->n, 'first_admission' => 1 === (int) $legacy->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $legacy->first_at . ' UTC' ) ), 'last_checked_in_at' => gmdate( 'c', strtotime( $legacy->last_at . ' UTC' ) ), 'first_checked_in_by' => $first ? self::admitted_by( (int) $first->device_id, (int) $first->user_id ) : '' ), static function ( $v ) { return '' !== $v; } );
+			return array_filter( array( 'admissions' => (int) $legacy->n, 'first_admission' => 1 === (int) $legacy->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $legacy->first_at . ' UTC' ) ), 'last_checked_in_at' => gmdate( 'c', strtotime( $legacy->last_at . ' UTC' ) ), 'first_checked_in_by' => $first ? self::admitted_by( (int) $first->device_id, (int) $first->user_id ) : '', 'first_checked_in_staff' => $first ? self::staff_name( (int) $first->user_id ) : '' ), static function ( $v ) { return '' !== $v; } );
 		}
 		$out = array( 'admissions' => (int) $stats->n, 'first_admission' => 1 === (int) $stats->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $stats->first_at . ' UTC' ) ) );
 		// A595: who admitted first (device label or staff name), so staff can check a double scan.
-		$first = $wpdb->get_row( $wpdb->prepare( 'SELECT device_id,user_id FROM %i WHERE entry_id=%d', $p . 'wpcap_admission_entries', (int) $stats->first_id ) );
+		$first = $wpdb->get_row( $wpdb->prepare( 'SELECT e.device_id,e.user_id,a.name AS area_name FROM %i e LEFT JOIN %i a ON a.area_id=e.area_id WHERE e.entry_id=%d', $p . 'wpcap_admission_entries', $p . 'wpcap_admission_areas', (int) $stats->first_id ) );
 		$by = $first ? self::admitted_by( (int) $first->device_id, (int) $first->user_id ) : '';
 		if ( '' !== $by ) { $out['first_checked_in_by'] = $by; }
+		// Entrance and staff member of the first admission ("bereits verwendet" details).
+		if ( $first && '' !== (string) $first->area_name ) { $out['first_checked_in_area'] = (string) $first->area_name; }
+		$staff = $first ? self::staff_name( (int) $first->user_id ) : '';
+		if ( '' !== $staff ) { $out['first_checked_in_staff'] = $staff; }
 		if ( $last ) {
 			$out['last_checked_in_at'] = gmdate( 'c', strtotime( $last->entered_at . ' UTC' ) );
 			if ( '' !== (string) $last->area_name ) { $out['last_checked_in_area'] = (string) $last->area_name; }
@@ -997,11 +1018,26 @@ final class Checkin {
 			/* translators: %d: device number */
 			return '' !== trim( $label ) ? trim( $label ) : sprintf( __( 'Gerät %d', 'pass-captain' ), (int) $device_id );
 		}
-		if ( $user_id > 0 && function_exists( 'get_userdata' ) ) {
-			$user = get_userdata( (int) $user_id );
-			return $user && '' !== (string) $user->display_name ? (string) $user->display_name : '';
-		}
-		return '';
+		return self::staff_name( (int) $user_id );
+	}
+
+	/** Display name of a staff account ('' when unknown). Staff names only, never buyer data. */
+	public static function staff_name( $user_id ) {
+		if ( $user_id <= 0 || ! function_exists( 'get_userdata' ) ) { return ''; }
+		$user = get_userdata( (int) $user_id );
+		return $user && '' !== (string) $user->display_name ? (string) $user->display_name : '';
+	}
+
+	/**
+	 * Attendee name for scanner answers: only with the setting scanner_show_attendee ("Teilnehmernamen beim
+	 * Scannen anzeigen", default off) and the name in the caller's PII matrix (Pii, A119).
+	 *
+	 * @return array{attendee_name?: string}
+	 */
+	private static function attendee_field( array $found ) {
+		$name = (string) ( $found['attendee_name'] ?? '' );
+		if ( '' === $name || ! Settings::get( 'scanner_show_attendee' ) || ! Pii::can_view( 'attendee_name' ) ) { return array(); }
+		return array( 'attendee_name' => $name );
 	}
 
 	/** Data shown to scanning staff (no buyer e-mail, no payment data). */
@@ -1022,9 +1058,6 @@ final class Checkin {
 		$view += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( ! empty( $found['help_code'] ) ) { $view['help_code'] = true; }
 		// Setting gates the scanner for everyone; Pii (A119) additionally hides it from roles without the name in their matrix.
-		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] && Pii::can_view( 'attendee_name' ) ) {
-			$view['attendee_name'] = $found['attendee_name'];
-		}
-		return $view;
+		return $view + self::attendee_field( $found );
 	}
 }

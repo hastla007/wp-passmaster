@@ -1097,6 +1097,8 @@ final class Controller {
 	}
 
 	public static function redeem_pass( \WP_REST_Request $request ) {
+		// Redeeming passes is its own capability (split off wpcap_checkin); event access stays wpcap_checkin.
+		if ( ! current_user_can( \PassCaptain\Capabilities::REDEEM_PASSES ) ) { return new \WP_Error( 'wpcap_pass_redeem_capability', __( 'Du darfst keine Pässe einlösen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$type_id = absint( $request->get_param( 'ticket_type_id' ) );
 		global $wpdb;
 		$occurrence_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );

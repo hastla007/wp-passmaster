@@ -1904,6 +1904,12 @@ final class Installer {
 		} elseif ( function_exists( 'add_action' ) ) {
 			add_action( 'init', array( __CLASS__, 'rename_legacy_roles' ), 1 );
 		}
+		// Undo/redeem split off wpcap_checkin: granted once to the roles that could do it before.
+		if ( did_action( 'init' ) ) {
+			self::grant_split_capabilities();
+		} elseif ( function_exists( 'add_action' ) ) {
+			add_action( 'init', array( __CLASS__, 'grant_split_capabilities' ), 1 );
+		}
 		$fingerprint_ok = get_option( 'wpcap_schema_fingerprint' ) === self::fingerprint();
 		// A failing upgrade waits for its next attempt (A466); WP-CLI always tries.
 		$retry_at = 'cli' === $context ? 0 : self::retry_at();
@@ -2090,10 +2096,10 @@ final class Installer {
 	public static function role_definitions() {
 		return array(
 			'wpcap_ticket_admin'      => array( self::ROLE_NAMES['wpcap_ticket_admin'], self::CAPABILITIES ),
-			'wpcap_event_manager'     => array( self::ROLE_NAMES['wpcap_event_manager'], array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
-			'wpcap_box_office'        => array( self::ROLE_NAMES['wpcap_box_office'], array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
-			'wpcap_checkin_staff'     => array( self::ROLE_NAMES['wpcap_checkin_staff'], array( 'wpcap_checkin' ) ),
-			'wpcap_partner'           => array( self::ROLE_NAMES['wpcap_partner'], array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_event_manager'     => array( self::ROLE_NAMES['wpcap_event_manager'], array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_box_office'        => array( self::ROLE_NAMES['wpcap_box_office'], array( 'wpcap_manage_orders', 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_checkin_staff'     => array( self::ROLE_NAMES['wpcap_checkin_staff'], array( 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_partner'           => array( self::ROLE_NAMES['wpcap_partner'], array( 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES, 'wpcap_view_reports' ) ),
 			'wpcap_service_provider'  => array( self::ROLE_NAMES['wpcap_service_provider'], array( 'wpcap_service_bookings' ) ),
 			'wpcap_finance'           => array( self::ROLE_NAMES['wpcap_finance'], array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
 			'wpcap_support'           => array( self::ROLE_NAMES['wpcap_support'], array( 'wpcap_manage_orders' ) ),
@@ -2123,8 +2129,42 @@ final class Installer {
 				add_role( $slug, $definition[0], $caps );
 				continue;
 			}
-			// Upgrade existing roles additively; never remove capabilities an operator granted.
-			foreach ( $caps as $cap => $grant ) { $role->add_cap( $cap, $grant ); }
+			// Upgrade existing roles additively; never remove capabilities an operator granted. The
+			// capabilities split off wpcap_checkin are granted once (grant_split_capabilities()); after that an
+			// operator's removal from an existing role stays in force.
+			$split_done = function_exists( 'get_option' ) && get_option( self::SPLIT_CAPS_OPTION );
+			foreach ( $caps as $cap => $grant ) {
+				if ( $split_done && in_array( $cap, Capabilities::SPLIT_FROM_CHECKIN, true ) ) { continue; }
+				$role->add_cap( $cap, $grant );
+			}
 		}
+	}
+
+	/** Option marking that grant_split_capabilities() ran on this site. */
+	const SPLIT_CAPS_OPTION = 'wpcap_split_checkin_caps';
+
+	/**
+	 * Taking back check-ins (Capabilities::UNDO_CHECKIN) and redeeming member passes
+	 * (Capabilities::REDEEM_PASSES) used to need only wpcap_checkin. Once per site, every role holding
+	 * wpcap_checkin – plugin roles, administrators and roles an operator built – also receives the split
+	 * capabilities, so existing sites keep working. Runs only once (option SPLIT_CAPS_OPTION): an operator
+	 * who later removes a split capability from a role is not overruled.
+	 *
+	 * @param \WP_Roles|object|null $wp_roles Roles registry (default wp_roles()).
+	 */
+	public static function grant_split_capabilities( $wp_roles = null ): void {
+		if ( ! function_exists( 'get_option' ) || get_option( self::SPLIT_CAPS_OPTION ) ) { return; }
+		if ( null === $wp_roles ) {
+			if ( ! function_exists( 'wp_roles' ) ) { return; }
+			$wp_roles = wp_roles();
+		}
+		foreach ( array_keys( (array) ( $wp_roles->roles ?? array() ) ) as $slug ) {
+			$role = method_exists( $wp_roles, 'get_role' ) ? $wp_roles->get_role( (string) $slug ) : get_role( (string) $slug );
+			if ( ! is_object( $role ) || empty( $role->capabilities['wpcap_checkin'] ) ) { continue; }
+			foreach ( Capabilities::SPLIT_FROM_CHECKIN as $cap ) {
+				if ( ! isset( $role->capabilities[ $cap ] ) ) { $role->add_cap( $cap, true ); }
+			}
+		}
+		update_option( self::SPLIT_CAPS_OPTION, 1, true );
 	}
 }

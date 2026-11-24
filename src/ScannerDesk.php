@@ -89,6 +89,9 @@ final class ScannerDesk {
 	 * @return array|\WP_Error ['ok' => true, 'result' => 'undone', 'ticket_public_id' => …]; errors carry `result`.
 	 */
 	public static function undo( array $in, array $context ) {
+		// Own capability, split off wpcap_checkin: checked before the ticket is looked up.
+		$missing = Checkin::undo_capability_error();
+		if ( $missing ) { return $missing; }
 		$reason = mb_substr( sanitize_text_field( Http::str( $in['reason'] ?? '' ) ), 0, 255 );
 		if ( '' === $reason ) {
 			return new \WP_Error( 'wpcap_undo_reason_required', __( 'Bitte einen Grund für die Rücknahme angeben.', 'pass-captain' ), array( 'status' => 400, 'result' => 'reason_required' ) );
