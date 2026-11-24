@@ -751,7 +751,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Index-Längen > 767 Bytes (`wallet_registrations.device_serial`, `payment_events.provider_event`, `member_passes.member_status`) kürzen oder Mindestanforderungen dokumentieren.
 - [x] Fest codierte deutsche JS-Texte im Saalplan-Editor übersetzbar machen; Umstieg auf englische Quelltexte für translate.wordpress.org prüfen.
 - [ ] Kassen-Warnhinweis „keine Registrierkasse“ ausblenden, sobald ein Fiskal-Adapter aktiv und eingerichtet ist (nach Merge von PR #14).
-- [ ] Übersetzungen fr_FR, it_IT, es_ES, nl_NL muttersprachlich gegenlesen lassen; Platzhalter in Hilfetexten (`{Termin-ID}` u. a.) übersetzbar machen.
+- [ ] Übersetzungen fr_FR, it_IT, es_ES, nl_NL muttersprachlich gegenlesen lassen; Platzhalter in Hilfetexten (`{Termin-ID}` u. a.) übersetzbar machen. *24.11.2026: Platzhalter erledigt (`{field:Schlüssel}`, `<Bestell-ID>`/`<Token>`, `V{ID}` als eigene `_x`-Labels, Test `zz_placeholder_labels`); offen nur das muttersprachliche Gegenlesen.*
 
 ## Auditbefunde Runde 3 – Branch `claude/woocommerce-ticket-plugin-8q4m8q` @ a54e21c (2026-11-13)
 
@@ -1888,6 +1888,7 @@ Bericht mit allen 12 Expertenurteilen, Messwerten und „geprüft OK“: `docs/a
   - *Problem:* src/Installer.php:969 `version() === get_option('wpcap_db_version')` → ältere Version führt install() aus und schreibt db_version zurück; neuere Daten (z. B. pcv1-Secrets) unlesbar; kein Hinweis.
   - *Lösung:* version_compare; bei neuerem gespeicherten Stand nicht installieren, Admin-Hinweis „Restore erforderlich“, Option wpcap_schema_newer.
 - [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Feature]** – Gott-Klasse Orders und statische Kopplung verhindern isolierte Tests
+  - *24.11.2026:* `Orders\Availability`, `Orders\Attendees`, `Orders\Capacity` ausgelagert (`@internal`, Fassade mit gleichen Signaturen, Test `zz_orders_split`); offen: Stornierung, Holds/manuelle Holds, Ausstellung/Zustellung, Zahlungsbestätigung.
   - *Problem:* Orders.php 2058 Zeilen/70 Methoden/22 Abhängigkeiten, Modules/Fiscalization.php 1622/59, ServiceBookings 48; global $wpdb überall, Fault-Injection nur über manipulierten $wpdb.
   - *Lösung:* Schrittweise Orders\Holds, Orders\Issuance, Orders\Delivery, Orders\PortalAccess; Orders bleibt Fassade mit gleichen statischen Signaturen (Add-on-Verträge stabil).
   - *Stand:* Teilweise (R8): Bestellportal-Zugang nach `Orders\PortalAccess` ausgelagert (Fassade unverändert); weitere Zerlegung von `Orders` offen.
@@ -1934,7 +1935,9 @@ Die offenen Fragen stehen gesammelt und ausformuliert unter „Offene Entscheidu
 
 - [ ] Verhalten von Voucher Captain (`release()`, `reserve()` mit veraltetem Quote) für den Gutschein-Befund im anderen Repository prüfen.
 - [x] Laufzeitnachweise für die bestätigten Befunde als Integrationstests ergänzen (Mehrtypen-Überbuchung, späte Gutscheinzahlung, CSV-Escape, Undo außerhalb des Bereichs, Rollen-Negativtests für die Tickets-Seite). **Erledigt (23.11.2026):** Mehrtypen-Überbuchung `tests/integration/modules/p3_performance.php` („occurrence capacity is checked for the sum of all lines“), späte Gutscheinzahlung `zz_a632.php`, CSV-Escape `zz_a495.php`, Undo außerhalb des Bereichs `zz_a119.php` und `zz_a589_a594.php` (A590); neu der Rollen-Negativtest der Tickets-Seite über die echte Ausgabe: `tests/integration/modules/zzzzzzzz_pb_tickets_roles.php` (Einlasspersonal sieht und findet keine Käufer-/Teilnehmer-E-Mail, Name nur mit `scanner_show_attendee`, kein Zugriff auf fremde Events, Nur-Berichte-Konto abgewiesen, Korrektur verweigert). Nebenbefund: `TicketsPage.php:635` liest für Einlasspersonal die von `DataPolicy::ticket_view()` entfernten Felder `assigned_email`/`attendee_email` (PHP-Warnungen, Ausgabe korrekt leer).
-- [ ] Nicht geprüft: Vendor-Bibliotheken (`tweetnacl`, `jsQR`), `composer.lock` auf bekannte Schwachstellen, `assets/seating/editor.js` nur auf HTML-Senken gegrept, PayPal-/Mollie-Zahlungslebensdauern, GitHub-Branch-Protection.
+- [x] Nicht geprüft: Vendor-Bibliotheken (`tweetnacl`, `jsQR`), `composer.lock` auf bekannte Schwachstellen, `assets/seating/editor.js` nur auf HTML-Senken gegrept, PayPal-/Mollie-Zahlungslebensdauern, GitHub-Branch-Protection. *Geprüft 24.11.2026: `composer audit` ohne Befund; tweetnacl 1.0.3 und jsQR 1.4.0 aktuell und ohne Advisory (npm/GHSA); `assets/seating/editor.js` ohne HTML-Senke (Test `seating-editor-sinks`). Ausgelagert als eigene Punkte unten: Zahlungslebensdauer PayPal/Mollie, Branch-Protection.*
+- [ ] PayPal/Mollie setzen keinen Ablauf der Zahlung beim Anbieter (Stripe bindet ihn an die Reservierung, A577); späte Zahlungen laufen über die Late-Payment-Prüfung (`needs_review`/`paid_unallocated`, optional automatische Erstattung). Braucht Entscheidung: Anbieter-Ablauf an die Reservierung binden?
+- [ ] GitHub-Branch-Protection für `main` prüfen. Braucht: Repo-Admin.
 ## Mindestversionen: neueste PHP-, MySQL- und MariaDB-Version (Entscheidung der Inhaberin, 16.11.2026)
 
 - [ ] **MINVER-1 — Auf die neuesten Versionen umstellen und testen.** Die Inhaberin hat am 16.11.2026 für alle Captain-Plugins entschieden: Mindestversionen sind die jeweils neuesten – **PHP 8.5** (PHP 8.6 erscheint am 19.11.2026 und kommt in die Test-Matrix), **MySQL 9.7 (LTS)** und **MariaDB 12.3 (LTS)**. Heute verlangt dieses Repository PHP 8.2.

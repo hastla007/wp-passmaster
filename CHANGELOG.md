@@ -77,6 +77,8 @@
 - E2E-Tests unter realen Bedingungen für alle Käufer-Widgets sowie Check-out offline, Erstattung und Umbuchung einer Servicebuchung.
 
 ### Code, Build und Lieferkette
+- Intern: `Orders` in Teilklassen zerlegt (Verfügbarkeit, Teilnehmerangaben, Kapazität; keine Verhaltensänderung).
+- Übersetzung: Platzhalternamen in Hilfetexten separat übersetzbar.
 - Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
 - CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
 - Checkout (`Orders::create`) und die Tabellen-Anweisungen des Installers in kleinere Methoden aufgeteilt, ohne Verhaltensänderung (A401).
