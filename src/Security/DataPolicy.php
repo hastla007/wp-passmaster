@@ -103,7 +103,7 @@ final class DataPolicy {
 			$list = get_transient( self::unmask_key() );
 			self::$unmasked[ $user_id ] = is_array( $list ) ? array_map( 'intval', $list ) : array();
 		}
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		return array_filter(
 			self::$unmasked[ $user_id ],
 			static function ( $expires ) use ( $now ) {
@@ -136,7 +136,7 @@ final class DataPolicy {
 			return new \WP_Error( 'wpcap_unmask_reason', __( 'Bitte einen Grund (z. B. Ticketnummer der Supportanfrage) angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$list = self::unmasked_orders();
-		$list[ $order_id ] = time() + self::UNMASK_SECONDS;
+		$list[ $order_id ] = \PassCaptain\Clock::real() + self::UNMASK_SECONDS;
 		set_transient( self::unmask_key(), $list, self::UNMASK_SECONDS );
 		self::$unmasked[ get_current_user_id() ] = $list;
 		Audit::record( 'pii_unmasked', 'order', $order_id, array( 'reason' => \PassCaptain\Text::cut( $reason, 190 ), 'minutes' => (int) ( self::UNMASK_SECONDS / 60 ) ) );

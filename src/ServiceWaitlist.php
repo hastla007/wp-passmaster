@@ -25,7 +25,7 @@ final class ServiceWaitlist {
 	/** Places held by open (unexpired) offers of a slot; $exclude_entry_id is not counted. */
 	public static function held_quantity( $slot_id, $exclude_entry_id = 0 ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE slot_id=%d AND entry_id<>%d AND status='offered' AND offer_expires_at>%s", $wpdb->prefix . 'wpcap_service_waitlist', absint( $slot_id ), absint( $exclude_entry_id ), current_time( 'mysql', true ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE slot_id=%d AND entry_id<>%d AND status='offered' AND offer_expires_at>%s", $wpdb->prefix . 'wpcap_service_waitlist', absint( $slot_id ), absint( $exclude_entry_id ), Clock::mysql() ) );
 	}
 
 	public static function get( $entry_id ) {
@@ -53,12 +53,12 @@ final class ServiceWaitlist {
 		$slot = ServiceResources::slot( $slot_id );
 		$resource = $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null;
 		$published = $resource ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT status FROM %i WHERE event_id=%d', $p . 'wpcap_events', (int) $resource->event_id ) ) : '';
-		if ( ! $slot || 'open' !== $slot->status || 'active' !== $resource->status || 'published' !== $published || $slot->starts_at <= current_time( 'mysql', true ) ) {
+		if ( ! $slot || 'open' !== $slot->status || 'active' !== $resource->status || 'published' !== $published || $slot->starts_at <= Clock::mysql() ) {
 			return new \WP_Error( 'wpcap_slot_unavailable', __( 'Dieses Zeitfenster ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( ! ServiceResources::rules( $resource )['waitlist_enabled'] ) { return new \WP_Error( 'wpcap_waitlist_disabled', __( 'Für dieses Angebot gibt es keine Warteliste.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$email_hash = hash( 'sha256', strtolower( $email ) );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$token = bin2hex( random_bytes( 32 ) );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$slot = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $slot_id ) );
@@ -76,7 +76,7 @@ final class ServiceWaitlist {
 		if ( Waitlists::double_opt_in() ) {
 			// Double opt-in: no position until the address is confirmed (a repeated sign-up gets a new link).
 			$confirm = bin2hex( random_bytes( 32 ) );
-			$expires = time() + Waitlists::CONFIRM_HOURS * HOUR_IN_SECONDS;
+			$expires = Clock::now() + Waitlists::CONFIRM_HOURS * HOUR_IN_SECONDS;
 			$row = array( 'email' => $email, 'quantity' => $quantity, 'position' => 0, 'status' => 'unconfirmed', 'offer_token_hash' => '', 'offer_expires_at' => null, 'manage_token_hash' => '', 'confirm_token_hash' => hash( 'sha256', $confirm ), 'confirm_expires_at' => gmdate( 'Y-m-d H:i:s', $expires ), 'booking_id' => 0, 'updated_at' => $now );
 			if ( $existing ) {
 				$ok = false !== $wpdb->update( "{$p}wpcap_service_waitlist", $row, array( 'entry_id' => (int) $existing->entry_id ) );
@@ -124,7 +124,7 @@ final class ServiceWaitlist {
 		$token = Security\Input::hex( $token );
 		$entry = 64 === strlen( $token ) ? self::get( $entry_id ) : null;
 		$invalid = new \WP_Error( 'wpcap_waitlist_confirm_invalid', __( 'Der Bestätigungslink ist ungültig, abgelaufen oder wurde bereits verwendet.', 'pass-captain' ), array( 'status' => 403 ) );
-		if ( ! $entry || 'unconfirmed' !== $entry->status || '' === (string) $entry->confirm_token_hash || ! $entry->confirm_expires_at || $entry->confirm_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $entry->confirm_token_hash, hash( 'sha256', $token ) ) ) {
+		if ( ! $entry || 'unconfirmed' !== $entry->status || '' === (string) $entry->confirm_token_hash || ! $entry->confirm_expires_at || $entry->confirm_expires_at <= Clock::mysql() || ! hash_equals( (string) $entry->confirm_token_hash, hash( 'sha256', $token ) ) ) {
 			return $invalid;
 		}
 		$slot_id = (int) $entry->slot_id;
@@ -133,7 +133,7 @@ final class ServiceWaitlist {
 		$wpdb->get_row( $wpdb->prepare( 'SELECT slot_id FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $slot_id ) );
 		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MAX(position),0) FROM %i WHERE slot_id=%d', $p . 'wpcap_service_waitlist', $slot_id ) );
 		$manage = bin2hex( random_bytes( 32 ) );
-		$changed = $wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'waiting', 'position' => $position, 'manage_token_hash' => hash( 'sha256', $manage ), 'confirm_token_hash' => '', 'confirm_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'unconfirmed' ) );
+		$changed = $wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'waiting', 'position' => $position, 'manage_token_hash' => hash( 'sha256', $manage ), 'confirm_token_hash' => '', 'confirm_expires_at' => null, 'updated_at' => Clock::mysql() ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'unconfirmed' ) );
 		if ( 1 !== (int) $changed || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return $invalid; }
 		Audit::record( 'service_waitlist_joined', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => $slot_id, 'position' => $position, 'quantity' => (int) $entry->quantity, 'confirmed' => true ) );
 		$slot = ServiceResources::slot( $slot_id );
@@ -171,7 +171,7 @@ final class ServiceWaitlist {
 	public static function position( $entry_id, $token ) {
 		$entry = self::with_token( $entry_id, $token );
 		if ( ! $entry ) { return self::invalid(); }
-		$expired = 'offered' === $entry->status && $entry->offer_expires_at <= current_time( 'mysql', true );
+		$expired = 'offered' === $entry->status && $entry->offer_expires_at <= Clock::mysql();
 		$slot = ServiceResources::slot( (int) $entry->slot_id );
 		return array(
 			'status' => $expired ? 'expired' : (string) $entry->status,
@@ -197,7 +197,7 @@ final class ServiceWaitlist {
 		for ( $guard = 0; $guard < 50; $guard++ ) {
 			$slot = ServiceResources::slot( $slot_id );
 			if ( ! $slot ) { return $offered; }
-			$now = current_time( 'mysql', true );
+			$now = Clock::mysql();
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $offered; }
 			$resource = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d FOR UPDATE', $p . 'wpcap_resources', (int) $slot->resource_id ) );
 			$slot = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $slot_id ) );
@@ -205,12 +205,12 @@ final class ServiceWaitlist {
 			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',updated_at=%s WHERE slot_id=%d AND status='offered' AND offer_expires_at<=%s", $p . 'wpcap_service_waitlist', $now, $slot_id, $now ) );
 			$rules = ServiceResources::rules( $resource );
 			$deadline = strtotime( $slot->starts_at . ' UTC' ) - $rules['cutoff_minutes'] * MINUTE_IN_SECONDS;
-			if ( 'open' !== $slot->status || 'active' !== $resource->status || ! $rules['waitlist_enabled'] || $deadline <= time() + 5 * MINUTE_IN_SECONDS ) { $wpdb->query( 'COMMIT' ); return $offered; }
+			if ( 'open' !== $slot->status || 'active' !== $resource->status || ! $rules['waitlist_enabled'] || $deadline <= Clock::now() + 5 * MINUTE_IN_SECONDS ) { $wpdb->query( 'COMMIT' ); return $offered; }
 			$free = (int) $slot->capacity - ServiceResources::booked_quantity( $slot_id ) - self::held_quantity( $slot_id );
 			$entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE slot_id=%d AND status='waiting' ORDER BY position,entry_id LIMIT 1 FOR UPDATE", $p . 'wpcap_service_waitlist', $slot_id ) );
 			if ( ! $entry || (int) $entry->quantity > $free ) { $wpdb->query( 'COMMIT' ); return $offered; }
 			$token = bin2hex( random_bytes( 32 ) );
-			$expires = gmdate( 'Y-m-d H:i:s', min( time() + $rules['waitlist_offer_minutes'] * MINUTE_IN_SECONDS, $deadline ) );
+			$expires = gmdate( 'Y-m-d H:i:s', min( Clock::now() + $rules['waitlist_offer_minutes'] * MINUTE_IN_SECONDS, $deadline ) );
 			$changed = $wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'offered', 'offer_token_hash' => hash( 'sha256', $token ), 'offer_expires_at' => $expires, 'updated_at' => $now ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'waiting' ) );
 			if ( 1 !== (int) $changed || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return $offered; }
 			Audit::record( 'service_waitlist_offered', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => $slot_id, 'position' => (int) $entry->position, 'quantity' => (int) $entry->quantity, 'expires_at' => $expires ) );
@@ -222,7 +222,7 @@ final class ServiceWaitlist {
 			) );
 			if ( ! $sent ) {
 				// Without the mail nobody can accept: the entry goes back to the queue and we stop here.
-				$wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'offered' ) );
+				$wpdb->update( "{$p}wpcap_service_waitlist", array( 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'updated_at' => Clock::mysql() ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'offered' ) );
 				Audit::record( 'service_waitlist_offer_mail_failed', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => $slot_id ) );
 				return $offered;
 			}
@@ -249,7 +249,7 @@ final class ServiceWaitlist {
 			// Repeated click on the link (the offer token is kept as proof after acceptance).
 			return $token_ok ? array( 'status' => 'accepted', 'booking' => ServiceBookings::state( ServiceBookings::get( (int) $entry->booking_id ) ), 'reused' => true ) : self::invalid();
 		}
-		if ( ! $token_ok || 'offered' !== $entry->status || $entry->offer_expires_at <= current_time( 'mysql', true ) ) { return self::invalid(); }
+		if ( ! $token_ok || 'offered' !== $entry->status || $entry->offer_expires_at <= Clock::mysql() ) { return self::invalid(); }
 		$slot = ServiceResources::slot( (int) $entry->slot_id );
 		$resource = $slot ? ServiceResources::resource( (int) $slot->resource_id ) : null;
 		if ( ! $resource ) { return self::invalid(); }
@@ -279,7 +279,7 @@ final class ServiceWaitlist {
 		global $wpdb;
 		$entry = self::with_token( $entry_id, $token );
 		if ( ! $entry || 'offered' !== $entry->status ) { return self::invalid(); }
-		$changed = $wpdb->update( $wpdb->prefix . 'wpcap_service_waitlist', array( 'status' => 'declined', 'offer_token_hash' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'offered' ) );
+		$changed = $wpdb->update( $wpdb->prefix . 'wpcap_service_waitlist', array( 'status' => 'declined', 'offer_token_hash' => '', 'updated_at' => Clock::mysql() ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'offered' ) );
 		if ( 1 !== (int) $changed ) { return self::invalid(); }
 		Audit::record( 'service_waitlist_declined', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => (int) $entry->slot_id ) );
 		ServiceBookings::slot_freed( (int) $entry->slot_id );
@@ -291,7 +291,7 @@ final class ServiceWaitlist {
 		global $wpdb;
 		$entry = self::with_token( $entry_id, $token );
 		if ( ! $entry || ! in_array( $entry->status, self::OPEN_STATUSES, true ) ) { return self::invalid(); }
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='left',offer_token_hash='',updated_at=%s WHERE entry_id=%d AND status IN ('waiting','offered')", $wpdb->prefix . 'wpcap_service_waitlist', current_time( 'mysql', true ), (int) $entry->entry_id ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='left',offer_token_hash='',updated_at=%s WHERE entry_id=%d AND status IN ('waiting','offered')", $wpdb->prefix . 'wpcap_service_waitlist', Clock::mysql(), (int) $entry->entry_id ) );
 		if ( 1 !== (int) $changed ) { return self::invalid(); }
 		Audit::record( 'service_waitlist_left', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => (int) $entry->slot_id, 'was' => $entry->status ) );
 		if ( 'offered' === $entry->status ) { ServiceBookings::slot_freed( (int) $entry->slot_id ); }
@@ -319,7 +319,7 @@ final class ServiceWaitlist {
 	public static function sweep( $limit = 50 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$slots = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT slot_id FROM %i WHERE status='offered' AND offer_expires_at<=%s LIMIT %d", $p . 'wpcap_service_waitlist', $now, absint( $limit ) ) ) );
 		foreach ( $slots as $slot_id ) {
 			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',updated_at=%s WHERE slot_id=%d AND status='offered' AND offer_expires_at<=%s", $p . 'wpcap_service_waitlist', $now, $slot_id, $now ) );

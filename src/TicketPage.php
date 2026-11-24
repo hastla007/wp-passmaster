@@ -126,7 +126,7 @@ final class TicketPage {
 		$p = $wpdb->prefix;
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.status,t.refunded,ord.payment_status,COALESCE(a.attendee_name,'') AS attendee_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id WHERE t.ticket_id=%d", (int) $ticket->ticket_id ) );
 		$hours = max( 0, (int) Settings::get( 'attendee_edit_hours' ) );
-		$open = $row && 'valid' === $row->status && ! (int) $row->refunded && 'paid' === $row->payment_status && strtotime( $ticket->starts_at . ' UTC' ) - $hours * HOUR_IN_SECONDS > time();
+		$open = $row && 'valid' === $row->status && ! (int) $row->refunded && 'paid' === $row->payment_status && strtotime( $ticket->starts_at . ' UTC' ) - $hours * HOUR_IN_SECONDS > Clock::now();
 		$notice = '';
 		if ( 'saved' === $flag ) {
 			$notice = __( 'Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert.', 'pass-captain' );

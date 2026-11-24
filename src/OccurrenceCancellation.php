@@ -102,7 +102,7 @@ final class OccurrenceCancellation {
 	 */
 	public static function schedule_refund_retry( array $job, $error = '' ) {
 		$order_id = absint( $job['order_id'] ?? 0 );
-		$queued = Jobs::enqueue( 'cancellation-refund|' . $order_id . '|' . (string) ( $job['key'] ?? '' ), self::REFUND_JOB, $job, gmdate( 'Y-m-d H:i:s', time() + Jobs::backoff_seconds( 1 ) ) );
+		$queued = Jobs::enqueue( 'cancellation-refund|' . $order_id . '|' . (string) ( $job['key'] ?? '' ), self::REFUND_JOB, $job, gmdate( 'Y-m-d H:i:s', Clock::now() + Jobs::backoff_seconds( 1 ) ) );
 		Audit::record( 'cancellation_refund_retry_scheduled', 'order', $order_id, array( 'occurrence_id' => absint( $job['occurrence_id'] ?? 0 ), 'error' => (string) $error ) );
 		return true === $queued;
 	}
@@ -135,7 +135,7 @@ final class OccurrenceCancellation {
 
 	/** Marks the start of a whole-event cancellation: holders get the event mail instead. */
 	public static function begin_event_batch() {
-		if ( 0 === self::$event_batch ) { self::$batch_deadline = time() + max( 0, (int) self::$inline_seconds ); }
+		if ( 0 === self::$event_batch ) { self::$batch_deadline = Clock::real() + max( 0, (int) self::$inline_seconds ); }
 		++self::$event_batch;
 	}
 

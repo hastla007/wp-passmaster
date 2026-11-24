@@ -67,7 +67,7 @@ final class MyServicesPage {
 		$status = ServiceBookings::booking_status( $booking );
 		$actions = array();
 		if ( 'held' === $status && ! (int) ( $booking->ticket_type_id ?? 0 ) ) { $actions['confirmed'] = __( 'Bestätigen', 'pass-captain' ); }
-		if ( 'confirmed' === $status && (string) $booking->starts_at <= current_time( 'mysql', true ) ) { $actions['no_show'] = __( 'Nicht erschienen', 'pass-captain' ); }
+		if ( 'confirmed' === $status && (string) $booking->starts_at <= \PassCaptain\Clock::mysql() ) { $actions['no_show'] = __( 'Nicht erschienen', 'pass-captain' ); }
 		foreach ( $actions as $target => $label ) {
 			Forms::open_form( self::STATUS_ACTION, self::STATUS_ACTION . '_' . (int) $booking->booking_id, 'style="display:inline"' );
 			Forms::hidden( 'booking_id', (int) $booking->booking_id );
@@ -87,7 +87,7 @@ final class MyServicesPage {
 			return;
 		}
 		$ids = array_map( static function ( $r ) { return (int) $r->resource_id; }, $resources );
-		$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS );
 		$slots = ServiceBookings::slots_of_resources( $ids, $since );
 		$slot_filter = absint( Forms::query_arg( 'slot' ) );
 		$bookings = ServiceBookings::bookings_of_resources( $ids, $slot_filter, $since );

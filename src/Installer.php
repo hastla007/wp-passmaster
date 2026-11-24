@@ -1438,7 +1438,7 @@ final class Installer {
 		$previous = get_option( self::ATTEMPT_OPTION );
 		$target = self::version();
 		$count = is_array( $previous ) && ( $previous['target'] ?? '' ) === $target ? (int) ( $previous['count'] ?? 0 ) + 1 : 1;
-		update_option( self::ATTEMPT_OPTION, array( 'target' => $target, 'count' => $count, 'at' => time() ), false );
+		update_option( self::ATTEMPT_OPTION, array( 'target' => $target, 'count' => $count, 'at' => Clock::real() ), false );
 	}
 
 	/** First retry after a failed schema upgrade (seconds); doubles per failure up to RETRY_MAX (A466). */
@@ -1467,8 +1467,8 @@ final class Installer {
 		 * @param int $attempts Failed attempts for this schema version so far.
 		 */
 		$delay = max( 0, (int) apply_filters( 'wpcap_schema_retry_delay', $delay, $attempts ) );
-		update_option( 'wpcap_schema_error', array( 'missing' => $missing, 'at' => time(), 'db_error' => $db_error, 'target' => $target, 'attempts' => $attempts, 'retry_at' => time() + $delay ), false );
-		Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => $missing, 'attempts' => $attempts, 'retry_at' => gmdate( 'Y-m-d H:i:s', time() + $delay ) ) );
+		update_option( 'wpcap_schema_error', array( 'missing' => $missing, 'at' => Clock::real(), 'db_error' => $db_error, 'target' => $target, 'attempts' => $attempts, 'retry_at' => Clock::real() + $delay ), false );
+		Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => $missing, 'attempts' => $attempts, 'retry_at' => gmdate( 'Y-m-d H:i:s', Clock::real() + $delay ) ) );
 	}
 
 	/**
@@ -1487,7 +1487,7 @@ final class Installer {
 			$count = (int) $attempt['count'];
 			$at = max( $at, (int) $attempt['at'] + (int) min( self::RETRY_MAX, self::RETRY_FIRST * ( 2 ** min( 16, $count - 2 ) ) ) );
 		}
-		return $at > time() ? $at : 0;
+		return $at > Clock::real() ? $at : 0;
 	}
 
 	/** Lets the next request retry a failed schema upgrade at once (admin button, WP-CLI). */
@@ -1782,14 +1782,14 @@ final class Installer {
 		$details = (array) get_option( self::ERROR_OPTION, array() );
 		$attempts = max( 1, (int) ( $details['attempts'] ?? 1 ) );
 		$details += array(
-			'time'       => time(),
+			'time'       => Clock::real(),
 			'version'    => self::version(),
 			'errors'     => array_slice( array_values( array_unique( array_map( array( Redact::class, 'text' ), $errors ) ) ), 0, 5 ),
-			'next_retry' => (int) ( $details['retry_at'] ?? ( time() + self::retry_delay( $attempts ) ) ),
+			'next_retry' => (int) ( $details['retry_at'] ?? ( Clock::real() + self::retry_delay( $attempts ) ) ),
 		);
 		update_option( self::ERROR_OPTION, $details, false );
 		// The admin notice (ERROR_OPTION) is the primary channel; the log reaches add-ons and, if enabled, the PHP error log.
-		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . max( 0, (int) $details['next_retry'] - time() ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
+		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . max( 0, (int) $details['next_retry'] - Clock::real() ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
 	}
 
 	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */
@@ -2029,10 +2029,10 @@ final class Installer {
 			if ( $fingerprint_ok ) { return false; }
 			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
 			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
-				wp_schedule_single_event( max( time(), $retry_at ), self::UPGRADE_HOOK );
+				wp_schedule_single_event( max( Clock::real(), $retry_at ), self::UPGRADE_HOOK );
 				return false;
 			}
-			if ( $retry_at || ( $next && (int) $next > time() - self::OVERDUE_AFTER ) ) { return false; }
+			if ( $retry_at || ( $next && (int) $next > Clock::real() - self::OVERDUE_AFTER ) ) { return false; }
 		}
 		if ( self::version() === get_option( 'wpcap_db_version' ) ) {
 			// Schema is current; only the fingerprint was missing or outdated (e.g. installs before 1.2).

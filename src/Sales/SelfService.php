@@ -73,7 +73,7 @@ final class SelfService {
 			foreach ( (array) json_decode( (string) $list, true ) as $id ) { $pending[ (int) $id ] = true; }
 		}
 		$checked_in = array_flip( Refunds::checked_in_ids( array_map( static function ( $r ) { return (int) $r->ticket_id; }, $rows ) ) );
-		$now = time();
+		$now = \PassCaptain\Clock::now();
 		$out = array();
 		foreach ( $rows as $row ) {
 			if ( isset( $pending[ (int) $row->ticket_id ] ) || isset( $checked_in[ (int) $row->ticket_id ] ) ) { continue; }

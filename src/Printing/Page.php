@@ -33,7 +33,7 @@ final class Page {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' ) . \PassCaptain\Access::occurrence_scope_sql( 'o' );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.status,e.status AS event_status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.status='scheduled' AND e.status='published' $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.status,e.status AS event_status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.status='scheduled' AND e.status='published' $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 30 * DAY_IN_SECONDS ) ) );
 		foreach ( $rows as $r ) { $r->label = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ); }
 		return Queries::occurrence_choices( $rows, $include_past );
 	}

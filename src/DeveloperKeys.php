@@ -84,7 +84,7 @@ final class DeveloperKeys {
 	private static function clean_expiry( $expires_at ) {
 		$expires_at = trim( (string) $expires_at );
 		if ( '' === $expires_at ) { return ''; }
-		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires_at ) || strtotime( $expires_at . ' UTC' ) <= time() ) {
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires_at ) || strtotime( $expires_at . ' UTC' ) <= Clock::now() ) {
 			return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return $expires_at;
@@ -123,7 +123,7 @@ final class DeveloperKeys {
 		$secret = bin2hex( random_bytes( 32 ) );
 		$prefix = substr( bin2hex( random_bytes( 8 ) ), 0, 12 );
 		$label = mb_substr( sanitize_text_field( (string) $label ), 0, 190 );
-		$row = array( 'user_id' => get_current_user_id(), 'public_prefix' => $prefix, 'secret_hash' => hash( 'sha256', $secret ), 'event_id' => $event_id, 'scopes' => wp_json_encode( $scopes ), 'label' => $label, 'expires_at' => '' !== $expires_at ? $expires_at : null, 'created_at' => current_time( 'mysql', true ) );
+		$row = array( 'user_id' => get_current_user_id(), 'public_prefix' => $prefix, 'secret_hash' => hash( 'sha256', $secret ), 'event_id' => $event_id, 'scopes' => wp_json_encode( $scopes ), 'label' => $label, 'expires_at' => '' !== $expires_at ? $expires_at : null, 'created_at' => Clock::mysql() );
 		$formats = array( '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' );
 		if ( self::ready() ) {
 			$row['rate_limit'] = $rate_limit;
@@ -147,7 +147,7 @@ final class DeveloperKeys {
 	/** Status of a key row: active, expired or revoked. */
 	public static function status( $key ) {
 		if ( ! empty( $key->revoked_at ) ) { return 'revoked'; }
-		if ( ! empty( $key->expires_at ) && $key->expires_at <= current_time( 'mysql', true ) ) { return 'expired'; }
+		if ( ! empty( $key->expires_at ) && $key->expires_at <= Clock::mysql() ) { return 'expired'; }
 		return 'active';
 	}
 
@@ -210,7 +210,7 @@ final class DeveloperKeys {
 		$invalid = $denied( 'wpcap_api_key_invalid', __( 'API-Key ist ungültig, widerrufen oder abgelaufen.', 'pass-captain' ), 401 );
 		if ( 2 !== count( $parts ) || ! preg_match( '/^[a-f0-9]{12}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{64}$/', $parts[1] ) ) { return $invalid; }
 		$key = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_prefix=%s AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', $parts[0] ) );
-		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) ) { return $invalid; }
+		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= Clock::mysql() ) ) { return $invalid; }
 		$event_id = absint( $event_id );
 		if ( (int) $key->event_id !== $event_id ) { return $denied( 'wpcap_api_key_event', __( 'Dieser API-Key gilt nicht für dieses Event.', 'pass-captain' ), 403 ); }
 		$user_id = (int) $key->user_id;
@@ -231,7 +231,7 @@ final class DeveloperKeys {
 			self::$rate_limited = true;
 			return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's' ) ) ) );
 		}
-		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => Clock::mysql() ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return array( 'api_key_id' => (int) $key->api_key_id, 'user_id' => $user_id, 'event_id' => $event_id, 'scopes' => array_values( array_map( 'strval', $scopes ) ), 'scope' => (string) $scope );
 	}
 
@@ -332,7 +332,7 @@ final class DeveloperKeys {
 		global $wpdb;
 		$count = 0;
 		foreach ( array_unique( array_filter( array_map( 'absint', $ids ) ) ) as $id ) {
-			if ( $wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', current_time( 'mysql', true ), $id ) ) ) {
+			if ( $wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_api_keys', Clock::mysql(), $id ) ) ) {
 				++$count;
 				Audit::record( 'developer_key_revoked', 'api_key', $id, array( 'reason' => sanitize_key( $reason ) ) );
 			}
@@ -387,7 +387,7 @@ final class DeveloperKeys {
 		$revoked = array();
 		foreach ( $keys as $key ) {
 			if ( $user && self::owner_may_read( (int) $user_id, (int) $key->event_id ) ) { continue; }
-			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), (int) $key->api_key_id ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", Clock::mysql(), (int) $key->api_key_id ) );
 			Audit::record( 'developer_key_revoked', 'api_key', (int) $key->api_key_id, array( 'prefix' => $key->public_prefix, 'event_id' => (int) $key->event_id, 'reason' => $reason ) );
 			$revoked[] = (int) $key->api_key_id;
 		}
@@ -407,7 +407,7 @@ final class DeveloperKeys {
 		$key = self::manageable( $key_id );
 		if ( ! $key ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $key->revoked_at ) { return true; }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), (int) $key->api_key_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", Clock::mysql(), (int) $key->api_key_id ) );
 		Audit::record( 'developer_key_revoked', 'api_key', absint( $key_id ), array( 'prefix' => $key->public_prefix, 'event_id' => (int) $key->event_id ) );
 		return true;
 	}
@@ -447,7 +447,7 @@ final class DeveloperKeys {
 	 */
 	public static function all( $status = '', $limit = 200 ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$where = '';
 		if ( 'revoked' === $status ) {
 			$where = ' WHERE k.revoked_at IS NOT NULL';

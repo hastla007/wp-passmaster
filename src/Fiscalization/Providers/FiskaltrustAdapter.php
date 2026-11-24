@@ -82,7 +82,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		$register = sanitize_text_field( (string) ( $document['profile']['register_id'] ?? $configuration['terminal_id'] ?? '1' ) );
 		$payload = array(
 			'cbReceiptReference' => (string) ( $document['idempotency_key'] ?? '' ),
-			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: time() ),
+			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: \PassCaptain\Clock::real() ),
 			'cbTerminalID' => $register,
 			'cbReceiptAmount' => (float) ProviderHttp::decimal( $sum, $currency ),
 			'cbChargeItems' => $charges,

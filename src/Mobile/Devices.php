@@ -47,7 +47,7 @@ final class Devices {
 		$max = max( 1, (int) Settings::get( 'device_max_hours' ) );
 		$hours = min( $max, max( 1, absint( $hours ) ?: $max ) );
 		$code = self::random_code();
-		$expires = gmdate( 'Y-m-d H:i:s', time() + self::PAIRING_MINUTES * MINUTE_IN_SECONDS );
+		$expires = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + self::PAIRING_MINUTES * MINUTE_IN_SECONDS );
 		$wpdb->insert( $wpdb->prefix . 'wpcap_device_pairings', array(
 			'code_hash' => hash( 'sha256', $code ),
 			'user_id' => $user_id,
@@ -55,7 +55,7 @@ final class Devices {
 			'label' => mb_substr( sanitize_text_field( $label ), 0, 190 ),
 			'device_hours' => $hours,
 			'expires_at' => $expires,
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => \PassCaptain\Clock::mysql(),
 		) );
 		\PassCaptain\Admission\Areas::set_pairing_area( (int) $wpdb->insert_id, $area_id );
 		Audit::record( 'device_pairing_created', 'user', $user_id, array( 'event_ids' => $event_ids, 'hours' => $hours, 'area_id' => $area_id ) );
@@ -92,7 +92,7 @@ final class Devices {
 		if ( strlen( $code ) < 16 ) {
 			return new \WP_Error( 'wpcap_pairing_invalid', __( 'Kopplungscode ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( 'START TRANSACTION' );
 		$pairing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE code_hash=%s FOR UPDATE', $p . 'wpcap_device_pairings', hash( 'sha256', $code ) ) );
 		if ( ! $pairing || $pairing->used_at || $pairing->expires_at <= $now || ! user_can( (int) $pairing->user_id, 'wpcap_checkin' ) ) {
@@ -101,7 +101,7 @@ final class Devices {
 		}
 		$public_id = bin2hex( random_bytes( 16 ) );
 		$secret = bin2hex( random_bytes( 32 ) );
-		$expires = gmdate( 'Y-m-d H:i:s', time() + (int) $pairing->device_hours * HOUR_IN_SECONDS );
+		$expires = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + (int) $pairing->device_hours * HOUR_IN_SECONDS );
 		$wpdb->insert( "{$p}wpcap_scanner_devices", array(
 			'public_id' => $public_id,
 			'user_id' => (int) $pairing->user_id,
@@ -153,7 +153,7 @@ final class Devices {
 			return new \WP_Error( 'wpcap_device_unauthenticated', __( 'Gerätetoken fehlt oder ist ungültig.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
 		$device = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_scanner_devices', $m[1] ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		if ( ! $device || ! hash_equals( (string) $device->secret_hash, hash( 'sha256', $m[2] ) ) || $device->revoked_at || ( $device->expires_at && $device->expires_at <= $now ) ) {
 			return new \WP_Error( 'wpcap_device_unauthenticated', __( 'Gerätetoken ist ungültig, abgelaufen oder widerrufen.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
@@ -164,7 +164,7 @@ final class Devices {
 			return new \WP_Error( 'wpcap_device_rate', __( 'Zu viele Anfragen von diesem Gerät.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		wp_set_current_user( (int) $device->user_id );
-		if ( ! $device->last_seen_at || strtotime( $device->last_seen_at . ' UTC' ) < time() - 60 ) {
+		if ( ! $device->last_seen_at || strtotime( $device->last_seen_at . ' UTC' ) < \PassCaptain\Clock::now() - 60 ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_scanner_devices', array( 'last_seen_at' => $now ), array( 'device_id' => (int) $device->device_id ) );
 		}
 		self::$current = $device;
@@ -199,7 +199,7 @@ final class Devices {
 			return new \WP_Error( 'wpcap_device_forbidden', __( 'Keine Berechtigung für dieses Gerät.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( ! $device->revoked_at ) {
-			$wpdb->update( $wpdb->prefix . 'wpcap_scanner_devices', array( 'revoked_at' => current_time( 'mysql', true ) ), array( 'device_id' => (int) $device->device_id ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_scanner_devices', array( 'revoked_at' => \PassCaptain\Clock::mysql() ), array( 'device_id' => (int) $device->device_id ) );
 			Audit::record( 'device_revoked', 'device', (int) $device->device_id );
 		}
 		return true;

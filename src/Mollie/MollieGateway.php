@@ -153,7 +153,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 	private static function remember( $payment_id, array $order ) {
 		global $wpdb;
 		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', (string) $payment_id ) ) { return; }
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (payment_id,order_id,created_at) VALUES (%s,%d,%s)', $wpdb->prefix . 'wpcap_mollie_payments', $payment_id, (int) ( $order['order_id'] ?? 0 ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (payment_id,order_id,created_at) VALUES (%s,%d,%s)', $wpdb->prefix . 'wpcap_mollie_payments', $payment_id, (int) ( $order['order_id'] ?? 0 ), \PassCaptain\Clock::mysql() ) );
 	}
 
 	/**
@@ -284,7 +284,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		if ( is_array( $cached ) && isset( $cached['methods'] ) ) { return (array) $cached['methods']; }
 		if ( ! $remote ) {
 			if ( $refresh_args && function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::REFRESH_HOOK, $refresh_args ) ) {
-				wp_schedule_single_event( time(), self::REFRESH_HOOK, $refresh_args );
+				wp_schedule_single_event( \PassCaptain\Clock::real(), self::REFRESH_HOOK, $refresh_args );
 			}
 			return new \WP_Error( 'wpcap_mollie_methods_pending', __( 'Die Zahlungsmethoden von Mollie werden gerade geladen.', 'pass-captain' ) );
 		}
@@ -453,7 +453,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		}
 		$minutes = \PassCaptain\Payments\Webhooks::delayed_hold_minutes( $order, 'mollie' );
 		$days = max( 1, min( 100, (int) floor( $minutes / ( DAY_IN_SECONDS / MINUTE_IN_SECONDS ) ) ) );
-		return gmdate( 'Y-m-d', time() + $days * DAY_IN_SECONDS );
+		return gmdate( 'Y-m-d', \PassCaptain\Clock::now() + $days * DAY_IN_SECONDS );
 	}
 
 	/**

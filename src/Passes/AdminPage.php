@@ -112,7 +112,7 @@ final class AdminPage {
 	private static function selectable_occurrences() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,o.status,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s ORDER BY o.starts_at,o.occurrence_id LIMIT 500", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,o.status,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s ORDER BY o.starts_at,o.occurrence_id LIMIT 500", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS ) ) );
 		return array_values( array_filter( (array) $rows, static function ( $row ) { return Access::can_access_event( (int) $row->event_id, Definitions::CAP ); } ) );
 	}
 

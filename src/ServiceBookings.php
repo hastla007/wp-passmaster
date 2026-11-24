@@ -119,7 +119,7 @@ final class ServiceBookings {
 		$status = 'confirmed' === ( $args['status'] ?? '' ) ? 'confirmed' : 'held';
 		$expires = null;
 		if ( 'held' === $status ) {
-			$expires = gmdate( 'Y-m-d H:i:s', time() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
+			$expires = gmdate( 'Y-m-d H:i:s', Clock::now() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
 			$order_hold = $order_id ? (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM %i WHERE order_id=%d AND status='active'", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ) ) ) : '';
 			if ( '' !== $order_hold && $order_hold > $expires ) { $expires = $order_hold; }
 		}
@@ -245,7 +245,7 @@ final class ServiceBookings {
 		if ( $ordered - $linked < (int) $booking->quantity ) { return new \WP_Error( 'wpcap_booking_order_items', __( 'Die Bestellung enthält nicht genügend Plätze dieser Ressource.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		if ( ! (int) $booking->order_id ) {
 			$hold = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM %i WHERE order_id=%d AND status='active'", $wpdb->prefix . 'wpcap_reservations', (int) $order->order_id ) );
-			$data = array( 'order_id' => (int) $order->order_id, 'updated_at' => current_time( 'mysql', true ) );
+			$data = array( 'order_id' => (int) $order->order_id, 'updated_at' => Clock::mysql() );
 			if ( 'held' === $booking->status && '' !== $hold && $hold > (string) $booking->expires_at ) { $data['expires_at'] = $hold; }
 			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', $data, array( 'booking_id' => (int) $booking->booking_id, 'order_id' => 0 ) );
 			Audit::record( 'service_booking_order_attached', 'service_booking', (int) $booking->booking_id, array( 'order_id' => (int) $order->order_id ) );
@@ -281,7 +281,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,slot_id FROM %i WHERE order_id=%d AND status IN ('held','pending_payment')", $wpdb->prefix . 'wpcap_service_bookings', absint( $order_id ) ) );
 		foreach ( (array) $rows as $row ) {
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',updated_at=%s WHERE booking_id=%d AND status IN ('held','pending_payment')", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), (int) $row->booking_id ) );
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',updated_at=%s WHERE booking_id=%d AND status IN ('held','pending_payment')", $wpdb->prefix . 'wpcap_service_bookings', Clock::mysql(), (int) $row->booking_id ) );
 			if ( 1 === (int) $changed ) {
 				Audit::record( 'service_booking_expired', 'service_booking', (int) $row->booking_id, array( 'order_id' => absint( $order_id ) ) );
 				self::slot_freed( (int) $row->slot_id );
@@ -365,7 +365,7 @@ final class ServiceBookings {
 			}
 			if ( (int) $resource->ticket_type_id && ! $order ) {
 				// Keep the hold alive while the checkout runs; the order transaction then takes it over.
-				$wpdb->update( "{$p}wpcap_service_bookings", array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', time() + 15 * MINUTE_IN_SECONDS ) ), 'updated_at' => $now ), array( 'booking_id' => (int) $booking->booking_id ) );
+				$wpdb->update( "{$p}wpcap_service_bookings", array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', Clock::now() + 15 * MINUTE_IN_SECONDS ) ), 'updated_at' => $now ), array( 'booking_id' => (int) $booking->booking_id ) );
 				if ( '' !== (string) $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 				return ServiceBookingFlow::checkout( self::booking( (int) $booking->booking_id ), $slot, (int) $resource->ticket_type_id, $context );
 			}
@@ -379,7 +379,7 @@ final class ServiceBookings {
 		if ( $lost ) {
 			$data = array( 'status' => 'cancelled', 'cancel_reason' => 'capacity_lost', 'expires_at' => null, 'updated_at' => $now );
 		} elseif ( $rules['requires_confirmation'] ) {
-			$by = min( time() + $rules['confirmation_hours'] * HOUR_IN_SECONDS, strtotime( $slot->starts_at . ' UTC' ) );
+			$by = min( Clock::now() + $rules['confirmation_hours'] * HOUR_IN_SECONDS, strtotime( $slot->starts_at . ' UTC' ) );
 			$data = array( 'status' => 'pending_confirmation', 'confirm_by' => gmdate( 'Y-m-d H:i:s', $by ), 'expires_at' => null, 'updated_at' => $now );
 		} else {
 			$data = array( 'status' => 'confirmed', 'expires_at' => null, 'updated_at' => $now );
@@ -424,7 +424,7 @@ final class ServiceBookings {
 		$order = Orders::get( (int) $booking->order_id );
 		// After a dearer rebooking the first payment (origin_minor, other order) is part of the booking value.
 		$amount = $order ? Refunds::gross_for_tickets( $order, $ids ) + (int) $booking->origin_minor : (int) $booking->amount_minor;
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET ticket_ids=%s,amount_minor=%d,currency=%s,updated_at=%s WHERE booking_id=%d AND ticket_ids=''", $p . 'wpcap_service_bookings', wp_json_encode( $ids ), $amount, $order ? (string) $order->currency : (string) $booking->currency, current_time( 'mysql', true ), (int) $booking->booking_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET ticket_ids=%s,amount_minor=%d,currency=%s,updated_at=%s WHERE booking_id=%d AND ticket_ids=''", $p . 'wpcap_service_bookings', wp_json_encode( $ids ), $amount, $order ? (string) $order->currency : (string) $booking->currency, Clock::mysql(), (int) $booking->booking_id ) );
 	}
 
 	/* ================================================================== Partner confirmation */
@@ -445,7 +445,7 @@ final class ServiceBookings {
 		}
 		if ( 'confirm' !== $decision ) { return new \WP_Error( 'wpcap_booking_decision', __( 'Unbekannte Entscheidung.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( 'confirmed' === $booking->status ) { return self::state( $booking ); }
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='confirmed',confirm_by=NULL,updated_at=%s WHERE booking_id=%d AND status='pending_confirmation'", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), (int) $booking->booking_id ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='confirmed',confirm_by=NULL,updated_at=%s WHERE booking_id=%d AND status='pending_confirmation'", $wpdb->prefix . 'wpcap_service_bookings', Clock::mysql(), (int) $booking->booking_id ) );
 		if ( 1 !== (int) $changed ) { return self::state_error(); }
 		$booking = self::get( $booking_id );
 		Audit::record( 'service_booking_partner_confirmed', 'service_booking', (int) $booking->booking_id, array( 'user_id' => get_current_user_id() ) );
@@ -503,7 +503,7 @@ final class ServiceBookings {
 				$wpdb->query( 'ROLLBACK' );
 				return $deadline;
 			}
-		} elseif ( strtotime( $slot->ends_at . ' UTC' ) < time() && 'system' !== $actor ) {
+		} elseif ( strtotime( $slot->ends_at . ' UTC' ) < Clock::now() && 'system' !== $actor ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_booking_past', __( 'Vergangene Termine können nicht storniert werden; bitte als „nicht erschienen“ markieren oder eine Erstattung in der Bestellung anlegen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -514,7 +514,7 @@ final class ServiceBookings {
 		}
 		$declined = in_array( $reason, array( 'partner_declined', 'confirmation_timeout' ), true );
 		$stored_reason = ( ! $refund_wanted && in_array( $actor, array( 'admin', 'partner' ), true ) ) ? 'admin_no_refund' : $reason;
-		$updated = $wpdb->update( "{$p}wpcap_service_bookings", array( 'status' => $declined ? 'declined' : 'cancelled', 'cancel_reason' => substr( $stored_reason, 0, 64 ), 'confirm_by' => null, 'expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'booking_id' => (int) $booking->booking_id ) );
+		$updated = $wpdb->update( "{$p}wpcap_service_bookings", array( 'status' => $declined ? 'declined' : 'cancelled', 'cancel_reason' => substr( $stored_reason, 0, 64 ), 'confirm_by' => null, 'expires_at' => null, 'updated_at' => Clock::mysql() ), array( 'booking_id' => (int) $booking->booking_id ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( $declined ? 'service_booking_declined' : 'service_booking_cancelled', 'service_booking', (int) $booking->booking_id, array( 'actor' => $actor, 'reason' => $stored_reason, 'slot_id' => (int) $booking->slot_id, 'order_id' => (int) $booking->order_id, 'quantity' => (int) $booking->quantity, 'user_id' => get_current_user_id() ) );
 		$refund = null;
@@ -569,7 +569,7 @@ final class ServiceBookings {
 		if ( is_wp_error( $result ) || ! Refunder::settled( $result ) || ( null !== $origin && ( is_wp_error( $origin ) || ! Refunder::settled( $origin ) ) ) ) {
 			$failed = ( is_wp_error( $result ) || ! Refunder::settled( $result ) ) ? $result : $origin;
 			Audit::record( 'service_booking_refund_failed', 'service_booking', (int) $booking->booking_id, array( 'error' => is_wp_error( $failed ) ? $failed->get_error_code() : (string) ( $failed['status'] ?? '' ) ) );
-			Jobs::enqueue( 'service-booking-refund-' . (int) $booking->booking_id, self::JOB_REFUND, array( 'booking_id' => (int) $booking->booking_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'service-booking-refund-' . (int) $booking->booking_id, self::JOB_REFUND, array( 'booking_id' => (int) $booking->booking_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 		}
 		return $result;
 	}
@@ -709,7 +709,7 @@ final class ServiceBookings {
 	/** Open (held, unexpired) supplement row of a booking, or null. */
 	public static function open_supplement( $booking_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE supplement_for=%d AND status='held' AND expires_at>%s ORDER BY booking_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_service_bookings', absint( $booking_id ), current_time( 'mysql', true ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE supplement_for=%d AND status='held' AND expires_at>%s ORDER BY booking_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_service_bookings', absint( $booking_id ), Clock::mysql() ) );
 	}
 
 	private static function supplement_open_error() {
@@ -775,7 +775,7 @@ final class ServiceBookings {
 		foreach ( $slot_ids as $sid ) { $slots[ $sid ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE slot_id=%d FOR UPDATE', $p . 'wpcap_service_slots', $sid ) ); }
 		$locked_booking = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE booking_id=%d FOR UPDATE', $p . 'wpcap_service_bookings', (int) $booking->booking_id ) );
 		if ( '' !== (string) $wpdb->last_error || ! $locked_booking || in_array( null, $slots, true ) || in_array( null, $locked, true ) ) { return $refuse( self::busy() ); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE supplement_for=%d AND status='held' AND expires_at>%s ORDER BY booking_id DESC LIMIT 1", $p . 'wpcap_service_bookings', (int) $booking->booking_id, $now ) );
 		if ( $existing ) {
 			// A parallel request created the supplement first: same target → same result, else refused.
@@ -794,7 +794,7 @@ final class ServiceBookings {
 		$capacity_error = self::capacity_error( $resource, $target, $quantity, (int) $locked_booking->booking_id );
 		if ( $capacity_error ) { return $refuse( $capacity_error ); }
 		$expires = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM %i WHERE order_id=%d AND status='active'", $p . 'wpcap_reservations', $order_id ) );
-		if ( '' === $expires ) { $expires = gmdate( 'Y-m-d H:i:s', time() + $hold * MINUTE_IN_SECONDS ); }
+		if ( '' === $expires ) { $expires = gmdate( 'Y-m-d H:i:s', Clock::now() + $hold * MINUTE_IN_SECONDS ); }
 		$inserted = $wpdb->insert( "{$p}wpcap_service_bookings", array( 'slot_id' => (int) $target->slot_id, 'order_id' => $order_id, 'customer_email' => (string) $locked_booking->customer_email, 'idempotency_key' => hash( 'sha256', 'svcsupp|' . $order_id ), 'quantity' => $quantity, 'expires_at' => $expires, 'status' => 'held', 'amount_minor' => $supplement, 'currency' => (string) $locked_booking->currency, 'supplement_for' => (int) $locked_booking->booking_id, 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ) );
 		$supplement_id = (int) $wpdb->insert_id;
 		if ( false === $inserted || ! $supplement_id || false === $wpdb->query( 'COMMIT' ) ) { return $refuse( self::busy() ); }
@@ -917,7 +917,7 @@ final class ServiceBookings {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_booking_payment_required', __( 'Diese Buchung wird mit der Zahlung der Bestellung bestätigt.', 'pass-captain' ), array( 'status' => 402 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$target = $slots[ (int) $supplement->slot_id ];
 		$resource = $locked[ (int) $new_slot_row->resource_id ];
 		$failure = '';
@@ -966,7 +966,7 @@ final class ServiceBookings {
 		if ( $row && ! (int) $supplement->refund_id ) { $wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'refund_id' => (int) $row['refund_id'] ), array( 'booking_id' => (int) $supplement->booking_id ) ); }
 		if ( is_wp_error( $result ) || ! Refunder::settled( $result ) ) {
 			Audit::record( 'service_booking_refund_failed', 'service_booking', (int) $supplement->booking_id, array( 'error' => is_wp_error( $result ) ? $result->get_error_code() : (string) ( $result['status'] ?? '' ), 'kind' => 'supplement' ) );
-			Jobs::enqueue( 'service-booking-refund-' . (int) $supplement->booking_id, self::JOB_REFUND, array( 'booking_id' => (int) $supplement->booking_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'service-booking-refund-' . (int) $supplement->booking_id, self::JOB_REFUND, array( 'booking_id' => (int) $supplement->booking_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 		}
 		return $result;
 	}
@@ -976,7 +976,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,order_id,slot_id FROM %i WHERE supplement_for=%d AND status='held'", $wpdb->prefix . 'wpcap_service_bookings', absint( $booking_id ) ) );
 		foreach ( (array) $rows as $row ) {
-			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='cancelled',cancel_reason=%s,expires_at=NULL,updated_at=%s WHERE booking_id=%d AND status='held'", $wpdb->prefix . 'wpcap_service_bookings', substr( 'supplement_' . sanitize_key( $reason ), 0, 64 ), current_time( 'mysql', true ), (int) $row->booking_id ) );
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='cancelled',cancel_reason=%s,expires_at=NULL,updated_at=%s WHERE booking_id=%d AND status='held'", $wpdb->prefix . 'wpcap_service_bookings', substr( 'supplement_' . sanitize_key( $reason ), 0, 64 ), Clock::mysql(), (int) $row->booking_id ) );
 			if ( 1 !== (int) $changed ) { continue; }
 			$order = Orders::get( (int) $row->order_id );
 			if ( $order && 'pending' === $order->payment_status ) { Orders::cancel_order( (int) $row->order_id, 'service_supplement_dropped' ); }
@@ -997,7 +997,7 @@ final class ServiceBookings {
 		$resource = ServiceResources::resource( (int) $slot->resource_id );
 		$policy = ServiceResources::rules( $resource )['price_policy'];
 		$old_unit = (int) $booking->quantity ? intdiv( (int) $booking->amount_minor, (int) $booking->quantity ) : 0;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.ticket_type_id,r.timezone,r.event_id FROM %i s INNER JOIN %i r ON r.resource_id=s.resource_id WHERE r.event_id=%d AND r.status='active' AND s.status='open' AND s.starts_at>%s AND s.slot_id<>%d ORDER BY s.starts_at LIMIT 300", $wpdb->prefix . 'wpcap_service_slots', $wpdb->prefix . 'wpcap_resources', (int) $resource->event_id, current_time( 'mysql', true ), (int) $slot->slot_id ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.ticket_type_id,r.timezone,r.event_id FROM %i s INNER JOIN %i r ON r.resource_id=s.resource_id WHERE r.event_id=%d AND r.status='active' AND s.status='open' AND s.starts_at>%s AND s.slot_id<>%d ORDER BY s.starts_at LIMIT 300", $wpdb->prefix . 'wpcap_service_slots', $wpdb->prefix . 'wpcap_resources', (int) $resource->event_id, Clock::mysql(), (int) $slot->slot_id ) );
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			$target = ServiceResources::resource( (int) $row->resource_id );
@@ -1021,7 +1021,7 @@ final class ServiceBookings {
 	/** Marks a booking as checked in (staff, or a check-in of one of its tickets). */
 	public static function check_in( $booking_id, $source = 'admin' ) {
 		global $wpdb;
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='checked_in',checked_in_at=%s,updated_at=%s WHERE booking_id=%d AND status IN ('confirmed','no_show')", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), current_time( 'mysql', true ), absint( $booking_id ) ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='checked_in',checked_in_at=%s,updated_at=%s WHERE booking_id=%d AND status IN ('confirmed','no_show')", $wpdb->prefix . 'wpcap_service_bookings', Clock::mysql(), Clock::mysql(), absint( $booking_id ) ) );
 		if ( 1 !== (int) $changed ) { return self::state_error(); }
 		Audit::record( 'service_booking_checked_in', 'service_booking', absint( $booking_id ), array( 'source' => sanitize_key( $source ) ) );
 		return self::state( self::get( $booking_id ) );
@@ -1048,7 +1048,7 @@ final class ServiceBookings {
 		$resource = self::resource_of( $booking );
 		$rules = ServiceResources::rules( $resource );
 		$fee = 'forfeit' === $rules['noshow_policy'] ? (int) $rules['noshow_fee_minor'] : 0;
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='no_show',noshow_at=%s,fee_minor=%d,updated_at=%s WHERE booking_id=%d AND status='confirmed'", $wpdb->prefix . 'wpcap_service_bookings', current_time( 'mysql', true ), $fee, current_time( 'mysql', true ), (int) $booking->booking_id ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='no_show',noshow_at=%s,fee_minor=%d,updated_at=%s WHERE booking_id=%d AND status='confirmed'", $wpdb->prefix . 'wpcap_service_bookings', Clock::mysql(), $fee, Clock::mysql(), (int) $booking->booking_id ) );
 		if ( 1 !== (int) $changed ) { return self::state_error(); }
 		$booking = self::get( $booking_id );
 		Audit::record( 'service_booking_no_show', 'service_booking', (int) $booking->booking_id, array( 'source' => sanitize_key( $source ), 'policy' => $rules['noshow_policy'], 'fee_minor' => $fee ) );
@@ -1065,7 +1065,7 @@ final class ServiceBookings {
 	public static function sweep( $limit = 50 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$out = array( 'confirmation_timeouts' => 0, 'no_shows' => 0 );
 		foreach ( array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT booking_id FROM %i WHERE status='pending_confirmation' AND confirm_by<=%s ORDER BY confirm_by LIMIT %d", $p . 'wpcap_service_bookings', $now, absint( $limit ) ) ) ) as $id ) {
 			$r = self::cancel( $id, array( 'actor' => 'system', 'reason' => 'confirmation_timeout' ) );
@@ -1073,10 +1073,10 @@ final class ServiceBookings {
 		}
 		// Only resources with a no-show policy (rules JSON is written by ServiceResources::save_resource()),
 		// slots ended within the longest possible grace period (7 days) plus a day.
-		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,s.ends_at,r.rules FROM %i b INNER JOIN %i s ON s.slot_id=b.slot_id INNER JOIN %i r ON r.resource_id=s.resource_id WHERE b.status='confirmed' AND s.ends_at<=%s AND s.ends_at>=%s AND (r.rules LIKE %s OR r.rules LIKE %s) ORDER BY s.ends_at LIMIT %d", $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', $now, gmdate( 'Y-m-d H:i:s', time() - 8 * DAY_IN_SECONDS ), '%"noshow_policy":"mark"%', '%"noshow_policy":"forfeit"%', absint( $limit ) ) );
+		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,s.ends_at,r.rules FROM %i b INNER JOIN %i s ON s.slot_id=b.slot_id INNER JOIN %i r ON r.resource_id=s.resource_id WHERE b.status='confirmed' AND s.ends_at<=%s AND s.ends_at>=%s AND (r.rules LIKE %s OR r.rules LIKE %s) ORDER BY s.ends_at LIMIT %d", $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', $now, gmdate( 'Y-m-d H:i:s', Clock::now() - 8 * DAY_IN_SECONDS ), '%"noshow_policy":"mark"%', '%"noshow_policy":"forfeit"%', absint( $limit ) ) );
 		foreach ( (array) $candidates as $row ) {
 			$rules = ServiceResources::sanitize_rules( (array) json_decode( (string) $row->rules, true ) );
-			if ( 'none' === $rules['noshow_policy'] || strtotime( $row->ends_at . ' UTC' ) + $rules['noshow_grace_minutes'] * MINUTE_IN_SECONDS > time() ) { continue; }
+			if ( 'none' === $rules['noshow_policy'] || strtotime( $row->ends_at . ' UTC' ) + $rules['noshow_grace_minutes'] * MINUTE_IN_SECONDS > Clock::now() ) { continue; }
 			if ( ! is_wp_error( self::mark_no_show( (int) $row->booking_id, 'sweep' ) ) ) { ++$out['no_shows']; }
 		}
 		$out['service_waitlist'] = ServiceWaitlist::sweep();
@@ -1121,7 +1121,7 @@ final class ServiceBookings {
 		$access_token = Security\Input::hex( $access_token );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
+		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= Clock::mysql() || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
 		if ( ! $booking_id ) { return $order; }
 		$booking = self::get( $booking_id );
 		return $booking && (int) $booking->order_id === (int) $order->order_id ? $booking : null;
@@ -1162,8 +1162,8 @@ final class ServiceBookings {
 			'currency' => (string) $booking->currency,
 			'cancel_until' => gmdate( 'Y-m-d H:i:s', $cancel_until ),
 			'rebook_until' => gmdate( 'Y-m-d H:i:s', $rebook_until ),
-			'can_cancel' => in_array( $booking->status, self::CANCELLABLE, true ) && time() <= $cancel_until,
-			'can_rebook' => in_array( $booking->status, self::REBOOKABLE, true ) && time() <= $rebook_until,
+			'can_cancel' => in_array( $booking->status, self::CANCELLABLE, true ) && Clock::now() <= $cancel_until,
+			'can_rebook' => in_array( $booking->status, self::REBOOKABLE, true ) && Clock::now() <= $rebook_until,
 			'confirm_by' => $booking->confirm_by,
 			'is_supplement' => (bool) (int) ( $booking->supplement_for ?? 0 ),
 			'supplement' => self::supplement_view( $booking ),
@@ -1252,7 +1252,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$event = $resource ? (string) $wpdb->get_var( $wpdb->prepare( 'SELECT name FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', (int) $resource->event_id ) ) : '';
 		$rules = ServiceResources::rules( $resource );
-		$start = $slot ? strtotime( $slot->starts_at . ' UTC' ) : time();
+		$start = $slot ? strtotime( $slot->starts_at . ' UTC' ) : Clock::now();
 		$fee = (int) $booking->fee_minor;
 		$fee_currency = (string) $booking->currency;
 		return array(

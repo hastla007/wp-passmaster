@@ -86,7 +86,7 @@ final class Invoices {
 		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
 		// PASS-INV-15: service date (start/end, local date of the occurrence) per invoice line, in line order.
 		$snapshot['service_dates'] = array_map( array( __CLASS__, 'service_dates_of' ), array_values( $items ) );
-		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
+		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => Clock::mysql(), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		// Same allocation as orders, reports and settlements (stored line discounts, OrderLines). Orders
@@ -147,7 +147,7 @@ final class Invoices {
 			'net_minor' => (int) $credit_amounts['total_minor'] - (int) $credit_amounts['tax_minor'],
 			'tax_minor' => (int) $credit_amounts['tax_minor'],
 			'total_minor' => (int) $credit_amounts['total_minor'],
-			'issued_at' => current_time( 'mysql', true ),
+			'issued_at' => Clock::mysql(),
 		);
 		// Net/VAT/gross per tax rate, frozen with the document (schema 3.8.3; older rows are computed on display).
 		if ( self::credit_rates_ready() ) {
@@ -185,7 +185,7 @@ final class Invoices {
 	 */
 	public static function void_credit_note_for_refund( $refund_id ) {
 		global $wpdb;
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', current_time( 'mysql', true ), absint( $refund_id ) ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', Clock::mysql(), absint( $refund_id ) ) );
 		if ( $updated ) {
 			Audit::record( 'credit_note_voided', 'invoice', 0, array( 'refund_id' => absint( $refund_id ), 'reason' => 'provider_refund_failed' ) );
 		}
@@ -300,7 +300,7 @@ final class Invoices {
 			$wpdb->query( 'ROLLBACK' );
 			return $number;
 		}
-		$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_credit_notes SET reversal_number=%s,reversed_at=%s WHERE credit_note_id=%d AND reversal_number=''", $number, current_time( 'mysql', true ), (int) $credit['credit_note_id'] ) );
+		$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_credit_notes SET reversal_number=%s,reversed_at=%s WHERE credit_note_id=%d AND reversal_number=''", $number, Clock::mysql(), (int) $credit['credit_note_id'] ) );
 		if ( 1 !== (int) $set || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_credit_reversal', __( 'Die Rechnungskorrektur konnte nicht storniert werden.', 'pass-captain' ), array( 'status' => 503 ) );
@@ -803,7 +803,7 @@ final class Invoices {
 
 	/** Current year in the site timezone. */
 	public static function local_year( $timestamp = null ) {
-		return (int) wp_date( 'Y', null === $timestamp ? time() : (int) $timestamp, Frontend\Format::site_timezone() );
+		return (int) wp_date( 'Y', null === $timestamp ? Clock::now() : (int) $timestamp, Frontend\Format::site_timezone() );
 	}
 
 	/**

@@ -100,8 +100,8 @@ final class BulkRuns {
 			'cursor_id' => 0,
 			'payload' => wp_json_encode( $data ),
 			'created_by' => get_current_user_id(),
-			'created_at' => current_time( 'mysql', true ),
-			'updated_at' => current_time( 'mysql', true ),
+			'created_at' => Clock::mysql(),
+			'updated_at' => Clock::mysql(),
 		);
 		if ( self::ready() ) {
 			$existing = self::by_key( $row['run_key'] );
@@ -162,7 +162,7 @@ final class BulkRuns {
 		global $wpdb;
 		foreach ( $fields as $name => $value ) { $run->$name = $value; }
 		if ( ! $run->run_id ) { return; }
-		$fields['updated_at'] = current_time( 'mysql', true );
+		$fields['updated_at'] = Clock::mysql();
 		$run->updated_at = $fields['updated_at'];
 		$wpdb->update( self::table(), $fields, array( 'run_id' => (int) $run->run_id ) );
 	}
@@ -171,7 +171,7 @@ final class BulkRuns {
 	public static function count( $run_id, $column, $by = 1 ) {
 		global $wpdb;
 		if ( ! absint( $run_id ) || ! self::ready() || ! in_array( $column, array( 'refunds', 'refunds_open' ), true ) ) { return; }
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET $column=$column+%d,updated_at=%s WHERE run_id=%d", (int) $by, current_time( 'mysql', true ), absint( $run_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and allow-listed column.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET $column=$column+%d,updated_at=%s WHERE run_id=%d", (int) $by, Clock::mysql(), absint( $run_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and allow-listed column.
 	}
 
 	/**
@@ -209,8 +209,8 @@ final class BulkRuns {
 
 	private static function lease( $run ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
-		$until = gmdate( 'Y-m-d H:i:s', time() + (int) ceil( Jobs\TimeBudget::seconds() ) + 120 );
+		$now = Clock::real_mysql();
+		$until = gmdate( 'Y-m-d H:i:s', Clock::real() + (int) ceil( Jobs\TimeBudget::seconds() ) + 120 );
 		$taken = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET locked_until=%s WHERE run_id=%d AND status='running' AND (locked_until IS NULL OR locked_until<%s)", $until, (int) $run->run_id, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 		if ( 1 !== (int) $taken ) { return false; }
 		self::$leases[ (int) $run->run_id ] = true;
@@ -274,7 +274,7 @@ final class BulkRuns {
 	}
 
 	private static function finish( $run ) {
-		self::save( $run, array( 'status' => 'complete', 'phase' => 'done', 'finished_at' => current_time( 'mysql', true ) ) );
+		self::save( $run, array( 'status' => 'complete', 'phase' => 'done', 'finished_at' => Clock::mysql() ) );
 		$summary = self::summary( $run );
 		$actions = array( 'occurrence_cancel' => 'occurrence_cancellation_processed', 'event_cancel' => 'event_cancellation_processed', 'notify' => 'occurrence_notification_processed' );
 		$types = array( 'occurrence_cancel' => 'occurrence', 'event_cancel' => 'event', 'notify' => 'occurrence' );
@@ -634,7 +634,7 @@ final class BulkRuns {
 			$out['total'] += (int) $row->n;
 			if ( 'sent' === $row->status ) { $out['sent'] += (int) $row->n; } elseif ( in_array( $row->status, array( 'failed', 'cancelled' ), true ) ) { $out['failed'] += (int) $row->n; } else { $out['waiting'] += (int) $row->n; }
 		}
-		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE template_key=%s AND status='queued' AND send_at<=%s", $key, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE template_key=%s AND status='queued' AND send_at<=%s", $key, Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		return $out;
 	}
 
@@ -648,7 +648,7 @@ final class BulkRuns {
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT status,COUNT(*) AS n FROM $table WHERE job_type=%s AND payload LIKE %s AND status<>'complete' GROUP BY status", OccurrenceCancellation::REFUND_JOB, $like ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 			if ( 'dead_letter' === $row->status ) { $out['failed'] += (int) $row->n; } else { $out['retrying'] += (int) $row->n; }
 		}
-		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE job_type=%s AND payload LIKE %s AND status='queued' AND run_after<=%s", OccurrenceCancellation::REFUND_JOB, $like, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE job_type=%s AND payload LIKE %s AND status='queued' AND run_after<=%s", OccurrenceCancellation::REFUND_JOB, $like, Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		return $out;
 	}
 

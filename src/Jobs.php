@@ -33,7 +33,7 @@ final class Jobs {
 		$key = sanitize_text_field( $key );
 		$type = sanitize_key( $type );
 		if ( '' === $key || '' === $type ) { return new \WP_Error( 'wpcap_job_invalid', __( 'Job-Schlüssel oder Job-Typ ungültig.', 'pass-captain' ) ); }
-		$row = array( 'idempotency_key' => hash( 'sha256', $key ), 'job_type' => $type, 'payload' => wp_json_encode( $payload ), 'run_after' => $run_after ? sanitize_text_field( $run_after ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) );
+		$row = array( 'idempotency_key' => hash( 'sha256', $key ), 'job_type' => $type, 'payload' => wp_json_encode( $payload ), 'run_after' => $run_after ? sanitize_text_field( $run_after ) : Clock::mysql(), 'status' => 'queued', 'created_at' => Clock::mysql(), 'updated_at' => Clock::mysql() );
 		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 		// A326/A328: the order a job belongs to (payload order_id, else the current log scope), for the
 		// dead-letter list and the order history (schema 3.10.16).
@@ -79,7 +79,7 @@ final class Jobs {
 			}
 		}
 		$table = $wpdb->prefix . 'wpcap_jobs';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$filter = '' === $type ? '' : $wpdb->prepare( ' AND job_type=%s', $type );
 		self::recover_stale( $now );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
@@ -132,7 +132,7 @@ final class Jobs {
 		foreach ( $keys as $key ) {
 			if ( microtime( true ) >= (float) $deadline ) { break; }
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
-			$now = current_time( 'mysql', true );
+			$now = Clock::mysql();
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE idempotency_key=%s AND status='queued' AND run_after<=%s FOR UPDATE", $table, hash( 'sha256', sanitize_text_field( $key ) ), $now ) );
 			if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); break; }
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); continue; }
@@ -189,7 +189,7 @@ final class Jobs {
 		$attempts = (int) $row->attempts + 1;
 		// A worker that dies from here on (fatal error, time limit) releases the claim on shutdown,
 		// with the backoff of a failed run; the stale recovery is the fallback.
-		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + self::backoff_seconds( $attempts ) ), 'last_error' => __( 'Der Worker wurde während der Ausführung beendet.', 'pass-captain' ) ) );
+		Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', array( 'run_after' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::backoff_seconds( $attempts ) ), 'last_error' => __( 'Der Worker wurde während der Ausführung beendet.', 'pass-captain' ) ) );
 		$payload = json_decode( (string) $row->payload, true );
 		$payload = is_array( $payload ) ? $payload : array();
 		/* translators: %s: job type */
@@ -215,7 +215,7 @@ final class Jobs {
 		$mail_failure = true === $handled ? '' : Operations\Monitor::last_mail_failure_text();
 		if ( '' !== $mail_failure && false === strpos( $error, $mail_failure ) ) { $error .= ' – ' . $mail_failure; }
 		if ( true === $handled ) {
-			$done = array( 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) );
+			$done = array( 'locked_at' => null, 'last_error' => null, 'updated_at' => Clock::mysql() );
 			// Only this run's claim (running + its locked_at) may finish the job: a stale claim that was
 			// re-queued and taken over by another worker is left to that worker. Retried briefly after a
 			// deadlock or lost connection; if that fails too, the job runs again later (at-least-once).
@@ -225,7 +225,7 @@ final class Jobs {
 		}
 		$dead = $attempts >= self::max_attempts();
 		$to = $dead ? 'dead_letter' : 'queued';
-		$failed = array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + self::backoff_seconds( $attempts ) ), 'locked_at' => null, 'last_error' => self::short_error( Redact::text( (string) $error ) ), 'updated_at' => current_time( 'mysql', true ) );
+		$failed = array( 'run_after' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::backoff_seconds( $attempts ) ), 'locked_at' => null, 'last_error' => self::short_error( Redact::text( (string) $error ) ), 'updated_at' => Clock::mysql() );
 		$marked = false;
 		for ( $try = 0; $try < 3 && false === $marked; $try++ ) {
 			if ( $try ) { usleep( 20000 * $try ); }
@@ -287,7 +287,7 @@ final class Jobs {
 	private static function recover_stale( $now ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_jobs';
-		$stale = gmdate( 'Y-m-d H:i:s', time() - Config::get( 'jobs_stale_minutes' ) * MINUTE_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', Clock::now() - Config::get( 'jobs_stale_minutes' ) * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='queued',locked_at=NULL,run_after=DATE_ADD(%s, INTERVAL LEAST(%d, 60*POW(2, LEAST(GREATEST(attempts,1),10))) SECOND),last_error=%s,updated_at=%s WHERE status='running' AND locked_at<%s", $table, $now, DAY_IN_SECONDS, __( 'Der Worker wurde während der Ausführung beendet (Reservierung nach 15 Minuten zurückgeholt).', 'pass-captain' ), $now, $stale ) );
 	}
 

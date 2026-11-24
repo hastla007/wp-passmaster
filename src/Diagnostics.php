@@ -57,7 +57,7 @@ final class Diagnostics {
 	 * @return array {time, checks: key => {key, label, count, severity: ok|warning|error, samples, action, repairable, error}}
 	 */
 	public static function run( array $only = array() ) {
-		$report = array( 'time' => time(), 'checks' => array() );
+		$report = array( 'time' => Clock::real(), 'checks' => array() );
 		foreach ( self::checks() as $key => list( $label, $repairable ) ) {
 			if ( $only && ! in_array( $key, $only, true ) ) { continue; }
 			$report['checks'][ $key ] = self::run_check( $key, $label, $repairable );
@@ -90,7 +90,7 @@ final class Diagnostics {
 	}
 
 	private static function gmt( $offset_seconds = 0 ) {
-		return gmdate( 'Y-m-d H:i:s', time() - (int) $offset_seconds );
+		return gmdate( 'Y-m-d H:i:s', Clock::now() - (int) $offset_seconds );
 	}
 
 	/* ------------------------------------------------------------------ Checks */
@@ -239,8 +239,8 @@ final class Diagnostics {
 
 	public static function repair_expired_holds() {
 		global $wpdb;
-		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', current_time( 'mysql', true ) ) );
-		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_reservations', current_time( 'mysql', true ) ) );
+		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', Clock::mysql() ) );
+		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_reservations', Clock::mysql() ) );
 		$total = 0;
 		do {
 			$expired = (int) Orders::expire_holds( 500 );
@@ -266,7 +266,7 @@ final class Diagnostics {
 	public static function repair_stale_claims() {
 		global $wpdb;
 		$requeued = 0;
-		$stale = gmdate( 'Y-m-d H:i:s', time() - Status::STALE_CLAIM_AFTER );
+		$stale = gmdate( 'Y-m-d H:i:s', Clock::now() - Status::STALE_CLAIM_AFTER );
 		foreach ( Status::queues() as $q ) {
 			if ( ! Status::table_exists( $q['table'] ) ) { continue; }
 			$t = $wpdb->prefix . $q['table'];
@@ -316,7 +316,7 @@ final class Diagnostics {
 		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) {
 			return new \WP_Error( 'wpcap_diag_refund_state', __( 'Die Erstattung wartet nicht (mehr) auf eine manuelle Prüfung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( 'completed' === $resolution ) {
 			// A provider reference turns it into "paid out, not booked": reconcile() books it exactly once.
 			$note = 'manual-review:' . ( '' !== $reference ? $reference : (string) $refund_id );

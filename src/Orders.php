@@ -2179,7 +2179,7 @@ final class Orders {
 	/** Whether the order still has an unexpired active hold (non-locking read). */
 	public static function has_active_hold( $order_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) ) > 0;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), Clock::mysql() ) ) > 0;
 	}
 
 	/**
@@ -3855,7 +3855,7 @@ final class Orders {
 		$now = Clock::mysql();
 		if ( $sent ) {
 			$marker = self::delivery_marker( $order_id, $ticket_ids );
-			update_option( $marker, time(), false );
+			update_option( $marker, Clock::now(), false );
 			$completed = Jobs::update_with_retry( $table, array( 'status' => 'complete', 'attempts' => 1, 'locked_at' => null, 'last_error' => null, 'updated_at' => $now ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%s', '%s' ) );
 			if ( $completed ) {
 				delete_option( $marker );

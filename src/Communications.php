@@ -23,7 +23,7 @@ final class Communications {
 		$template = sanitize_key( $template );
 		if ( ! is_email( $email ) || '' === $template || '' === $key ) { return new \WP_Error( 'wpcap_message_invalid', __( 'Nachrichtendaten ungültig.', 'pass-captain' ) ); }
 		$key = hash( 'sha256', $key );
-		$row = array( 'dedupe_key' => $key, 'recipient' => $email, 'template_key' => $template, 'payload' => wp_json_encode( $payload ), 'send_at' => $send_at ? sanitize_text_field( $send_at ) : current_time( 'mysql', true ), 'status' => 'queued', 'created_at' => current_time( 'mysql', true ) );
+		$row = array( 'dedupe_key' => $key, 'recipient' => $email, 'template_key' => $template, 'payload' => wp_json_encode( $payload ), 'send_at' => $send_at ? sanitize_text_field( $send_at ) : Clock::mysql(), 'status' => 'queued', 'created_at' => Clock::mysql() );
 		$formats = array( '%s', '%s', '%s', '%s', '%s', '%s', '%s' );
 		$order_id = absint( $order_id ) ?: absint( $payload['order_id'] ?? ( Log::current_scope()['order_id'] ?? 0 ) );
 		if ( $order_id && Log::has_column( 'wpcap_message_queue', 'order_id' ) ) {
@@ -93,7 +93,7 @@ final class Communications {
 		foreach ( array_values( $keys ) as $i => $key ) {
 			if ( microtime( true ) >= (float) $deadline || $budget <= 0 ) { $left = true; break; }
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $left = true; break; }
-			$now = current_time( 'mysql', true );
+			$now = Clock::mysql();
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE dedupe_key=%s AND status='queued' AND send_at<=%s FOR UPDATE", $table, hash( 'sha256', sanitize_text_field( $key ) ), $now ) );
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); continue; }
 			$claimed = $wpdb->update( $table, array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) );
@@ -173,9 +173,9 @@ final class Communications {
 	private static function process( $only ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_message_queue';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$filter = '' === $only ? '' : $wpdb->prepare( ' AND template_key=%s', $only );
-		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', Clock::now() - 15 * MINUTE_IN_SECONDS );
 		// A message whose attempts are used up (the worker died while sending it every time) fails for good.
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", $table, self::MAX_ATTEMPTS, $stale ) );
 		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
@@ -252,7 +252,7 @@ final class Communications {
 			$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
 			$done_formats = array( '%s', '%s', '%s' );
 			if ( Log::has_column( 'wpcap_message_queue', 'sent_at' ) ) {
-				$done['sent_at'] = current_time( 'mysql', true ); // A328: when it went out (order history).
+				$done['sent_at'] = Clock::mysql(); // A328: when it went out (order history).
 				$done_formats[] = '%s';
 			}
 			// Retried after a lost connection: an unmarked mail would be sent again (at-least-once).
@@ -280,7 +280,7 @@ final class Communications {
 				$budget = 0;
 			} else {
 				$final = $tries >= self::MAX_ATTEMPTS;
-				Jobs::update_with_retry( $table, array( 'status' => $final ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => Operations\Queues::safe_error( $reason ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				Jobs::update_with_retry( $table, array( 'status' => $final ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => Operations\Queues::safe_error( $reason ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				if ( $final ) {
 					Log::error( 'mail', 'Queued message failed for good: ' . sanitize_key( (string) $row->template_key ) . ' – ' . $reason, $scope + array( 'message_id' => (int) $row->message_id ) );
 				}

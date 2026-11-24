@@ -65,7 +65,7 @@ final class WebService {
 	private static function rate_limited( $window ) {
 		$window = max( 1, (int) $window );
 		$response = new \WP_REST_Response( array( 'code' => 'wpcap_wallet_rate_limited', 'message' => __( 'Zu viele Anfragen. Bitte versuche es in einer Minute erneut.', 'pass-captain' ), 'data' => array( 'status' => 429 ) ), 429 );
-		$response->header( 'Retry-After', (string) max( 1, $window - time() % $window ) );
+		$response->header( 'Retry-After', (string) max( 1, $window - \PassCaptain\Clock::real() % $window ) );
 		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
 	}
@@ -136,7 +136,7 @@ final class WebService {
 		$sig = (string) $request->get_param( 'sig' );
 		$limits = self::limits();
 		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), $limits['download'], $limits['window'] ) ) { return self::rate_limited( $limits['window'] ); }
-		if ( $expires < time() || ! hash_equals( Service::collection_sig( $order, $expires ), $sig ) ) {
+		if ( $expires < \PassCaptain\Clock::real() || ! hash_equals( Service::collection_sig( $order, $expires ), $sig ) ) {
 			return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$headers = array( 'Content-Type' => 'text/html; charset=utf-8' );

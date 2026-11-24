@@ -84,7 +84,7 @@ final class Consents {
 			$subject = '' !== (string) $ticket->attendee_email ? (string) $ticket->attendee_email : (string) ( $order->customer_email ?? '' );
 			// Box office sales (payment provider pos_*) log the source "box_office"; the record is otherwise identical.
 			$source = str_starts_with( (string) ( $order->payment_provider ?? '' ), 'pos_' ) ? 'box_office' : 'checkout';
-			self::grant( (int) $ticket->ticket_id, (int) $ticket->order_id, $field, $subject, $source, (string) ( $order->created_at ?? current_time( 'mysql', true ) ) );
+			self::grant( (int) $ticket->ticket_id, (int) $ticket->order_id, $field, $subject, $source, (string) ( $order->created_at ?? \PassCaptain\Clock::mysql() ) );
 		}
 	}
 
@@ -126,7 +126,7 @@ final class Consents {
 		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d AND withdrawn_at IS NULL AND LOWER(subject_email)<>LOWER(%s)', self::table(), absint( $ticket_id ), (string) $holder ) );
 		$ended = 0;
 		foreach ( (array) $rows as $consent ) {
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET withdrawn_at=%s,withdrawn_source='holder_changed' WHERE consent_id=%d AND withdrawn_at IS NULL", self::table(), current_time( 'mysql', true ), (int) $consent->consent_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET withdrawn_at=%s,withdrawn_source='holder_changed' WHERE consent_id=%d AND withdrawn_at IS NULL", self::table(), \PassCaptain\Clock::mysql(), (int) $consent->consent_id ) );
 			if ( 1 !== (int) $updated ) { continue; }
 			++$ended;
 			$wpdb->delete( "{$wpdb->prefix}wpcap_participant_answers", array( 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id ) );
@@ -163,7 +163,7 @@ final class Consents {
 		$missing = self::missing_for_ticket( $ticket_id );
 		$holder = self::holder( $ticket_id );
 		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', $ticket_id ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ids = array();
 		foreach ( array_unique( array_map( 'absint', $field_ids ) ) as $field_id ) {
 			if ( ! isset( $missing[ $field_id ] ) || '' === $holder ) { continue; }
@@ -280,7 +280,7 @@ final class Consents {
 		$consent = self::get( $consent_id );
 		if ( ! $consent ) { return new \WP_Error( 'wpcap_consent_missing', __( 'Einwilligung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $consent->withdrawn_at ) { return new \WP_Error( 'wpcap_consent_withdrawn', __( 'Diese Einwilligung wurde bereits widerrufen.', 'pass-captain' ), array( 'status' => 409 ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$updated = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET withdrawn_at=%s,withdrawn_source=%s WHERE consent_id=%d AND withdrawn_at IS NULL', self::table(), $now, sanitize_key( $source ), (int) $consent->consent_id ) );
 		if ( 1 !== (int) $updated ) { return new \WP_Error( 'wpcap_consent_withdrawn', __( 'Diese Einwilligung wurde bereits widerrufen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->delete( "{$wpdb->prefix}wpcap_participant_answers", array( 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id ) );
@@ -478,7 +478,7 @@ final class Consents {
 	public static function retention( $now = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now_sql = gmdate( 'Y-m-d H:i:s', is_numeric( $now ) ? (int) $now : time() ); // "continue" on a continuation run.
+		$now_sql = gmdate( 'Y-m-d H:i:s', is_numeric( $now ) ? (int) $now : \PassCaptain\Clock::now() ); // "continue" on a continuation run.
 		$global = Retention::attendee_days(); // 0 = per-field periods.
 		$default_days = (int) Retention::default_attendee_days();
 		$deleted = 0;

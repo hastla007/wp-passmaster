@@ -81,7 +81,7 @@ final class Retention {
 	/** Registers the daily event (activation, upgrades and the self-healing check on init, Plugin::ensure_events()). */
 	public static function schedule() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
-			wp_schedule_event( time() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );
+			wp_schedule_event( \PassCaptain\Clock::real() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );
 		}
 	}
 
@@ -250,7 +250,7 @@ final class Retention {
 	 */
 	public static function run( $now = null, $budget = null ) {
 		// A continuation run (TimeBudget::continue_later) passes the argument "continue": not a timestamp.
-		$now = is_numeric( $now ) ? (int) $now : time();
+		$now = is_numeric( $now ) ? (int) $now : \PassCaptain\Clock::now();
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
@@ -309,7 +309,7 @@ final class Retention {
 	 * @return array Deleted rows per step plus `complete` (false: out of time, the next run continues).
 	 */
 	public static function housekeeping( $now = null, $budget = null ) {
-		$now = null === $now || '' === $now ? time() : (int) $now;
+		$now = null === $now || '' === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_cleanup_budget', self::HOUSEKEEPING_BUDGET ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		global $wpdb;
@@ -857,13 +857,13 @@ final class Retention {
 		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
 		$state = get_option( self::CHECKIN_STAFF_CURSOR, array() );
 		$state = is_array( $state ) ? $state : array();
-		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= time();
+		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= \PassCaptain\Clock::real();
 		$from = $full ? '' : (string) ( $state['at'] ?? '' );
 		// Check-ins are walked with a cursor; the admission tables below run every time (an up-to-date cursor must not
 		// skip them).
 		$total = 0;
 		if ( '' === $from || $from < $cutoff ) {
-			$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
+			$cap = self::utc( min( $now, \PassCaptain\Clock::real() ) - $days * DAY_IN_SECONDS );
 			$last = '';
 			$rest = false;
 			$total += self::loop(
@@ -883,7 +883,7 @@ final class Retention {
 			);
 			// Everything before the cutoff is done unless the last batch was full (budget ran out).
 			$at = $rest ? $from : $cutoff;
-			$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
+			$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? \PassCaptain\Clock::real() : (int) ( $state['full_at'] ?? 0 ) );
 			update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
 		}
 		// Admission entries and conflicts (staff user, device, resolution note) after the same period.

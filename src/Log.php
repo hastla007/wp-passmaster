@@ -73,7 +73,7 @@ final class Log {
 	public static function settings_changed( $old, $new ) {
 		$was = is_array( $old ) && ! empty( $old['debug_logging'] );
 		$is = is_array( $new ) && ! empty( $new['debug_logging'] );
-		if ( $is && ! $was ) { update_option( self::DEBUG_SINCE_OPTION, time(), false ); }
+		if ( $is && ! $was ) { update_option( self::DEBUG_SINCE_OPTION, Clock::real(), false ); }
 	}
 
 	public static function settings_added( $name, $value ) {
@@ -121,7 +121,7 @@ final class Log {
 		if ( defined( 'WPCAP_DEBUG' ) ) { return (bool) constant( 'WPCAP_DEBUG' ); }
 		if ( ! Settings::get( 'debug_logging' ) ) { return false; }
 		$since = (int) get_option( self::DEBUG_SINCE_OPTION, 0 );
-		return $since > 0 && time() - $since < self::DEBUG_HOURS * HOUR_IN_SECONDS;
+		return $since > 0 && Clock::real() - $since < self::DEBUG_HOURS * HOUR_IN_SECONDS;
 	}
 
 	/** Lowest stored level. */
@@ -225,7 +225,7 @@ final class Log {
 		$message = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 500 ) : \PassCaptain\Text::cut( $message, 500 );
 		$context = self::clean_context( $context );
 		$entry = array(
-			'created_at'    => current_time( 'mysql', true ),
+			'created_at'    => Clock::real_mysql(),
 			'level'         => $level,
 			'channel'       => '' !== $channel ? $channel : 'general',
 			'reference'     => $reference,
@@ -365,7 +365,7 @@ final class Log {
 	public static function purge( $now = null ) {
 		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? Clock::real() : (int) $now;
 		$days = self::retention_days();
 		$table = $wpdb->prefix . self::TABLE;
 		$removed = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE created_at<%s LIMIT 5000", gmdate( 'Y-m-d H:i:s', $now - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.

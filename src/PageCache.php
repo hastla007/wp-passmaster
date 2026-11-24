@@ -475,7 +475,7 @@ final class PageCache {
 			foreach ( array( 'sales_start' => 0, 'sales_end' => 1 ) as $field => $offset ) {
 				$value = (string) ( $row->$field ?? '' );
 				$ts = '' !== $value ? strtotime( $value . ' UTC' ) + $offset : 0;
-				if ( $ts > time() ) { $times[ $ts ] = true; }
+				if ( $ts > Clock::real() ) { $times[ $ts ] = true; }
 			}
 		}
 		$times = array_keys( $times );

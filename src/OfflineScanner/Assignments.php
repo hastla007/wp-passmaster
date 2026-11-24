@@ -26,7 +26,7 @@ final class Assignments {
 
 	/** Device is usable: not revoked, not expired. */
 	public static function device_active( $device ) {
-		return $device && ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > current_time( 'mysql', true ) );
+		return $device && ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > \PassCaptain\Clock::mysql() );
 	}
 
 	/**
@@ -48,7 +48,7 @@ final class Assignments {
 		if ( $occurrence_id && $event_id !== (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $occurrence_id ) ) ) {
 			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', self::table(), (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', self::table(), (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), \PassCaptain\Clock::mysql() ) );
 		Audit::record( 'offline_device_assigned', 'device', (int) $device->device_id, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id ) );
 		return array( 'device_id' => (int) $device->device_id, 'event_id' => $event_id, 'occurrence_id' => $occurrence_id );
 	}
@@ -66,7 +66,7 @@ final class Assignments {
 		$done = array();
 		foreach ( array_unique( array_map( 'absint', $event_ids ) ) as $event_id ) {
 			if ( ! $event_id || ! Rules::enabled( $event_id ) ) { continue; }
-			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,0,%d,%s)', self::table(), absint( $device_id ), $event_id, absint( $by_user ), current_time( 'mysql', true ) ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,0,%d,%s)', self::table(), absint( $device_id ), $event_id, absint( $by_user ), \PassCaptain\Clock::mysql() ) );
 			$done[] = $event_id;
 		}
 		if ( $done ) { Audit::record( 'offline_device_assigned', 'device', absint( $device_id ), array( 'event_ids' => $done, 'occurrence_id' => 0, 'via' => 'pairing' ) ); }
@@ -88,7 +88,7 @@ final class Assignments {
 
 	public static function touch( $row ) {
 		global $wpdb;
-		$wpdb->update( self::table(), array( 'last_package_at' => current_time( 'mysql', true ) ), array( 'device_id' => (int) $row->device_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id ) );
+		$wpdb->update( self::table(), array( 'last_package_at' => \PassCaptain\Clock::mysql() ), array( 'device_id' => (int) $row->device_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id ) );
 	}
 
 	/**
@@ -169,7 +169,7 @@ final class Assignments {
 					$p . 'wpcap_occurrences',
 					$p . 'wpcap_events',
 					(int) $device->device_id,
-					gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
+					gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS ),
 				),
 				array_values( array_map( 'absint', $events ) )
 			)
@@ -181,7 +181,7 @@ final class Assignments {
 	public static function candidates( $event_id ) {
 		global $wpdb;
 		$out = array();
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT d.* FROM %i d WHERE d.revoked_at IS NULL AND (d.expires_at IS NULL OR d.expires_at>%s) ORDER BY d.device_id DESC LIMIT 500', $wpdb->prefix . 'wpcap_scanner_devices', current_time( 'mysql', true ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT d.* FROM %i d WHERE d.revoked_at IS NULL AND (d.expires_at IS NULL OR d.expires_at>%s) ORDER BY d.device_id DESC LIMIT 500', $wpdb->prefix . 'wpcap_scanner_devices', \PassCaptain\Clock::mysql() ) );
 		foreach ( $rows as $row ) {
 			if ( in_array( absint( $event_id ), Devices::event_ids( $row ), true ) ) { $out[] = $row; }
 		}

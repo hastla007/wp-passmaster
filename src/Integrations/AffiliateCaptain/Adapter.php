@@ -214,7 +214,7 @@ final class Adapter {
 		} elseif ( ! self::$job_running ) {
 			// Affiliate Captain failed or threw: one retry job per order (idempotency key = order id). The
 			// sale call is idempotent on the Affiliate Captain side and skipped here once reported.
-			\PassCaptain\Jobs::enqueue( 'affiliate-sale-' . (int) $order->order_id, self::SALE_JOB, array( 'order_id' => (int) $order->order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			\PassCaptain\Jobs::enqueue( 'affiliate-sale-' . (int) $order->order_id, self::SALE_JOB, array( 'order_id' => (int) $order->order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 		}
 		return $result;
 	}

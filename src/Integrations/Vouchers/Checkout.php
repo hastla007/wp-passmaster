@@ -207,7 +207,7 @@ final class Checkout {
 			// Means of payment: lines, discount and VAT keep the full consideration; only the amount due shrinks.
 			$snapshot['amount_paid_by_voucher'] = $amount;
 			$snapshot['amount_due_minor'] = $new_total;
-			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
+			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, wp_json_encode( $snapshot ), \PassCaptain\Clock::mysql(), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
 		} else {
 			// Single-purpose: VAT was paid when the voucher was sold; the redemption reduces price and VAT.
 			// Promotion code: a plain price reduction, booked the same way.
@@ -231,7 +231,7 @@ final class Checkout {
 			$price_snapshot['total_minor'] = $new_total;
 			$price_snapshot['voucher_minor'] = $amount;
 			$snapshot['amount_paid_by_voucher'] = 0;
-			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,price_snapshot=%s,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, $amount, $new_tax, wp_json_encode( $price_snapshot ), wp_json_encode( $snapshot ), current_time( 'mysql', true ), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,price_snapshot=%s,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", $p . 'wpcap_orders', $new_total, $amount, $new_tax, wp_json_encode( $price_snapshot ), wp_json_encode( $snapshot ), \PassCaptain\Clock::mysql(), (int) $order_id, $old_total ) ) && 1 === (int) $wpdb->rows_affected;
 			// Unsent fiscal documents (created at checkout) follow the reduced amounts.
 			if ( $ok && 'open' === $fiscal ) { $ok = \PassCaptain\Modules\Fiscalization::reprice_open_documents( (int) $order_id, $fiscal_lines ); }
 		}
@@ -272,7 +272,7 @@ final class Checkout {
 		if ( false === $claim ) {
 			// Another operation (e.g. the expiry releasing the reservation) is running: try again shortly;
 			// the retry sees its result (a released voucher is reserved again and then committed).
-			Jobs::enqueue( 'voucher-commit-' . $order_id, self::JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'voucher-commit-' . $order_id, self::JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + MINUTE_IN_SECONDS ) );
 			return false;
 		}
 		list( $snapshot, $token ) = $claim;
@@ -337,7 +337,7 @@ final class Checkout {
 		if ( ! $stored ) {
 			// Not stored: the retry commits again with the same key (the provider answers once).
 			$pending = array();
-			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + MINUTE_IN_SECONDS ) );
 			return false;
 		}
 		Audit::record( 'voucher_committed', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
@@ -398,7 +398,7 @@ final class Checkout {
 	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final, $token ) {
 		if ( ! $final && self::is_temporary( $error ) ) {
 			\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => true ) ) );
-			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 			return false;
 		}
 		return self::needs_review( $order_id, $snapshot, $error, $token );
@@ -525,7 +525,7 @@ final class Checkout {
 				/* translators: 1: order, 2: amount in minor units, 3: error */
 				\PassCaptain\Alerts::raise( 'voucher_refund_failed', __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 			} elseif ( ! $from_job ) {
-				Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+				Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 			}
 			return $final;
 		}
@@ -534,7 +534,7 @@ final class Checkout {
 			Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $share, 'purpose' => self::snapshot_purpose( $snapshot ) ) );
 		}
 		if ( false === $booked && ! $from_job ) {
-			Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + MINUTE_IN_SECONDS ) );
 		}
 		return false !== $booked;
 	}
@@ -986,7 +986,7 @@ final class Checkout {
 
 	/** Whether another operation holds a live claim on the snapshot (claims older than CLAIM_TTL are void). */
 	private static function claimed( array $snapshot ) {
-		return ! empty( $snapshot['claim']['token'] ) && (int) ( $snapshot['claim']['at'] ?? 0 ) > time() - self::CLAIM_TTL;
+		return ! empty( $snapshot['claim']['token'] ) && (int) ( $snapshot['claim']['at'] ?? 0 ) > \PassCaptain\Clock::real() - self::CLAIM_TTL;
 	}
 
 	/**
@@ -1006,7 +1006,7 @@ final class Checkout {
 			if ( ! $snapshot || ! in_array( (string) ( $snapshot['status'] ?? '' ), $statuses, true ) ) { return null; }
 			if ( self::claimed( $snapshot ) ) { return false; }
 			$token = bin2hex( random_bytes( 8 ) );
-			$snapshot['claim'] = array( 'op' => (string) $op, 'token' => $token, 'at' => time() );
+			$snapshot['claim'] = array( 'op' => (string) $op, 'token' => $token, 'at' => \PassCaptain\Clock::real() );
 			if ( self::swap( $order_id, $snapshot, $raw, $extra ) ) { return array( $snapshot, $token ); }
 			if ( '' !== $extra ) {
 				// The extra condition may be what failed (e.g. the order was paid meanwhile): re-check it.

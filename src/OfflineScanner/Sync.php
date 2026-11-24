@@ -51,7 +51,7 @@ final class Sync {
 
 			$scanned = (int) \PassCaptain\Checkin::parse_scanned_at( $scan['scanned_at'] ?? null ); // A609: validated by Api::sync().
 			$out = 'out' === ( $scan['direction'] ?? 'in' );
-			if ( ! $out && $scanned && $scanned < time() - $rules['max_offline_hours'] * HOUR_IN_SECONDS ) {
+			if ( ! $out && $scanned && $scanned < \PassCaptain\Clock::real() - $rules['max_offline_hours'] * HOUR_IN_SECONDS ) {
 				$row['offline_expired'] = true;
 				if ( ! $conflict && ! empty( $row['ok'] ) ) {
 					$id = self::record_expired( (string) ( $scan['code'] ?? '' ), (string) ( $scan['idempotency_key'] ?? '' ), $scanned, $device );
@@ -74,7 +74,7 @@ final class Sync {
 	private static function auto_resolve( $conflict ) {
 		global $wpdb;
 		if ( 'open' !== $conflict->status ) { return; }
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), \PassCaptain\Clock::mysql(), (int) $conflict->conflict_id ) );
 		if ( $updated ) {
 			Audit::record( 'admission_conflict_auto_resolved', 'admission_conflict', (int) $conflict->conflict_id, array( 'event_id' => (int) $conflict->event_id, 'ticket_id' => (int) $conflict->ticket_id, 'rule' => 'first_sync_wins' ) );
 		}

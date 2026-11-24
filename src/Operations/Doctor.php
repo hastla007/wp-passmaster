@@ -177,7 +177,7 @@ final class Doctor {
 	 * ------------------------------------------------------------------------------------------- */
 
 	private static function now() {
-		return current_time( 'mysql', true );
+		return \PassCaptain\Clock::mysql();
 	}
 
 	private static function result( $count, array $items ) {
@@ -225,7 +225,7 @@ final class Doctor {
 		$p = $wpdb->prefix;
 		$from = $wpdb->prepare(
 			"FROM {$p}wpcap_orders o WHERE o.payment_status='paid' AND o.status='complete' AND o.updated_at < %s AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items oi WHERE oi.order_id=o.order_id AND oi.quantity > oi.refunded_quantity) AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t WHERE t.order_id=o.order_id)",
-			gmdate( 'Y-m-d H:i:s', time() - self::ISSUE_GRACE )
+			gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - self::ISSUE_GRACE )
 		);
 		$items = array();
 		foreach ( (array) $wpdb->get_results( "SELECT o.order_id,o.public_id,o.updated_at $from ORDER BY o.order_id DESC LIMIT " . (int) $limit ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared above.
@@ -263,7 +263,7 @@ final class Doctor {
 	/** Stale claims per queue: [queue => [ids]] (at most $limit per queue). */
 	private static function stale_claims( $limit ) {
 		global $wpdb;
-		$stale = gmdate( 'Y-m-d H:i:s', time() - self::STALE_MINUTES * MINUTE_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - self::STALE_MINUTES * MINUTE_IN_SECONDS );
 		$out = array();
 		foreach ( Queues::available() as $queue => $def ) {
 			$table = $wpdb->prefix . $def['table'];
@@ -534,7 +534,7 @@ final class Doctor {
 
 	private static function apply_requeue_stale_claims( array $keys ) {
 		global $wpdb;
-		$stale = gmdate( 'Y-m-d H:i:s', time() - self::STALE_MINUTES * MINUTE_IN_SECONDS );
+		$stale = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - self::STALE_MINUTES * MINUTE_IN_SECONDS );
 		$changed = array();
 		foreach ( Queues::available() as $queue => $def ) {
 			$ids = self::ids_of( $keys, $queue );

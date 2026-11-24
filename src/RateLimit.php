@@ -42,7 +42,7 @@ final class RateLimit {
 	public static function allow( $bucket, $limit, $window = 60 ) {
 		list( $key, $window, $slot ) = self::key( $bucket, $window );
 		// The key contains the window slot: the counter lives until the end of that slot.
-		return self::hit( $key, $limit, max( 1, ( $slot + 1 ) * $window - time() ) );
+		return self::hit( $key, $limit, max( 1, ( $slot + 1 ) * $window - Clock::real() ) );
 	}
 
 	/**
@@ -58,7 +58,7 @@ final class RateLimit {
 	/** Counter name, window and slot of a bucket for allow()/hits(). */
 	private static function key( $bucket, $window ) {
 		$window = max( 1, (int) $window );
-		$slot = (int) floor( time() / $window );
+		$slot = (int) floor( Clock::real() / $window );
 		// Keyed hash: bucket names may contain client addresses or IDs; a plain md5 of an IPv4
 		// address can be reversed by brute force from the options table / object cache.
 		return array( 'wpcap_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 ), $window, $slot );
@@ -197,7 +197,7 @@ final class RateLimit {
 	public static function purge_expired( $now = null, $deadline = null, $batch = 5000 ) {
 		global $wpdb;
 		if ( ! self::has_db() ) { return 0; }
-		$cutoff = gmdate( 'Y-m-d H:i:s', null === $now ? time() : (int) $now );
+		$cutoff = gmdate( 'Y-m-d H:i:s', null === $now ? Clock::real() : (int) $now );
 		$deadline = null === $deadline ? microtime( true ) + 10.0 : (float) $deadline;
 		$batch = max( 1, (int) $batch );
 		$total = 0;
@@ -256,7 +256,7 @@ final class RateLimit {
 	private static function db_hit( $key, $limit, $ttl ) {
 		global $wpdb;
 		if ( ! self::has_db() ) { return null; }
-		$now = time();
+		$now = Clock::real();
 		$start = gmdate( 'Y-m-d H:i:s', $now );
 		$expires = gmdate( 'Y-m-d H:i:s', $now + $ttl );
 		$bucket = self::hash( $key );

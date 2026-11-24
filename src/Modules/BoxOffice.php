@@ -47,7 +47,7 @@ final class BoxOffice {
 	 */
 	public static function retention_step( $counts, $now = null, $deadline = null ) {
 		$counts = (array) $counts;
-		$cutoff = \PassCaptain\Privacy\Retention::financial_cutoff( null === $now ? time() : (int) $now );
+		$cutoff = \PassCaptain\Privacy\Retention::financial_cutoff( null === $now ? \PassCaptain\Clock::now() : (int) $now );
 		if ( '' === $cutoff || ! \PassCaptain\Privacy::has_table( 'wpcap_boxoffice_sessions' ) ) { return $counts; }
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -143,7 +143,7 @@ final class BoxOffice {
 			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN {$name} {$definition}" ) ) { return false; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- own table, constant column names/definitions from the array above.
 		}
 
-		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 30 * 60 ) ) );
 		if ( ! Registers::migrate_legacy_sessions() ) { return false; }
 		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
 		return true;

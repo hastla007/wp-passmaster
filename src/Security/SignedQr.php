@@ -104,7 +104,7 @@ final class SignedQr {
 		$entry = array(
 			'public' => base64_encode( $public ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary key encoding.
 			'secret' => Vault::encrypt( base64_encode( $secret ), self::VAULT_CONTEXT ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- binary key encoding.
-			'created_at' => time(),
+			'created_at' => \PassCaptain\Clock::real(),
 			'retired_at' => 0,
 			'valid_until' => 0,
 			'max_expires' => 0,
@@ -143,7 +143,7 @@ final class SignedQr {
 	public static function rotate( $revoke = false, $reason = 'manual' ) {
 		self::forget_key();
 		$data = self::load();
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$previous = $data['active'];
 		$until = 0;
 		if ( '' !== $previous && isset( $data['keys'][ $previous ] ) ) {
@@ -187,7 +187,7 @@ final class SignedQr {
 		if ( ! function_exists( 'sodium_crypto_sign_keypair' ) ) { return array(); }
 		$active = self::active_id();
 		$data = self::load();
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$out = array();
 		foreach ( $data['keys'] as $kid => $key ) {
 			if ( (string) $kid !== (string) $active && (int) $key['valid_until'] <= $now ) { continue; }
@@ -208,7 +208,7 @@ final class SignedQr {
 		$data = self::load();
 		$key = $data['keys'][ (string) $kid ] ?? null;
 		if ( ! is_array( $key ) ) { return null; }
-		if ( (string) $kid !== $data['active'] && (int) $key['valid_until'] <= time() ) { return null; }
+		if ( (string) $kid !== $data['active'] && (int) $key['valid_until'] <= \PassCaptain\Clock::real() ) { return null; }
 		$raw = base64_decode( (string) $key['public'], true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- binary key encoding.
 		return false !== $raw && SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES === strlen( $raw ) ? $raw : null;
 	}

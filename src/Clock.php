@@ -29,6 +29,22 @@ final class Clock {
 		return gmdate( 'Y-m-d H:i:s', self::now() + (int) $offset );
 	}
 
+	/**
+	 * Real wall-clock Unix timestamp, never filtered. Only for infrastructure that must follow the
+	 * real time even while `wpcap_now` is injected: cron scheduling, locks and leases, rate-limit and
+	 * time-budget windows, signatures/timestamps exchanged with providers or devices, certificate
+	 * expiry, log/monitoring timestamps and cache lifetimes. The files allowed to call it are listed
+	 * with a reason in tests/integration/modules/zz_a607/time-allowlist.txt.
+	 */
+	public static function real() {
+		return time();
+	}
+
+	/** Real wall-clock time (plus an offset in seconds) as UTC MySQL datetime; see real(). */
+	public static function real_mysql( $offset = 0 ) {
+		return gmdate( 'Y-m-d H:i:s', time() + (int) $offset );
+	}
+
 	/** Today's local date (Y-m-d) in the given timezone; invalid zones fall back to UTC. */
 	public static function today( $timezone = 'UTC' ) {
 		try {

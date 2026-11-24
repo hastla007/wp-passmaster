@@ -78,7 +78,7 @@ final class Keys {
 		$allow = self::parse_allowlist( $args['ip_allowlist'] ?? '' );
 		if ( is_wp_error( $allow ) ) { return $allow; }
 		$expires = (string) ( $args['expires_at'] ?? '' );
-		if ( '' !== $expires && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires ) || $expires <= current_time( 'mysql', true ) ) ) {
+		if ( '' !== $expires && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires ) || $expires <= \PassCaptain\Clock::mysql() ) ) {
 			return new \WP_Error( 'wpcap_partner_key_expiry', __( 'Das Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$prefix = bin2hex( random_bytes( 6 ) );
@@ -96,7 +96,7 @@ final class Keys {
 			'write_rate_limit' => min( 100000, absint( $args['write_rate_limit'] ?? 0 ) ),
 			'expires_at' => '' !== $expires ? $expires : null,
 			'created_by' => get_current_user_id(),
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => \PassCaptain\Clock::mysql(),
 		) );
 		if ( false === $saved ) { return new \WP_Error( 'wpcap_partner_key_save', __( 'API-Key konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$key_id = (int) $wpdb->insert_id;
@@ -120,7 +120,7 @@ final class Keys {
 		$key = self::get( $key_id );
 		if ( ! $key ) { return new \WP_Error( 'wpcap_partner_key_missing', __( 'API-Key nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $key->revoked_at ) { return array( 'key_id' => (int) $key->key_id, 'already_revoked' => true ); }
-		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s, revoked_by=%d WHERE key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_partner_keys', current_time( 'mysql', true ), get_current_user_id(), (int) $key->key_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET revoked_at=%s, revoked_by=%d WHERE key_id=%d AND revoked_at IS NULL', $wpdb->prefix . 'wpcap_partner_keys', \PassCaptain\Clock::mysql(), get_current_user_id(), (int) $key->key_id ) );
 		Audit::record( 'partner_key_revoked', 'partner_key', (int) $key->key_id, array( 'partner_id' => (int) $key->partner_id ) );
 		return array( 'key_id' => (int) $key->key_id );
 	}
@@ -252,7 +252,7 @@ final class Keys {
 			return self::fail( 'invalid', $key, $ip, $route, 401, true );
 		}
 		if ( $key->revoked_at ) { return self::fail( 'revoked', $key, $ip, $route, 401, true ); }
-		if ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) { return self::fail( 'expired', $key, $ip, $route, 401, true ); }
+		if ( $key->expires_at && $key->expires_at <= \PassCaptain\Clock::mysql() ) { return self::fail( 'expired', $key, $ip, $route, 401, true ); }
 		$partner = Repository::get( $key->partner_id );
 		if ( ! $partner || 'active' !== $partner->status ) { return self::fail( 'partner_inactive', $key, $ip, $route, 403, false ); }
 		$allow = array_filter( explode( "\n", (string) $key->ip_allowlist ) );
@@ -269,8 +269,8 @@ final class Keys {
 		if ( null !== $scope && ! in_array( $scope, $scopes, true ) ) {
 			return self::fail( 'scope_missing', $key, $ip, $route, 403, false, array( 'scope' => $scope ) );
 		}
-		$now = current_time( 'mysql', true );
-		if ( ! $key->last_used_at || strtotime( $key->last_used_at . ' UTC' ) < time() - 60 ) {
+		$now = \PassCaptain\Clock::mysql();
+		if ( ! $key->last_used_at || strtotime( $key->last_used_at . ' UTC' ) < \PassCaptain\Clock::now() - 60 ) {
 			$wpdb->update( "{$wpdb->prefix}wpcap_partner_keys", array( 'last_used_at' => $now ), array( 'key_id' => (int) $key->key_id ) );
 		}
 		return array( 'key' => $key, 'partner' => $partner, 'event_ids' => self::effective_events( $key ), 'scopes' => $scopes );

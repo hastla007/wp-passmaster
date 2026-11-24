@@ -139,7 +139,7 @@ final class Refunds {
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
 		$needs_approval = ! empty( $args['require_approval'] ) || ( $threshold > 0 && $cumulative > $threshold && ! self::may_self_approve( $system ) );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$row = array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
@@ -248,7 +248,7 @@ final class Refunds {
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $amount_minor;
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! self::may_self_approve( $system );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
@@ -293,7 +293,7 @@ final class Refunds {
 		$check = self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
 		global $wpdb;
-		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
+		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => Clock::mysql() ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
 		if ( false === $approved ) { return self::db_error( absint( $refund_id ), (int) $refund['order_id'], 'approve' ); }
 		if ( 1 !== (int) $approved ) {
 			// Approved/rejected by someone else meanwhile: never execute twice.
@@ -309,7 +309,7 @@ final class Refunds {
 		if ( ! current_user_can( self::APPROVE_CAP ) ) {
 			return new \WP_Error( 'wpcap_refund_approver', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
-		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'rejected', 'error_message' => \PassCaptain\Text::cut( sanitize_text_field( $reason ), 255 ), 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
+		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'rejected', 'error_message' => \PassCaptain\Text::cut( sanitize_text_field( $reason ), 255 ), 'approved_by' => get_current_user_id(), 'updated_at' => Clock::mysql() ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
 		if ( $updated ) {
 			$rejected = self::get( $refund_id );
 			Audit::record( 'refund_rejected', 'order', (int) $rejected['order_id'], array( 'refund_id' => absint( $refund_id ) ) );
@@ -358,13 +358,13 @@ final class Refunds {
 		// A conflict found by reads that failed is no conflict: the refund stays approved (A183).
 		if ( self::CONFLICT_UNKNOWN === $invalid || false === Orders::transaction_alive() ) { return self::busy(); }
 		if ( '' !== $invalid ) {
-			if ( false === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $invalid, 255 ), 'updated_at' => current_time( 'mysql', true ) ) ) || false === $wpdb->query( 'COMMIT' ) ) {
+			if ( false === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $invalid, 255 ), 'updated_at' => Clock::mysql() ) ) || false === $wpdb->query( 'COMMIT' ) ) {
 				return self::busy();
 			}
 			\PassCaptain\Log::error( 'refund_failed', 'refund failed', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
-		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'updated_at' => current_time( 'mysql', true ) ) );
+		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'updated_at' => Clock::mysql() ) );
 		if ( 1 !== $moved || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			// Nothing paid out yet. Only a durable "processing" (e.g. the COMMIT went through but its
@@ -378,7 +378,7 @@ final class Refunds {
 		if ( ! $order ) {
 			// Read failed after the claim: nothing was paid out. processing → failed (StateMachine) with
 			// a note that lets a repeated request run it again (resume()).
-			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => self::RETRY_NOTE, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider_reference' => '' ) );
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => self::RETRY_NOTE, 'updated_at' => Clock::mysql() ), array( 'provider_reference' => '' ) );
 			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
 		}
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
@@ -386,7 +386,7 @@ final class Refunds {
 		if ( ! $gateway && in_array( (string) $order->payment_provider, array( 'stripe', 'paypal', 'mollie' ), true ) && (int) $refund['amount_minor'] > 0 ) {
 			// The online provider of the order is not available (e.g. the Mollie module was switched off): never
 			// book the refund as a manual payout – the money would be recorded as returned without moving.
-			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => 'gateway_unavailable', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => 'gateway_unavailable', 'updated_at' => Clock::mysql() ), array( 'status' => 'processing' ) );
 			return new \WP_Error( 'wpcap_refund_gateway_unavailable', __( 'Der Zahlungsanbieter dieser Bestellung ist nicht verfügbar; die Erstattung wurde nicht ausgeführt.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
@@ -405,7 +405,7 @@ final class Refunds {
 				// stored answer of a key (Stripe for 24 h), so the same key would fail again although the
 				// cause was fixed. Unclear outcomes (above) keep the key: only it prevents a second payout.
 				$final = self::is_final_decline( $result );
-				$set = array( 'error_message' => \PassCaptain\Text::cut( Redact::text( $result->get_error_message(), false ), 255 ), 'updated_at' => current_time( 'mysql', true ) );
+				$set = array( 'error_message' => \PassCaptain\Text::cut( Redact::text( $result->get_error_message(), false ), 255 ), 'updated_at' => Clock::mysql() );
 				if ( $final && array_key_exists( 'provider_attempt', $refund ) ) { $set['provider_attempt'] = $attempt + 1; }
 				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', $set, array( 'status' => 'processing' ) );
 				Log::error( 'refund_failed', 'Refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => $result->get_error_code(), 'attempt' => $attempt, 'final_decline' => $final ) ) );
@@ -414,7 +414,7 @@ final class Refunds {
 			$provider_reference = is_array( $result ) ? (string) ( $result['reference'] ?? '' ) : (string) $result;
 		}
 		// The money has moved: record it first, so a failure below is repaired without a second payout.
-		$record = array( 'provider_reference' => \PassCaptain\Text::cut( '' !== $provider_reference ? $provider_reference : 'manual', 191 ), 'updated_at' => current_time( 'mysql', true ) );
+		$record = array( 'provider_reference' => \PassCaptain\Text::cut( '' !== $provider_reference ? $provider_reference : 'manual', 191 ), 'updated_at' => Clock::mysql() );
 		$pending = isset( $result ) && is_array( $result ) && 'pending' === ( $result['status'] ?? '' );
 		if ( self::provider_status_ready() && isset( $result ) && ! is_wp_error( $result ) ) {
 			// A348: accepted but not completed by the provider yet – booked now, followed until it settles.
@@ -520,8 +520,8 @@ final class Refunds {
 			"UPDATE {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id SET r.status='completed',r.provider_reference=%s,r.error_message='',r.updated_at=%s,o.refunded_minor=LEAST(o.total_minor,o.refunded_minor+r.amount_minor),o.updated_at=%s WHERE r.refund_id=%d AND " . StateMachine::source_sql( 'refund', 'completed', 'r.status' )
 			. ( $ticket_ids ? " AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t WHERE t.ticket_id IN ($ids) AND t.order_id=r.order_id AND (t.refunded=0 OR t.status='valid'))" : '' ),
 			\PassCaptain\Text::cut( '' !== (string) $provider_reference ? (string) $provider_reference : 'manual', 191 ),
-			current_time( 'mysql', true ),
-			current_time( 'mysql', true ),
+			Clock::mysql(),
+			Clock::mysql(),
 			$refund_id
 		) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- integer list and fixed state list.
 		if ( ! $done ) { return $failed(); }
@@ -589,7 +589,7 @@ final class Refunds {
 		}
 		if ( $reversed ) {
 			// The money is (partly) with the seller again: a "refunded" order is open again.
-			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='complete',payment_status='paid',updated_at=%s WHERE order_id=%d AND status='refunded' AND refunded_minor<total_minor", $p . 'wpcap_orders', current_time( 'mysql', true ), $order_id ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='complete',payment_status='paid',updated_at=%s WHERE order_id=%d AND status='refunded' AND refunded_minor<total_minor", $p . 'wpcap_orders', Clock::mysql(), $order_id ) );
 		}
 		return $reversed;
 	}
@@ -684,7 +684,7 @@ final class Refunds {
 			sprintf( 'order %d could not be marked refunded (%s): %s; retry queued', $order_id, (string) $reason, (string) $error ),
 			array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'reason' => sanitize_text_field( (string) $reason ), 'error' => \PassCaptain\Text::cut( (string) $error, 190 ) ) )
 		);
-		Jobs::enqueue( 'order-mark-refunded-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ORDER_STATE_JOB, array( 'order_id' => $order_id, 'reason' => sanitize_text_field( (string) $reason ) ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+		Jobs::enqueue( 'order-mark-refunded-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ORDER_STATE_JOB, array( 'order_id' => $order_id, 'reason' => sanitize_text_field( (string) $reason ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + MINUTE_IN_SECONDS ) );
 	}
 
 	/**
@@ -696,7 +696,7 @@ final class Refunds {
 	public static function orders_pending_refund_state( $limit = 20 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$since = gmdate( 'Y-m-d H:i:s', time() - 14 * DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', Clock::now() - 14 * DAY_IN_SECONDS );
 		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT r.order_id FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at>=%s AND o.payment_status='paid' AND EXISTS (SELECT 1 FROM %i t WHERE t.order_id=o.order_id) AND NOT EXISTS (SELECT 1 FROM %i t2 WHERE t2.order_id=o.order_id AND t2.refunded=0) AND NOT EXISTS (SELECT 1 FROM %i r2 WHERE r2.order_id=o.order_id AND r2.status='processing') ORDER BY r.order_id LIMIT %d", $p . 'wpcap_refunds', $p . 'wpcap_orders', $since, $p . 'wpcap_tickets', $p . 'wpcap_tickets', $p . 'wpcap_refunds', max( 1, absint( $limit ) ) ) ) );
 	}
 
@@ -765,7 +765,7 @@ final class Refunds {
 	public static function repair_stuck() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$cutoff = gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS );
+		$cutoff = gmdate( 'Y-m-d H:i:s', Clock::now() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE status='processing' AND updated_at < %s AND (provider_reference<>'' OR error_message<>%s) ORDER BY refund_id LIMIT 50", $cutoff, self::OUTCOME_UNKNOWN ), ARRAY_A );
 		$done = 0;
 		foreach ( (array) $rows as $row ) {
@@ -858,7 +858,7 @@ final class Refunds {
 		global $wpdb;
 		$refund_id = (int) $refund['refund_id'];
 		// A failed update leaves the marker empty: repair_stuck() sets it and schedules the job later.
-		$wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'error_message' => self::OUTCOME_UNKNOWN, 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
+		$wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'error_message' => self::OUTCOME_UNKNOWN, 'updated_at' => Clock::mysql() ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
 		Audit::record( 'refund_outcome_unknown', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $error->get_error_code() ) );
 		self::schedule_reconcile( $refund_id, 0 );
 		return new \WP_Error(
@@ -875,7 +875,7 @@ final class Refunds {
 	public static function schedule_reconcile( $refund_id, $attempt ) {
 		$attempt = max( 0, (int) $attempt );
 		$delay = self::RECONCILE_DELAYS[ min( $attempt, count( self::RECONCILE_DELAYS ) - 1 ) ];
-		return Jobs::enqueue( 'refund-reconcile|' . absint( $refund_id ) . '|' . $attempt, 'refund_reconcile', array( 'refund_id' => absint( $refund_id ), 'attempt' => $attempt ), gmdate( 'Y-m-d H:i:s', time() + $delay * MINUTE_IN_SECONDS ) );
+		return Jobs::enqueue( 'refund-reconcile|' . absint( $refund_id ) . '|' . $attempt, 'refund_reconcile', array( 'refund_id' => absint( $refund_id ), 'attempt' => $attempt ), gmdate( 'Y-m-d H:i:s', Clock::now() + $delay * MINUTE_IN_SECONDS ) );
 	}
 
 	/** The reconciliation gave up: audit and admin mail (the refund stays visible as unresolved). */
@@ -943,7 +943,7 @@ final class Refunds {
 		}
 		if ( null === $found ) {
 			// The call may still be on its way: "not found" counts only 10 minutes after it.
-			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ) { return 'waiting'; }
+			if ( strtotime( $refund['updated_at'] . ' UTC' ) > Clock::now() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ) { return 'waiting'; }
 			$found = array(
 				'status'    => 'not_found',
 				'reference' => '',
@@ -997,7 +997,7 @@ final class Refunds {
 				$note = 'failed' === $status
 					? __( 'Abgleich: Der Zahlungsanbieter hat die Erstattung abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' )
 					: __( 'Abgleich: Beim Zahlungsanbieter gibt es diese Erstattung nicht; es wurde nichts ausgezahlt.', 'pass-captain' );
-				$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $note, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing', 'provider_reference' => '' ) );
+				$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $note, 255 ), 'updated_at' => Clock::mysql() ), array( 'status' => 'processing', 'provider_reference' => '' ) );
 				if ( false === $moved ) { return self::busy(); }
 				if ( 1 === $moved ) {
 					Audit::record( 'refund_reconciled', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'result' => 'not_paid_out', 'provider_status' => $status, 'source' => sanitize_key( $source ) ) );
@@ -1012,7 +1012,7 @@ final class Refunds {
 		$same = '' === $reference || (string) $refund['provider_reference'] === $reference;
 		if ( 'processing' === $refund['status'] && 'failed' === $status && $same ) {
 			// Accepted as pending, failed before the local booking: nothing to book.
-			$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( __( 'Der Zahlungsanbieter hat die Erstattung nachträglich abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' ), 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+			$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( __( 'Der Zahlungsanbieter hat die Erstattung nachträglich abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' ), 255 ), 'updated_at' => Clock::mysql() ), array( 'status' => 'processing' ) );
 			if ( false === $moved ) { return self::busy(); }
 			if ( 1 === $moved ) { \PassCaptain\Log::error( 'refund_failed', 'refund failed', array( 'object_type' => 'order', 'object_id' => (int) $refund['order_id'], 'details' => array( 'refund_id' => $refund_id, 'error' => 'provider_failed', 'source' => sanitize_key( $source ) ) ) ); }
 			return 'failed';
@@ -1055,7 +1055,7 @@ final class Refunds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund_id = (int) $refund['refund_id'];
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'reversed', array( 'provider_status' => 'failed', 'reversed_at' => $now ) );
 		if ( false === $moved ) { return self::busy(); }
@@ -1131,7 +1131,7 @@ final class Refunds {
 		}
 		$conflict = self::execution_conflict( $locked, $order );
 		if ( self::CONFLICT_UNKNOWN === $conflict ) { return self::busy(); }
-		$booked = '' === $conflict && 1 === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'provider_reference' => $reference, 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'failed' ) );
+		$booked = '' === $conflict && 1 === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'provider_reference' => $reference, 'error_message' => '', 'updated_at' => Clock::mysql() ), array( 'status' => 'failed' ) );
 		if ( ! $booked || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			$booked = false;
@@ -1198,7 +1198,7 @@ final class Refunds {
 		}
 		/* translators: %s: note of the person who checked the outcome */
 		$message = sprintf( __( 'Manuell geklärt: nicht ausgezahlt (%s)', 'pass-captain' ), $note );
-		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $message, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing', 'provider_reference' => '' ) );
+		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => \PassCaptain\Text::cut( $message, 255 ), 'updated_at' => Clock::mysql() ), array( 'status' => 'processing', 'provider_reference' => '' ) );
 		if ( false === $moved ) { return self::busy(); }
 		if ( 1 !== $moved ) {
 			return new \WP_Error( 'wpcap_refund_not_unresolved', __( 'Der Ausgang dieser Erstattung ist nicht offen.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -1211,7 +1211,7 @@ final class Refunds {
 	public static function is_unresolved( array $refund ) {
 		if ( 'processing' !== ( $refund['status'] ?? '' ) || '' !== (string) ( $refund['provider_reference'] ?? '' ) ) { return false; }
 		return in_array( (string) ( $refund['error_message'] ?? '' ), array( self::OUTCOME_UNKNOWN, 'needs_manual_check' ), true )
-			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS;
+			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < Clock::now() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS;
 	}
 
 	/**
@@ -1223,7 +1223,7 @@ final class Refunds {
 	public static function unresolved( $limit = 100 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', Clock::now() - Config::get( 'refund_wait_minutes' ) * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
 	}
 
 	/** Returns a refund row as array or null. */
@@ -1294,7 +1294,7 @@ final class Refunds {
 		}
 		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : self::tax_for( $order, $ticket_ids ?: null, $amount );
 		if ( self::$read_failed ) { return self::record_error( 0, $order_id, 'read', true ); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,

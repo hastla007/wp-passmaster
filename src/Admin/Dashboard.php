@@ -27,10 +27,10 @@ final class Dashboard {
 	public static function kpis( $scope ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$today = gmdate( 'Y-m-d 00:00:00' );
-		$week_ago = gmdate( 'Y-m-d H:i:s', time() - 7 * DAY_IN_SECONDS );
-		$week_ahead = gmdate( 'Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS );
+		$week_ago = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 7 * DAY_IN_SECONDS );
+		$week_ahead = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 7 * DAY_IN_SECONDS );
 		$in_scope = null === $scope ? '' : " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items si INNER JOIN {$p}wpcap_ticket_types st ON st.ticket_type_id=si.ticket_type_id INNER JOIN {$p}wpcap_occurrences so ON so.occurrence_id=st.occurrence_id WHERE si.order_id=ord.order_id" . Queries::scope_sql( $scope, 'so.event_id' ) . ')';
 		$out = array( 'orders_today' => 0, 'revenue_today' => array(), 'orders_7d' => 0, 'revenue_7d' => array() );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in_scope: table names and absint ids.
@@ -60,7 +60,7 @@ final class Dashboard {
 	public static function checklist() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$sellable = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e INNER JOIN %i o ON o.event_id=e.event_id INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at>%s AND tt.status='active'", $p . 'wpcap_events', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $now ) );
 		$providers = (array) Settings::get( 'enabled_providers' );
 		$settings = Forms::page_url( SettingsPage::SLUG );

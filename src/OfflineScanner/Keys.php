@@ -102,7 +102,7 @@ final class Keys {
 		} while ( ctype_digit( self::key_id( sodium_crypto_sign_publickey( $pair ) ) ) );
 		$public = sodium_crypto_sign_publickey( $pair );
 		$secret = sodium_crypto_sign_secretkey( $pair );
-		$entry = array( 'public' => base64_encode( $public ), 'secret' => self::seal( $secret ), 'created_at' => time(), 'retired_at' => 0, 'valid_until' => 0, 'max_expires' => 0 );
+		$entry = array( 'public' => base64_encode( $public ), 'secret' => self::seal( $secret ), 'created_at' => \PassCaptain\Clock::real(), 'retired_at' => 0, 'valid_until' => 0, 'max_expires' => 0 );
 		sodium_memzero( $secret );
 		return array( self::key_id( $public ), $entry );
 	}
@@ -185,7 +185,7 @@ final class Keys {
 
 	/** rotate() inside the lock, on data read inside the lock. */
 	private static function rotate_unlocked( $reason, array $data ) {
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$previous = $data['active'];
 		$until = 0;
 		$expiries = self::expiries( true );
@@ -225,7 +225,7 @@ final class Keys {
 	public static function public_keys() {
 		$active = self::active_id();
 		$data = self::load();
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$out = array();
 		foreach ( $data['keys'] as $kid => $key ) {
 			if ( (string) $kid !== (string) $active && (int) $key['valid_until'] <= $now ) { continue; }

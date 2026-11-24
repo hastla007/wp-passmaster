@@ -179,7 +179,7 @@ final class Fiscalization {
 			$args = array( (int) $row->order_id );
 			if ( wp_next_scheduled( 'wpcap_process_fiscal_order', $args ) ) { continue; }
 			$due = $row->due ? (int) strtotime( $row->due . ' UTC' ) : 0;
-			wp_schedule_single_event( max( time() + 60, $due ), 'wpcap_process_fiscal_order', $args );
+			wp_schedule_single_event( max( \PassCaptain\Clock::real() + 60, $due ), 'wpcap_process_fiscal_order', $args );
 			++$count;
 		}
 		return $count;
@@ -261,7 +261,7 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Das Ende der Gültigkeit (effective_until) muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400, 'field' => 'effective_until' ) );
 		}
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT profile_id,profile_version,created_at FROM %i WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s', $p . 'wpcap_fiscal_profiles', $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$profile_version = $existing ? (int) $existing->profile_version + 1 : 1;
 		$row = array(
 			'seller_id' => $seller_id, 'country_code' => $seller->country_code, 'channel' => $channel,
@@ -310,7 +310,7 @@ final class Fiscalization {
 			'ticket_type_id' => $ticket_type_id,
 			'seller_id' => $seller_id,
 			'seller_mode' => $mode,
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		), array( '%d', '%d', '%s', '%s' ) );
 		return false === $ok ? new \WP_Error( 'wpcap_fiscal_mapping_save', __( 'Verkäuferzuordnung konnte nicht gespeichert werden.', 'pass-captain' ) ) : true;
 	}
@@ -343,7 +343,7 @@ final class Fiscalization {
 		if ( ! $type_ids ) { return false; }
 		$scope = self::profile_scope( $channel, array(), 0 );
 		if ( is_wp_error( $scope ) ) { return true; } // Fail closed: the checkout itself refuses an invalid scope.
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		return (bool) $wpdb->get_var( $wpdb->prepare(
 			"SELECT 1 FROM %i ts INNER JOIN %i s ON s.seller_id=ts.seller_id AND s.status='active' INNER JOIN %i fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ') LIMIT 1',
 			array_merge(
@@ -375,7 +375,7 @@ final class Fiscalization {
 		$scope = self::profile_scope( $channel, (array) $internal, $order_id );
 		$scope_error = is_wp_error( $scope ) ? $scope : null;
 		if ( $scope_error ) { $scope = array( 'location_id' => 0, 'register_id' => '' ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$unmapped_types = array();
 		$ticket_sellers = array();
 		// A425: service fee lines (own order lines, inserted before this hook) by ticket type.
@@ -540,13 +540,13 @@ final class Fiscalization {
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
 			if ( self::contains_secret_key( $group['configuration'] ) ) { throw new \RuntimeException( 'fiscal_configuration_contains_secret' ); }
-			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'provider_id' => $group['provider_id'], 'provider_configuration' => $group['configuration'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => $payment_method, 'created_at' => current_time( 'mysql', true ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
+			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'provider_id' => $group['provider_id'], 'provider_configuration' => $group['configuration'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => $payment_method, 'created_at' => \PassCaptain\Clock::mysql(), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
 			$wpdb->insert( "{$p}wpcap_fiscal_documents", array(
 				'order_id' => absint( $order_id ), 'seller_id' => (int) $seller_id, 'document_key' => $key,
 				'country_code' => $group['seller']['country_code'], 'provider_id' => $group['provider_id'],
 				'status' => $group['provider_id'] ? 'pending' : 'configuration_required', 'currency' => $snapshot['currency'],
 				'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'snapshot' => wp_json_encode( $snapshot ),
-				'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ),
+				'created_at' => \PassCaptain\Clock::mysql(), 'updated_at' => \PassCaptain\Clock::mysql(),
 			) );
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); } // Transient: retryable 503, still no sale.
 			$document_id = (int) $wpdb->insert_id;
@@ -588,7 +588,7 @@ final class Fiscalization {
 		// Retries respect the backoff (next_attempt_at) unless an operator forces them (retry/reconcile).
 		$docs = $force
 			? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND status IN ('pending','retry') ORDER BY seller_id", $p . 'wpcap_fiscal_documents', absint( $order_id ) ) )
-			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND (status='pending' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=%s))) ORDER BY seller_id", $p . 'wpcap_fiscal_documents', absint( $order_id ), current_time( 'mysql', true ) ) );
+			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND (status='pending' OR (status='retry' AND (next_attempt_at IS NULL OR next_attempt_at<=%s))) ORDER BY seller_id", $p . 'wpcap_fiscal_documents', absint( $order_id ), \PassCaptain\Clock::mysql() ) );
 		foreach ( $docs as $doc ) {
 			$adapter = Registry::get( $doc->provider_id );
 			if ( ! $adapter ) { self::fail( $doc, 'adapter_unavailable' ); continue; }
@@ -647,7 +647,7 @@ final class Fiscalization {
 			}
 			$wpdb->update( "{$p}wpcap_fiscal_documents", array(
 				'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '',
-				'attempts' => (int) $doc->attempts + 1, 'next_attempt_at' => null, 'updated_at' => current_time( 'mysql', true ),
+				'attempts' => (int) $doc->attempts + 1, 'next_attempt_at' => null, 'updated_at' => \PassCaptain\Clock::mysql(),
 			), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'submission', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 			Audit::record( 'fiscal_document_submitted', 'order', (int) $order_id, array( 'document_id' => (int) $doc->document_id, 'seller_id' => (int) $doc->seller_id, 'provider_id' => $doc->provider_id ) );
@@ -803,7 +803,7 @@ final class Fiscalization {
 		$prepared = $adapter->prepare_void( $document, $seller, $configuration, $event_id );
 		if ( is_wp_error( $prepared ) ) { return $prepared; }
 		$lock = 'wpcap_fiscal_void_attempt_' . $event_id;
-		if ( ! add_option( $lock, current_time( 'mysql', true ), '', false ) ) {
+		if ( ! add_option( $lock, \PassCaptain\Clock::mysql(), '', false ) ) {
 			return new \WP_Error( 'wpcap_fiscal_void_already_attempted', __( 'Für dieses Storno gab es bereits einen Sendeversuch. Anbieterstatus prüfen und nicht erneut senden.', 'pass-captain' ) );
 		}
 		self::record_event( $source, 'provider_void_attempted', 'submitting', array(
@@ -955,7 +955,7 @@ final class Fiscalization {
 		$wpdb->insert( $wpdb->prefix . 'wpcap_fiscal_events', array(
 			'document_id' => (int) $doc->document_id, 'order_id' => (int) $doc->order_id, 'provider_id' => sanitize_key( $doc->provider_id ),
 			'event_type' => sanitize_key( $type ), 'event_status' => sanitize_key( $status ),
-			'metadata' => wp_json_encode( $metadata ), 'created_at' => current_time( 'mysql', true ),
+			'metadata' => wp_json_encode( $metadata ), 'created_at' => \PassCaptain\Clock::mysql(),
 		), array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
 	}
 
@@ -965,7 +965,7 @@ final class Fiscalization {
 	public static function mark_fulfilled( $order_id ) {
 		global $wpdb;
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_order_state', array(
-			'fulfillment_status' => 'tickets_issued', 'updated_at' => current_time( 'mysql', true ),
+			'fulfillment_status' => 'tickets_issued', 'updated_at' => \PassCaptain\Clock::mysql(),
 		), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s' ), array( '%d' ) );
 	}
 
@@ -1002,10 +1002,10 @@ final class Fiscalization {
 				self::record_event( $doc, 'manual_reconcile', 'invalid_result', array( 'error_code' => 'qr_payload_missing' ) );
 				return new \WP_Error( 'wpcap_fiscal_receipt_incomplete', __( 'Der Anbieter meldet den Beleg als erstellt, aber die erforderlichen QR-Daten fehlen. Es wurde kein zweiter Beleg erstellt.', 'pass-captain' ), array( 'status' => 502 ) );
 			}
-			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'manual_reconcile', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 		} elseif ( is_array( $result ) && 'not_found' === ( $result['status'] ?? '' ) ) {
-			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'retry', 'last_error' => '', 'next_attempt_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'retry', 'last_error' => '', 'next_attempt_at' => null, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'manual_reconcile', 'not_found', array() );
 			self::process_order( (int) $doc->order_id, true );
 		} else {
@@ -1019,7 +1019,7 @@ final class Fiscalization {
 	public static function rest_retry_order( \WP_REST_Request $request ) {
 		global $wpdb;
 		$order_id = absint( $request['order_id'] );
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='retry',last_error='',next_attempt_at=NULL,updated_at=%s WHERE order_id=%d AND status='failed'", $wpdb->prefix . 'wpcap_fiscal_documents', current_time( 'mysql', true ), $order_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='retry',last_error='',next_attempt_at=NULL,updated_at=%s WHERE order_id=%d AND status='failed'", $wpdb->prefix . 'wpcap_fiscal_documents', \PassCaptain\Clock::mysql(), $order_id ) );
 		Audit::record( 'fiscal_order_retry', 'order', $order_id, array() );
 		self::process_order( $order_id, true );
 		Orders::issue_and_email( $order_id );
@@ -1042,12 +1042,12 @@ final class Fiscalization {
 		$delay = min( HOUR_IN_SECONDS, 60 * ( 2 ** min( 10, $attempts ) ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array(
 			'status' => $terminal ? 'failed' : 'retry', 'last_error' => sanitize_text_field( $message ),
-			'attempts' => $attempts, 'next_attempt_at' => $terminal ? null : gmdate( 'Y-m-d H:i:s', time() + $delay ),
-			'updated_at' => current_time( 'mysql', true ),
+			'attempts' => $attempts, 'next_attempt_at' => $terminal ? null : gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + $delay ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		), array( 'document_id' => (int) $doc->document_id ) );
 		if ( ! $terminal ) {
 			if ( ! wp_next_scheduled( 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) ) ) {
-				wp_schedule_single_event( time() + $delay, 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) );
+				wp_schedule_single_event( \PassCaptain\Clock::real() + $delay, 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) );
 			}
 			return;
 		}
@@ -1099,7 +1099,7 @@ final class Fiscalization {
 		$wpdb->update( $p . 'wpcap_fiscal_order_state', array(
 			'fiscal_status' => ! $total ? 'not_required' : ( $failed ? 'failed' : ( $blocked ? 'pending' : 'submitted' ) ),
 			'fulfillment_status' => $blocked ? 'blocked' : 'ready',
-			'updated_at' => current_time( 'mysql', true ),
+			'updated_at' => \PassCaptain\Clock::mysql(),
 		), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		return $blocked ? false : $ready;
 	}
@@ -1176,7 +1176,7 @@ final class Fiscalization {
 			}
 			$snapshot['gross_minor'] = $gross_total;
 			$snapshot['tax_minor'] = $tax_total;
-			$saved = $wpdb->update( "{$p}wpcap_fiscal_documents", array( 'gross_minor' => $gross_total, 'tax_minor' => $tax_total, 'snapshot' => wp_json_encode( $snapshot ), 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ), array( '%d', '%d', '%s', '%s' ), array( '%d' ) );
+			$saved = $wpdb->update( "{$p}wpcap_fiscal_documents", array( 'gross_minor' => $gross_total, 'tax_minor' => $tax_total, 'snapshot' => wp_json_encode( $snapshot ), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'document_id' => (int) $doc->document_id ), array( '%d', '%d', '%s', '%s' ), array( '%d' ) );
 			if ( false === $saved ) { return false; }
 		}
 		return true;
@@ -1443,7 +1443,7 @@ final class Fiscalization {
 			echo '</tbody></table>';
 		}
 		$export_until = gmdate( 'Y-m-d' );
-		$export_from = gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
+		$export_from = gmdate( 'Y-m-d', \PassCaptain\Clock::now() - 29 * DAY_IN_SECONDS );
 		echo '<hr><h2>' . esc_html__( 'Fiskaldaten exportieren', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente.', 'pass-captain' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_export' );
 		echo '<input type="hidden" name="action" value="wpcap_fiscal_export"><label>' . esc_html__( 'Von (UTC)', 'pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $export_from ) . '" required></label> <label>' . esc_html__( 'Bis (UTC)', 'pass-captain' ) . ' <input type="date" name="until" value="' . esc_attr( $export_until ) . '" required></label>';
@@ -1583,7 +1583,7 @@ final class Fiscalization {
 		if ( '' === $name || ! in_array( $country, array( 'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK' ), true ) ) {
 			return new \WP_Error( 'wpcap_fiscal_seller_invalid', __( 'Name und eines der unterstützten Länder AT, DE, HU oder ein weiteres EU-Land sind erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$address_in = is_array( $body['business_address'] ?? null ) ? $body['business_address'] : array();
 		$address = array();
 		foreach ( array( 'street', 'postal_code', 'city', 'region', 'country' ) as $field ) { $address[ $field ] = sanitize_text_field( $address_in[ $field ] ?? '' ); }
@@ -1619,7 +1619,7 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_health_failed', __( 'Der Anbieter-Verbindungstest ist fehlgeschlagen.', 'pass-captain' ), array( 'status' => 502, 'provider_error_code' => $code ) );
 		}
 		Audit::record( 'fiscal_provider_health_ok', 'seller', $seller_id, array( 'provider_id' => $config['provider_id'] ) );
-		return rest_ensure_response( array( 'ok' => true, 'provider_id' => $config['provider_id'], 'checked_at' => current_time( 'mysql', true ) ) );
+		return rest_ensure_response( array( 'ok' => true, 'provider_id' => $config['provider_id'], 'checked_at' => \PassCaptain\Clock::mysql() ) );
 	}
 
 	public static function rest_save_provider( \WP_REST_Request $request ) {
@@ -1633,7 +1633,7 @@ final class Fiscalization {
 		if ( ! $seller || ( $enabled && ( ! $adapter || ! in_array( $seller->country_code, array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) ) ) {
 			return new \WP_Error( 'wpcap_fiscal_provider_invalid', __( 'Anbieter oder Länderunterstützung ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$config = isset( $body['configuration'] ) && is_array( $body['configuration'] ) ? $body['configuration'] : array();
 		if ( self::contains_secret_key( $config ) ) { return new \WP_Error( 'wpcap_fiscal_secret_rejected', __( 'API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		// SSRF: endpoints are checked when saved (and again before every request by ProviderHttp).

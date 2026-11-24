@@ -217,7 +217,7 @@ final class Endpoints {
 		$stored_secret = $existing ? (string) $existing->secret : '';
 		if ( '' !== $secret ) { $stored_secret = Vault::encrypt( $secret, self::VAULT_CONTEXT ); }
 		if ( ! empty( $in['clear_secret'] ) ) { $stored_secret = ''; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$data = array(
 			'name' => $name,
 			'url' => $url,
@@ -246,7 +246,7 @@ final class Endpoints {
 	public static function set_status( $endpoint_id, $active ) {
 		global $wpdb;
 		if ( ! self::get( $endpoint_id ) ) { return false; }
-		$wpdb->update( self::table( 'connector_endpoints' ), array( 'status' => $active ? 'active' : 'disabled', 'updated_at' => current_time( 'mysql', true ) ), array( 'endpoint_id' => absint( $endpoint_id ) ) );
+		$wpdb->update( self::table( 'connector_endpoints' ), array( 'status' => $active ? 'active' : 'disabled', 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'endpoint_id' => absint( $endpoint_id ) ) );
 		self::flush();
 		self::sync_enabled( $endpoint_id, (bool) $active );
 		return true;
@@ -460,7 +460,7 @@ final class Endpoints {
 		$id = (int) $endpoint->endpoint_id;
 		$row = self::log_row( $id, $idempotency_key );
 		if ( $row && 'delivered' === $row->status ) { return true; }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		if ( ! $row ) {
 			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (endpoint_id,event,idempotency_key,payload,status,attempts,response_code,last_error,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,0,'',%s,%s)", $table, $id, $event, (string) $idempotency_key, (string) wp_json_encode( $payload ), $now, $now ) );
 			$row = self::log_row( $id, $idempotency_key );
@@ -470,10 +470,10 @@ final class Endpoints {
 		$attempts = (int) $row->attempts + 1;
 		if ( is_wp_error( $result ) ) {
 			$data = (array) $result->get_error_data();
-			$wpdb->update( $table, array( 'status' => $attempts >= Jobs::max_attempts() ? 'failed' : 'retrying', 'attempts' => $attempts, 'response_code' => (int) ( $data['response_code'] ?? 0 ), 'last_error' => mb_substr( Redact::text( $result->get_error_message() ), 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+			$wpdb->update( $table, array( 'status' => $attempts >= Jobs::max_attempts() ? 'failed' : 'retrying', 'attempts' => $attempts, 'response_code' => (int) ( $data['response_code'] ?? 0 ), 'last_error' => mb_substr( Redact::text( $result->get_error_message() ), 0, 190 ), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			return $result;
 		}
-		$wpdb->update( $table, array( 'status' => 'delivered', 'attempts' => $attempts, 'response_code' => (int) $result['code'], 'last_error' => '', 'delivered_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( 'delivery_id' => (int) $row->delivery_id ) );
+		$wpdb->update( $table, array( 'status' => 'delivered', 'attempts' => $attempts, 'response_code' => (int) $result['code'], 'last_error' => '', 'delivered_at' => \PassCaptain\Clock::mysql(), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'delivery_id' => (int) $row->delivery_id ) );
 		return true;
 	}
 
@@ -505,7 +505,7 @@ final class Endpoints {
 		$body = array( 'contract_version' => self::CONTRACT_VERSION, 'event' => 'test', 'occurred_at' => gmdate( 'c' ), 'idempotency_key' => $key, 'data' => array( 'test' => true, 'mapping' => $sample ) );
 		$result = self::send( $endpoint, 'test', $body, $key );
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$data = is_wp_error( $result ) ? (array) $result->get_error_data() : array();
 		$wpdb->insert( self::table( 'connector_deliveries' ), array( 'endpoint_id' => (int) $endpoint->endpoint_id, 'event' => 'test', 'idempotency_key' => $key, 'payload' => '{}', 'status' => is_wp_error( $result ) ? 'failed' : 'delivered', 'attempts' => 1, 'response_code' => is_wp_error( $result ) ? (int) ( $data['response_code'] ?? 0 ) : (int) $result['code'], 'last_error' => is_wp_error( $result ) ? mb_substr( Redact::text( $result->get_error_message() ), 0, 190 ) : '', 'created_at' => $now, 'updated_at' => $now, 'delivered_at' => is_wp_error( $result ) ? null : $now ) );
 		return is_wp_error( $result ) ? $result : array( 'response_code' => (int) $result['code'], 'endpoint_id' => (int) $endpoint->endpoint_id );
@@ -531,6 +531,6 @@ final class Endpoints {
 	public static function purge_old() {
 		global $wpdb;
 		$days = self::log_days();
-		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('delivered','failed') AND updated_at<%s LIMIT 1000", self::table( 'connector_deliveries' ), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('delivered','failed') AND updated_at<%s LIMIT 1000", self::table( 'connector_deliveries' ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - $days * DAY_IN_SECONDS ) ) );
 	}
 }

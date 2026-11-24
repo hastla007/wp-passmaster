@@ -35,7 +35,7 @@ final class Settlement {
 		$scope = Data::scope();
 		if ( false === $scope ) { return array(); }
 		$scope_sql = \PassCaptain\Admin\Queries::scope_sql( $scope, 'o.event_id' ) . \PassCaptain\Access::occurrence_scope_sql( 'o' );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope_sql ORDER BY o.starts_at DESC LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 365 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope_sql ORDER BY o.starts_at DESC LIMIT 300", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 365 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope list.
 		$out = array();
 		foreach ( $rows as $r ) {
 			$out[ (int) $r->occurrence_id ] = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ) . ( 'scheduled' !== $r->status ? ' (' . __( 'abgesagt', 'pass-captain' ) . ')' : '' );

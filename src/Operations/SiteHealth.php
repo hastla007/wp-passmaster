@@ -216,7 +216,7 @@ final class SiteHealth {
 	 * @param bool|null  $disabled DISABLE_WP_CRON (tests).
 	 */
 	public static function cron_state( $crons = null, $now = null, $disabled = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		if ( null === $crons ) { $crons = function_exists( '_get_cron_array' ) ? _get_cron_array() : null; }
 		$hooks = \PassCaptain\Plugin::cron_hooks();
 		$overdue = array();
@@ -307,7 +307,7 @@ final class SiteHealth {
 
 	public static function test_mail( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$failures = Monitor::mail_failures( $now - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 		$count = count( $failures );
 		if ( 0 === $count || ( $t['mail_failures'] > 0 && $count < $t['mail_failures'] ) ) {
@@ -331,7 +331,7 @@ final class SiteHealth {
 		global $wpdb;
 		if ( ! Privacy::has_table( 'wpcap_sms_messages' ) ) { return 0; }
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_sms_messages WHERE status IN ('failed','undelivered') AND updated_at>=%s", gmdate( 'Y-m-d H:i:s', $now - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ) );
 	}
 
@@ -360,7 +360,7 @@ final class SiteHealth {
 	public static function payment_webhooks( $now = null ) {
 		global $wpdb;
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$since = gmdate( 'Y-m-d H:i:s', $now - $t['payment_webhook_hours'] * HOUR_IN_SECONDS );
 		$out = array();
 		$has_events = Privacy::has_table( 'wpcap_payment_events' );
@@ -376,7 +376,7 @@ final class SiteHealth {
 
 	public static function test_payment_webhooks( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$lines = array();
 		foreach ( self::payment_webhooks( $now ) as $provider => $info ) {
 			$fresh = '' !== $info['last'] && strtotime( $info['last'] . ' UTC' ) >= $now - $t['payment_webhook_hours'] * HOUR_IN_SECONDS;
@@ -423,7 +423,7 @@ final class SiteHealth {
 	 */
 	public static function test_webhook_errors( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$entries = Monitor::provider_failures( Monitor::WEBHOOK_OPTION, $now - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 		$total = Monitor::count_failures( $entries );
 		$crashes = Monitor::count_failures( $entries, 'exception' );
@@ -453,7 +453,7 @@ final class SiteHealth {
 	/** Failed payment starts per provider within payment_start_window_minutes (A324). */
 	public static function test_payment_start( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$entries = Monitor::provider_failures( Monitor::PAYMENT_START_OPTION, $now - $t['payment_start_window_minutes'] * MINUTE_IN_SECONDS );
 		$total = Monitor::count_failures( $entries );
 		if ( ! $entries || ( $t['payment_start_failures'] > 0 && $total < $t['payment_start_failures'] ) ) {
@@ -500,7 +500,7 @@ final class SiteHealth {
 			// Loopback: core's own Site Health loopback test uses the same filter.
 			'sslverify' => (bool) apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
 		), array( 'allow_local' => true, 'max_bytes' => 262144 ) );
-		$probe = array( 'code' => 0, 'error' => '', 'time' => time() );
+		$probe = array( 'code' => 0, 'error' => '', 'time' => \PassCaptain\Clock::real() );
 		if ( is_wp_error( $response ) ) {
 			$data = $response->get_error_data();
 			$probe['code'] = is_array( $data ) ? (int) ( $data['response_code'] ?? 0 ) : 0;
@@ -617,7 +617,7 @@ final class SiteHealth {
 		$fields['mail_failures'] = array(
 			/* translators: %d: hours */
 			'label' => sprintf( __( 'Fehlgeschlagene Plugin-E-Mails (%d h)', 'pass-captain' ), $t['mail_window_hours'] ),
-			'value' => (string) count( Monitor::mail_failures( time() - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ),
+			'value' => (string) count( Monitor::mail_failures( \PassCaptain\Clock::real() - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ),
 		);
 		if ( self::sms_active() ) {
 			$fields['sms_failures'] = array(
@@ -634,7 +634,7 @@ final class SiteHealth {
 			);
 		}
 		foreach ( array( Monitor::WEBHOOK_OPTION => 'webhook_failures', Monitor::PAYMENT_START_OPTION => 'payment_start_failures' ) as $option => $key ) {
-			$entries = Monitor::provider_failures( $option, time() - $t['mail_window_hours'] * HOUR_IN_SECONDS );
+			$entries = Monitor::provider_failures( $option, \PassCaptain\Clock::real() - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 			$fields[ $key ] = array(
 				'label' => Monitor::WEBHOOK_OPTION === $option
 					/* translators: %d: hours */
@@ -730,7 +730,7 @@ final class SiteHealth {
 		$currencies = (array) $wpdb->get_col( "SELECT DISTINCT currency FROM {$wpdb->prefix}wpcap_ticket_types WHERE status='active' ORDER BY currency LIMIT 10" );
 		$f['currencies'] = array( 'label' => __( 'Währungen aktiver Ticketarten', 'pass-captain' ), 'value' => $currencies ? implode( ', ', array_map( 'sanitize_text_field', $currencies ) ) : '–' );
 		$f['locale'] = array( 'label' => __( 'Sprache / Zeitzone', 'pass-captain' ), 'value' => ( function_exists( 'get_locale' ) ? (string) get_locale() : '' ) . ' / ' . ( function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : '' ) );
-		$holds = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, COALESCE(SUM(quantity),0) AS q, SUM(expires_at<%s) AS expired FROM {$wpdb->prefix}wpcap_reservations WHERE status='active'", current_time( 'mysql', true ) ) );
+		$holds = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, COALESCE(SUM(quantity),0) AS q, SUM(expires_at<%s) AS expired FROM {$wpdb->prefix}wpcap_reservations WHERE status='active'", \PassCaptain\Clock::mysql() ) );
 		/* translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry */
 		$value = $holds ? sprintf( __( '%1$d (%2$d Tickets), davon abgelaufen %3$d', 'pass-captain' ), (int) $holds->n, (int) $holds->q, (int) $holds->expired ) : '–';
 		$f['holds'] = array( 'label' => __( 'Offene Reservierungen', 'pass-captain' ), 'value' => $value );

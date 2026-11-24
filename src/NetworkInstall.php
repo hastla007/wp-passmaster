@@ -38,7 +38,7 @@ final class NetworkInstall {
 
 	/** Network activation: queue the other sites (the current one is installed by the caller). */
 	public static function start() {
-		update_site_option( self::OPTION, array( 'offset' => 0, 'done' => 0, 'started_at' => time() ) );
+		update_site_option( self::OPTION, array( 'offset' => 0, 'done' => 0, 'started_at' => Clock::real() ) );
 		self::schedule( 0 );
 	}
 
@@ -50,7 +50,7 @@ final class NetworkInstall {
 
 	private static function schedule( $delay ) {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
-			wp_schedule_single_event( time() + max( 0, (int) $delay ), self::HOOK );
+			wp_schedule_single_event( Clock::real() + max( 0, (int) $delay ), self::HOOK );
 		}
 	}
 

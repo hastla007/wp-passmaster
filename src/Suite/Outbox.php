@@ -121,7 +121,7 @@ final class Outbox {
 		if ( false === $event_id ) { return false; }
 		$class = self::contract_for( $type );
 		if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::DISPATCH_HOOK ) && $class && has_filter( $class::FILTER ) ) {
-			wp_schedule_single_event( \PassCaptain\Clock::now() + 5, self::DISPATCH_HOOK );
+			wp_schedule_single_event( \PassCaptain\Clock::real() + 5, self::DISPATCH_HOOK );
 		}
 		return $event_id;
 	}

@@ -152,7 +152,7 @@ final class BatchJob {
 			$held += (int) $ref->held_by_other;
 		}
 		if ( false === self::write( $ids_file, $lines, 0 ) ) { return new \WP_Error( 'wpcap_print_batch_dir', __( 'Das Verzeichnis für Druckdateien ist nicht beschreibbar.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( self::table(), array( 'token' => $token, 'occurrence_id' => absint( $occurrence_id ), 'kind' => $kind, 'with_codes' => $with_codes ? 1 : 0, 'user_id' => get_current_user_id(), 'status' => 'rendering', 'total' => count( $refs ), 'held_by_other' => $with_codes ? $held : 0, 'created_at' => $now, 'updated_at' => $now ) );
 		if ( ! $ok ) {
 			self::delete_files( $probe );
@@ -270,7 +270,7 @@ final class BatchJob {
 			$pdf_bytes + strlen( $chunk['bytes'] ),
 			strlen( $xref ),
 			strlen( $codes ),
-			current_time( 'mysql', true ),
+			\PassCaptain\Clock::mysql(),
 			$batch_id,
 			'rendering',
 			(int) $batch->done
@@ -290,7 +290,7 @@ final class BatchJob {
 		if ( false === self::write( $part, $trailer, $pdf_bytes ) || ! @rename( $part, self::path( $batch, 'pdf' ) ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged, WordPress.WP.AlternativeFunctions.rename_rename
 			return self::fail( $batch, 'write' );
 		}
-		$wpdb->update( self::table(), array( 'status' => 'ready', 'pdf_bytes' => $pdf_bytes + strlen( $trailer ), 'updated_at' => current_time( 'mysql', true ) ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'rendering' ) );
+		$wpdb->update( self::table(), array( 'status' => 'ready', 'pdf_bytes' => $pdf_bytes + strlen( $trailer ), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'rendering' ) );
 		wp_delete_file( self::path( $batch, 'xref' ) );
 		wp_delete_file( self::path( $batch, 'glyphs' ) );
 		return 'done';
@@ -298,7 +298,7 @@ final class BatchJob {
 
 	private static function fail( $batch, $reason ) {
 		global $wpdb;
-		$wpdb->update( self::table(), array( 'status' => 'failed', 'error' => sanitize_key( $reason ), 'updated_at' => current_time( 'mysql', true ) ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'rendering' ) );
+		$wpdb->update( self::table(), array( 'status' => 'failed', 'error' => sanitize_key( $reason ), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'rendering' ) );
 		self::delete_files( $batch );
 		Audit::record( 'print_batch_failed', 'occurrence', (int) $batch->occurrence_id, array( 'batch' => (int) $batch->batch_id, 'reason' => sanitize_key( $reason ) ) );
 		return 'stop';
@@ -339,7 +339,7 @@ final class BatchJob {
 			if ( $changed ) { \PassCaptain\CodeHistory::replaced( (int) $line[0], (string) $line[2], 'print' ); } // A543
 			$changed ? ++$rotated : ++$skipped;
 		}
-		$done = $wpdb->update( self::table(), array( 'status' => 'delivered', 'rotated' => $rotated, 'skipped' => $skipped, 'delivered_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'ready' ) );
+		$done = $wpdb->update( self::table(), array( 'status' => 'delivered', 'rotated' => $rotated, 'skipped' => $skipped, 'delivered_at' => \PassCaptain\Clock::mysql(), 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'batch_id' => (int) $batch->batch_id, 'status' => 'ready' ) );
 		if ( 1 !== (int) $done || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		if ( $rotated ) {
 			Audit::record( 'ticket_codes_rotated', 'occurrence', (int) $batch->occurrence_id, array( 'count' => $rotated, 'skipped' => $skipped, 'reason' => sanitize_key( 'batch_' . $batch->kind ), 'batch' => (int) $batch->batch_id ) );
@@ -384,7 +384,7 @@ final class BatchJob {
 		global $wpdb;
 		$batch = self::get( $batch_id );
 		if ( ! $batch ) { return new \WP_Error( 'wpcap_print_batch_not_found', __( 'Stapeldruck nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET status='cancelled',updated_at=%s WHERE batch_id=%d AND status IN ('rendering','ready')", current_time( 'mysql', true ), (int) $batch->batch_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$changed = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET status='cancelled',updated_at=%s WHERE batch_id=%d AND status IN ('rendering','ready')", \PassCaptain\Clock::mysql(), (int) $batch->batch_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		if ( 1 !== (int) $changed ) { return new \WP_Error( 'wpcap_print_batch_delivered', __( 'Dieser Stapeldruck wurde bereits heruntergeladen und kann nicht mehr abgebrochen werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		self::delete_files( $batch );
 		Audit::record( 'print_batch_cancelled', 'occurrence', (int) $batch->occurrence_id, array( 'batch' => (int) $batch->batch_id ) );
@@ -399,7 +399,7 @@ final class BatchJob {
 	public static function cleanup() {
 		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
-		$now = time();
+		$now = \PassCaptain\Clock::now();
 		$stuck = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . " WHERE status='rendering' AND updated_at<%s LIMIT 100", gmdate( 'Y-m-d H:i:s', $now - DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		foreach ( $stuck as $batch ) { self::fail( $batch, 'stalled' ); }
 		$old = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE updated_at<%s LIMIT 100', gmdate( 'Y-m-d H:i:s', $now - self::keep_days() * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

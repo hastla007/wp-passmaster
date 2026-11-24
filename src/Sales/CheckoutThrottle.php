@@ -162,8 +162,8 @@ final class CheckoutThrottle {
 	/** Notes a suspicious request for the system status (written at most once a day). */
 	private static function remember( $kind ) {
 		$seen = get_option( self::SEEN_OPTION );
-		if ( is_array( $seen ) && ( $seen['kind'] ?? '' ) === $kind && (int) ( $seen['time'] ?? 0 ) > time() - DAY_IN_SECONDS ) { return; }
-		update_option( self::SEEN_OPTION, array( 'kind' => $kind, 'time' => time() ), false );
+		if ( is_array( $seen ) && ( $seen['kind'] ?? '' ) === $kind && (int) ( $seen['time'] ?? 0 ) > \PassCaptain\Clock::real() - DAY_IN_SECONDS ) { return; }
+		update_option( self::SEEN_OPTION, array( 'kind' => $kind, 'time' => \PassCaptain\Clock::real() ), false );
 	}
 
 	/**
@@ -177,7 +177,7 @@ final class CheckoutThrottle {
 		$kind = self::proxy_suspect();
 		if ( '' === $kind ) {
 			$seen = get_option( self::SEEN_OPTION );
-			$kind = is_array( $seen ) && (int) ( $seen['time'] ?? 0 ) > time() - 7 * DAY_IN_SECONDS ? (string) ( $seen['kind'] ?? '' ) : '';
+			$kind = is_array( $seen ) && (int) ( $seen['time'] ?? 0 ) > \PassCaptain\Clock::real() - 7 * DAY_IN_SECONDS ? (string) ( $seen['kind'] ?? '' ) : '';
 		}
 		if ( '' === $kind ) { return null; }
 		return array(

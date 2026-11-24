@@ -471,7 +471,7 @@ final class AdminPage {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$out = array( 'occurrences' => array(), 'types' => array(), 'holds' => array() );
-		$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name,tt.ticket_type_id,tt.name AS type_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 1000", $since ) );
 		foreach ( (array) $rows as $row ) {
 			$occ = $row->name . ' – ' . \PassCaptain\Orders::format_start( $row->starts_at, $row->timezone );
@@ -618,7 +618,7 @@ final class AdminPage {
 				$key_types = Keys::restricted_types( $k );
 				if ( $key_types ) { $limits[] = __( 'Ticketarten:', 'pass-captain' ) . ' ' . implode( ', ', $key_types ); }
 				if ( (int) ( $k->write_rate_limit ?? 0 ) ) { $limits[] = sprintf( /* translators: %d: limit */ __( '%d Verkäufe/Min.', 'pass-captain' ), (int) $k->write_rate_limit ); }
-				$expired = $k->expires_at && $k->expires_at <= current_time( 'mysql', true );
+				$expired = $k->expires_at && $k->expires_at <= \PassCaptain\Clock::mysql();
 				$status = $k->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'aktiv', 'pass-captain' ) );
 				echo '<tr><td><code>' . esc_html( Keys::TOKEN_PREFIX . $k->public_prefix . '_…' ) . '</code>' . ( '' !== $k->label ? '<br>' . esc_html( $k->label ) : '' ) . '</td><td>' . esc_html( str_replace( ',', ', ', $k->scopes ) ) . '</td><td>' . esc_html( implode( ' · ', $limits ) ) . '</td><td>' . esc_html( Forms::datetime( $k->last_used_at, $tz, false ) ) . '</td><td>' . esc_html( $status ) . '</td><td>';
 				if ( ! $k->revoked_at ) { self::button( 'revoke_key', array( 'id' => (int) $k->key_id, 'partner_id' => (int) $partner->partner_id ), __( 'Widerrufen', 'pass-captain' ), __( 'Key sofort widerrufen?', 'pass-captain' ) ); }

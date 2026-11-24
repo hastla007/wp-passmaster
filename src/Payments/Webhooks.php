@@ -71,9 +71,9 @@ final class Webhooks {
 			$applied = Refunds::apply_provider_states( $provider, $event['refund_states'] );
 			if ( is_wp_error( $applied ) ) { return $applied; }
 		}
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		// A claim left in "processing" by a crashed request may be taken over after 10 minutes (Config webhook_lock_minutes, A408).
-		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - \PassCaptain\Config::get( 'webhook_lock_minutes' ) * MINUTE_IN_SECONDS ) ) );
+		$taken_over = $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $p . 'wpcap_payment_events', $provider, $event_id, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - \PassCaptain\Config::get( 'webhook_lock_minutes' ) * MINUTE_IN_SECONDS ) ) );
 		if ( false === $taken_over ) {
 			return self::db_error( $provider, $event_id, 'takeover' );
 		}
@@ -139,7 +139,7 @@ final class Webhooks {
 		// repeat; without the retry the applied event would answer "in progress" until the takeover window.
 		for ( $attempt = 0; $attempt < 3; $attempt++ ) {
 			if ( $attempt ) { usleep( 50000 * $attempt ); }
-			$marked = $wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
+			$marked = $wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => \PassCaptain\Clock::mysql() ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
 			if ( false !== $marked ) { break; }
 		}
 		if ( false === $marked ) {
@@ -576,7 +576,7 @@ final class Webhooks {
 		$p = $wpdb->prefix;
 		$starts = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(o.starts_at) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $order->order_id ) );
 		if ( '' !== $starts ) {
-			$minutes = min( $minutes, (int) floor( ( strtotime( $starts . ' UTC' ) - time() ) / MINUTE_IN_SECONDS ) );
+			$minutes = min( $minutes, (int) floor( ( strtotime( $starts . ' UTC' ) - \PassCaptain\Clock::now() ) / MINUTE_IN_SECONDS ) );
 		}
 		$extended = $minutes > 0 ? (int) Orders::extend_hold( (int) $order->order_id, $minutes ) : 0;
 		Audit::record( $extended ? 'delayed_payment_hold_extended' : 'delayed_payment_hold_lapsed', 'order', (int) $order->order_id, array( 'provider' => (string) $provider, 'minutes' => max( 0, $minutes ) ) );

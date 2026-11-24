@@ -659,7 +659,7 @@ final class Controller {
 			if ( $min_hold ) {
 				// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
 				$hold_until = self::hold_until( (int) $result['order_id'] );
-				if ( $hold_until && $hold_until < time() + $min_hold * MINUTE_IN_SECONDS ) {
+				if ( $hold_until && $hold_until < \PassCaptain\Clock::now() + $min_hold * MINUTE_IN_SECONDS ) {
 					Orders::extend_hold( (int) $result['order_id'], $min_hold );
 					$hold_until = self::hold_until( (int) $result['order_id'] );
 				}
@@ -733,7 +733,7 @@ final class Controller {
 	/** End of the order's active hold as Unix timestamp (earliest active reservation), 0 when none is left. */
 	private static function hold_until( $order_id ) {
 		global $wpdb;
-		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) );
+		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), \PassCaptain\Clock::mysql() ) );
 		return $until ? (int) strtotime( $until . ' UTC' ) : 0;
 	}
 
@@ -1301,7 +1301,7 @@ final class Controller {
 		$payload = (array) $request->get_json_params();
 		$event_id = absint( $payload['event_id'] ?? 0 );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		if ( ! empty( $payload['expires_at'] ) && ( ! is_string( $payload['expires_at'] ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= time() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! empty( $payload['expires_at'] ) && ( ! is_string( $payload['expires_at'] ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= \PassCaptain\Clock::now() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		// Expiry (UTC, future), scopes and the optional per-key rate limit are validated in issue().
 		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), (string) ( $payload['label'] ?? '' ), (string) ( $payload['expires_at'] ?? '' ), $payload['rate_limit'] ?? 0 );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
@@ -1352,7 +1352,7 @@ final class Controller {
 		$locale = sanitize_text_field( $payload['locale'] ?? '' );
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! preg_match( '/^[a-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/', $locale ) || '' === $name ) { return new \WP_Error( 'wpcap_translation_invalid', __( 'Locale oder übersetzter Titel ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_event_translations (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)", $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_event_translations (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)", $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), \PassCaptain\Clock::mysql() ) );
 		\PassCaptain\PageCache::event_changed( $event_id, 'translation' ); // A446.
 		return rest_ensure_response( array( 'event_id' => $event_id, 'locale' => $locale, 'status' => 'saved' ) );
 	}

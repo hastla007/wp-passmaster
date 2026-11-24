@@ -73,7 +73,7 @@ final class Package {
 		$p = $wpdb->prefix;
 		$occurrence_id = absint( $occurrence_id );
 		$state = self::state( $occurrence_id );
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		if ( $state && ! $force && $state->refreshed_at && strtotime( $state->refreshed_at . ' UTC' ) > $now - self::refresh_interval() ) { return $state; }
 		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (occurrence_id,epoch,version) VALUES (%d,%s,0)', $p . 'wpcap_offline_state', $occurrence_id, bin2hex( random_bytes( 8 ) ) ) );
 		$wpdb->query( 'START TRANSACTION' );
@@ -209,7 +209,7 @@ final class Package {
 		$types = array_values( (array) apply_filters( 'wpcap_offline_package_types', $types, $occurrence ) );
 		$areas = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => (string) $a->name ); }, Areas::for_event( $event_id ) );
 		$area_id = \PassCaptain\Mobile\Devices::area_id( $device );
-		$issued = time();
+		$issued = \PassCaptain\Clock::real();
 		$expires = $issued + $rules['max_offline_hours'] * HOUR_IN_SECONDS;
 		$cursor = $state->epoch . '.' . (int) $state->version;
 		$kid = Keys::active_id();

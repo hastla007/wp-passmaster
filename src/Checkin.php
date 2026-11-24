@@ -354,7 +354,7 @@ final class Checkin {
 		// user + key + ticket). A parallel request with the same key waited for this lock; when the
 		// claim already exists, the first request has committed and its outcome is replayed.
 		if ( $key && $ticket ) {
-			$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $p . 'wpcap_checkin_claims', $user_id, $key, (int) $ticket->ticket_id, current_time( 'mysql', true ) ) );
+			$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $p . 'wpcap_checkin_claims', $user_id, $key, (int) $ticket->ticket_id, Clock::mysql() ) );
 			if ( false === $claimed || self::db_failed() ) { return self::abort(); }
 			if ( 0 === (int) $claimed ) {
 				$wpdb->query( 'ROLLBACK' );
@@ -644,7 +644,7 @@ final class Checkin {
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT user_id,device_id,created_at FROM %i WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", $wpdb->prefix . 'wpcap_checkins', (int) $ticket_id ) );
 		$device_id = absint( $context['device_id'] ?? 0 );
 		$own = $last && ( (int) $last->user_id === get_current_user_id() || ( $device_id && (int) $last->device_id === $device_id ) );
-		$recent = $last && strtotime( $last->created_at . ' UTC' ) >= time() - $minutes * MINUTE_IN_SECONDS;
+		$recent = $last && strtotime( $last->created_at . ' UTC' ) >= Clock::now() - $minutes * MINUTE_IN_SECONDS;
 		if ( $minutes > 0 && $own && $recent ) { return null; }
 		$message = $minutes > 0
 			/* translators: %d: minutes */
@@ -671,7 +671,7 @@ final class Checkin {
 	 */
 	public static function claim_key( $key, $ticket_id ) {
 		global $wpdb;
-		$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $wpdb->prefix . 'wpcap_checkin_claims', get_current_user_id(), hash( 'sha256', 'undo|' . (string) $key ), (int) $ticket_id, current_time( 'mysql', true ) ) );
+		$claimed = $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (user_id,key_hash,ticket_id,created_at) VALUES (%d,%s,%d,%s)', $wpdb->prefix . 'wpcap_checkin_claims', get_current_user_id(), hash( 'sha256', 'undo|' . (string) $key ), (int) $ticket_id, Clock::mysql() ) );
 		if ( false === $claimed || '' !== (string) $wpdb->last_error ) { return -1; }
 		return (int) $claimed > 0 ? 1 : 0;
 	}
@@ -721,7 +721,7 @@ final class Checkin {
 	 */
 	public static function purge_claims( $now = null, $deadline = null, $batch = 5000 ) {
 		global $wpdb;
-		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - 7 * DAY_IN_SECONDS );
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? Clock::now() : (int) $now ) - 7 * DAY_IN_SECONDS );
 		$total = 0;
 		do {
 			$deleted = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE created_at<%s LIMIT %d', $wpdb->prefix . 'wpcap_checkin_claims', $cutoff, (int) $batch ) );
@@ -807,7 +807,7 @@ final class Checkin {
 				'idempotency_key' => $key,
 				'source' => sanitize_key( $context['source'] ?? 'web' ),
 				'scanned_at' => ! empty( $context['scanned_at'] ) ? $context['scanned_at'] : null,
-				'created_at' => current_time( 'mysql', true ),
+				'created_at' => Clock::mysql(),
 			) );
 			return '' === $wpdb->last_error ? (int) $wpdb->insert_id : 0;
 		};

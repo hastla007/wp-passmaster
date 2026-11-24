@@ -86,14 +86,14 @@ final class Attendees {
 		$list = get_option( self::FAILED_OPTION, array() );
 		$list = is_array( $list ) ? $list : array();
 		if ( ! isset( $list[ $wc_order_id ] ) ) {
-			$list[ $wc_order_id ] = time();
+			$list[ $wc_order_id ] = \PassCaptain\Clock::now();
 			update_option( self::FAILED_OPTION, $list, false );
 		}
 	}
 
 	/** Daily (privacy retention run): removes attendee copies of orders that stayed unpaid. */
 	public static function purge_failed( $now = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$list = get_option( self::FAILED_OPTION, array() );
 		if ( ! is_array( $list ) || ! $list || ! function_exists( 'wc_get_order' ) ) { return 0; }
 		$removed = 0;

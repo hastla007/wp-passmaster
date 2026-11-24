@@ -107,7 +107,7 @@ final class Profiles {
 
 	/** Site-local date (Y-m-d) of a UTC time ('' = now): the sale date compared with the validity. */
 	public static function local_date( $utc = '' ) {
-		$ts = '' !== (string) $utc ? strtotime( $utc . ' UTC' ) : time();
+		$ts = '' !== (string) $utc ? strtotime( $utc . ' UTC' ) : \PassCaptain\Clock::now();
 		$tz = \PassCaptain\Reports\Scope::site_timezone();
 		return ( new \DateTimeImmutable( '@' . (int) $ts ) )->setTimezone( new \DateTimeZone( $tz ) )->format( 'Y-m-d' );
 	}
@@ -254,7 +254,7 @@ final class Profiles {
 		if ( is_wp_error( $clean ) ) { return $clean; }
 		$table = $wpdb->prefix . 'wpcap_tax_profiles';
 		$id = absint( $in['tax_profile_id'] ?? 0 );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$me = (int) get_current_user_id();
 		// Optional display label and place-of-supply note (shown with the rate; not part of the reviewed rate data).
 		if ( array_key_exists( 'label', $in ) && is_scalar( $in['label'] ) ) { $clean['label'] = \PassCaptain\Text::cut( sanitize_text_field( (string) $in['label'] ), 190 ); }
@@ -326,7 +326,7 @@ final class Profiles {
 			/* translators: %s: list of profiles */
 			return self::error( 'wpcap_tax_profile_overlap', sprintf( __( 'Für dieses Land und diese Steuerklasse ist im Zeitraum schon ein Profil aktiv: %s. Setze es zuerst außer Kraft oder begrenze die Gültigkeit.', 'pass-captain' ), implode( ', ', $ids ) ), 409 );
 		}
-		$data = array( 'status' => 'active' ) + ( self::ready() ? array( 'reviewed_by' => (int) get_current_user_id(), 'reviewed_at' => current_time( 'mysql', true ), 'review_note' => mb_substr( sanitize_text_field( (string) $note ), 0, 190 ) ) : array() );
+		$data = array( 'status' => 'active' ) + ( self::ready() ? array( 'reviewed_by' => (int) get_current_user_id(), 'reviewed_at' => \PassCaptain\Clock::mysql(), 'review_note' => mb_substr( sanitize_text_field( (string) $note ), 0, 190 ) ) : array() );
 		if ( false === $wpdb->update( $table, $data, array( 'tax_profile_id' => absint( $id ) ) ) || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
@@ -348,7 +348,7 @@ final class Profiles {
 		$profile = self::get( $id );
 		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( 'retired' === $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Das Steuerprofil ist bereits außer Kraft.', 'pass-captain' ), 409 ); }
-		$data = array( 'status' => 'retired' ) + ( self::ready() ? array( 'retired_by' => (int) get_current_user_id(), 'retired_at' => current_time( 'mysql', true ) ) : array() );
+		$data = array( 'status' => 'retired' ) + ( self::ready() ? array( 'retired_by' => (int) get_current_user_id(), 'retired_at' => \PassCaptain\Clock::mysql() ) : array() );
 		if ( false === $wpdb->update( $wpdb->prefix . 'wpcap_tax_profiles', $data, array( 'tax_profile_id' => absint( $id ), 'status' => (string) $profile->status ) ) ) {
 			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}

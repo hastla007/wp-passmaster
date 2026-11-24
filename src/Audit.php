@@ -27,7 +27,7 @@ final class Audit {
 				'object_id' => absint( $object_id ),
 				// Both redactors: A194 (card numbers, IBANs, secret-named keys) and Security\Redact (provider secrets, tokens, contact data).
 				'details' => wp_json_encode( Security\Redact::data( Redact::value( $details, false ) ) ),
-				'created_at' => current_time( 'mysql', true ),
+				'created_at' => Clock::real_mysql(),
 			),
 			array( '%d', '%s', '%s', '%d', '%s', '%s' )
 		);

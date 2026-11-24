@@ -211,7 +211,7 @@ final class AdminPage {
 		echo '<p>' . esc_html__( 'Kontingente halten Plätze für Künstler, Sponsoren, Presse oder Technik zurück. Sie sind im freien Verkauf (Website, WooCommerce, Warteliste) nicht buchbar; Abendkasse, Gästeliste und Admin können sie nutzen. Sperren (z. B. Technik) blockieren Plätze dauerhaft.', 'pass-captain' ) . '</p>';
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name AS event_name,(SELECT COUNT(*) FROM " . Holds::table( 'holds' ) . " h WHERE h.occurrence_id=o.occurrence_id AND h.status='active') AS holds FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at LIMIT 100",
-			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
+			gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS )
 		) );
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Event', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Beginn', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kapazität', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktive Kontingente', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( (array) $rows as $row ) {

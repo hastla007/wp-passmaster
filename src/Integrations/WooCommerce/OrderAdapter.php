@@ -1338,7 +1338,7 @@ final class OrderAdapter {
 		$type    = 'refund' === $kind ? 'woocommerce_refund_sync' : 'woocommerce_paid_sync';
 		$key     = 'refund' === $kind ? 'woocommerce-refund-sync|' . absint( $refund_id ) : 'woocommerce-paid-sync|' . $wc_id;
 		$payload = 'refund' === $kind ? array( 'woo_order' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'woo_order' => $wc_id );
-		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . time(), $type, $payload, gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . \PassCaptain\Clock::now(), $type, $payload, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 		if ( true !== $queued ) {
 			return false; // Not even the job could be stored: the caller's note asks for a manual retry.
 		}
@@ -1660,7 +1660,7 @@ final class OrderAdapter {
 			self::refund_job_key( $refund_id ),
 			self::REFUND_SYNC_JOB,
 			array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id ),
-			gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
+			gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 2 * MINUTE_IN_SECONDS )
 		);
 		\PassCaptain\Log::error( 'woocommerce_refund_sync_failed', 'WooCommerce refund could not be synchronised with the tickets.', array( 'object_type' => 'order', 'object_id' => (int) ( $core_ids[0] ?? 0 ), 'details' => array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => \PassCaptain\Text::cut( $message, 190 ) ) ) );
 		$note = $retryable

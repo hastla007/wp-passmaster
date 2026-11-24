@@ -377,7 +377,7 @@ final class ReturnNotice {
 	/** End of the order's active hold (Unix time), 0 when none is left. */
 	public static function hold_until( $order_id ) {
 		global $wpdb;
-		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) );
+		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), \PassCaptain\Clock::mysql() ) );
 		return $until ? (int) strtotime( $until . ' UTC' ) : 0;
 	}
 
@@ -412,7 +412,7 @@ final class ReturnNotice {
 		if ( ! $gateway ) { return new \WP_Error( 'wpcap_payment_retry_closed', __( 'Die Reservierung ist abgelaufen. Bitte bestelle erneut.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$min_hold = method_exists( $gateway, 'min_hold_minutes' ) ? max( 0, (int) $gateway->min_hold_minutes() ) : 0;
 		$hold_until = self::hold_until( (int) $order->order_id );
-		if ( $min_hold && $hold_until < time() + $min_hold * MINUTE_IN_SECONDS ) {
+		if ( $min_hold && $hold_until < \PassCaptain\Clock::now() + $min_hold * MINUTE_IN_SECONDS ) {
 			// The new payment page must end inside the hold (same rule as the checkout, QA-6).
 			Orders::extend_hold( (int) $order->order_id, $min_hold );
 			$hold_until = self::hold_until( (int) $order->order_id );

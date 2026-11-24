@@ -479,7 +479,7 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface, Pa
 			if ( 't' === $pair[0] && ctype_digit( $pair[1] ) ) { $timestamp = (int) $pair[1]; }
 			if ( 'v1' === $pair[0] ) { $signatures[] = $pair[1]; }
 		}
-		if ( ! $timestamp || ! $signatures || abs( ( $now ?? time() ) - $timestamp ) > self::TOLERANCE ) {
+		if ( ! $timestamp || ! $signatures || abs( ( $now ?? \PassCaptain\Clock::real() ) - $timestamp ) > self::TOLERANCE ) {
 			return false;
 		}
 		$expected = hash_hmac( 'sha256', $timestamp . '.' . $payload, $secret );

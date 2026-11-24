@@ -272,13 +272,13 @@ final class Plugin {
 	public static function schedule_events() {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		if ( ! wp_next_scheduled( 'wpcap_cleanup_reservations' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
+			wp_schedule_event( Clock::real() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
 		}
 		if ( ! wp_next_scheduled( 'wpcap_process_messages' ) ) {
-			wp_schedule_event( time() + 60, 'wpcap_five_minutes', 'wpcap_process_messages' );
+			wp_schedule_event( Clock::real() + 60, 'wpcap_five_minutes', 'wpcap_process_messages' );
 		}
 		if ( ! wp_next_scheduled( 'wpcap_process_jobs' ) ) {
-			wp_schedule_event( time() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
+			wp_schedule_event( Clock::real() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
 		}
 		Privacy\Retention::schedule();
 		CapacityCounters::schedule();
