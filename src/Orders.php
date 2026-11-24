@@ -2881,6 +2881,21 @@ final class Orders {
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $order ) { return false; }
+		$token = self::issue_access_token( (int) $order->order_id, $keep_current );
+		return '' !== $token && self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+	}
+
+	/**
+	 * Issues a new access token for an order without mailing it (rotate_access_link() and callers that
+	 * send several links in one mail). Returns the plain token ('' when the order does not exist).
+	 *
+	 * @param int  $order_id     Order.
+	 * @param bool $keep_current Store it as pending link (A631) instead of replacing the current one.
+	 */
+	public static function issue_access_token( $order_id, $keep_current = false ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( ! $order ) { return ''; }
 		$token = bin2hex( random_bytes( 32 ) );
 		if ( $keep_current && self::pending_link_ready() ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_pending_hash' => hash( 'sha256', $token ), 'access_pending_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::PENDING_LINK_DAYS * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
@@ -2889,7 +2904,7 @@ final class Orders {
 			if ( self::pending_link_ready() ) { $fields += array( 'access_pending_hash' => '', 'access_pending_expires_at' => null ); }
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', $fields, array( 'order_id' => (int) $order->order_id ), null, array( '%d' ) );
 		}
-		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+		return $token;
 	}
 
 	/** Drops a pending order link (A631), e.g. when the order is anonymised. */

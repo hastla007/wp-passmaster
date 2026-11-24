@@ -298,9 +298,9 @@ final class Calendar {
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
-		$dt->setTimezone( $tz );
-		return $dt->format( $format );
+		$ts = strtotime( $row->starts_at . ' UTC' );
+		// wp_date(): month and weekday names of the site's date format in the active language.
+		return false === $ts ? (string) $row->starts_at : wp_date( $format, $ts, $tz );
 	}
 
 	/** Link of a calendar entry: checkout URL, else the single-occurrence view on this page (rendered above the calendar). */
@@ -351,13 +351,13 @@ final class Calendar {
 		foreach ( $rows as $row ) {
 			$iso = self::local( $row, 'c' );
 			$cancelled = 'cancelled' === $row->status;
-			$out .= '<li class="wpcap-cal-item' . ( $cancelled ? ' wpcap-cal-cancelled' : '' ) . '"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, 'd.m.Y H:i' ) . ' ' . $row->timezone ) . '</time> ';
+			$out .= '<li class="wpcap-cal-item' . ( $cancelled ? ' wpcap-cal-cancelled' : '' ) . '"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, \PassCaptain\Frontend\Format::datetime_format() ) . ' ' . $row->timezone ) . '</time> ';
 			$out .= $cancelled ? '<span class="wpcap-cal-link">' . esc_html( $row->event_name ) . '</span>' : '<a class="wpcap-cal-link" href="' . esc_url( self::link_for( $row ) ) . '">' . esc_html( $row->event_name ) . '</a>';
 			if ( '' !== (string) $row->location ) { $out .= ' <span class="wpcap-cal-location">' . esc_html( $row->location ) . '</span>'; }
 			$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() );
 			// A393: the accessible name starts with the visible link text and names the event and date.
 			/* translators: 1: visible link text "Zum Kalender (.ics)", 2: event name, 3: date */
-			$ics_label = sprintf( __( '%1$s: %2$s am %3$s', 'pass-captain' ), __( 'Zum Kalender (.ics)', 'pass-captain' ), $row->event_name, self::local( $row, 'd.m.Y' ) );
+			$ics_label = sprintf( __( '%1$s: %2$s am %3$s', 'pass-captain' ), __( 'Zum Kalender (.ics)', 'pass-captain' ), $row->event_name, self::local( $row, \PassCaptain\Frontend\Format::date_format() ) );
 			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( $ics_label ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'pass-captain' ) . '</a>';
 			$out .= '</li>';
 		}
@@ -380,7 +380,7 @@ final class Calendar {
 	 */
 	public static function time_label( $row, ?\DateTimeZone $site = null ) {
 		$site = $site ? $site : self::site_timezone();
-		$time = self::local( $row, 'H:i' );
+		$time = self::local( $row, \PassCaptain\Frontend\Format::time_format() );
 		$at = new \DateTime( (string) $row->starts_at, new \DateTimeZone( 'UTC' ) );
 		$own = (int) self::local( $row, 'Z' );
 		return $own === $site->getOffset( $at ) ? $time : $time . ' ' . self::local( $row, 'T' );
@@ -463,7 +463,7 @@ final class Calendar {
 					$visible = self::time_label( $row, $tz ) . ' ' . $row->event_name;
 					$text = esc_html( $visible );
 					// A393: the accessible name starts with the visible text (WCAG 2.5.3) and adds the date.
-					$entries .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
+					$entries .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, \PassCaptain\Frontend\Format::date_format() ) ) . '">' . $text . '</a>';
 					$entries .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}
 				$entries .= '</ul>';

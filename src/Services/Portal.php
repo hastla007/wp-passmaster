@@ -148,7 +148,7 @@ final class Portal {
 	}
 
 	private static function when( $utc, $timezone ) {
-		return wp_date( 'd.m.Y H:i', strtotime( $utc . ' UTC' ), new \DateTimeZone( $timezone ) ) . ' (' . $timezone . ')';
+		return wp_date( \PassCaptain\Frontend\Format::datetime_format(), strtotime( $utc . ' UTC' ), new \DateTimeZone( $timezone ) ) . ' (' . $timezone . ')';
 	}
 
 	/** Booking card with buyer actions; $base holds the credential fields for the forms. */
@@ -237,7 +237,7 @@ final class Portal {
 			$supplement = $result['supplement'];
 			$payment = (array) ( $supplement['payment'] ?? array() );
 			/* translators: 1: amount, 2: deadline (UTC date/time) */
-			$content = '<p>' . esc_html( sprintf( __( 'Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen.', 'pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $supplement['amount_minor'], (string) $supplement['currency'] ), wp_date( 'd.m.Y H:i', strtotime( (string) $supplement['expires_at'] . ' UTC' ), new \DateTimeZone( 'UTC' ) ) ) ) . '</p>';
+			$content = '<p>' . esc_html( sprintf( __( 'Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen.', 'pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $supplement['amount_minor'], (string) $supplement['currency'] ), wp_date( \PassCaptain\Frontend\Format::datetime_format(), strtotime( (string) $supplement['expires_at'] . ' UTC' ), new \DateTimeZone( 'UTC' ) ) ) ) . '</p>';
 			if ( ! empty( $payment['redirect_url'] ) ) { $content .= '<p><a href="' . esc_url( (string) $payment['redirect_url'] ) . '">' . esc_html__( 'Zuzahlung jetzt bezahlen', 'pass-captain' ) . '</a></p>'; }
 			if ( ! empty( $payment['instructions'] ) ) { $content .= '<p>' . nl2br( esc_html( (string) $payment['instructions'] ) ) . '</p>'; }
 			return self::page( __( 'Zuzahlung erforderlich', 'pass-captain' ), $content );

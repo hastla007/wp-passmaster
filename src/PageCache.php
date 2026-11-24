@@ -45,6 +45,7 @@ final class PageCache {
 	const NO_STORE_PARAMS = array(
 		'wpcap_ticket' => 'ticket',
 		'wpcap_order' => 'portal',
+		'wpcap_order_link' => 'order_link_request',
 		'wpcap_waitlist_accept' => 'waitlist_offer',
 		'wpcap_waitlist_unsubscribe' => 'waitlist_unsubscribe',
 		'wpcap_waitlist_confirm' => 'waitlist_confirm',

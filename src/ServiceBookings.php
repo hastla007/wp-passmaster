@@ -1199,7 +1199,7 @@ final class ServiceBookings {
 
 	/** Local date/time of a timestamp in the resource timezone. */
 	private static function local_time( $timestamp, $resource ) {
-		return wp_date( 'd.m.Y H:i', (int) $timestamp, new \DateTimeZone( ServiceResources::timezone_of( $resource ) ) );
+		return wp_date( Frontend\Format::datetime_format(), (int) $timestamp, new \DateTimeZone( ServiceResources::timezone_of( $resource ) ) );
 	}
 
 	/** Readable reason for mails. */

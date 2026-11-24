@@ -216,7 +216,7 @@ final class ServiceWaitlist {
 			Audit::record( 'service_waitlist_offered', 'service_waitlist', (int) $entry->entry_id, array( 'slot_id' => $slot_id, 'position' => (int) $entry->position, 'quantity' => (int) $entry->quantity, 'expires_at' => $expires ) );
 			$sent = Mail\Mailer::send( 'service_waitlist_offer', (string) $entry->email, self::vars( $slot, $resource ) + array(
 				'quantity' => (int) $entry->quantity,
-				'offer_expires' => wp_date( 'd.m.Y H:i', strtotime( $expires . ' UTC' ), new \DateTimeZone( ServiceResources::timezone_of( $resource ) ) ),
+				'offer_expires' => wp_date( Frontend\Format::datetime_format(), strtotime( $expires . ' UTC' ), new \DateTimeZone( ServiceResources::timezone_of( $resource ) ) ),
 				'accept_link' => Mail\Mailer::link( self::link( (int) $entry->entry_id, $token, 'accept' ) ),
 				'decline_link' => Mail\Mailer::link( self::link( (int) $entry->entry_id, $token, 'decline' ) ),
 			) );
@@ -344,7 +344,7 @@ final class ServiceWaitlist {
 		return array(
 			'resource_name' => (string) ( $resource->name ?? '' ),
 			'event_name' => $event,
-			'slot_date' => wp_date( 'd.m.Y H:i', strtotime( $slot->starts_at . ' UTC' ), new \DateTimeZone( $tz ) ) . ' (' . $tz . ')',
+			'slot_date' => wp_date( Frontend\Format::datetime_format(), strtotime( $slot->starts_at . ' UTC' ), new \DateTimeZone( $tz ) ) . ' (' . $tz . ')',
 		);
 	}
 

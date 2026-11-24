@@ -40,6 +40,7 @@ $pm_registrars = array(
 	'src/PortalSelfService.php' => array( \PassCaptain\PortalSelfService::class, 'register_routes' ),
 	'src/ScannerDesk.php' => array( \PassCaptain\ScannerDesk::class, 'routes' ),
 	'src/TicketRecovery.php' => array( \PassCaptain\TicketRecovery::class, 'register_routes' ),
+	'src/OrderLinkRequest.php' => array( \PassCaptain\OrderLinkRequest::class, 'register_routes' ),
 );
 
 /*
@@ -61,6 +62,7 @@ $pm_routes = array(
 	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token (64 hex) required',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer' => 'token:order access token required',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend' => 'token:order access token required',
+	'POST pass-captain/v1/orders/link-request' => 'public:order link request by e-mail; same answer for every address, rate limited per client and silently per address, links only to the order address',
 	'POST pass-captain/v1/tickets/recover' => 'public:A622 ticket link recovery; same answer for every address, rate limited, only a single-use confirmation link to the holder address',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request' => 'token:order access token required; postponement refund request, always pending staff approval',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign' => 'token:order access token required',
@@ -206,7 +208,7 @@ $pm_admin = array(
 	'wpcap_save_occurrence' => 'wpcap_manage_events', 'wpcap_cancel_occurrence' => 'wpcap_manage_events', 'wpcap_save_ticket_type' => 'wpcap_manage_events',
 	'wpcap_save_participant_field' => 'wpcap_manage_events', 'wpcap_participant_field_status' => 'wpcap_manage_events',
 	'wpcap_assign_staff' => 'wpcap_manage_events', 'wpcap_remove_staff' => 'wpcap_manage_events',
-	'wpcap_confirm_payment' => 'wpcap_manage_orders', 'wpcap_cancel_order' => 'wpcap_manage_orders', 'wpcap_resend_tickets' => 'wpcap_manage_orders', 'wpcap_send_order_link' => 'wpcap_manage_orders',
+	'wpcap_confirm_payment' => 'wpcap_manage_orders', 'wpcap_cancel_order' => 'wpcap_manage_orders', 'wpcap_resend_tickets' => 'wpcap_manage_orders', 'wpcap_send_order_link' => 'wpcap_manage_orders', 'wpcap_change_buyer_email' => 'wpcap_manage_orders',
 	'wpcap_refund_order' => 'wpcap_refund', 'wpcap_approve_refund' => 'wpcap_approve_refunds', 'wpcap_reject_refund' => 'wpcap_approve_refunds',
 	// R7: complimentary tickets, duplicate, CSV import/exports.
 	'wpcap_orders_csv' => 'wpcap_manage_orders', 'wpcap_issue_comps' => 'wpcap_manage_orders', 'wpcap_duplicate_event' => 'wpcap_manage_events',

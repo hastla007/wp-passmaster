@@ -9,6 +9,7 @@ final class OrderPortal {
 		add_filter( 'query_vars', static function ( $vars ) { $vars[] = 'wpcap_order'; $vars[] = 'wpcap_access'; return $vars; } );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_render' ) );
 		PortalSelfService::register();
+		OrderLinkRequest::register();
 	}
 
 	public static function maybe_render() {
@@ -19,14 +20,15 @@ final class OrderPortal {
 		$token = '' !== $from_url ? $from_url : Security\AccessCookie::resolve( 'order', $public_id );
 		if ( '' === $token ) {
 			if ( Security\AccessCookie::marker_present() ) { Security\AccessCookie::blocked_page(); }
-			return;
+			// Link without access (cookie expired, token cut off): explain and offer a new link instead of a bare 404.
+			self::invalid_link();
 		}
 		// A283: personal page, also its 404 answers – never stored by a page cache or CDN.
 		PageCache::no_store( 'portal' );
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		// A631: a pending (new) link counts as well (Orders::access_matches()).
-		if ( 64 !== strlen( $token ) || ! Orders::access_matches( $order, $token ) ) { status_header( 404 ); \PassCaptain\Http::end(); }
+		if ( 64 !== strlen( $token ) || ! Orders::access_matches( $order, $token ) ) { self::invalid_link(); }
 		if ( '' !== $from_url ) {
 			// Token from the mail link → cookie, 303 to the portal URL without token (falls back to rendering).
 			Security\AccessCookie::exchange( 'order', (string) $order->public_id, $token, add_query_arg( array_filter( array( 'wpcap_order' => (string) $order->public_id, 'wpcap_consent' => sanitize_key( Security\Input::text( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ) ) ) ), home_url( '/' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only status flag, reduced by sanitize_key().
@@ -57,6 +59,19 @@ final class OrderPortal {
 		header( 'Referrer-Policy: no-referrer' );
 		// Rendered in the order's language (buyer's choice in checkout or portal, Frontend\Language).
 		echo Mail\Mailer::with_locale( (string) ( $order->locale ?? '' ), static function () use ( $order, $token ) { return self::render_page( $order, $token ); } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
+		\PassCaptain\Http::end();
+	}
+
+	/** Expired or invalid order link: 404 with an explanation and the form for new links (never order data). */
+	private static function invalid_link() {
+		PageCache::no_store( 'portal' );
+		status_header( 404 );
+		Security\PrivatePage::send();
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
+			header( 'Referrer-Policy: no-referrer' );
+		}
+		echo OrderLinkRequest::invalid_link_page(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in invalid_link_page().
 		\PassCaptain\Http::end();
 	}
 

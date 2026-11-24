@@ -357,6 +357,31 @@ final class Types {
 					);
 				},
 			),
+			'order_links' => array(
+				'label' => __( 'Bestelllinks angefordert', 'pass-captain' ),
+				'description' => __( 'Neue persönliche Links zu allen Bestellungen einer Adresse, angefordert über das Formular „Tickets/Bestelllink anfordern“.', 'pass-captain' ),
+				'placeholders' => array(
+					'order_count' => __( 'Anzahl Bestellungen', 'pass-captain' ),
+					'order_list' => __( 'Bestellungen mit Bestellnummer, Datum, Events und persönlichem Link', 'pass-captain' ),
+					'valid_days' => __( 'Gültigkeit der neuen Links in Tagen (bis zum ersten Öffnen)', 'pass-captain' ),
+				),
+				/* translators: %s: site name */
+				'subject' => static function () { return sprintf( __( 'Deine Bestellungen bei %s', 'pass-captain' ), '{site_name}' ); },
+				'body' => static function () {
+					return __( 'Du hast neue Links zu deinen Bestellungen angefordert. Über diese persönlichen Links siehst du deine Bestellungen und Tickets:', 'pass-captain' ) . "\n\n{order_list}\n"
+						/* translators: %s: number of days placeholder */
+						. sprintf( __( 'Die Links gelten %s Tage. Bisherige Links bleiben gültig, bis du einen neuen Link zum ersten Mal öffnest.', 'pass-captain' ), '{valid_days}' ) . "\n\n"
+						. __( 'Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren.', 'pass-captain' );
+				},
+				'sample' => static function () {
+					$link = Mailer::link( home_url( '/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=' . str_repeat( 'd4', 32 ) ) );
+					return array(
+						'order_count' => 1,
+						'order_list' => Mailer::block( "3F2A-9C1E (21.06.2027): Sommerkonzert\n" . $link['text'] . "\n", '<ul><li><strong>3F2A-9C1E</strong> (21.06.2027): Sommerkonzert<br>' . $link['html'] . '</li></ul>' ),
+						'valid_days' => 7,
+					);
+				},
+			),
 			'order_access' => array(
 				'label' => __( 'Bestellzugang', 'pass-captain' ),
 				'description' => __( 'Persönlicher Link zur Bestellübersicht nach der Bestellung.', 'pass-captain' ),
