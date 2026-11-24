@@ -219,7 +219,7 @@ msgstr "API-sleutel ingetrokken."
 #: src/Admin/SettingsTools.php:162
 #: src/Admin/StatusPage.php:245
 #: src/Admin/TaxPage.php:78
-#: src/Admin/TicketsPage.php:864
+#: src/Admin/TicketsPage.php:908
 #: src/Admin/WaitlistsPage.php:136
 #: src/Admission/ConflictsPage.php:59
 #: src/Admission/RulesPage.php:173
@@ -286,9 +286,9 @@ msgstr "API-sleutel ingetrokken."
 #: src/Printing/Page.php:287
 #: src/Printing/Page.php:331
 #: src/Printing/Page.php:341
-#: src/Printing/Page.php:399
-#: src/Printing/Page.php:404
-#: src/Printing/Page.php:543
+#: src/Printing/Page.php:402
+#: src/Printing/Page.php:407
+#: src/Printing/Page.php:546
 #: src/Printing/Templates.php:595
 #: src/Refunds.php:313
 #: src/Reports/Exports.php:78
@@ -345,7 +345,7 @@ msgstr "Er zijn geen evenementen waarvoor je sleutels mag aanmaken."
 #: src/Admin/ServiceSlotsPage.php:382
 #: src/Admin/ServicesPage.php:264
 #: src/Admin/ServicesPage.php:286
-#: src/Admin/TicketsPage.php:821
+#: src/Admin/TicketsPage.php:865
 #: src/Allocations/AdminPage.php:265
 #: src/Allocations/AdminPage.php:315
 #: src/BoxOffice/Page.php:176
@@ -404,7 +404,7 @@ msgstr "Naam"
 #: src/Admin/ServicesPage.php:255
 #: src/Admin/ServicesPage.php:264
 #: src/Admin/ServicesPage.php:284
-#: src/Admin/TicketsPage.php:889
+#: src/Admin/TicketsPage.php:933
 #: src/Admin/WaitlistsPage.php:146
 #: src/Admission/ConflictsPage.php:77
 #: src/Admission/RulesPage.php:183
@@ -414,7 +414,7 @@ msgstr "Naam"
 #: src/Exchange/AdminPage.php:307
 #: src/GuestLists/Page.php:188
 #: src/Integrations/ConnectorsPage.php:250
-#: src/Integrations/WooCommerce/OrderAdapter.php:2342
+#: src/Integrations/WooCommerce/OrderAdapter.php:2357
 #: src/Mail/Types.php:100
 #: src/Mail/Types.php:201
 #: src/Mail/Types.php:573
@@ -559,8 +559,8 @@ msgstr "Geldig tot"
 #: src/Admin/StatusPage.php:451
 #: src/Admin/SuiteStatus.php:129
 #: src/Admin/TaxPage.php:104
-#: src/Admin/TicketsPage.php:666
-#: src/Admin/TicketsPage.php:894
+#: src/Admin/TicketsPage.php:710
+#: src/Admin/TicketsPage.php:939
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:170
 #: src/Admission/ConflictsPage.php:78
@@ -579,7 +579,7 @@ msgstr "Geldig tot"
 #: src/Integrations/ConnectorsPage.php:210
 #: src/Integrations/ConnectorsPage.php:230
 #: src/Integrations/FormCaptain/EventRequests.php:517
-#: src/Integrations/WooCommerce/OrderAdapter.php:2342
+#: src/Integrations/WooCommerce/OrderAdapter.php:2357
 #: src/Modules/Fiscalization.php:1368
 #: src/Modules/Fiscalization.php:1377
 #: src/Modules/Fiscalization.php:1433
@@ -679,7 +679,7 @@ msgstr "Acties"
 #: src/Partners/AdminPage.php:546
 #: src/Passes/AdminPage.php:258
 #: src/Printing/Page.php:229
-#: src/Printing/Page.php:539
+#: src/Printing/Page.php:542
 #: src/Sales/AdminSections.php:140
 #: src/Series/AdminPage.php:666
 #: src/Waitlists/AdminPage.php:211
@@ -723,7 +723,7 @@ msgstr "onbeperkt"
 #: src/Admin/MembershipsPage.php:86
 #: src/Admin/SecurityScreens.php:96
 #: src/Admin/SecurityScreens.php:122
-#: src/Admin/TicketsPage.php:801
+#: src/Admin/TicketsPage.php:845
 #: src/Consents.php:576
 #: src/Consents.php:601
 #: src/Integrations/ConnectorsPage.php:238
@@ -823,7 +823,7 @@ msgstr "– Kies een evenement –"
 #: src/OfflineScanner/AdminPage.php:139
 #: src/Ops/Network.php:324
 #: src/Partners/AdminPage.php:554
-#: src/Printing/Page.php:517
+#: src/Printing/Page.php:520
 #: src/Reports/Page.php:135
 #: src/Reports/Page.php:354
 #: src/Waitlists/AdminPage.php:139
@@ -886,7 +886,7 @@ msgstr "Een persoon met minstens één datumtoewijzing voor een recht bereikt me
 #: src/Admin/AuditLogPage.php:318
 #: src/Admin/CheckinsPage.php:49
 #: src/Admin/OrdersPage.php:1184
-#: src/Admin/TicketsPage.php:891
+#: src/Admin/TicketsPage.php:935
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:149
 #: src/BoxOffice/Page.php:115
@@ -902,7 +902,7 @@ msgstr "Een persoon met minstens één datumtoewijzing voor een recht bereikt me
 #: src/Partners/AdminPage.php:539
 #: src/Passes/AdminPage.php:245
 #: src/Printing/AttendeeList.php:45
-#: src/Printing/AttendeeList.php:198
+#: src/Printing/AttendeeList.php:242
 #: src/Printing/Page.php:129
 #: src/Printing/Page.php:154
 #: src/Printing/Page.php:360
@@ -937,7 +937,7 @@ msgstr "Datum"
 #: src/Admin/SecurityScreens.php:114
 #: src/Admin/SecurityScreens.php:215
 #: src/Admin/StatusPage.php:406
-#: src/Admin/TicketsPage.php:667
+#: src/Admin/TicketsPage.php:711
 #: src/BulkRuns.php:720
 #: src/Consents.php:569
 #: src/Consents.php:706
@@ -1384,14 +1384,14 @@ msgstr "Bestelling"
 #: src/Admin/AuditLogPage.php:316
 #: src/Admin/CheckinsPage.php:106
 #: src/Admin/OrdersPage.php:1268
-#: src/Admin/TicketsPage.php:571
-#: src/Admin/TicketsPage.php:662
+#: src/Admin/TicketsPage.php:613
+#: src/Admin/TicketsPage.php:706
 #: src/Admission/ConflictsPage.php:91
 #: src/Admission/ConflictsPage.php:99
 #: src/Consents.php:569
 #: src/Consents.php:706
 #: src/Exchange/AdminPage.php:224
-#: src/Integrations/WooCommerce/OrderAdapter.php:2342
+#: src/Integrations/WooCommerce/OrderAdapter.php:2357
 #: src/Printing/AttendeeList.php:45
 #: src/Printing/NoShowList.php:59
 #: src/TicketPage.php:106
@@ -1880,7 +1880,7 @@ msgstr "Combineerbaar"
 #: src/Admin/MembershipsPage.php:313
 #: src/Admin/OrdersPage.php:973
 #: src/Admin/ServicesPage.php:256
-#: src/Admin/TicketsPage.php:889
+#: src/Admin/TicketsPage.php:933
 #: src/Admission/ConflictsPage.php:77
 #: src/BoxOffice/ShiftPage.php:487
 #: src/Integrations/CalendarFeeds.php:36
@@ -2413,7 +2413,7 @@ msgstr "Label"
 #: src/Admin/MembershipsPage.php:306
 #: src/Admin/OrdersPage.php:1183
 #: src/Admin/OrganizerTools.php:59
-#: src/Admin/TicketsPage.php:892
+#: src/Admin/TicketsPage.php:936
 #: src/Admin/WaitlistsPage.php:108
 #: src/Allocations/AdminPage.php:265
 #: src/Allocations/AdminPage.php:318
@@ -2712,13 +2712,13 @@ msgstr "Check-ins"
 
 #: src/Admin/CheckinsPage.php:89
 #: src/Admin/ScannerPage.php:100
-#: src/Admin/TicketsPage.php:882
+#: src/Admin/TicketsPage.php:926
 msgid "Web-Scanner öffnen"
 msgstr "Webscanner openen"
 
 #: src/Admin/CheckinsPage.php:94
 #: src/Admin/CheckinsPage.php:107
-#: src/Admin/TicketsPage.php:571
+#: src/Admin/TicketsPage.php:613
 #: src/Admission/ConflictsPage.php:100
 msgid "Ergebnis"
 msgstr "Resultaat"
@@ -3096,7 +3096,7 @@ msgstr "API-sleutels"
 #: src/Admin/DeveloperKeysPage.php:160
 #: src/Admin/EventsPage.php:1575
 #: src/Admin/OrdersPage.php:848
-#: src/Admin/TicketsPage.php:703
+#: src/Admin/TicketsPage.php:747
 #: src/Admission/ConflictsPage.php:78
 #: src/BoxOffice/ShiftPage.php:356
 #: src/Series/AdminPage.php:587
@@ -3244,8 +3244,8 @@ msgid "Keine veröffentlichten Events mit Einlassberechtigung."
 msgstr "Geen gepubliceerde evenementen met toegangsbevoegdheid."
 
 #: src/Admin/DevicesPage.php:87
-#: src/Admin/TicketsPage.php:604
-#: src/Admin/TicketsPage.php:836
+#: src/Admin/TicketsPage.php:646
+#: src/Admin/TicketsPage.php:880
 #: src/Admission/Rest.php:130
 #: src/GuestLists/Page.php:345
 #: src/OfflineScanner/I18n.php:106
@@ -3321,7 +3321,7 @@ msgstr[1] "%d scans"
 #: src/Consents.php:578
 #: src/Consents.php:603
 #: src/Integrations/ConnectorsPage.php:235
-#: src/Integrations/WooCommerce/OrderAdapter.php:2340
+#: src/Integrations/WooCommerce/OrderAdapter.php:2355
 #: src/OfflineScanner/AdminPage.php:182
 #: src/Partners/AdminPage.php:625
 msgid "widerrufen"
@@ -3785,7 +3785,7 @@ msgstr "Tekst"
 #: src/Admin/ServiceSlotsPage.php:480
 #: src/Admin/ServicesPage.php:454
 #: src/Admin/ServicesPage.php:501
-#: src/Admin/TicketsPage.php:822
+#: src/Admin/TicketsPage.php:866
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:170
 #: src/GuestLists/Page.php:271
@@ -4687,13 +4687,13 @@ msgid "je Bestellung"
 msgstr "per bestelling"
 
 #: src/Admin/EventsPage.php:2179
-#: src/Admin/Queries.php:740
+#: src/Admin/Queries.php:741
 #: src/Admin/SuiteStatus.php:114
 msgid "Ja"
 msgstr "Ja"
 
 #: src/Admin/EventsPage.php:2179
-#: src/Admin/Queries.php:740
+#: src/Admin/Queries.php:741
 #: src/Admin/SuiteStatus.php:114
 msgid "Nein"
 msgstr "Nee"
@@ -5228,7 +5228,7 @@ msgstr "Checklist verbergen"
 #: src/Admin/Menu.php:584
 #: src/Admin/OrdersPage.php:1232
 #: src/Admin/OrdersPage.php:1482
-#: src/Admin/TicketsPage.php:881
+#: src/Admin/TicketsPage.php:925
 #: src/BoxOffice/ZReport.php:386
 #: src/GuestLists/Page.php:271
 #: src/GuestLists/Service.php:670
@@ -5406,7 +5406,7 @@ msgstr "Een ledenpas geeft gratis toegang. Aanvragen van het team worden goedgek
 
 #: src/Admin/MembershipsPage.php:80
 #: src/Admin/TaxPage.php:104
-#: src/Printing/AttendeeList.php:104
+#: src/Printing/AttendeeList.php:114
 #: src/Sales/TaxProfilesPage.php:82
 msgid "Gültig"
 msgstr "Geldig"
@@ -5527,7 +5527,7 @@ msgstr "E-mail zoeken"
 
 #: src/Admin/MembershipsPage.php:232
 #: src/Admin/SettingsTools.php:264
-#: src/Admin/TicketsPage.php:897
+#: src/Admin/TicketsPage.php:942
 #: src/BoxOffice/Page.php:257
 #: src/Exchange/AdminPage.php:213
 #: src/GuestLists/Page.php:325
@@ -5551,7 +5551,7 @@ msgstr "Lid"
 
 #: src/Admin/MembershipsPage.php:257
 #: src/Admin/MembershipsPage.php:314
-#: src/Admin/TicketsPage.php:892
+#: src/Admin/TicketsPage.php:936
 #: src/Allocations/AdminPage.php:245
 #: src/Sales/AdminSections.php:180
 #: src/Sales/AdminSections.php:229
@@ -6316,7 +6316,7 @@ msgstr "Bestelling #%d"
 #. translators: %s: short order number, e.g. AB12-CD34
 #: src/Admin/OperationsPage.php:389
 #: src/Admin/OrdersPage.php:1055
-#: src/Admin/TicketsPage.php:776
+#: src/Admin/TicketsPage.php:820
 #: src/BoxOffice/Service.php:728
 #: src/Mail/Types.php:419
 #: src/Mollie/MollieGateway.php:126
@@ -6605,7 +6605,7 @@ msgstr "Extern terugbetaald – afronden"
 #: src/Admin/OrdersPage.php:1483
 #: src/Admin/SecurityScreens.php:114
 #: src/Admin/ServiceSlotsPage.php:330
-#: src/Admin/TicketsPage.php:799
+#: src/Admin/TicketsPage.php:843
 #: src/BoxOffice/Page.php:329
 #: src/BoxOffice/ShiftPage.php:194
 #: src/BoxOffice/ShiftPage.php:206
@@ -6908,7 +6908,7 @@ msgstr "Terugbetaald"
 
 #: src/Admin/OrdersPage.php:804
 #: src/Admin/OrdersPage.php:1109
-#: src/Admin/TicketsPage.php:664
+#: src/Admin/TicketsPage.php:708
 #: src/Exchange/AdminPage.php:224
 #: src/Privacy.php:323
 msgid "Käufer"
@@ -7237,7 +7237,7 @@ msgid "darin enthaltene Steuer"
 msgstr "Daarin begrepen btw"
 
 #: src/Admin/OrdersPage.php:1271
-#: src/Admin/TicketsPage.php:665
+#: src/Admin/TicketsPage.php:709
 #: src/Privacy.php:323
 msgid "Teilnehmer"
 msgstr "Deelnemer"
@@ -7264,7 +7264,7 @@ msgstr "Pass: %1$d van %2$d data gebruikt – naar rato terugbetaling %3$s (als 
 
 #. translators: 1: used dates, 2: all dates, 3: prorated amount
 #: src/Admin/OrdersPage.php:1285
-#: src/Admin/TicketsPage.php:780
+#: src/Admin/TicketsPage.php:824
 #: src/CodeHistory.php:121
 msgid "erstattet"
 msgstr "terugbetaald"
@@ -7681,28 +7681,28 @@ msgid "Es werden nur die ersten %d Events (alphabetisch) angezeigt. Weitere Even
 msgstr "Alleen de eerste %d evenementen (alfabetisch) worden getoond. Selecteer andere evenementen via de evenement-ID in het adres (…&event_id=123); een al opgeslagen selectie blijft behouden."
 
 #. translators: %d: maximum number of matches per field
-#: src/Admin/Queries.php:790
+#: src/Admin/Queries.php:791
 #, php-format
 msgid "Mehr als %d Treffer – bitte die Suche genauer fassen (z. B. vollständige E-Mail-Adresse oder Bestellnummer)."
 msgstr "Meer dan %d resultaten – maak de zoekopdracht specifieker (bijv. volledig e-mailadres of bestelnummer)."
 
-#: src/Admin/Queries.php:828
+#: src/Admin/Queries.php:831
 msgid "Neueste zuerst"
 msgstr "Nieuwste eerst"
 
-#: src/Admin/Queries.php:829
+#: src/Admin/Queries.php:832
 msgid "Älteste zuerst"
 msgstr "Oudste eerst"
 
-#: src/Admin/Queries.php:830
+#: src/Admin/Queries.php:833
 msgid "Nach Termin"
 msgstr "Op datum"
 
-#: src/Admin/Queries.php:831
+#: src/Admin/Queries.php:834
 msgid "Nach Ticketart"
 msgstr "Op tickettype"
 
-#: src/Admin/Queries.php:832
+#: src/Admin/Queries.php:835
 msgid "Nach Name"
 msgstr "Op naam"
 
@@ -8112,7 +8112,7 @@ msgstr "Reeks aanmaken"
 #: src/Admin/ServiceSlotsPage.php:322
 #: src/Admin/ServiceSlotsPage.php:326
 #: src/Admin/ServicesPage.php:481
-#: src/Admin/TicketsPage.php:803
+#: src/Admin/TicketsPage.php:847
 #: src/Exchange/AdminPage.php:229
 #: src/Frontend/ServiceBooking.php:148
 #: src/ServiceBookingFlow.php:467
@@ -9607,8 +9607,8 @@ msgstr "Toestemming bij het afrekenen is actief, maar voor de standaardtaal is g
 #: src/Modules/Reminders.php:541
 #: src/Modules/Reminders.php:572
 #: src/Modules/Sms.php:545
-#: src/Printing/Page.php:500
-#: src/Printing/Page.php:546
+#: src/Printing/Page.php:503
+#: src/Printing/Page.php:549
 #: src/Waitlists/AdminPage.php:110
 msgid "Einstellungen gespeichert."
 msgstr "Instellingen opgeslagen."
@@ -10501,35 +10501,35 @@ msgstr "Het e-mailadres is ongeldig."
 msgid "Die Teilnehmerdaten konnten nicht gespeichert werden."
 msgstr "De deelnemersgegevens konden niet worden opgeslagen."
 
-#: src/Admin/TicketsPage.php:380
+#: src/Admin/TicketsPage.php:422
 msgid "Ticket widerrufen."
 msgstr "Ticket ingetrokken."
 
-#: src/Admin/TicketsPage.php:388
+#: src/Admin/TicketsPage.php:430
 msgid "Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen."
 msgstr "Ticket opnieuw uitgegeven. De e-mail aan de houder kon niet worden bezorgd; probeer het opnieuw."
 
-#: src/Admin/TicketsPage.php:389
+#: src/Admin/TicketsPage.php:431
 msgid "Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig."
 msgstr "Ticket opnieuw uitgegeven en naar de houder gestuurd. De vorige code is niet meer geldig."
 
-#: src/Admin/TicketsPage.php:397
+#: src/Admin/TicketsPage.php:439
 msgid "Keine Änderung – die Teilnehmerdaten waren bereits so gespeichert."
 msgstr "Geen wijziging – de deelnemersgegevens waren al zo opgeslagen."
 
-#: src/Admin/TicketsPage.php:397
+#: src/Admin/TicketsPage.php:439
 msgid "Teilnehmerdaten korrigiert. Der Ticketcode bleibt gültig."
 msgstr "Deelnemersgegevens gecorrigeerd. De ticketcode blijft geldig."
 
-#: src/Admin/TicketsPage.php:421
+#: src/Admin/TicketsPage.php:463
 msgid "Ticket eingecheckt."
 msgstr "Ticket ingecheckt."
 
-#: src/Admin/TicketsPage.php:421
+#: src/Admin/TicketsPage.php:463
 msgid "Das Ticket war bereits mit diesem Formular eingecheckt."
 msgstr "Het ticket was al met dit formulier ingecheckt."
 
-#: src/Admin/TicketsPage.php:432
+#: src/Admin/TicketsPage.php:474
 #: src/Admission/Rest.php:79
 #: src/Mobile/Api.php:258
 #: src/Mobile/Api.php:285
@@ -10537,55 +10537,55 @@ msgstr "Het ticket was al met dit formulier ingecheckt."
 msgid "idempotency_key ist erforderlich."
 msgstr "idempotency_key is vereist."
 
-#: src/Admin/TicketsPage.php:435
+#: src/Admin/TicketsPage.php:477
 msgid "Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt."
 msgstr "Laatste toegang teruggedraaid; de eerdere toegang blijft meetellen en het ticket blijft ingecheckt."
 
-#: src/Admin/TicketsPage.php:436
+#: src/Admin/TicketsPage.php:478
 msgid "Check-in zurückgenommen; das Ticket ist wieder gültig."
 msgstr "Check-in teruggedraaid; het ticket is weer geldig."
 
-#: src/Admin/TicketsPage.php:468
+#: src/Admin/TicketsPage.php:510
 msgid "Bitte mindestens ein Ticket auswählen."
 msgstr "Kies minstens één ticket."
 
 #. translators: %d: maximum number of tickets
-#: src/Admin/TicketsPage.php:471
-#: src/Admin/TicketsPage.php:606
+#: src/Admin/TicketsPage.php:513
+#: src/Admin/TicketsPage.php:648
 #, php-format
 msgid "Höchstens %d Ticket je Sammelaktion."
 msgid_plural "Höchstens %d Tickets je Sammelaktion."
 msgstr[0] "Maximaal %d ticket per bulkactie."
 msgstr[1] "Maximaal %d tickets per bulkactie."
 
-#: src/Admin/TicketsPage.php:477
+#: src/Admin/TicketsPage.php:519
 msgid "Für mindestens ein gewähltes Ticket ist kein Einlasszugriff zugewiesen."
 msgstr "Voor minstens één gekozen ticket is geen toegang voor check-in toegewezen."
 
-#: src/Admin/TicketsPage.php:507
+#: src/Admin/TicketsPage.php:549
 msgid "Diese Sammelaktion ist abgelaufen oder wurde schon beendet. Bitte die Tickets erneut auswählen."
 msgstr "Deze bulkactie is verlopen of al beëindigd. Selecteer de tickets opnieuw."
 
-#: src/Admin/TicketsPage.php:510
+#: src/Admin/TicketsPage.php:552
 msgid "Es gibt nichts zu wiederholen."
 msgstr "Er is niets om opnieuw te proberen."
 
-#: src/Admin/TicketsPage.php:539
+#: src/Admin/TicketsPage.php:581
 msgid "Sammelaktion geschlossen."
 msgstr "Bulkactie gesloten."
 
-#: src/Admin/TicketsPage.php:543
+#: src/Admin/TicketsPage.php:585
 msgid "Bitte die Sammelaktion bestätigen."
 msgstr "Bevestig de bulkactie."
 
 #. translators: 1: tickets done, 2: already in that state, 3: refused, 4: to retry
-#: src/Admin/TicketsPage.php:548
+#: src/Admin/TicketsPage.php:590
 #, php-format
 msgid "Sammelaktion ausgeführt: %1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen."
 msgstr "Bulkactie uitgevoerd: %1$d afgerond, %2$d al in de doelstatus, %3$d geweigerd, %4$d opnieuw te proberen."
 
 #. translators: %d: number of tickets
-#: src/Admin/TicketsPage.php:561
+#: src/Admin/TicketsPage.php:603
 #, php-format
 msgid "%d Ticket auschecken?"
 msgid_plural "%d Tickets auschecken?"
@@ -10593,104 +10593,104 @@ msgstr[0] "%d ticket uitchecken?"
 msgstr[1] "%d tickets uitchecken?"
 
 #. translators: %d: number of tickets
-#: src/Admin/TicketsPage.php:561
+#: src/Admin/TicketsPage.php:603
 #, php-format
 msgid "%d Ticket einchecken?"
 msgid_plural "%d Tickets einchecken?"
 msgstr[0] "%d ticket inchecken?"
 msgstr[1] "%d tickets inchecken?"
 
-#: src/Admin/TicketsPage.php:563
+#: src/Admin/TicketsPage.php:605
 msgid "Jedes Ticket wird wie ein Scan am Einlass geprüft (Termin, Bereich, Einlassregel). Bereits verbuchte Tickets werden bei einer Wiederholung nicht doppelt gezählt."
 msgstr "Elk ticket wordt gecontroleerd zoals bij een scan bij de ingang (datum, gebied, toegangsregel). Al geboekte tickets worden bij een herhaling niet dubbel geteld."
 
-#: src/Admin/TicketsPage.php:565
+#: src/Admin/TicketsPage.php:607
 msgid "Ja, auschecken"
 msgstr "Ja, uitchecken"
 
-#: src/Admin/TicketsPage.php:565
+#: src/Admin/TicketsPage.php:607
 msgid "Ja, einchecken"
 msgstr "Ja, inchecken"
 
-#: src/Admin/TicketsPage.php:568
+#: src/Admin/TicketsPage.php:610
 msgid "Ergebnis der Sammelaktion"
 msgstr "Resultaat van de bulkactie"
 
 #. translators: 1: tickets done, 2: already in that state, 3: refused, 4: to retry
-#: src/Admin/TicketsPage.php:570
+#: src/Admin/TicketsPage.php:612
 #, php-format
 msgid "%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen."
 msgstr "%1$d afgerond, %2$d al in de doelstatus, %3$d geweigerd, %4$d opnieuw te proberen."
 
 #: src/Admin/OperationsPage.php:274
 #: src/Admin/SettingsPage.php:457
-#: src/Admin/TicketsPage.php:571
+#: src/Admin/TicketsPage.php:613
 #: src/Log.php:396
 #: src/WalletPasses/AppleProvider.php:84
 msgid "Hinweis"
 msgstr "Opmerking"
 
-#: src/Admin/TicketsPage.php:573
+#: src/Admin/TicketsPage.php:615
 msgid "erledigt (bereits in diesem Lauf)"
 msgstr "afgerond (al in deze uitvoering)"
 
-#: src/Admin/TicketsPage.php:573
+#: src/Admin/TicketsPage.php:615
 #: src/Integrations/WorkflowCaptain/Status.php:50
 msgid "erledigt"
 msgstr "afgerond"
 
-#: src/Admin/TicketsPage.php:573
+#: src/Admin/TicketsPage.php:615
 msgid "nicht verbucht – erneut versuchen"
 msgstr "niet geboekt – opnieuw proberen"
 
-#: src/Admin/TicketsPage.php:578
+#: src/Admin/TicketsPage.php:620
 msgid "Nicht verbuchte Tickets erneut versuchen"
 msgstr "Niet-geboekte tickets opnieuw proberen"
 
-#: src/Admin/TicketsPage.php:581
+#: src/Admin/TicketsPage.php:623
 msgid "Bericht schließen"
 msgstr "Rapport sluiten"
 
 #: src/Admin/SettingsTools.php:345
-#: src/Admin/TicketsPage.php:581
+#: src/Admin/TicketsPage.php:623
 #: src/OfflineScanner/I18n.php:250
 #: src/OrderPortal.php:143
 #: src/Printing/Page.php:384
 msgid "Abbrechen"
 msgstr "Annuleren"
 
-#: src/Admin/TicketsPage.php:600
+#: src/Admin/TicketsPage.php:642
 msgid "Ausgewählte Tickets"
 msgstr "Geselecteerde tickets"
 
-#: src/Admin/TicketsPage.php:601
+#: src/Admin/TicketsPage.php:643
 msgid "einchecken"
 msgstr "inchecken"
 
-#: src/Admin/TicketsPage.php:601
+#: src/Admin/TicketsPage.php:643
 msgid "auschecken"
 msgstr "uitchecken"
 
-#: src/Admin/TicketsPage.php:604
-#: src/Admin/TicketsPage.php:836
+#: src/Admin/TicketsPage.php:646
+#: src/Admin/TicketsPage.php:880
 msgid "– Einlassbereich –"
 msgstr "– Toegangsgebied –"
 
 #. translators: %d: maximum number of tickets
-#: src/Admin/TicketsPage.php:606
+#: src/Admin/TicketsPage.php:648
 msgid "Weiter zur Bestätigung"
 msgstr "Verder naar bevestiging"
 
-#: src/Admin/TicketsPage.php:877
+#: src/Admin/TicketsPage.php:921
 msgid "Alle Status"
 msgstr "Alle statussen"
 
-#: src/Admin/TicketsPage.php:888
+#: src/Admin/TicketsPage.php:932
 #: src/Exchange/AdminPage.php:211
 msgid "Ticket-ID, Bestellnummer, Hilfscode, E-Mail oder Name"
 msgstr "Ticket-ID, bestelnummer, hulpcode, e-mail of naam"
 
-#: src/Admin/TicketsPage.php:891
+#: src/Admin/TicketsPage.php:935
 #: src/Admin/WaitlistsPage.php:150
 #: src/Allocations/AdminPage.php:253
 #: src/GuestLists/Page.php:211
@@ -10702,88 +10702,88 @@ msgstr "Ticket-ID, bestelnummer, hulpcode, e-mail of naam"
 msgid "Alle Termine"
 msgstr "Alle data"
 
-#: src/Admin/TicketsPage.php:895
+#: src/Admin/TicketsPage.php:940
 #: src/Printing/Page.php:131
 msgid "Sortierung"
 msgstr "Sortering"
 
-#: src/Admin/TicketsPage.php:899
+#: src/Admin/TicketsPage.php:944
 msgid "Teilnehmerliste als CSV"
 msgstr "Deelnemerslijst als CSV"
 
-#: src/Admin/TicketsPage.php:908
+#: src/Admin/TicketsPage.php:953
 msgid "Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen."
 msgstr "Zoek op ticket, koper of deelnemer, of kies een evenement."
 
-#: src/Admin/TicketsPage.php:934
+#: src/Admin/TicketsPage.php:979
 msgid "Auswahl für Sammelaktion"
 msgstr "Selectie voor bulkactie"
 
-#: src/Admin/TicketsPage.php:663
+#: src/Admin/TicketsPage.php:707
 #: src/Exchange/AdminPage.php:224
 msgid "Event / Termin"
 msgstr "Evenement / Datum"
 
 #: src/Admin/TicketsListTable.php:127
-#: src/Admin/TicketsPage.php:938
+#: src/Admin/TicketsPage.php:983
 msgid "Keine Tickets gefunden."
 msgstr "Geen tickets gevonden."
 
 #. translators: %s: ticket id
-#: src/Admin/TicketsPage.php:754
+#: src/Admin/TicketsPage.php:798
 #, php-format
 msgid "Ticket %s auswählen"
 msgstr "Ticket %s selecteren"
 
-#: src/Admin/TicketsPage.php:800
+#: src/Admin/TicketsPage.php:844
 msgid "Platz freigeben"
 msgstr "Plek vrijgeven"
 
-#: src/Admin/TicketsPage.php:801
+#: src/Admin/TicketsPage.php:845
 msgid "Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch."
 msgstr "Ticket intrekken? Het kan daarna niet meer worden gebruikt. Er volgt niet automatisch een terugbetaling."
 
-#: src/Admin/TicketsPage.php:805
+#: src/Admin/TicketsPage.php:849
 msgid "Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink."
 msgstr "Ticket opnieuw uitgeven? De vorige code wordt ongeldig en de houder ontvangt een nieuwe ticketlink."
 
-#: src/Admin/TicketsPage.php:805
+#: src/Admin/TicketsPage.php:849
 msgid "Neu ausstellen"
 msgstr "Opnieuw uitgeven"
 
-#: src/Admin/TicketsPage.php:819
+#: src/Admin/TicketsPage.php:863
 msgid "Teilnehmerdaten korrigieren"
 msgstr "Deelnemersgegevens corrigeren"
 
-#: src/Admin/TicketsPage.php:823
+#: src/Admin/TicketsPage.php:867
 msgid "Grund der Korrektur"
 msgstr "Reden van de correctie"
 
-#: src/Admin/TicketsPage.php:824
+#: src/Admin/TicketsPage.php:868
 msgid "Korrektur speichern"
 msgstr "Correctie opslaan"
 
-#: src/Admin/TicketsPage.php:839
+#: src/Admin/TicketsPage.php:883
 msgid "Ticket jetzt einchecken? Das gilt wie ein Scan am Einlass."
 msgstr "Ticket nu inchecken? Dit geldt als een scan bij de toegang."
 
-#: src/Admin/TicketsPage.php:839
+#: src/Admin/TicketsPage.php:883
 #: src/OfflineScanner/I18n.php:234
 #: src/PublicEvents.php:123
 msgid "Einchecken"
 msgstr "Inchecken"
 
-#: src/Admin/TicketsPage.php:844
+#: src/Admin/TicketsPage.php:888
 #: src/OfflineScanner/I18n.php:248
 #: src/PublicEvents.php:110
 msgid "Grund der Rücknahme"
 msgstr "Reden van het terugdraaien"
 
-#: src/Admin/TicketsPage.php:844
+#: src/Admin/TicketsPage.php:888
 msgid "Grund (Pflicht)"
 msgstr "Reden (verplicht)"
 
-#: src/Admin/TicketsPage.php:845
+#: src/Admin/TicketsPage.php:889
 msgid "Check-in zurücknehmen"
 msgstr "Check-in terugdraaien"
 
@@ -12299,7 +12299,7 @@ msgstr "Voorvoegsel bonnummer"
 #: src/BoxOffice/Page.php:239
 #: src/Mail/Admin.php:221
 #: src/Modules/PrintTemplates.php:94
-#: src/Printing/Page.php:530
+#: src/Printing/Page.php:533
 msgid "Fußzeile"
 msgstr "Voettekst"
 
@@ -12435,7 +12435,7 @@ msgid "Nur einzelne Tickets stornieren"
 msgstr "Alleen afzonderlijke tickets annuleren"
 
 #: src/BoxOffice/Page.php:333
-#: src/Integrations/WooCommerce/OrderAdapter.php:2339
+#: src/Integrations/WooCommerce/OrderAdapter.php:2354
 msgid "eingecheckt"
 msgstr "ingecheckt"
 
@@ -12885,7 +12885,7 @@ msgstr "Bestelling:"
 
 #: src/BoxOffice/Service.php:1273
 #: src/BoxOffice/ZReport.php:459
-#: src/Printing/AttendeeList.php:274
+#: src/Printing/AttendeeList.php:319
 #: src/Printing/NoShowList.php:111
 #: src/Printing/NoShowList.php:130
 #: src/Reports/Settlement.php:386
@@ -16208,7 +16208,7 @@ msgstr "Codes"
 
 #: src/GuestLists/Page.php:335
 #: src/GuestLists/Service.php:670
-#: src/Printing/AttendeeList.php:104
+#: src/Printing/AttendeeList.php:114
 #: src/Reports/Data.php:808
 #: src/Reports/Data.php:849
 #: src/Reports/Page.php:356
@@ -17651,60 +17651,60 @@ msgstr "Je tickets worden na bevestigde betaling per e-mail bezorgd."
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "We hebben je de ticketlinks met QR-code per e-mail gestuurd."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2264
+#: src/Integrations/WooCommerce/OrderAdapter.php:2279
 #: src/Privacy.php:336
 #: src/Privacy.php:384
 msgid "Pass Captain Tickets"
 msgstr "Pass Captain-tickets"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2273
+#: src/Integrations/WooCommerce/OrderAdapter.php:2288
 msgid "Keine Tickets in dieser Bestellung."
 msgstr "Geen tickets in deze bestelling."
 
 #. translators: 1: order ID, 2: status, 3: payment status
-#: src/Integrations/WooCommerce/OrderAdapter.php:2281
+#: src/Integrations/WooCommerce/OrderAdapter.php:2296
 #, php-format
 msgid "Pass Captain Bestellung #%1$d: %2$s / %3$s"
 msgstr "Pass Captain-bestelling #%1$d: %2$s / %3$s"
 
 #. translators: %s: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:2284
+#: src/Integrations/WooCommerce/OrderAdapter.php:2299
 #, php-format
 msgid "Rechnungssteller: %s"
 msgstr "Factuurafzender: %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2288
+#: src/Integrations/WooCommerce/OrderAdapter.php:2303
 msgid "Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten."
 msgstr "Betaling ontvangen, maar er is geen contingent meer beschikbaar. Geef een plek vrij en kies „Tickets opnieuw uitgeven” of betaal terug."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2301
+#: src/Integrations/WooCommerce/OrderAdapter.php:2316
 msgid "Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)"
 msgstr "Pass Captain: tickets opnieuw verzenden (nieuwe codes, zonder overgedragen tickets)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2302
+#: src/Integrations/WooCommerce/OrderAdapter.php:2317
 msgid "Pass Captain: Tickets erneut ausstellen"
 msgstr "Pass Captain: tickets opnieuw uitgeven"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2318
+#: src/Integrations/WooCommerce/OrderAdapter.php:2333
 #, php-format
 msgid "Pass Captain: Erneuter Versand fehlgeschlagen – %s"
 msgstr "Pass Captain: opnieuw verzenden mislukt – %s"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2318
+#: src/Integrations/WooCommerce/OrderAdapter.php:2333
 msgid "Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code)."
 msgstr "Pass Captain: tickets met nieuwe codes opnieuw verzonden (overgedragen tickets behouden hun code)."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2327
+#: src/Integrations/WooCommerce/OrderAdapter.php:2342
 msgid "Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt."
 msgstr "Pass Captain: bij deze betaalmethode worden de tickets pas uitgegeven met de status „Afgerond”."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2331
+#: src/Integrations/WooCommerce/OrderAdapter.php:2346
 msgid "Pass Captain: Die Bestellung ist noch nicht bezahlt."
 msgstr "Pass Captain: de bestelling is nog niet betaald."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2338
+#: src/Integrations/WooCommerce/OrderAdapter.php:2353
 msgid "gültig"
 msgstr "geldig"
 
@@ -26346,8 +26346,8 @@ msgstr "E-mailadres besteller"
 msgid "Eingecheckt um"
 msgstr "Ingecheckt om"
 
-#: src/Printing/AttendeeList.php:255
-#: src/Printing/AttendeeList.php:257
+#: src/Printing/AttendeeList.php:300
+#: src/Printing/AttendeeList.php:302
 #: src/Printing/Page.php:151
 msgid "Teilnehmerliste"
 msgstr "Deelnemerslijst"
@@ -26355,7 +26355,7 @@ msgstr "Deelnemerslijst"
 #. translators: %d: number of tickets
 #. translators: %d: count
 #: src/Admin/ManualHoldsRelease.php:209
-#: src/Printing/AttendeeList.php:257
+#: src/Printing/AttendeeList.php:302
 #, php-format
 msgid "%d Ticket"
 msgid_plural "%d Tickets"
@@ -26581,7 +26581,7 @@ msgstr "Vormgeving"
 
 #: src/Modules/PrintTemplates.php:93
 #: src/Printing/Page.php:184
-#: src/Printing/Page.php:528
+#: src/Printing/Page.php:531
 msgid "Logo (Mediathek-ID, JPEG oder PNG)"
 msgstr "Logo (mediabibliotheek-ID, JPEG of PNG)"
 
@@ -26773,7 +26773,7 @@ msgstr "Ticketnummer"
 msgid "%1$s %2$s hat auf Weiß nur einen Kontrast von %3$s:1 (mindestens %4$s:1). Bitte eine dunklere Farbe wählen."
 msgstr "%1$s %2$s heeft op wit slechts een contrast van %3$s:1 (minstens %4$s:1). Kies een donkerdere kleur."
 
-#: src/Printing/Page.php:468
+#: src/Printing/Page.php:471
 #: src/Printing/Templates.php:247
 msgid "Das Logo muss ein JPEG- oder PNG-Bild aus der Mediathek sein (höchstens 1 MB)."
 msgstr "Het logo moet een JPEG- of PNG-afbeelding uit de mediabibliotheek zijn (maximaal 1 MB)."
@@ -35202,7 +35202,7 @@ msgid "Mit diesem Tag beginnt jede Woche im Monatskalender (Standard Montag)."
 msgstr "Elke week in de maandkalender begint met deze dag (standaard maandag)."
 
 #: src/Modules/PrintTemplates.php:89
-#: src/Printing/Page.php:513
+#: src/Printing/Page.php:516
 msgid "Ticket-PDF: Logo und Fußzeile"
 msgstr "Ticket-pdf: logo en voettekst"
 
@@ -35243,54 +35243,54 @@ msgstr "Leeg = zoals globaal. ‘Zoals globaal’ en lege tijdstippen verwijdere
 msgid "Für dieses Event speichern"
 msgstr "Opslaan voor dit evenement"
 
-#: src/Printing/Page.php:514
+#: src/Printing/Page.php:517
 msgid "Bearbeiten für"
 msgstr "Bewerken voor"
 
-#: src/Printing/Page.php:515
+#: src/Printing/Page.php:518
 msgid "alle Events (Standard)"
 msgstr "alle evenementen (standaard)"
 
-#: src/Printing/Page.php:520
+#: src/Printing/Page.php:523
 msgid "Eigene Einstellungen haben:"
 msgstr "Hebben eigen instellingen:"
 
-#: src/Printing/Page.php:528
+#: src/Printing/Page.php:531
 msgid "Leer = Logo der Standardeinstellung. Ein Logo in der Druckvorlage des Events hat Vorrang."
 msgstr "Leeg = logo van de standaardinstelling. Een logo in het afdruksjabloon van het evenement heeft voorrang."
 
-#: src/Printing/Page.php:528
+#: src/Printing/Page.php:531
 msgid "Oben links auf jedem Ticket-PDF; leer = kein Logo. Ein Logo in der Druckvorlage hat Vorrang."
 msgstr "Linksboven op elke ticket-pdf; leeg = geen logo. Een logo in het afdruksjabloon heeft voorrang."
 
-#: src/Printing/Page.php:530
+#: src/Printing/Page.php:533
 msgid "Leer = Fußzeile der Standardeinstellung."
 msgstr "Leeg = voettekst van de standaardinstelling."
 
-#: src/Printing/Page.php:530
+#: src/Printing/Page.php:533
 msgid "Unten auf jeder Ticketseite, höchstens drei Zeilen. Der Filter wpcap_ticket_pdf_footer hat Vorrang."
 msgstr "Onderaan elke ticketpagina, maximaal drie regels. Het filter wpcap_ticket_pdf_footer heeft voorrang."
 
 #. translators: %s: locale code, e.g. en_US
-#: src/Printing/Page.php:534
+#: src/Printing/Page.php:537
 #, php-format
 msgid "Fußzeile für %s (optional)"
 msgstr "Voettekst voor %s (optioneel)"
 
 #. translators: %s: locale code, e.g. en_US
-#: src/Printing/Page.php:534
+#: src/Printing/Page.php:537
 msgid "Für Tickets in dieser Sprache. Leer = die Fußzeile oben (bzw. der eingebaute Text in dieser Sprache)."
 msgstr "Voor tickets in deze taal. Leeg = de voettekst hierboven (of de ingebouwde tekst in deze taal)."
 
-#: src/Printing/Page.php:537
+#: src/Printing/Page.php:540
 msgid "Rechtliche Links"
 msgstr "Juridische links"
 
-#: src/Printing/Page.php:537
+#: src/Printing/Page.php:540
 msgid "Impressum und Datenschutzerklärung in der Fußzeile und auf der Ticketseite verlinken"
 msgstr "Colofon en privacyverklaring in de voettekst en op de ticketpagina linken"
 
-#: src/Printing/Page.php:537
+#: src/Printing/Page.php:540
 msgid "Adressen unter Einstellungen → Rechtstexte. Ohne Adresse erscheint kein Link."
 msgstr "Adressen onder Instellingen → Juridische teksten. Zonder adres verschijnt er geen link."
 
@@ -35734,33 +35734,33 @@ msgstr "E-mailadres van je bestelling"
 msgid "Neue Links anfordern"
 msgstr "Nieuwe links aanvragen"
 
-#: src/OrderLinkRequest.php:198
+#: src/OrderLinkRequest.php:214
 msgid "Du findest die E-Mail mit deinen Tickets oder den Link zu deiner Bestellung nicht mehr? Gib die E-Mail-Adresse ein, mit der du bestellt hast. Wir senden dir neue Links zu deinen Bestellungen."
 msgstr "Kun je de e-mail met je tickets of de link naar je bestelling niet meer vinden? Voer het e-mailadres in waarmee je hebt besteld. We sturen je nieuwe links naar je bestellingen."
 
-#: src/OrderLinkRequest.php:200
-#: src/OrderLinkRequest.php:211
+#: src/OrderLinkRequest.php:216
+#: src/OrderLinkRequest.php:227
 msgid "Du hast ein Ticket von jemand anderem erhalten?"
 msgstr "Heb je een ticket van iemand anders gekregen?"
 
-#: src/OrderLinkRequest.php:200
-#: src/OrderLinkRequest.php:211
+#: src/OrderLinkRequest.php:216
+#: src/OrderLinkRequest.php:227
 msgid "Ticketlinks für übertragene Tickets anfordern"
 msgstr "Ticketlinks voor overgedragen tickets aanvragen"
 
-#: src/OrderLinkRequest.php:201
+#: src/OrderLinkRequest.php:217
 msgid "Tickets/Bestelllink anfordern"
 msgstr "Tickets/bestellink aanvragen"
 
-#: src/OrderLinkRequest.php:208
+#: src/OrderLinkRequest.php:224
 msgid "Dieser Link zu deiner Bestellung ist abgelaufen oder nicht mehr gültig, zum Beispiel weil inzwischen ein neuer Link gesendet oder die E-Mail-Adresse der Bestellung geändert wurde."
 msgstr "Deze link naar je bestelling is verlopen of niet meer geldig, bijvoorbeeld omdat er inmiddels een nieuwe link is verstuurd of het e-mailadres van de bestelling is gewijzigd."
 
-#: src/OrderLinkRequest.php:209
+#: src/OrderLinkRequest.php:225
 msgid "Deine Tickets bleiben davon unberührt. Fordere hier einen neuen Link an:"
 msgstr "Je tickets blijven ongemoeid. Vraag hier een nieuwe link aan:"
 
-#: src/OrderLinkRequest.php:212
+#: src/OrderLinkRequest.php:228
 msgid "Link nicht mehr gültig"
 msgstr "Link niet meer geldig"
 
@@ -35860,11 +35860,11 @@ msgstr "Hoogstens %1$d evenementen per bulkactie; %2$d andere zijn niet geduplic
 msgid "Kein Event ausgewählt."
 msgstr "Geen evenement geselecteerd."
 
-#: src/Admin/TicketsPage.php:673
+#: src/Admin/TicketsPage.php:717
 msgid "Gefundene Tickets mit Event, Käufer, Teilnehmer, Status und Aktionen"
 msgstr "Gevonden tickets met evenement, koper, deelnemer, status en acties"
 
-#: src/Admin/TicketsPage.php:858
+#: src/Admin/TicketsPage.php:902
 msgid "Tickets pro Seite"
 msgstr "Tickets per pagina"
 
@@ -36026,48 +36026,48 @@ msgstr "Contractpartij: %s"
 msgid "Die personenbezogenen Daten dieser Bestellung sind für dich maskiert; der Inhaber kann deshalb nicht geändert werden."
 msgstr "De persoonsgegevens van deze bestelling zijn voor jou gemaskeerd; de houder kan daarom niet worden gewijzigd."
 
-#: src/Admin/TicketsPage.php:407
+#: src/Admin/TicketsPage.php:449
 msgid "Inhaber geändert. Der bisherige Code ist ungültig; die neue Person wurde nicht benachrichtigt."
 msgstr "Houder gewijzigd. De vorige code is ongeldig; de nieuwe persoon is niet op de hoogte gebracht."
 
-#: src/Admin/TicketsPage.php:410
+#: src/Admin/TicketsPage.php:452
 msgid "Inhaber geändert. Die E-Mail an die neue Person konnte nicht zugestellt werden; bitte „Neu ausstellen“ verwenden."
 msgstr "Houder gewijzigd. De e-mail aan de nieuwe persoon kon niet worden bezorgd; gebruik ‘Opnieuw uitgeven’."
 
-#: src/Admin/TicketsPage.php:411
+#: src/Admin/TicketsPage.php:453
 msgid "Inhaber geändert und das Ticket an die neue Person gesendet. Der bisherige Code ist ungültig."
 msgstr "Houder gewijzigd en het ticket naar de nieuwe persoon gestuurd. De vorige code is ongeldig."
 
-#: src/Admin/TicketsPage.php:808
-#: src/Admin/TicketsPage.php:814
+#: src/Admin/TicketsPage.php:852
+#: src/Admin/TicketsPage.php:858
 msgid "Inhaber ändern"
 msgstr "Houder wijzigen"
 
-#: src/Admin/TicketsPage.php:810
+#: src/Admin/TicketsPage.php:854
 msgid "Name der neuen Person"
 msgstr "Naam van de nieuwe persoon"
 
-#: src/Admin/TicketsPage.php:811
+#: src/Admin/TicketsPage.php:855
 msgid "E-Mail der neuen Person"
 msgstr "E-mailadres van de nieuwe persoon"
 
-#: src/Admin/TicketsPage.php:812
+#: src/Admin/TicketsPage.php:856
 msgid "Ticket an die neue Person senden (die Käufer:in erhält einen Hinweis)"
 msgstr "Ticket naar de nieuwe persoon sturen (de koper krijgt een melding)"
 
-#: src/Admin/TicketsPage.php:813
+#: src/Admin/TicketsPage.php:857
 msgid "Grund des Inhaberwechsels"
 msgstr "Reden voor de houderwijziging"
 
-#: src/Admin/TicketsPage.php:814
+#: src/Admin/TicketsPage.php:858
 msgid "Inhaber wirklich ändern? Der bisherige Code und Ticketlink werden sofort ungültig; über die Bestellung lässt sich das Ticket danach nicht mehr übertragen."
 msgstr "Houder echt wijzigen? De vorige code en ticketlink worden direct ongeldig; daarna kan het ticket niet meer via de bestelling worden overgedragen."
 
-#: src/Admin/TicketsPage.php:825
+#: src/Admin/TicketsPage.php:869
 msgid "Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Inhaber ändern“ verwenden."
 msgstr "Alleen voor typefouten van dezelfde persoon; de ticketcode blijft geldig. Gebruik voor een andere persoon ‘Houder wijzigen’."
 
-#: src/Admin/TicketsPage.php:902
+#: src/Admin/TicketsPage.php:947
 msgid "Teilnehmerliste als CSV (alle Termine des Events)"
 msgstr "Deelnemerslijst als CSV (alle data van het evenement)"
 
@@ -36513,3 +36513,25 @@ msgstr "Ik bevestig dat alle personen voor wie ik tickets koop minstens {min_age
 #: src/Consents.php:652
 msgid "Einwilligungslink"
 msgstr "Toestemmingslink"
+
+#: src/Admin/Queries.php:836
+msgid "Nach Status"
+msgstr "Op status"
+
+#. translators: %s: ticket type name
+#: src/Admin/TicketsPage.php:362
+#, php-format
+msgid "%s (alle Termine)"
+msgstr "%s (alle data)"
+
+#: src/Admin/TicketsPage.php:937
+msgid "Ticketart über alle Termine"
+msgstr "Tickettype over alle data"
+
+#: src/OrderLinkRequest.php:202
+msgid "Teilnehmerangaben ändern, Tickets erneut senden oder übertragen kannst du in der Bestellverwaltung. Den Link dorthin senden wir dir per E-Mail an die Adresse der Bestellung."
+msgstr "Deelnemersgegevens wijzigen, tickets opnieuw versturen of overdragen kan in het bestelbeheer. We sturen je de link per e-mail naar het adres van de bestelling."
+
+#: src/OrderLinkRequest.php:203
+msgid "Link zur Bestellverwaltung per E-Mail anfordern"
+msgstr "Link naar het bestelbeheer per e-mail aanvragen"

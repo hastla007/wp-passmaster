@@ -49,6 +49,11 @@
 - Ticketart-Art „Zusatzprodukt“ (Parken, Merch …): nur zusammen mit einem Ticket desselben Termins, optional höchstens n je Ticket, ohne Ticket/QR, ohne Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt; `GET /events` liefert `kind` und `addon_max_per_ticket`.
 - Die Eventliste bleibt bei fester Abfragezahl: Veranstalter für den Vertragspartner-Hinweis und Plätze ohne Zusatzprodukte kommen aus gemeinsamen Abfragen statt je Karte.
 
+### Teilnehmerverwaltung
+- Filter „Ticketart über alle Termine“ und Sortierung nach Status in der Ticketliste; die Teilnehmer-CSV übernimmt Ticketart- und Statusfilter.
+- Datenschutz: Rechte je Teilnehmerfeld per Filter `wpcap_pii_can_view_answer`; E-Mail- und Namensspalten der vollen Teilnehmerliste folgen der PII-Matrix.
+- WooCommerce: In „Mein Konto“ lässt sich der Link zur Bestellverwaltung per E-Mail anfordern.
+
 ### Einwilligungen
 - Eine gemeinsame Karte in der Bestellübersicht; protokollierte Einwilligungsfelder (Typ „Einwilligung“) erscheinen im Bestelldetail mit „Widerruf erfassen“ und im Einwilligungs-CSV des Events; die Ticketseite zeigt sie nicht mehr als Textfeld.
 
