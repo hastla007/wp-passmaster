@@ -22,7 +22,8 @@
  *    event) in `names` = {hash prefix: name}; prefixes of replaced codes (A543) also in `replaced`. 128 bit of the hash identify a ticket as safely as the
  *    full hash for this purpose (a forged code would need a 128-bit preimage).
  * Both formats carry per ticket type max_entries and valid_days (local entry counters of the PWA) and
- * the day cutoff hour of the occurrence.
+ * the day cutoff hour of the occurrence, the rights of the device's user (permissions: undo, check_out)
+ * and the offline check-out rules (checkout: staff_area_ids, reentry_after_checkout, max_reentries).
  */
 namespace PassCaptain\OfflineScanner;
 
@@ -191,6 +192,9 @@ final class Package {
 				'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ),
 				'policy' => $policy ? $policy['policy'] : 'single',
 				'multi' => $policy && 'single' !== $policy['policy'],
+				// The type has its own admission rule: re-entry after check-out (setting
+				// reentry_after_checkout) only applies to types without one (Checkin::reentry_block()).
+				'own_policy' => (bool) $policy,
 				// Local entry counters of the PWA (daily: once per valid day, multi_entry/reentry: max).
 				'max_entries' => $policy ? (int) $policy['max_entries'] : 1,
 				'valid_days' => $policy ? Policies::valid_days( $policy, $found ) : null,
@@ -228,6 +232,11 @@ final class Package {
 			'hash' => 'sha256',
 			'ticket_types' => $types,
 			'areas' => $areas,
+			// What the device's user may do offline (the app hides undo and check-out without the right).
+			'permissions' => self::permissions(),
+			// Offline check-out (same rules as Checkin::check_out()): the user's area binding
+			// (empty = all areas) and the re-entry rule for ticket types without own admission rule.
+			'checkout' => self::checkout_rules( $event_id ),
 		);
 		if ( self::VERSION_COMPACT === $format ) {
 			$payload['hash_prefix'] = self::HASH_PREFIX;
@@ -259,6 +268,32 @@ final class Package {
 			'count' => $count,
 			'format' => $format,
 			'expires_at' => gmdate( 'c', $expires ),
+		);
+	}
+
+	/**
+	 * Rights of the current (device) user shipped with the package: undo (capability
+	 * wpcap_undo_checkin) and check_out (role rule checkout_roles, Checkin::checkout_allowed()).
+	 *
+	 * @return array{undo: bool, check_out: bool}
+	 */
+	public static function permissions() {
+		return array( 'undo' => current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ), 'check_out' => \PassCaptain\Checkin::checkout_allowed() );
+	}
+
+	/**
+	 * Check-out rules of an event for the current (device) user: staff_area_ids are the areas the user
+	 * is assigned to (empty = unrestricted, always empty for administrators; Areas::check() rule 2),
+	 * reentry_after_checkout/max_reentries the re-entry setting for ticket types without own rule.
+	 *
+	 * @return array{staff_area_ids: int[], reentry_after_checkout: bool, max_reentries: int}
+	 */
+	public static function checkout_rules( $event_id ) {
+		$staff = current_user_can( 'manage_options' ) ? array() : Areas::user_area_ids( get_current_user_id(), (int) $event_id );
+		return array(
+			'staff_area_ids' => array_values( array_map( 'intval', $staff ) ),
+			'reentry_after_checkout' => (bool) \PassCaptain\Security\Policy::get( 'reentry_after_checkout' ),
+			'max_reentries' => max( 0, (int) \PassCaptain\Security\Policy::get( 'max_reentries' ) ),
 		);
 	}
 
