@@ -117,6 +117,38 @@ final class AdminPage {
 		}
 	}
 
+	/**
+	 * Passes for tickets issued before the module was switched on (Service::backfill()): first batch now,
+	 * the rest through the job queue. Audited; no mail to buyers.
+	 *
+	 * @return array{queued:int,skipped:int,more:bool,last_id:int}|\WP_Error
+	 */
+	public static function backfill() {
+		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
+		$result = Service::backfill();
+		if ( is_wp_error( $result ) ) { return $result; }
+		Audit::record( 'wallet_backfill_started', 'settings', 0, array( 'queued' => $result['queued'], 'skipped' => $result['skipped'], 'more' => (int) $result['more'] ) );
+		return $result;
+	}
+
+	/** Notice text for a backfill result. */
+	public static function backfill_message( array $result ) {
+		/* translators: %d: number of tickets */
+		$text = sprintf( _n( 'Wallet-Pässe für %d bestehendes Ticket werden erzeugt.', 'Wallet-Pässe für %d bestehende Tickets werden erzeugt.', (int) $result['queued'], 'pass-captain' ), (int) $result['queued'] );
+		if ( ! empty( $result['more'] ) ) { $text .= ' ' . __( 'Weitere Tickets folgen im Hintergrund.', 'pass-captain' ); }
+		if ( ! empty( $result['skipped'] ) ) {
+			/* translators: %d: number of tickets */
+			$text .= ' ' . sprintf( _n( '%d Ticket übersprungen: sein gespeicherter Code ist nicht lesbar.', '%d Tickets übersprungen: ihr gespeicherter Code ist nicht lesbar.', (int) $result['skipped'], 'pass-captain' ), (int) $result['skipped'] );
+		}
+		return $text;
+	}
+
+	public static function handle_backfill() {
+		Forms::verify( 'wpcap_wallet_backfill' );
+		$result = self::backfill();
+		Forms::finish( $result, is_wp_error( $result ) ? '' : self::backfill_message( $result ), Forms::page_url( self::SLUG ) );
+	}
+
 	public static function handle_save() {
 		Forms::verify( 'wpcap_wallet_save' );
 		Forms::finish( self::save( Forms::post() ), __( 'Wallet-Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
@@ -178,6 +210,17 @@ final class AdminPage {
 		if ( is_array( Credentials::apple() ) ) {
 			Forms::open_form( 'wpcap_wallet_test_pass' );
 			echo '<p><button class="button">' . esc_html__( 'Test-Pass herunterladen', 'pass-captain' ) . '</button></p></form>';
+		}
+		if ( $status['apple']['configured'] || $status['google']['configured'] ) {
+			echo '<h2>' . esc_html__( 'Bestehende Tickets', 'pass-captain' ) . '</h2>';
+			echo '<p>' . esc_html__( 'Tickets, die vor dem Einschalten von Wallet ausgestellt wurden, erhalten ihre Pässe mit dem bisherigen Code; das Ticket bleibt gültig. Die Pässe erscheinen im Bestellportal, es wird keine E-Mail versendet.', 'pass-captain' ) . '</p>';
+			$without = Service::backfill_without_code();
+			if ( $without ) {
+				/* translators: %d: number of tickets */
+				echo '<p class="description">' . esc_html( sprintf( _n( '%d Ticket hat keinen gespeicherten Code und erhält einen Pass erst mit „Tickets erneut senden“ (neuer Code).', '%d Tickets haben keinen gespeicherten Code und erhalten einen Pass erst mit „Tickets erneut senden“ (neuer Code).', $without, 'pass-captain' ), $without ) ) . '</p>';
+			}
+			Forms::open_form( 'wpcap_wallet_backfill' );
+			echo '<p><button class="button">' . esc_html__( 'Pässe für bestehende Tickets erzeugen', 'pass-captain' ) . '</button></p></form>';
 		}
 		Forms::open_form( 'wpcap_wallet_save' );
 		echo '<h2>' . esc_html__( 'Allgemein', 'pass-captain' ) . '</h2><table class="form-table"><tbody>';

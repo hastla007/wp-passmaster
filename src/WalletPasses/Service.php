@@ -27,6 +27,10 @@ final class Service {
 	const DEFERRED_REASONS = array( 'print', 'pos_print' );
 	/** Tickets handled inline per request; larger sets go to the job queue. */
 	const INLINE_LIMIT = 20;
+	/** Passes for tickets issued before the module was switched on (stored codes, A586), in batches. */
+	const BACKFILL_JOB = 'wallet_backfill';
+	/** Tickets per backfill batch. */
+	const BACKFILL_BATCH = 200;
 
 	public static function register() {
 		add_filter( 'wp_pass_captain_wallet_provider_v1', array( __CLASS__, 'default_provider' ), 5, 2 );
@@ -653,6 +657,73 @@ final class Service {
 		return $queued;
 	}
 
+	/* ---- tickets issued before the module was switched on ---- */
+
+	/**
+	 * Tickets without wallet state that could get a pass now: valid, of a date that is not cancelled and not
+	 * over, with an encrypted copy of the current code (TicketCodes, A586). Ticket id > $after, ascending.
+	 *
+	 * @return int[]
+	 */
+	private static function backfill_candidates( $after, $limit ) {
+		if ( ! \PassCaptain\TicketCodes::ready() ) { return array(); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$end = \PassCaptain\Occurrence::end_sql( 'o' );
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			"SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id WHERE s.ticket_id IS NULL AND t.ticket_id>%d AND t.status='valid' AND t.code_secret IS NOT NULL AND o.status<>'cancelled' AND $end > %s ORDER BY t.ticket_id LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $end is a fixed SQL expression (Occurrence::end_sql()).
+			absint( $after ),
+			\PassCaptain\Clock::mysql(),
+			max( 1, absint( $limit ) )
+		) ) );
+	}
+
+	/**
+	 * Valid tickets of upcoming dates without wallet state and without a stored code: they only get a pass
+	 * with a new code ("Tickets erneut senden"), because the core keeps just the hash otherwise.
+	 */
+	public static function backfill_without_code() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$end = \PassCaptain\Occurrence::end_sql( 'o' );
+		$secret = \PassCaptain\TicketCodes::ready() ? ' AND t.code_secret IS NULL' : '';
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id WHERE s.ticket_id IS NULL AND t.status='valid' AND o.status<>'cancelled' AND $end > %s$secret", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed SQL fragments.
+			\PassCaptain\Clock::mysql()
+		) );
+	}
+
+	/**
+	 * Creates the passes of tickets issued before the module was switched on (TODO "Pässe für Tickets vor dem
+	 * Einschalten"), with their current code – no new code, the mailed or printed ticket stays valid. One batch
+	 * (BACKFILL_BATCH tickets) is stored here like defer() (code and wallet state; the pass rows follow through
+	 * ISSUE_JOB); further batches run as BACKFILL_JOB. Tickets whose stored code cannot be read (other key,
+	 * outdated) are skipped. The buyer sees the passes in the order portal; no mail is sent.
+	 *
+	 * @param int $after Ticket id the previous batch ended with.
+	 * @return array{queued:int,skipped:int,more:bool,last_id:int}|\WP_Error
+	 */
+	public static function backfill( $after = 0 ) {
+		if ( ! self::provider( 'apple' ) && ! self::provider( 'google' ) ) {
+			return new \WP_Error( 'wpcap_wallet_not_configured', __( 'Weder Apple Wallet noch Google Wallet ist eingerichtet.', 'pass-captain' ) );
+		}
+		$ids = self::backfill_candidates( $after, self::BACKFILL_BATCH );
+		$codes = array();
+		$skipped = 0;
+		foreach ( $ids as $ticket_id ) {
+			$code = \PassCaptain\TicketCodes::get( $ticket_id );
+			if ( '' === $code ) { ++$skipped; continue; }
+			$codes[ $ticket_id ] = $code;
+		}
+		$queued = $codes ? count( self::defer( $codes ) ) : 0;
+		$last = $ids ? (int) end( $ids ) : (int) $after;
+		$more = count( $ids ) >= self::BACKFILL_BATCH;
+		if ( $more && true !== Jobs::enqueue( 'wallet-backfill-' . $last . '-' . md5( microtime( true ) . random_int( 0, PHP_INT_MAX ) ), self::BACKFILL_JOB, array( 'after' => $last ) ) ) {
+			self::log( 'queue_failed', self::BACKFILL_JOB );
+		}
+		return array( 'queued' => $queued, 'skipped' => $skipped, 'more' => $more, 'last_id' => $last );
+	}
+
 	/* ---- collection page (all passes of an order) ---- */
 
 	/** Validity of a collection link in seconds (180 days). */
@@ -943,6 +1014,7 @@ final class Service {
 	/** Filter wpcap_process_job. */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( self::ISSUE_JOB === $type ) { return self::issue_deferred( (array) ( $payload['ticket_ids'] ?? array() ) ); }
+		if ( self::BACKFILL_JOB === $type ) { self::backfill( (int) ( $payload['after'] ?? 0 ) ); return true; } // Not configured any more: nothing to do.
 		if ( self::JOB !== $type ) { return $handled; }
 		if ( ! empty( $payload['resync'] ) ) {
 			// Signing key revoked: recompute fingerprints (new barcode), then push/update every pass.

@@ -1,5 +1,10 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht
+
+### Wallet
+- Wallet-Seite: „Pässe für bestehende Tickets erzeugen“ – Tickets, die vor dem Einschalten von Wallet ausgestellt wurden, erhalten ihre Pässe mit dem bisherigen Code (kein neuer Code, keine Mail); die Pässe erscheinen im Bestellportal. Stapel zu 200 Tickets, Rest im Hintergrund (Job `wallet_backfill`).
+
 ## 1.7.0 – 2026-11-23
 
 ### Wichtige Verhaltensänderungen beim Update
