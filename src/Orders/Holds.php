@@ -17,8 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 /**
  * Implementation behind Orders::manual_hold_minutes(), manual_hold_cap(), manual_hold_error(),
  * manual_event_hold_cap(), manual_held_for_event(), manual_holds_exhausted(), manual_hold_until(),
- * extend_hold(), extend_hold_to(), hold_end() and extend_hold_for_delayed_payment(). Moved out of Orders
- * without behaviour change (TODO "Gott-Klasse Orders").
+ * extend_hold(), extend_hold_to(), hold_end(), extend_hold_for_delayed_payment(), has_active_hold(), lock_holds()
+ * and set_hold_status(). Moved out of Orders without behaviour change (TODO "Gott-Klasse Orders").
  *
  * @internal Not part of the add-on API: only Orders calls it; use the Orders facade (same signatures).
  */
@@ -195,5 +195,32 @@ final class Holds {
 		self::extend_to( $order_id, $until );
 		Audit::record( 'hold_extended_delayed_payment', 'order', absint( $order_id ), array( 'minutes' => $minutes ) );
 		return max( $until, self::end( $order_id ) );
+	}
+
+	/** Whether the order still has an unexpired active hold (non-locking read). */
+	public static function active( $order_id ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), Clock::mysql() ) ) > 0;
+	}
+
+	/**
+	 * Locks reservations by primary key (FOR UPDATE): record locks only.
+	 *
+	 * @return array|false Reservation rows (reservation_id, status, expires_at) or false on a database error.
+	 */
+	public static function lock( array $hold_ids ) {
+		global $wpdb;
+		$hold_ids = array_values( array_filter( array_map( 'absint', $hold_ids ) ) );
+		if ( ! $hold_ids ) { return array(); }
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT reservation_id,status,expires_at FROM %i WHERE reservation_id IN (' . implode( ',', array_fill( 0, count( $hold_ids ), '%d' ) ) . ') ORDER BY reservation_id FOR UPDATE', array_merge( array( $wpdb->prefix . 'wpcap_reservations' ), $hold_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer placeholders.
+		return '' !== $wpdb->last_error ? false : (array) $rows;
+	}
+
+	/** Sets the status of reservations (by primary key) that are in one of $from; false on a database error. */
+	public static function set_status( array $hold_ids, $status, array $from ) {
+		global $wpdb;
+		$hold_ids = array_values( array_filter( array_map( 'absint', $hold_ids ) ) );
+		if ( ! $hold_ids ) { return 0; }
+		return $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s WHERE reservation_id IN (' . implode( ',', array_fill( 0, count( $hold_ids ), '%d' ) ) . ') AND status IN (' . implode( ',', array_fill( 0, count( $from ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_reservations', (string) $status ), $hold_ids, array_values( $from ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 	}
 }

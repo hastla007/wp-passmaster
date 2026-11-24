@@ -33,6 +33,9 @@ $p5h_expected = array(
 	'extend_hold_to'                  => array( 'public', true, array( 'order_id', 'until_ts' ) ),
 	'hold_end'                        => array( 'public', true, array( 'order_id' ) ),
 	'extend_hold_for_delayed_payment' => array( 'public', true, array( 'order_id' ) ),
+	'has_active_hold'                 => array( 'public', true, array( 'order_id' ) ),
+	'lock_holds'                      => array( 'private', true, array( 'hold_ids' ) ),
+	'set_hold_status'                 => array( 'private', true, array( 'hold_ids', 'status', 'from' ) ),
 );
 $p5h_bad = array();
 foreach ( $p5h_expected as $p5h_m => $p5h_want ) {
@@ -73,5 +76,12 @@ check( 'Orders\\Holds: manual_held_for_event() counts the unpaid bank transfer t
 $p5h_until = Orders::extend_hold_for_delayed_payment( $p5h_id );
 check( 'Orders\\Holds: extend_hold_for_delayed_payment() extends to the bank transfer hold (72 h, the date is 7 days ahead)', is_int( $p5h_until ) && abs( $p5h_until - ( Clock::now() + 72 * 3600 ) ) <= 120 && abs( Orders::hold_end( $p5h_id ) - $p5h_until ) <= 1 );
 check( 'Orders\\Holds: hold_end() is 0 for an order without holds', 0 === Orders::hold_end( 0 ) );
+check( 'Orders\\Holds: has_active_hold() sees the hold of the pending order, not of a missing one', Orders::has_active_hold( $p5h_id ) && ! Orders::has_active_hold( 0 ) );
+$p5h_hold_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT reservation_id FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d ORDER BY reservation_id", $p5h_id ) ) );
+$wpdb->query( 'START TRANSACTION' );
+$p5h_locked = Orders\Holds::lock( array_merge( $p5h_hold_ids, array( 0 ) ) );
+$p5h_unchanged = Orders\Holds::set_status( $p5h_hold_ids, 'expired', array( 'released' ) );
+$wpdb->query( 'ROLLBACK' );
+check( 'Orders\\Holds: lock() returns the reservation rows by id, set_status() only touches holds in one of $from', is_array( $p5h_locked ) && count( $p5h_locked ) === count( $p5h_hold_ids ) && $p5h_hold_ids && 0 === (int) $p5h_unchanged && array() === Orders\Holds::lock( array() ) && 0 === Orders\Holds::set_status( array(), 'expired', array( 'active' ) ) );
 Orders::cancel_order( $p5h_id, 'test' );
 Settings::update( $p5h_saved );
