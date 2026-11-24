@@ -194,6 +194,20 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 - Der Header wird nur ausgewertet, wenn die Anfrage tatsächlich von einem vertrauenswürdigen Proxy kommt. Bei `X-Forwarded-For` gilt der rechteste Eintrag, der selbst kein vertrauenswürdiger Proxy ist (links stehende Einträge sind fälschbar). Ungültige Werte fallen auf `REMOTE_ADDR` zurück.
 - Der Filter `wpcap_client_ip` kann das Ergebnis weiterhin ersetzen.
 
+### Bestelllinks anfordern und Bot-Prüfung im Checkout
+
+**Bestelllinks anfordern** (`PassCaptain\OrderLinkRequest`, Seite `/?wpcap_order_link=1`, Formular auf der Seite für abgelaufene Bestelllinks und REST `POST /orders/link-request` mit `email`; öffentlicher Vertrag seit 1.3):
+
+- **Gleiche Antwort für jede Adresse:** Ob zur Adresse Bestellungen gehören, ob eine Mail hinausging oder das Tageslimit der Adresse erreicht ist – die Antwort ist immer dieselbe Meldung (REST: `{"message": …}`, HTTP 200). Gemeldet werden nur eine ungültige Adresse (400 `wpcap_order_link_email`) und das Limit je Client (429 `wpcap_rate_limited`). So lässt sich nicht abfragen, ob eine Adresse Kundin ist.
+- **Rate-Limits:** je Client 5 Anfragen pro Stunde (`RateLimit::allow_client()`, IPv6 je /64 plus /48-Netz; Filter `wpcap_order_link_request_client_limit`), je Adresse höchstens 3 Mails am Tag (stillschweigend, `OrderLinkRequest::ADDRESS_LIMIT`; gespeichert nur als HMAC). Platzhalteradressen (Verkäufe ohne Käufer-E-Mail) erhalten nie Mails.
+- Die Links gehen nur an die Bestelladresse und sind **vorgemerkt** wie beim Bestelllink von der Ticketseite (A631): Der bisherige Link bleibt gültig, bis der neue geöffnet wird. Wer eine fremde Adresse eingibt, sperrt niemanden aus. Eine Mail listet höchstens die 10 neuesten Bestellungen (offene Überweisungen, bezahlt, erstattet). Das Formular hat einen Nonce und ein Fangfeld; die Seite wird nicht gecacht und nicht indexiert.
+
+**Bot-Prüfung im Checkout** (`PassCaptain\Security\FormGuard`, Einstellungen `checkout_bot_check`, Standard an, und `checkout_min_fill_seconds`, Standard 3, 0 = nur Fangfeld):
+
+- **Geltungsbereich:** nur Bestellungen aus dem eigenen Bestellformular (Block, Shortcode). Das Formular sendet den optionalen Checkout-Parameter `form_guard` (`{"hp": "<Fangfeld>", "ms": <Millisekunden seit dem Anzeigen>}`). Anfragen **ohne** `form_guard` (eigene REST-Integrationen, ältere gecachte Seiten, Partner-API, WooCommerce, Kasse, Servicebuchungen und andere interne Aufrufe) werden nicht geprüft; für sie gelten nur die Rate-Limits oben.
+- **Ablehnung:** ausgefülltes Fangfeld → 400 `wpcap_form_guard` (`data.reason` `form_guard`); schneller als die Mindestzeit → 400 `wpcap_form_too_fast` (`data.reason` `form_too_fast`). Es wird keine Bestellung angelegt und kein Kontingent gehalten. Ein zu schnelles Absenden ist kein Sperrgrund: Der Hinweis bittet um erneutes Absenden, die Zeit läuft weiter, der nächste Versuch geht durch.
+- Keine Cookies, kein externer Dienst. Das Fangfeld ist versteckt (`hidden`, `aria-hidden`, nicht fokussierbar), Browser füllen es nicht automatisch aus. Die Prüfung ersetzt keine Bot-Abwehr am WAF/CDN.
+
 ## Rollen, Eventscoping und Datenminimierung
 
 - **WooCommerce-Produkte (SEC-V2):** Nur Administratoren (`manage_options`) und Personen mit `wpcap_manage_events` für das jeweilige Event (`Access::can_access_event`) dürfen ein Produkt mit einer Ticketart verknüpfen, die Verknüpfung ändern oder entfernen. Shop-Manager ohne Eventzuweisung sehen in der Auswahl nur Ticketarten ihrer Events; eine bestehende Verknüpfung zu einem fremden Event wird schreibgeschützt angezeigt. Ein unzulässiger Wert wird nicht gespeichert (Fehlerhinweis im Produkt-Editor); andere Speicherwege eines angemeldeten Nutzers (WooCommerce-REST-API, Schnellbearbeitung, CSV-Import) setzen den gespeicherten Wert zurück (Audit `woocommerce_product_link_refused`).

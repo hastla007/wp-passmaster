@@ -82,7 +82,7 @@ final class ManualHoldsRelease {
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			/* translators: 1: event name, 2: number of tickets */
-			$out[ (int) $row->event_id ] = sprintf( __( '%1$s (%2$d Tickets)', 'pass-captain' ), (string) $row->name, (int) $row->tickets );
+			$out[ (int) $row->event_id ] = sprintf( _n( '%1$s (%2$d Ticket)', '%1$s (%2$d Tickets)', (int) $row->tickets, 'pass-captain' ), (string) $row->name, (int) $row->tickets );
 		}
 		return $out;
 	}
@@ -200,8 +200,12 @@ final class ManualHoldsRelease {
 			return;
 		}
 		$tickets = array_sum( array_map( static function ( $row ) { return (int) $row['tickets']; }, $rows ) );
-		/* translators: 1: number of orders, 2: number of tickets */
-		$question = sprintf( __( '%1$d offene Überweisungsbestellungen mit %2$d Tickets jetzt freigeben? Das lässt sich nicht rückgängig machen.', 'pass-captain' ), count( $rows ), $tickets );
+		/* translators: %d: number of open bank-transfer orders */
+		$orders_part = sprintf( _n( '%d offene Überweisungsbestellung', '%d offene Überweisungsbestellungen', count( $rows ), 'pass-captain' ), count( $rows ) );
+		/* translators: %d: number of tickets */
+		$tickets_part = sprintf( _n( '%d Ticket', '%d Tickets', $tickets, 'pass-captain' ), $tickets );
+		/* translators: 1: number of open bank-transfer orders with noun, 2: number of tickets with noun */
+		$question = sprintf( __( '%1$s mit %2$s jetzt freigeben? Das lässt sich nicht rückgängig machen.', 'pass-captain' ), $orders_part, $tickets_part );
 		Forms::open_form( self::ACTION, null, 'data-wpcap-confirm="' . esc_attr( $question ) . '"' );
 		Forms::hidden( 'event_id', $event_id );
 		Forms::hidden( 'min_hours', $min_hours );

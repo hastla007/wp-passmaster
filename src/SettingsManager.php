@@ -142,9 +142,18 @@ final class SettingsManager {
 		return $out;
 	}
 
-	/** Readable value of a log entry (checksum, secret marker, flags). */
-	public static function display_value( $value ) {
+	/**
+	 * Readable value of a log entry (checksum, secret marker, flags; amounts of `money` settings formatted).
+	 *
+	 * @param mixed  $value Logged value.
+	 * @param string $key   Setting key ('' = unknown).
+	 */
+	public static function display_value( $value, $key = '' ) {
 		if ( null === $value ) { return '—'; }
+		if ( '' !== $key && ! is_bool( $value ) && is_numeric( $value ) ) {
+			$entry = SettingsSchema::get( $key );
+			if ( $entry && 'money' === $entry['type'] ) { return Money::format( (int) $value, Localization::default_currency() ); }
+		}
 		if ( is_array( $value ) && isset( $value['sha256'] ) ) {
 			/* translators: 1: number of characters, 2: short checksum */
 			return sprintf( __( 'Text mit %1$d Zeichen (Prüfsumme %2$s)', 'pass-captain' ), (int) ( $value['length'] ?? 0 ), (string) $value['sha256'] );

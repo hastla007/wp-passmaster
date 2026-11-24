@@ -91,7 +91,7 @@ final class OrganizerTools {
 		$columns = implode( ', ', Import::COLUMNS );
 		?>
 		<h2><?php esc_html_e( 'Events aus CSV importieren', 'pass-captain' ); ?></h2>
-		<p class="description"><?php echo esc_html( sprintf( /* translators: %s: column names */ __( 'Eine Zeile pro Ticketart; gleiche Eventnamen werden zu einem Event, gleiche Beginnzeiten zu einem Termin zusammengefasst. Spalten: %s. Pflicht: event, starts_at (JJJJ-MM-TT HH:MM, Ortszeit), ticket, price. Importierte Events sind Entwürfe.', 'pass-captain' ), $columns ) ); ?></p>
+		<p class="description"><?php echo esc_html( sprintf( /* translators: %s: column names */ __( 'Eine Zeile pro Ticketart; gleiche Eventnamen werden zu einem Event, gleiche Beginnzeiten zu einem Termin zusammengefasst. Spalten: %s. Pflicht: event, starts_at (JJJJ-MM-TT HH:MM, Ortszeit), ticket, price. Importierte Events sind Entwürfe.', 'pass-captain' ), $columns ) ); ?> <?php echo esc_html( EventsPage::net_entry() ? __( 'price ist der Nettopreis ohne Steuer (Einstellung „Preiseingabe“: netto); gespeichert wird der Bruttopreis mit dem Steuersatz, den der Checkout anwendet (aktives Steuerprofil, sonst tax_rate).', 'pass-captain' ) : __( 'price ist der Bruttopreis inklusive Steuer.', 'pass-captain' ) ); ?></p>
 		<?php Forms::open_form( 'wpcap_import_events', null, 'enctype="multipart/form-data"' ); ?>
 		<p><label for="wpcap-import-file"><?php esc_html_e( 'CSV-Datei', 'pass-captain' ); ?></label> <input id="wpcap-import-file" type="file" name="import_file" accept=".csv,text/csv" required>
 		<label><input type="checkbox" name="dry_run" value="1" checked> <?php esc_html_e( 'Nur prüfen (nichts speichern)', 'pass-captain' ); ?></label>

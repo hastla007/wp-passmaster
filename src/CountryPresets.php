@@ -38,6 +38,8 @@ final class CountryPresets {
 				'note' => __( 'Werte nach deutschem Recht (BGB, UStG, GoBD) als Ausgangspunkt. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen.', 'pass-captain' ),
 				'values' => array(
 					'seller_country' => 'DE',
+					'default_currency' => 'EUR',
+					'currencies' => 'EUR',
 					'billing_required_threshold_minor' => 25000,
 					'retention_financial_years' => 10,
 					'retention_order_years' => 10,
@@ -54,6 +56,8 @@ final class CountryPresets {
 				'note' => __( 'Werte nach österreichischem Recht (FAGG, UStG, BAO) als Ausgangspunkt. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen.', 'pass-captain' ),
 				'values' => array(
 					'seller_country' => 'AT',
+					'default_currency' => 'EUR',
+					'currencies' => 'EUR',
 					'billing_required_threshold_minor' => 40000,
 					'retention_financial_years' => 7,
 					'retention_order_years' => 7,
@@ -69,6 +73,12 @@ final class CountryPresets {
 				'note' => __( 'Werte nach Schweizer Recht (OR, MWSTG) als Ausgangspunkt; für Online-Käufe gibt es kein allgemeines Widerrufsrecht. Vor dem Verkaufsstart rechtlich und steuerlich prüfen lassen.', 'pass-captain' ),
 				'values' => array(
 					'seller_country' => 'CH',
+					// CHF as default; EUR stays offered (many Swiss organisers also sell in EUR).
+					'default_currency' => 'CHF',
+					'currencies' => 'CHF,EUR',
+					// Swiss VAT: simplified invoices (without the buyer's name and address) up to CHF 400
+					// (Art. 26 para. 3 MWSTG, MWSTV). Legal value (SettingsSchema::LEGAL), review flag in the preview.
+					'billing_required_threshold_minor' => 40000,
 					'retention_financial_years' => 10,
 					'retention_order_years' => 10,
 					'attendee_retention_days' => 365,
@@ -169,6 +179,25 @@ final class CountryPresets {
 	}
 
 	/**
+	 * The default currency must be one of the offered currencies after applying (both stored in one
+	 * Settings::update(), so their order does not matter). An empty currency list means the built-in list.
+	 *
+	 * @param array $values Values about to be applied.
+	 * @return true|\WP_Error
+	 */
+	public static function currency_conflict( array $values ) {
+		if ( ! isset( $values['default_currency'] ) && ! isset( $values['currencies'] ) ) { return true; }
+		$default = strtoupper( (string) ( $values['default_currency'] ?? Settings::get( 'default_currency', 'EUR' ) ) );
+		$list = array_values( array_filter( array_map( 'trim', explode( ',', strtoupper( (string) ( $values['currencies'] ?? Settings::get( 'currencies', '' ) ) ) ) ) ) );
+		if ( ! $list || in_array( $default, $list, true ) ) { return true; }
+		return new \WP_Error(
+			'wpcap_preset_currency',
+			/* translators: 1: default currency code, 2: offered currency codes */
+			sprintf( __( 'Die Standardwährung %1$s gehört nicht zu den angebotenen Währungen (%2$s). Übernimm Standardwährung und angebotene Währungen zusammen.', 'pass-captain' ), $default, implode( ', ', $list ) )
+		);
+	}
+
+	/**
 	 * Applies the selected values of a preset (all when $keys is null). Values with an error are skipped.
 	 *
 	 * @param string        $code Preset code.
@@ -184,6 +213,8 @@ final class CountryPresets {
 			$values[ $row['key'] ] = $row['new'];
 		}
 		if ( ! $values ) { return array(); }
+		$currency_error = self::currency_conflict( $values );
+		if ( is_wp_error( $currency_error ) ) { return $currency_error; }
 		SettingsManager::with_source( 'preset', static function () use ( $values ) { Settings::update( $values ); } );
 		Audit::record( 'country_preset_applied', 'settings', 0, array( 'preset' => strtoupper( (string) $code ), 'keys' => array_keys( $values ) ) );
 		return array_keys( $values );

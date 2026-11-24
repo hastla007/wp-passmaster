@@ -1,7 +1,7 @@
 {
   "contract": "public",
-  "version": "1.2",
-  "description": "Öffentliche REST-API pass-captain/v1 (Eventliste, Checkout, Bestellstatus). Requests sind Beispiele mit Platzhaltern, Responses Shapes.",
+  "version": "1.3",
+  "description": "Öffentliche REST-API pass-captain/v1 (Eventliste, Checkout, Bestellstatus). Requests sind Beispiele mit Platzhaltern, Responses Shapes. Optionale Request-Parameter stehen mit Beispielwert im Request (z. B. form_guard, seit 1.3).",
   "endpoints": {
     "GET /events": {
       "direction": "inbound",
@@ -79,7 +79,11 @@
           }
         ],
         "idempotency_key": "{{idempotency_key}}",
-        "provider": "manual"
+        "provider": "manual",
+        "form_guard": {
+          "hp": "",
+          "ms": 5000
+        }
       },
       "response": {
         "status": "string",
@@ -130,6 +134,15 @@
         "access_expires_at": "string|null"
       }
     },
+    "POST /orders/link-request": {
+      "direction": "inbound",
+      "request": {
+        "email": "{{email}}"
+      },
+      "response": {
+        "message": "string"
+      }
+    },
     "error": {
       "direction": "inbound",
       "request": {},
@@ -141,7 +154,8 @@
           "?api": "string",
           "?requested": "string",
           "?supported": "string",
-          "?field": "string"
+          "?field": "string",
+          "?reason": "string"
         }
       }
     }

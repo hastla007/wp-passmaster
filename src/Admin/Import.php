@@ -5,7 +5,8 @@
  *
  * Columns (header row, "," or ";" separated, names case-insensitive; * = required):
  *   event*, description, starts_at* (local "Y-m-d H:i"), ends_at, timezone (default: site), location,
- *   occurrence_capacity, ticket*, price* (e.g. 12,50), currency (default EUR), tax_rate (e.g. 19),
+ *   occurrence_capacity, ticket*, price* (e.g. 12,50; gross, or net with the setting price_entry = net),
+ *   currency (default EUR), tax_rate (e.g. 19),
  *   ticket_capacity, max_per_order (default 10)
  *
  * The whole file is validated first (preview with all line errors); the import runs in one
@@ -143,7 +144,11 @@ final class Import {
 					if ( ! $wpdb->insert( $p . 'wpcap_occurrences', $occ + array( 'event_id' => $event_id, 'status' => 'scheduled' ) ) ) { throw new \RuntimeException( 'occurrence' ); }
 					$occurrence_id = (int) $wpdb->insert_id;
 					++$counts['occurrences'];
+					$occ_row = EventsPage::net_entry() ? Queries::occurrence( $occurrence_id ) : null;
 					foreach ( $types as $type ) {
+						// SET-PC-45: with net price entry the CSV price is net, converted like the form does
+						// (rate of an active tax profile for country, class and date, else the row's tax_rate).
+						if ( $occ_row ) { $type['price_minor'] = EventsPage::entry_to_gross( (int) $type['price_minor'], EventsPage::net_rate_bp( (int) $type['tax_rate_bp'], $occ_row ) ); }
 						if ( ! $wpdb->insert( $p . 'wpcap_ticket_types', $type + array( 'occurrence_id' => $occurrence_id ) ) ) { throw new \RuntimeException( 'type' ); }
 						++$counts['ticket_types'];
 					}

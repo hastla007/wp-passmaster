@@ -47,7 +47,7 @@ final class SettingsSchema {
 		'seller_country', 'withdrawal_notice_text', 'withdrawal_right_text', 'seller_small_business', 'seller_small_business_note',
 		'invoice_prefix', 'credit_note_prefix', 'billing_required_threshold_minor', 'retention_financial_years',
 		'retention_order_years', 'datev_chart', 'datev_contra_account', 'fiscal_allow_local_service', 'service_fee_tax_class',
-		'boxoffice_receipt_prefix', 'sms', 'mollie',
+		'boxoffice_receipt_prefix', 'sms', 'mollie', 'default_currency', 'currencies',
 	);
 
 	/** @var array|null Per-request cache of all(). */

@@ -59,7 +59,7 @@ final class ReconciliationReport {
 				$add( $finding[0], $finding[1] );
 			}
 			if ( null !== $provider && 'external' !== $status ) {
-				$finding = self::provider_finding( $snapshot, $provider[ $order_id ] ?? null );
+				$finding = self::provider_finding( $snapshot, $provider[ $order_id ] ?? null, (string) $row->currency );
 				if ( $finding ) { $add( $finding[0], $finding[1] ); }
 			}
 		}
@@ -71,6 +71,20 @@ final class ReconciliationReport {
 			'summary'  => $summary,
 			'issues'   => $issues,
 		);
+	}
+
+	/** Label of a voucher redemption status (snapshot or Voucher Captain); unknown codes stay as they are. */
+	public static function voucher_status_label( $status ) {
+		$labels = array(
+			'reserved'           => _x( 'reserviert', 'voucher status', 'pass-captain' ),
+			'committed'          => _x( 'belastet', 'voucher status', 'pass-captain' ),
+			'released'           => _x( 'freigegeben', 'voucher status', 'pass-captain' ),
+			'commit_failed'      => _x( 'Belastung fehlgeschlagen', 'voucher status', 'pass-captain' ),
+			'refunded'           => _x( 'zurückgebucht', 'voucher status', 'pass-captain' ),
+			'partially_refunded' => _x( 'teilweise zurückgebucht', 'voucher status', 'pass-captain' ),
+			'external'           => _x( 'extern eingelöst', 'voucher status', 'pass-captain' ),
+		);
+		return $labels[ (string) $status ] ?? (string) $status;
 	}
 
 	/** Labels of the finding codes. */
@@ -128,8 +142,8 @@ final class ReconciliationReport {
 			$out[] = array( 'commit_failed', sprintf( __( 'Fehler: %s. Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'pass-captain' ), (string) ( $snapshot['error'] ?? '–' ) ) );
 		}
 		if ( 'committed' === $status && ! $paid && ! in_array( $payment, array( 'paid_unallocated' ), true ) ) {
-			/* translators: %s: payment status */
-			$out[] = array( 'committed_unpaid', sprintf( __( 'Zahlungsstatus: %s. Gutschein bei Voucher Captain zurückbuchen, falls die Bestellung nicht bezahlt wird.', 'pass-captain' ), $payment ) );
+			/* translators: %s: payment status label (e.g. "Ausstehend") */
+			$out[] = array( 'committed_unpaid', sprintf( __( 'Zahlungsstatus: %s. Gutschein bei Voucher Captain zurückbuchen, falls die Bestellung nicht bezahlt wird.', 'pass-captain' ), \PassCaptain\Admin\Forms::status_label( $payment, 'order' ) ) );
 		}
 		if ( $failed ) {
 			/* translators: %s: refund ids */
@@ -169,9 +183,10 @@ final class ReconciliationReport {
 	 *
 	 * @param array      $snapshot Voucher snapshot.
 	 * @param array|null $state    status ('reserved'|'committed'|'released'|'refunded'), refunded_minor; null = unknown there.
+	 * @param string     $currency Order currency (amounts in the detail text; '' = snapshot currency or default currency).
 	 * @return array{0:string,1:string}|null
 	 */
-	public static function provider_finding( array $snapshot, $state ) {
+	public static function provider_finding( array $snapshot, $state, $currency = '' ) {
 		$status = (string) ( $snapshot['status'] ?? '' );
 		if ( ! is_array( $state ) ) {
 			return in_array( $status, array( 'reserved', 'committed' ), true ) ? array( 'provider_missing', __( 'Voucher Captain kennt diese Einlösung nicht.', 'pass-captain' ) ) : null;
@@ -188,12 +203,13 @@ final class ReconciliationReport {
 			'committed'     => 0 === $refunded ? array( 'committed' ) : ( $refunded < $amount ? array( 'committed', 'partially_refunded', 'refunded' ) : array( 'committed', 'refunded' ) ),
 		);
 		if ( ! in_array( $theirs, $agree[ $status ] ?? array( $status ), true ) ) {
-			/* translators: 1: status at Pass Captain, 2: status at Voucher Captain */
-			return array( 'provider_status', sprintf( __( 'Pass Captain: %1$s, Voucher Captain: %2$s.', 'pass-captain' ), $status, '' !== $theirs ? $theirs : '–' ) );
+			/* translators: 1: voucher status at Pass Captain, 2: voucher status at Voucher Captain (e.g. "belastet") */
+			return array( 'provider_status', sprintf( __( 'Pass Captain: %1$s, Voucher Captain: %2$s.', 'pass-captain' ), self::voucher_status_label( $status ), '' !== $theirs ? self::voucher_status_label( $theirs ) : '–' ) );
 		}
 		if ( 'committed' === $status && isset( $state['refunded_minor'] ) && (int) $state['refunded_minor'] !== $refunded ) {
-			/* translators: 1: amount refunded at Pass Captain, 2: amount refunded at Voucher Captain (minor units) */
-			return array( 'provider_refunded', sprintf( __( 'Zurückgebucht laut Pass Captain: %1$d, laut Voucher Captain: %2$d (kleinste Einheit).', 'pass-captain' ), $refunded, (int) $state['refunded_minor'] ) );
+			$currency = '' !== (string) $currency ? (string) $currency : (string) ( $snapshot['currency'] ?? \PassCaptain\Localization::default_currency() );
+			/* translators: 1: amount refunded at Pass Captain, 2: amount refunded at Voucher Captain (formatted with currency) */
+			return array( 'provider_refunded', sprintf( __( 'Zurückgebucht laut Pass Captain: %1$s, laut Voucher Captain: %2$s.', 'pass-captain' ), \PassCaptain\Money::format( $refunded, $currency ), \PassCaptain\Money::format( (int) $state['refunded_minor'], $currency ) ) );
 		}
 		return null;
 	}

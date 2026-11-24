@@ -25,6 +25,8 @@ final class OrderLinkRequest {
 	const ADDRESS_LIMIT = 3;
 	/** Payment states whose orders get a link (open bank transfers, paid and refunded orders). */
 	const PAYMENT_STATES = array( 'pending', 'paid', 'paid_unallocated', 'refunded' );
+	/** Id of the notice element (errors are linked to the e-mail field with aria-describedby). */
+	const NOTICE_ID = 'wpcap-order-link-notice';
 
 	public static function register() {
 		static $done = false;
@@ -152,19 +154,33 @@ final class OrderLinkRequest {
 	 * @param array $post Unslashed POST data.
 	 */
 	public static function handle_post( array $post ) {
-		if ( ! $post || ! isset( $post['wpcap_order_link_email'] ) ) { return ''; }
-		if ( ! wp_verify_nonce( (string) ( $post['_wpnonce'] ?? '' ), 'wpcap_order_link_request' ) || '' !== (string) ( $post['website'] ?? '' ) ) {
-			return __( 'Die Anfrage konnte nicht geprüft werden. Bitte lade die Seite neu.', 'pass-captain' );
-		}
-		$result = self::request( (string) $post['wpcap_order_link_email'] );
-		return is_wp_error( $result ) ? $result->get_error_message() : self::generic_message();
+		return self::submit( $post )['message'];
 	}
 
-	/** The request form (posts to the request page). */
-	public static function form_html() {
+	/**
+	 * Result of a submitted form.
+	 *
+	 * @param array $post Unslashed POST data.
+	 * @return array{message: string, error: bool} message '' without POST data; error for input/limit/check errors.
+	 */
+	public static function submit( array $post ) {
+		if ( ! $post || ! isset( $post['wpcap_order_link_email'] ) ) { return array( 'message' => '', 'error' => false ); }
+		if ( ! wp_verify_nonce( (string) ( $post['_wpnonce'] ?? '' ), 'wpcap_order_link_request' ) || '' !== (string) ( $post['website'] ?? '' ) ) {
+			return array( 'message' => __( 'Die Anfrage konnte nicht geprüft werden. Bitte lade die Seite neu.', 'pass-captain' ), 'error' => true );
+		}
+		$result = self::request( (string) $post['wpcap_order_link_email'] );
+		return is_wp_error( $result ) ? array( 'message' => $result->get_error_message(), 'error' => true ) : array( 'message' => self::generic_message(), 'error' => false );
+	}
+
+	/**
+	 * The request form (posts to the request page).
+	 *
+	 * @param bool $invalid Mark the e-mail field as invalid and link it to the error notice.
+	 */
+	public static function form_html( $invalid = false ) {
 		return '<form method="post" action="' . esc_url( self::url() ) . '" class="wpcap-order-link-request"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wpcap_order_link_request' ) ) . '">'
-			. '<p class="hp" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></p>'
-			. '<p><label for="wpcap-order-link-email">' . esc_html__( 'E-Mail-Adresse deiner Bestellung', 'pass-captain' ) . '</label><br><input id="wpcap-order-link-email" name="wpcap_order_link_email" type="email" required autocomplete="email" maxlength="190"></p>'
+			. '<p class="hp" aria-hidden="true"><label for="wpcap-order-link-hp">' . esc_html__( 'Dieses Feld bitte leer lassen', 'pass-captain' ) . '</label> <input id="wpcap-order-link-hp" type="text" name="website" value="" tabindex="-1" autocomplete="off"></p>'
+			. '<p><label for="wpcap-order-link-email">' . esc_html__( 'E-Mail-Adresse deiner Bestellung', 'pass-captain' ) . '</label><br><input id="wpcap-order-link-email" name="wpcap_order_link_email" type="email" required autocomplete="email" maxlength="190"' . ( $invalid ? ' aria-invalid="true" aria-describedby="' . esc_attr( self::NOTICE_ID ) . '"' : '' ) . '></p>'
 			. '<p><button type="submit">' . esc_html__( 'Neue Links anfordern', 'pass-captain' ) . '</button></p></form>';
 	}
 
@@ -174,13 +190,14 @@ final class OrderLinkRequest {
 	 * @param array $post Unslashed POST data.
 	 */
 	public static function page( array $post = array() ) {
-		$notice = self::handle_post( $post );
+		$submitted = self::submit( $post );
+		$notice = $submitted['message'];
 		$body = '<p>' . esc_html__( 'Du findest die E-Mail mit deinen Tickets oder den Link zu deiner Bestellung nicht mehr? Gib die E-Mail-Adresse ein, mit der du bestellt hast. Wir senden dir neue Links zu deinen Bestellungen.', 'pass-captain' ) . '</p>'
-			. self::form_html()
+			. self::form_html( $submitted['error'] )
 			. '<p class="muted">' . esc_html__( 'Du hast ein Ticket von jemand anderem erhalten?', 'pass-captain' ) . ' <a href="' . esc_url( TicketRecovery::url() ) . '">' . esc_html__( 'Ticketlinks für übertragene Tickets anfordern', 'pass-captain' ) . '</a></p>';
-		$html = self::document( __( 'Tickets/Bestelllink anfordern', 'pass-captain' ), $notice, $body );
+		$html = self::document( __( 'Tickets/Bestelllink anfordern', 'pass-captain' ), $notice, $body, $submitted['error'] );
 		// A407: theme override pass-captain/order-link-request.php.
-		return PublicEvents::page( 'order-link-request.php', $html, array( 'notice' => $notice, 'step' => 'request' ) );
+		return PublicEvents::page( 'order-link-request.php', $html, array( 'notice' => $notice, 'step' => 'request', 'error' => $submitted['error'] ) );
 	}
 
 	/** Page for an expired or invalid order link (status 404 set by the caller), with the request form. */
@@ -194,11 +211,15 @@ final class OrderLinkRequest {
 		return PublicEvents::page( 'order-link-invalid.php', $html, array() );
 	}
 
-	private static function document( $title, $notice, $body ) {
+	/**
+	 * Page document. Errors are announced at once (role="alert"), the neutral answer politely (role="status");
+	 * the notice can take focus (tabindex="-1") for themes that move focus to it with a script.
+	 */
+	private static function document( $title, $notice, $body, $error = false ) {
 		return '<!doctype html><html ' . Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html( $title ) . '</title>'
 			. '<style>body{font:16px/1.5 system-ui,sans-serif;max-width:36rem;margin:2rem auto;padding:0 1rem;color:#1d2327}input[type=email]{width:100%;padding:.5rem;font:inherit;box-sizing:border-box}button{padding:.6rem 1rem;min-height:2.75rem;font:inherit}.muted{color:#50575e}.hp{position:absolute;left:-9999px}.notice{font-weight:700}</style></head><body><main>'
 			. '<h1>' . esc_html( $title ) . '</h1>'
-			. ( '' !== $notice ? '<p class="notice" role="status">' . esc_html( $notice ) . '</p>' : '' )
+			. ( '' !== $notice ? '<p class="notice" id="' . esc_attr( self::NOTICE_ID ) . '" role="' . ( $error ? 'alert' : 'status' ) . '" tabindex="-1">' . esc_html( $notice ) . '</p>' : '' )
 			. $body . '</main></body></html>';
 	}
 }
