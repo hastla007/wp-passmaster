@@ -916,7 +916,9 @@ final class Waitlists {
 	 *
 	 * @param array $args provider (payment gateway id), accept_terms (bool), terms_version (version the
 	 *                    page showed, A565), locale, attendees (list of
-	 *                    {ticket_type_id, name, email, answers{field_key:value}} like the checkout).
+	 *                    {ticket_type_id, name, email, answers{field_key:value}} like the checkout),
+	 *                    billing (invoice data like the checkout, see Billing::validate(); required for
+	 *                    paid offers above Billing::required_threshold() unless the order has it).
 	 * @return array|\WP_Error status, order (order_id, public_id, status, payment_status, total_minor, currency), payment?, inventory_reserved.
 	 */
 	public static function accept_offer( $waitlist_id, $token, array $args = array() ) {
@@ -945,6 +947,14 @@ final class Waitlists {
 		LegalVersions::archive( $locale );
 		$attendee_data = self::accepted_attendees( (int) $order->order_id, $args['attendees'] ?? array() );
 		if ( is_wp_error( $attendee_data ) ) { return $attendee_data; }
+		// L707: invoice data (company/address/VAT ID) like the checkout; the placeholder order was
+		// created without it, so the threshold rule of the checkout is enforced here.
+		$billing = Billing::validate( $args['billing'] ?? null );
+		if ( is_wp_error( $billing ) ) { return $billing; }
+		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : null;
+		if ( ! $billing && $paid && Billing::required_for( (int) $order->total_minor, (string) $order->currency ) && ! Billing::for_order( $order ) ) {
+			return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
+		}
 		$gateway = null;
 		// Free offers keep their hold a little longer while the order is completed; paid offers for
 		// the payment window of the chosen method (never shortened).
@@ -964,12 +974,12 @@ final class Waitlists {
 			}
 		}
 		$table = $wpdb->prefix . 'wpcap_waitlist';
-		$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data, $locale );
+		$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data, $locale, $billing );
 		if ( Errors::is_busy( $claimed ) ) {
 			// Deadlock victim (e.g. against the expiry job at the deadline): everything was rolled
 			// back; one more try sees the winner's result.
 			usleep( 100000 );
-			$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data, $locale );
+			$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data, $locale, $billing );
 		}
 		if ( is_wp_error( $claimed ) ) { return $claimed; }
 		$order_id = (int) $order->order_id;
@@ -1072,9 +1082,10 @@ final class Waitlists {
 	 * @param int    $minutes  Minimum remaining hold after the claim.
 	 * @param string|null $attendees Attendee data (JSON) for the order, null = unchanged.
 	 * @param string|null $locale    Buyer locale (legal text version and mails); null = current.
+	 * @param array|null  $billing   Validated invoice data for the order (L707), null = unchanged.
 	 * @return true|\WP_Error
 	 */
-	private static function claim_offer( $row, $provider, $minutes, $attendees = null, $locale = null ) {
+	private static function claim_offer( $row, $provider, $minutes, $attendees = null, $locale = null, $billing = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = (int) $row->order_id;
@@ -1107,6 +1118,7 @@ final class Waitlists {
 		$extended = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE reservation_id IN (" . implode( ',', array_fill( 0, count( $held ), '%d' ) ) . ')', array_merge( array( $until ), $held ) ) );
 		$assigned = true;
 		$order_update = null === $attendees ? array() : array( 'attendee_data' => (string) $attendees );
+		if ( is_array( $billing ) && $billing ) { $order_update['billing'] = (string) wp_json_encode( Billing::sanitize( $billing ) ); }
 		if ( null === $locale ) { $locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
 		// The accepted version and the buyer language are stored for paid and free offers (A565/A568).
 		$order_update += array( 'terms_version' => Settings::terms_version( $locale ), 'locale' => (string) $locale );
@@ -1706,6 +1718,7 @@ final class Waitlists {
 		echo '<input type="hidden" name="' . esc_attr( self::SIG_FIELD ) . '" value="' . esc_attr( self::form_sig( 'offer', $waitlist_id, $token ) ) . '">';
 		echo '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( $token ) . '">';
 		echo self::attendee_form_html( (int) $order->order_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in attendee_form_html().
+		echo self::billing_form_html( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Billing::fields_html().
 		if ( count( $gateways ) > 1 ) {
 			echo '<fieldset><legend>' . esc_html__( 'Zahlungsart', 'pass-captain' ) . '</legend>';
 			$first = true;
@@ -1720,6 +1733,19 @@ final class Waitlists {
 		echo self::submit_once_script(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static script.
 		echo '</main></body></html>';
 		\PassCaptain\Http::end();
+	}
+
+	/**
+	 * Invoice inputs of the offer page (L707): the checkout's billing fields (name="billing[…]") for
+	 * paid offers, opened when the total needs billing data. '' for free offers.
+	 */
+	public static function billing_form_html( $order ) {
+		if ( ! $order || (int) $order->total_minor <= 0 ) { return ''; }
+		$html = Billing::fields_html( 'wpcap-wl-billing' );
+		if ( Billing::required_for( (int) $order->total_minor, (string) $order->currency ) && ! Billing::for_order( $order ) ) {
+			$html = (string) preg_replace( '/^<details /', '<details open ', $html );
+		}
+		return $html;
 	}
 
 	/**
@@ -1815,7 +1841,8 @@ final class Waitlists {
 		$decline = 'decline' === $decision;
 		// Attendee data (A536) is sanitised field by field in Orders::validate_attendees().
 		$attendees = isset( $_POST['attendees'] ) && is_array( $_POST['attendees'] ) ? wp_unslash( $_POST['attendees'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated per configured field.
-		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => Http::accepted( sanitize_text_field( wp_unslash( (string) ( $_POST['accept_terms'] ?? '' ) ) ) ), 'terms_version' => sanitize_text_field( wp_unslash( (string) ( $_POST['terms_version'] ?? '' ) ) ), 'locale' => sanitize_text_field( wp_unslash( (string) ( $_POST['locale'] ?? '' ) ) ), 'attendees' => $attendees ) );
+		$billing = isset( $_POST['billing'] ) && is_array( $_POST['billing'] ) ? wp_unslash( $_POST['billing'] ) : null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Billing::validate() sanitises every field.
+		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => Http::accepted( sanitize_text_field( wp_unslash( (string) ( $_POST['accept_terms'] ?? '' ) ) ) ), 'terms_version' => sanitize_text_field( wp_unslash( (string) ( $_POST['terms_version'] ?? '' ) ) ), 'locale' => sanitize_text_field( wp_unslash( (string) ( $_POST['locale'] ?? '' ) ) ), 'attendees' => $attendees, 'billing' => $billing ) );
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		// A317: Post/Redirect/Get. An answered offer goes to its result page (reload and back never post
 		// again); a paid acceptance with a hosted payment page goes straight there. A second submit of an
@@ -1829,7 +1856,7 @@ final class Waitlists {
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		/* translators: %s: site name */
 		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );
-		if ( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'wpcap_attendee_field_required', 'wpcap_attendee_field_invalid', 'wpcap_attendees_invalid', 'wpcap_terms_required', 'wpcap_terms_changed', 'wpcap_provider_unavailable', 'wpcap_manual_too_late' ), true ) ) {
+		if ( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'wpcap_attendee_field_required', 'wpcap_attendee_field_invalid', 'wpcap_attendees_invalid', 'wpcap_terms_required', 'wpcap_terms_changed', 'wpcap_provider_unavailable', 'wpcap_manual_too_late', 'wpcap_billing_invalid', 'wpcap_billing_required' ), true ) ) {
 			// Input problem: the offer stays open, back to the form.
 			echo '<h1>' . esc_html__( 'Bitte Angaben prüfen', 'pass-captain' ) . '</h1><p role="alert">' . esc_html( $result->get_error_message() ) . '</p><p><a href="' . esc_url( add_query_arg( array( 'wpcap_waitlist_accept' => $waitlist_id, 'token' => $token ), home_url( '/' ) ) ) . '">' . esc_html__( 'Zurück zum Angebot', 'pass-captain' ) . '</a></p>';
 		} elseif ( is_wp_error( $result ) ) {

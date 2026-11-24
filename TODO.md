@@ -704,7 +704,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Datenschutz-Export/-Löschung für Gästelisten-Einträge (`wpcap_guest_entries`) ergänzen.
 - [x] Datenschutz-Löschung soll laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort freigeben statt bis zum Ablauf zu halten.
 - [x] `wpcap_waitlist_process` beim Deaktivieren des Plugins abmelden.
-- [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen.
+- [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen. *Teilweise erledigt (24.11.2026): Rechnungsdaten wie im Checkout auf der Angebotsseite und über `POST /waitlist/{id}/accept` (`billing`), Pflicht über der Schwelle `billing_required_threshold_minor`, ungültige Angaben lassen das Angebot offen, Daten gehen an Bestellung und Rechnung (Test `zz_p7_waitlist_billing`, `docs/WAITLIST.md`). Offen: Rabattcodes und Gutscheine – Entscheidung (der Preis steht mit dem Angebot fest).*
 - [x] Umtausch: Antworten auf Zusatzfelder ins neue Ticket übernehmen; eigenes Webhook-Ereignis `ticket.exchanged`; Differenzerstattung bei WooCommerce-Bestellungen automatisieren oder klar im Admin führen.
 - [x] Core-Hook `wpcap_reserve_capacity` um `$context['internal']`, Käufer-E-Mail und Benutzer-ID erweitern (Allocations/Käuferlimit prüfen derzeit in `wpcap_order_creating`).
 - [x] Neue Hooks dokumentieren (`wpcap_capacity_increased`, `wpcap_allocation_*`, `wpcap_boxoffice_*`, `wpcap_ticket_exchanged`, Pass-Filter) in docs/HOOKS.md.
@@ -971,7 +971,7 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 - [x] [WICHTIG] Kein Absender/Antwortadresse für Käufer-Mails — src/Mail/Mailer.php:215–229 (A296, R1 UX)
 - [x] [WICHTIG] Fehlerhafte Admin-Formulare verwerfen alle Eingaben, generische Meldung — src/Admin/EventsPage.php:39–41, Forms.php:384–392 (A297, R1 UX)
 - [x] [WICHTIG] A099 nur teilweise: Rechtstexte ohne Editor, „Zahlung vor Ort“ im Online-Checkout — src/Admin/SettingsPage.php:603, ManualGateway.php:12 (A298, R1 UX)
-- [ ] [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — src/Admin/Menu.php:197–226, Modules.php:60–63 (A299, R1 UX)
+- [ ] [WICHTIG] 36 Unterseiten, Module nicht per Oberfläche abschaltbar, doppelte Wege — src/Admin/Menu.php:197–226, Modules.php:60–63 (A299, R1 UX) *Abgleich 24.11.2026: Module per Oberfläche abschaltbar (Einstellung `disabled_modules`, Test `zz_a299`), Mollie-Doppelweg entfernt, verlinkte Seiten ohne eigenen Menüpunkt (`Admin\Menu::linked_pages()`). Offen: Überschneidung Wochenwiederholung/Serienmodul und weitere Menüverschlankung – Produktentscheidung (siehe ARBEITSLISTE A299).*
 - [x] [WICHTIG] Versionen und Readme widersprechen sich (A170 abgehakt) – erledigt: `build/check-versions.sh` grün (Header, WPCAP_VERSION, Stable tag, CHANGELOG 1.5.0; PHP 8.2/WP 6.4 überall gleich), Vertragsversionen im Hauptdatei-Kommentar ergänzt — pass-captain.php:7/56, readme.txt:7/45/69, CHANGELOG.md:3 (A300, R1 Release)
 - [x] [WICHTIG] Nicht wegklickbarer Secrets-Hinweis auf allen Admin-Seiten — src/Secrets.php:59, :435–437 (A301, R1 Release)
 - [x] [WICHTIG] Inline-<script>/<style> per echo — src/Admin/Menu.php:88/91/263, BoxOffice/Page.php:146, Mail/Admin.php:290, OrderPortal.php:141, Exchange/Portal.php:204 (A302, R1 Release)

@@ -347,6 +347,7 @@ final class Controller {
 				'token' => self::arg( 'token' ), // Or the X-WPCAP-Access-Token header (Rest\Credentials).
 				'accept_terms' => self::arg( 'bool' ),
 				'attendees' => array( 'type' => 'array', 'validate_callback' => 'rest_validate_request_arg' ),
+				'billing' => self::arg( 'object' ), // L707: invoice data like the checkout.
 			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/waitlist/(?P<waitlist_id>\d+)/decline', array(
@@ -1245,7 +1246,7 @@ final class Controller {
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
 		// Attendee data (participant fields) is collected on acceptance (A536); Orders::validate_attendees() sanitises it.
 		$attendees = $request->get_param( 'attendees' );
-		$result = Waitlists::accept_offer( $request['waitlist_id'], Credentials::token( $request, 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => \PassCaptain\Http::accepted( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array() ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], Credentials::token( $request, 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => \PassCaptain\Http::accepted( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array(), 'billing' => is_array( $request->get_param( 'billing' ) ) ? $request->get_param( 'billing' ) : null ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
