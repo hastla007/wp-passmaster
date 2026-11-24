@@ -337,11 +337,7 @@
         "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
         "Universal.NamingConventions.NoReservedKeywordParameterNames.namespaceFound": 1,
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 34,
-        "WordPress.DB.PreparedSQL.NotPrepared": 8,
-        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 1
+        "WordPress.DB.PreparedSQL.NotPrepared": 7
     },
     "src/Orders/Attendees.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
@@ -354,6 +350,16 @@
     "src/Orders/Capacity.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7,
         "WordPress.DB.PreparedSQL.NotPrepared": 1
+    },
+    "src/Orders/Delivery.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 1
+    },
+    "src/Orders/Holds.php": {
+        "WordPress.DB.PreparedSQL.NotPrepared": 1,
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2
     },
     "src/OutboundHttp.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1

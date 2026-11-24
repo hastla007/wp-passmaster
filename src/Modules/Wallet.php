@@ -111,6 +111,7 @@ final class Wallet {
 		return array(
 			'wpcap_wallet_save' => array( AdminPage::class, 'handle_save' ),
 			'wpcap_wallet_test_pass' => array( AdminPage::class, 'handle_test_pass' ),
+			'wpcap_wallet_backfill' => array( AdminPage::class, 'handle_backfill' ),
 		);
 	}
 }

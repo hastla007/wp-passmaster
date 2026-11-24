@@ -241,7 +241,7 @@ $pm_admin = array(
 	'wpcap_seating_create' => 'wpcap_manage_events', 'wpcap_seating_save' => 'wpcap_manage_events', 'wpcap_seating_link' => 'wpcap_manage_events', 'wpcap_seating_unlink' => 'wpcap_manage_events',
 	'wpcap_series_create' => 'wpcap_manage_events', 'wpcap_series_rule_save' => 'wpcap_manage_events', 'wpcap_series_rule_delete' => 'wpcap_manage_events',
 	'wpcap_series_pool_save' => 'wpcap_manage_events', 'wpcap_series_pool_update' => 'wpcap_manage_events', 'wpcap_series_pool_delete' => 'wpcap_manage_events',
-	'wpcap_sms_save' => 'manage_options', 'wpcap_wallet_save' => 'manage_options', 'wpcap_wallet_test_pass' => 'manage_options', 'wpcap_webhook_action' => 'manage_options',
+	'wpcap_sms_save' => 'manage_options', 'wpcap_wallet_save' => 'manage_options', 'wpcap_wallet_test_pass' => 'manage_options', 'wpcap_wallet_backfill' => 'manage_options', 'wpcap_webhook_action' => 'manage_options',
 	'wpcap_connector_action' => 'manage_options',
 	// Registered outside Menu::handlers().
 	'wpcap_print_invoice' => 'wpcap_view_finance', 'wpcap_export_accounting' => 'wpcap_view_finance',
