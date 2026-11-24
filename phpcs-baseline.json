@@ -337,7 +337,7 @@
         "Squiz.PHP.DisallowMultipleAssignments.Found": 2,
         "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
         "Universal.NamingConventions.NoReservedKeywordParameterNames.namespaceFound": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 55,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 48,
         "WordPress.DB.PreparedSQL.NotPrepared": 13,
         "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2,
         "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,

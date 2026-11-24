@@ -259,6 +259,14 @@ final class DocumentNumbers {
 		// Guarded by the locked value: a number handed out without advancing the counter would be issued twice.
 		$updated = $wpdb->query( "UPDATE {$table} SET next_number=" . (int) ( $number + 1 ) . " WHERE {$where} AND next_number=" . (int) $locked ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- table name, a prepared condition and integers.
 		if ( 1 !== (int) $updated ) { return false; }
+		if ( 0 === $counter && (int) $year > 0 ) {
+			// The continuous number carries the year of its date: a yearly row of that year must never hand it
+			// out again after a switch back to yearly counters.
+			$synced = null === $series
+				? $wpdb->query( $wpdb->prepare( 'UPDATE %i SET next_number=GREATEST(next_number,%d) WHERE year=%d', $table, $number + 1, (int) $year ) )
+				: $wpdb->query( $wpdb->prepare( 'UPDATE %i SET next_number=GREATEST(next_number,%d) WHERE series=%s AND year=%d', $table, $number + 1, $series, (int) $year ) );
+			if ( false === $synced ) { return false; }
+		}
 		if ( $skipped_from ) { self::$pending_skip = array( $skipped_from, $number - 1 ); }
 		return $number;
 	}

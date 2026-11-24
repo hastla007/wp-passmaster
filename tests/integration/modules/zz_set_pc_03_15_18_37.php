@@ -179,6 +179,18 @@ $spx_clean_rows();
 delete_option( DocumentNumbers::SKIPS_OPTION );
 delete_option( DocumentNumbers::PATTERNS_OPTION );
 
+// Other years with numbers issued under the continuous counter continue above it too (no duplicate).
+$wpdb->query( "DELETE FROM {$p}wpcap_invoice_sequences WHERE year IN (0," . ( $spx_year + 5 ) . ',' . ( $spx_year + 6 ) . ')' );
+$wpdb->insert( "{$p}wpcap_invoice_sequences", array( 'year' => $spx_year + 5, 'next_number' => 2 ) );
+$spx_set( array( 'invoice_number_yearly' => 0 ) );
+$spx_c1 = Invoices::next_number( $spx_year + 5 ); // Continuous counter, labelled with year +5.
+$spx_set( array( 'invoice_number_yearly' => 1 ) );
+Invoices::next_number( $spx_year + 6 ); // Switch back while reserving another year.
+$spx_c2 = Invoices::next_number( $spx_year + 5 );
+check( 'SET-PC-03: a continuous number advances the yearly counter of its year, so switching back never repeats it (' . $spx_c1 . ' then ' . $spx_c2 . ')', (int) substr( $spx_c2, -6 ) > (int) substr( $spx_c1, -6 ) );
+$wpdb->query( "DELETE FROM {$p}wpcap_invoice_sequences WHERE year IN (" . ( $spx_year + 5 ) . ',' . ( $spx_year + 6 ) . ')' );
+$spx_set( array( 'invoice_number_pattern' => '{prefix}-{year}-{number}', 'invoice_number_digits' => 6, 'invoice_number_start' => 0, 'invoice_number_yearly' => 1 ) );
+
 /* ------------------------------------------------------------------ SET-PC-15: service date fallback */
 
 $spx_order = (object) array( 'paid_at' => '2026-03-14 23:30:00' ); // 15 March in Vienna/Berlin.

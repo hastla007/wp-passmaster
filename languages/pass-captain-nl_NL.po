@@ -111,10 +111,10 @@ msgstr "Activering geweigerd"
 #: src/Passes/Definitions.php:322
 #: src/Reports/Page.php:94
 #: src/Reports/Page.php:373
-#: src/Rest/Controller.php:1192
-#: src/Rest/Controller.php:1254
-#: src/Rest/Controller.php:1306
-#: src/Rest/Controller.php:1353
+#: src/Rest/Controller.php:1194
+#: src/Rest/Controller.php:1256
+#: src/Rest/Controller.php:1308
+#: src/Rest/Controller.php:1355
 #: src/Sales/AdminSections.php:50
 #: src/Sales/BuyerLimits.php:105
 #: src/Sales/BuyerLimits.php:133
@@ -138,7 +138,7 @@ msgstr "Geen toestemming voor dit evenement."
 #: src/Admin/ApiKeysPage.php:50
 #: src/Admin/DeveloperKeysPage.php:46
 #: src/DeveloperKeys.php:88
-#: src/Rest/Controller.php:1307
+#: src/Rest/Controller.php:1309
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "De vervaldatum moet in de toekomst liggen."
 
@@ -210,8 +210,8 @@ msgstr "API-sleutel ingetrokken."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:881
-#: src/Admin/SettingsPage.php:919
+#: src/Admin/SettingsPage.php:1012
+#: src/Admin/SettingsPage.php:1050
 #: src/Admin/SettingsTools.php:48
 #: src/Admin/SettingsTools.php:57
 #: src/Admin/SettingsTools.php:107
@@ -250,8 +250,8 @@ msgstr "API-sleutel ingetrokken."
 #: src/Fiscalization/ArchiveExporter.php:17
 #: src/GuestLists/Page.php:178
 #: src/Integrations/ConnectorsPage.php:121
-#: src/Invoices.php:907
-#: src/Invoices.php:955
+#: src/Invoices.php:947
+#: src/Invoices.php:995
 #: src/Mail/Admin.php:187
 #: src/Modules/Calendar.php:520
 #: src/Modules/Fiscalization.php:837
@@ -526,8 +526,8 @@ msgstr "Geldig tot"
 #: src/Admin/EventsPage.php:1850
 #: src/Admin/EventsPage.php:1937
 #: src/Admin/EventsPage.php:2026
-#: src/Admin/EventsPage.php:2112
-#: src/Admin/EventsPage.php:2164
+#: src/Admin/EventsPage.php:2114
+#: src/Admin/EventsPage.php:2166
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MyServicesPage.php:107
@@ -688,7 +688,7 @@ msgid "Speichern"
 msgstr "Opslaan"
 
 #: src/Admin/ApiKeysPage.php:161
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:260
 #: src/Allocations/AdminPage.php:270
 #: src/Operations/SiteHealth.php:613
 #: src/Operations/SiteHealth.php:654
@@ -931,7 +931,7 @@ msgstr "Datum"
 #: src/Admin/EventsPage.php:1542
 #: src/Admin/EventsPage.php:1851
 #: src/Admin/EventsPage.php:1971
-#: src/Admin/EventsPage.php:2165
+#: src/Admin/EventsPage.php:2167
 #: src/Admin/OrdersPage.php:1483
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/SecurityScreens.php:212
@@ -1024,7 +1024,7 @@ msgstr "Dienstverleners beheren en toewijzen"
 #: src/Admin/AssignmentsPage.php:215
 #: src/Admin/MyServicesPage.php:107
 #: src/Admin/MyServicesPage.php:118
-#: src/Invoices.php:875
+#: src/Invoices.php:915
 #: src/Printing/InvoicePdf.php:115
 msgid "Leistung"
 msgstr "Dienst"
@@ -1426,7 +1426,7 @@ msgstr "Systeem"
 #: src/Admin/AuditLogPage.php:319
 #: src/Admin/OrdersPage.php:1136
 #: src/BoxOffice/Service.php:38
-#: src/Invoices.php:871
+#: src/Invoices.php:911
 #: src/Printing/InvoicePdf.php:105
 msgid "Rechnung"
 msgstr "Factuur"
@@ -1455,7 +1455,7 @@ msgstr "Reeks"
 #: src/Services/Portal.php:200
 #: src/Services/Portal.php:220
 #: src/Waitlists/AdminPage.php:121
-#: templates/event-card.php:249
+#: templates/event-card.php:261
 msgid "Warteliste"
 msgstr "Wachtlijst"
 
@@ -1603,7 +1603,7 @@ msgstr "Het einde van de geldigheidsperiode moet na het begin liggen."
 
 #: src/Admin/CampaignsPage.php:58
 #: src/Allocations/BuyerLimits.php:93
-#: src/Rest/Controller.php:1205
+#: src/Rest/Controller.php:1207
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Het tickettype hoort niet bij dit evenement."
 
@@ -1779,11 +1779,11 @@ msgstr "Limiet bereikt"
 #: src/Admin/CampaignsPage.php:306
 #: src/Admin/DeveloperKeysPage.php:95
 #: src/Admin/DeveloperKeysPage.php:157
-#: src/Admin/EventsPage.php:2112
+#: src/Admin/EventsPage.php:2114
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:1204
+#: src/Admin/SettingsPage.php:1345
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
@@ -1830,7 +1830,7 @@ msgstr "Code"
 #: src/Admin/CampaignsPage.php:245
 #: src/Admin/OrdersPage.php:1215
 #: src/BoxOffice/Service.php:1261
-#: src/Invoices.php:875
+#: src/Invoices.php:915
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:810
 #: src/Reports/Page.php:210
@@ -1895,14 +1895,14 @@ msgid "sofort"
 msgstr "direct"
 
 #: src/Admin/CampaignsPage.php:255
-#: src/Admin/EventsPage.php:2182
+#: src/Admin/EventsPage.php:2184
 #: src/Integrations/ConnectorsPage.php:150
 #: src/Modules/Webhooks.php:461
 msgid "Deaktivieren"
 msgstr "Deactiveren"
 
 #: src/Admin/CampaignsPage.php:257
-#: src/Admin/EventsPage.php:2182
+#: src/Admin/EventsPage.php:2184
 #: src/Integrations/ConnectorsPage.php:150
 #: src/Modules/Webhooks.php:461
 #: src/Sales/TaxProfilesPage.php:88
@@ -2078,7 +2078,7 @@ msgstr "Maakt codes aan die één keer kunnen worden ingewisseld, met de instell
 #: src/Waitlists.php:454
 #: src/Waitlists.php:1486
 #: src/Waitlists/AdminPage.php:168
-#: templates/event-card.php:260
+#: templates/event-card.php:272
 msgid "Anzahl"
 msgstr "Aantal"
 
@@ -2390,8 +2390,8 @@ msgstr "Uitzonderingen"
 #: src/Admin/ChangeHistory.php:116
 #: src/Admin/DeveloperKeysPage.php:136
 #: src/Admin/DeveloperKeysPage.php:164
-#: src/Admin/EventsPage.php:2159
-#: src/Admin/EventsPage.php:2198
+#: src/Admin/EventsPage.php:2161
+#: src/Admin/EventsPage.php:2200
 #: src/BoxOffice/ZReport.php:462
 #: src/Integrations/ConnectorsPage.php:227
 #: src/Integrations/ConnectorsPage.php:251
@@ -2455,7 +2455,7 @@ msgstr "Label"
 #: src/Series/AdminPage.php:714
 #: src/Waitlists.php:453
 #: src/Waitlists/AdminPage.php:168
-#: templates/event-card.php:254
+#: templates/event-card.php:266
 msgid "Ticketart"
 msgstr "Tickettype"
 
@@ -2805,8 +2805,8 @@ msgstr "Openstaande betalingen"
 
 #: src/Admin/Dashboard.php:98
 #: src/Admin/Menu.php:124
-#: src/Admin/SettingsPage.php:203
-#: src/Admin/SettingsPage.php:1082
+#: src/Admin/SettingsPage.php:287
+#: src/Admin/SettingsPage.php:1217
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -3532,7 +3532,7 @@ msgstr "Het evenement is gepubliceerd, maar nog niet boekbaar:"
 #: src/OfflineScanner/AdminPage.php:36
 #: src/OfflineScanner/AdminPage.php:54
 #: src/Partners/Api.php:180
-#: src/Rest/Controller.php:1326
+#: src/Rest/Controller.php:1328
 #: src/Sales/BuyerLimits.php:104
 #: src/Sales/PriceRules.php:111
 #: src/Seating/Layouts.php:494
@@ -4117,7 +4117,7 @@ msgstr "Geen aankomende datum (laatst %s)"
 
 #. translators: %s: rule label or kind
 #: src/Admin/EventsPage.php:1614
-#: src/Admin/EventsPage.php:2180
+#: src/Admin/EventsPage.php:2182
 #: src/Admin/ServiceSlotsPage.php:237
 #: src/Admin/ServiceSlotsPage.php:385
 #: src/Admin/ServiceSlotsPage.php:426
@@ -4264,7 +4264,7 @@ msgid "Käufer dürfen Tickets selbst zur Erstattung anfragen"
 msgstr "Kopers mogen zelf terugbetaling van tickets aanvragen"
 
 #: src/Admin/EventsPage.php:1828
-#: src/Admin/EventsPage.php:2218
+#: src/Admin/EventsPage.php:2220
 msgid "bis Stunden vor Beginn"
 msgstr "tot (uur vóór begin)"
 
@@ -4434,7 +4434,7 @@ msgid "Noch keine Ticketarten."
 msgstr "Nog geen tickettypen."
 
 #: src/Admin/EventsPage.php:2045
-#: src/Admin/EventsPage.php:2130
+#: src/Admin/EventsPage.php:2132
 msgid "Ticketart hinzufügen"
 msgstr "Tickettype toevoegen"
 
@@ -4470,7 +4470,7 @@ msgid "leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termin
 msgstr "leeg = tot aanvang van de datum; een verkoopeinde na aanvang (meerdaagse data) geldt online hooguit tot het einde van de datum"
 
 #: src/Admin/EventsPage.php:2092
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:375
 msgid "Servicegebühr je Ticket"
 msgstr "Servicekosten per ticket"
 
@@ -4485,7 +4485,7 @@ msgid "Kurzer Hinweis unter der Ticketart, z. B. „inkl. Garderobe“ oder „n
 msgstr "Korte opmerking onder het tickettype, bijv. ‘incl. garderobe’ of ‘alleen met studentenkaart’."
 
 #: src/Admin/EventsPage.php:2095
-#: src/Admin/EventsPage.php:2226
+#: src/Admin/EventsPage.php:2228
 msgid "Reihenfolge"
 msgstr "Volgorde"
 
@@ -4509,72 +4509,73 @@ msgstr "Verplicht (gepersonaliseerd ticket)"
 msgid "Nicht abfragen"
 msgstr "Niet vragen"
 
-#: src/Admin/EventsPage.php:2103
+#: src/Admin/EventsPage.php:2105
 msgid "Einlasskontrolle"
 msgstr "Toegangscontrole"
 
-#: src/Admin/EventsPage.php:2104
+#: src/Admin/EventsPage.php:2106
 #: src/AdmissionChecks.php:62
 msgid "Ausweis prüfen"
 msgstr "Identiteitsbewijs controleren"
 
-#: src/Admin/EventsPage.php:2105
+#: src/Admin/EventsPage.php:2107
+#: src/Admin/SettingsPage.php:349
 msgid "Mindestalter"
 msgstr "Minimumleeftijd"
 
-#: src/Admin/EventsPage.php:2106
+#: src/Admin/EventsPage.php:2108
 msgid "Hinweis für das Einlasspersonal"
 msgstr "Opmerking voor het toegangspersoneel"
 
-#: src/Admin/EventsPage.php:2107
+#: src/Admin/EventsPage.php:2109
 msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt."
 msgstr "Wordt getoond tijdens het scannen (webscanner, app, offline scanner); minimumleeftijd en legitimatieplicht zien kopers ook bij het kopen van een ticket. De scan wordt hierdoor niet geweigerd."
 
 #. translators: %s: missing attendee data
-#: src/Admin/EventsPage.php:2110
+#: src/Admin/EventsPage.php:2112
 #: src/OrderPortal.php:192
 msgid "Teilnehmername"
 msgstr "Naam deelnemer"
 
-#: src/Admin/EventsPage.php:2110
+#: src/Admin/EventsPage.php:2112
 msgid "Name für jedes Ticket verlangen"
 msgstr "Naam voor elk ticket vereisen"
 
-#: src/Admin/EventsPage.php:2112
+#: src/Admin/EventsPage.php:2114
 msgid "Pausiert"
 msgstr "Gepauzeerd"
 
-#: src/Admin/EventsPage.php:2113
+#: src/Admin/EventsPage.php:2115
 msgid "Sichtbarkeit"
 msgstr "Zichtbaarheid"
 
-#: src/Admin/EventsPage.php:2113
+#: src/Admin/EventsPage.php:2115
 msgid "Öffentlich"
 msgstr "Openbaar"
 
-#: src/Admin/EventsPage.php:2113
+#: src/Admin/EventsPage.php:2115
 msgid "Nur mit Freischaltcode"
 msgstr "Alleen met ontgrendelcode"
 
-#: src/Admin/EventsPage.php:2113
+#: src/Admin/EventsPage.php:2115
 msgid "Versteckt (nur Kasse, Freikarten)"
 msgstr "Verborgen (alleen kassa en vrijkaartjes)"
 
-#: src/Admin/EventsPage.php:2114
+#: src/Admin/EventsPage.php:2116
 msgid "Freischaltcodes (einer pro Zeile)"
 msgstr "Ontgrendelcodes (één per regel)"
 
-#: src/Admin/EventsPage.php:2115
+#: src/Admin/EventsPage.php:2117
 msgid "Codes schalten die Ticketart im Rabattcode-Feld oder per Link ?wpcap_code=CODE frei (ohne Rabatt). Ein Kampagnencode, der nur für diese Ticketart gilt, schaltet sie ebenfalls frei (mit Rabatt). Der Server prüft die Freischaltung bei jeder Bestellung."
 msgstr "Codes ontgrendelen het tickettype in het kortingscodeveld of via de link ?wpcap_code=CODE (zonder korting). Een campagnecode die alleen voor dit tickettype geldt, ontgrendelt het ook (met korting). De server controleert de ontgrendeling bij elke bestelling."
 
-#: src/Admin/EventsPage.php:2118
-#: src/Admin/EventsPage.php:2224
+#: src/Admin/EventsPage.php:2120
+#: src/Admin/EventsPage.php:2226
 msgid "Weitere Termine"
 msgstr "Overige data"
 
 #. translators: %d: number of other upcoming dates
-#: src/Admin/EventsPage.php:2119
+#: src/Admin/EventsPage.php:2121
 #, php-format
 msgid "Auch für die gleichnamige Ticketart an %d weiteren kommenden Termin übernehmen"
 msgid_plural "Auch für die gleichnamige Ticketart an %d weiteren kommenden Terminen übernehmen"
@@ -4582,7 +4583,7 @@ msgstr[0] "Ook overnemen voor het gelijknamige tickettype op %d andere komende d
 msgstr[1] "Ook overnemen voor het gelijknamige tickettype op %d andere komende data"
 
 #. translators: %d: number of other upcoming dates
-#: src/Admin/EventsPage.php:2119
+#: src/Admin/EventsPage.php:2121
 #, php-format
 msgid "Auch an %d weiteren kommenden Termin anlegen"
 msgid_plural "Auch an %d weiteren kommenden Terminen anlegen"
@@ -4590,21 +4591,21 @@ msgstr[0] "Ook aanmaken op %d andere komende datum"
 msgstr[1] "Ook aanmaken op %d andere komende data"
 
 #. translators: %d: number of other upcoming dates
-#: src/Admin/EventsPage.php:2120
+#: src/Admin/EventsPage.php:2122
 msgid "Name, Preis, Währung, Steuer, Höchstmenge, Status und Einlasskontrolle werden übernommen; Kontingent und Verkaufszeitraum bleiben je Termin. Termine, für die eine Prüfung fehlschlägt, werden übersprungen und genannt."
 msgstr "Naam, prijs, valuta, belasting, maximaal aantal, status en toegangscontrole worden overgenomen; contingent en verkoopperiode blijven per datum. Data waarvoor een controle mislukt, worden overgeslagen en vermeld."
 
 #. translators: %d: number of other upcoming dates
-#: src/Admin/EventsPage.php:2120
+#: src/Admin/EventsPage.php:2122
 msgid "Termine, die schon eine Ticketart dieses Namens haben, werden übersprungen. Der Verkaufszeitraum wird mit dem Termin verschoben."
 msgstr "Data die al een tickettype met deze naam hebben, worden overgeslagen. De verkoopperiode wordt met de datum verschoven."
 
-#: src/Admin/EventsPage.php:2124
+#: src/Admin/EventsPage.php:2126
 msgid "Bereits verkauft"
 msgstr "Al verkocht"
 
 #. translators: %d: sold tickets
-#: src/Admin/EventsPage.php:2125
+#: src/Admin/EventsPage.php:2127
 #, php-format
 msgid "%d Ticket verkauft."
 msgid_plural "%d Tickets verkauft."
@@ -4612,190 +4613,190 @@ msgstr[0] "%d ticket verkocht."
 msgstr[1] "%d tickets verkocht."
 
 #. translators: %d: sold tickets
-#: src/Admin/EventsPage.php:2125
+#: src/Admin/EventsPage.php:2127
 msgid "Änderungen an Preis, Steuersatz oder Steuerklasse gelten nur für neue Bestellungen; bestehende Bestellungen, Tickets, Rechnungen und Erstattungen bleiben unverändert."
 msgstr "Wijzigingen in prijs, belastingtarief of belastingklasse gelden alleen voor nieuwe bestellingen; bestaande bestellingen, tickets, facturen en terugbetalingen blijven ongewijzigd."
 
 #. translators: %d: sold tickets
-#: src/Admin/EventsPage.php:2126
+#: src/Admin/EventsPage.php:2128
 msgid "Preis-/Steueränderung trotz verkaufter Tickets übernehmen"
 msgstr "Prijs-/belastingwijziging overnemen ondanks verkochte tickets"
 
-#: src/Admin/EventsPage.php:2130
+#: src/Admin/EventsPage.php:2132
 msgid "Ticketart speichern"
 msgstr "Tickettype opslaan"
 
 #. translators: %s: ticket type name
-#: src/Admin/EventsPage.php:2150
+#: src/Admin/EventsPage.php:2152
 #, php-format
 msgid "Ticketart: %s"
 msgstr "Tickettype: %s"
 
-#: src/Admin/EventsPage.php:2154
+#: src/Admin/EventsPage.php:2156
 msgid "Teilnehmerfelder"
 msgstr "Deelnemersvelden"
 
-#: src/Admin/EventsPage.php:2155
+#: src/Admin/EventsPage.php:2157
 msgid "Nur Daten abfragen, die für die Veranstaltung erforderlich sind. Zweck und Aufbewahrungsdauer werden Käufern angezeigt."
 msgstr "Vraag alleen gegevens op die voor het evenement nodig zijn. Doel en bewaartermijn worden aan kopers getoond."
 
-#: src/Admin/EventsPage.php:2158
-#: src/Admin/EventsPage.php:2194
+#: src/Admin/EventsPage.php:2160
+#: src/Admin/EventsPage.php:2196
 msgid "Technischer Schlüssel"
 msgstr "Technische sleutel"
 
-#: src/Admin/EventsPage.php:2160
-#: src/Admin/EventsPage.php:2199
+#: src/Admin/EventsPage.php:2162
+#: src/Admin/EventsPage.php:2201
 #: src/Admin/OperationsPage.php:434
 #: src/Admin/StatusPage.php:329
 #: src/Admin/StatusPage.php:356
 msgid "Typ"
 msgstr "Type"
 
-#: src/Admin/EventsPage.php:2161
+#: src/Admin/EventsPage.php:2163
 msgid "Pflicht"
 msgstr "Verplicht"
 
-#: src/Admin/EventsPage.php:2162
-#: src/Admin/EventsPage.php:2215
+#: src/Admin/EventsPage.php:2164
+#: src/Admin/EventsPage.php:2217
 #: src/Consents.php:619
 #: src/Modules/Sms.php:453
 msgid "Zweck"
 msgstr "Doel"
 
-#: src/Admin/EventsPage.php:2163
-#: src/Admin/EventsPage.php:2221
+#: src/Admin/EventsPage.php:2165
+#: src/Admin/EventsPage.php:2223
 msgid "Aufbewahrung (Tage)"
 msgstr "Bewaartermijn (dagen)"
 
-#: src/Admin/EventsPage.php:2168
+#: src/Admin/EventsPage.php:2170
 msgid "Keine Teilnehmerfelder."
 msgstr "Geen deelnemersvelden."
 
-#: src/Admin/EventsPage.php:2173
-#: src/Admin/EventsPage.php:2210
+#: src/Admin/EventsPage.php:2175
+#: src/Admin/EventsPage.php:2212
 #: src/Consents.php:531
 #: src/Sales/Consents.php:443
 msgid "Einwilligung"
 msgstr "Toestemming"
 
-#: src/Admin/EventsPage.php:2173
+#: src/Admin/EventsPage.php:2175
 msgid "je Bestellung"
 msgstr "per bestelling"
 
-#: src/Admin/EventsPage.php:2174
+#: src/Admin/EventsPage.php:2176
 #: src/Admin/Queries.php:737
 #: src/Admin/SuiteStatus.php:111
 msgid "Ja"
 msgstr "Ja"
 
-#: src/Admin/EventsPage.php:2174
+#: src/Admin/EventsPage.php:2176
 #: src/Admin/Queries.php:737
 #: src/Admin/SuiteStatus.php:111
 msgid "Nein"
 msgstr "Nee"
 
-#: src/Admin/EventsPage.php:2191
+#: src/Admin/EventsPage.php:2193
 msgid "Teilnehmerfeld bearbeiten"
 msgstr "Deelnemersveld bewerken"
 
-#: src/Admin/EventsPage.php:2191
+#: src/Admin/EventsPage.php:2193
 msgid "Teilnehmerfeld hinzufügen"
 msgstr "Deelnemersveld toevoegen"
 
-#: src/Admin/EventsPage.php:2195
+#: src/Admin/EventsPage.php:2197
 msgid "Der Schlüssel kann nicht geändert werden."
 msgstr "De sleutel kan niet worden gewijzigd."
 
-#: src/Admin/EventsPage.php:2196
+#: src/Admin/EventsPage.php:2198
 msgid "Technischer Name, z. B. company (a-z, 0-9, _)"
 msgstr "Technische naam, bijv. company (a-z, 0-9, _)"
 
-#: src/Admin/EventsPage.php:2201
 #: src/Admin/EventsPage.php:2203
+#: src/Admin/EventsPage.php:2205
 msgid "Auswahlmöglichkeiten"
 msgstr "Opties"
 
-#: src/Admin/EventsPage.php:2201
+#: src/Admin/EventsPage.php:2203
 msgid "Nur für „Auswahlliste“ und „Optionsfelder“: eine Auswahlmöglichkeit pro Zeile (mindestens zwei)."
 msgstr "Alleen voor ‘Keuzelijst’ en ‘Keuzerondjes’: één optie per regel (minstens twee)."
 
-#: src/Admin/EventsPage.php:2204
+#: src/Admin/EventsPage.php:2206
 msgid "Nur für Auswahl und Mehrfachauswahl: eine Möglichkeit je Zeile (bei Mehrfachauswahl ohne Komma)."
 msgstr "Alleen voor keuze en meerkeuze: één optie per regel (bij meerkeuze zonder komma)."
 
-#: src/Admin/EventsPage.php:2205
+#: src/Admin/EventsPage.php:2207
 msgid "Hilfetext"
 msgstr "Helptekst"
 
-#: src/Admin/EventsPage.php:2206
+#: src/Admin/EventsPage.php:2208
 msgid "Abfrage"
 msgstr "Uitvraag"
 
-#: src/Admin/EventsPage.php:2206
+#: src/Admin/EventsPage.php:2208
 msgid "Für jedes Ticket"
 msgstr "Voor elk ticket"
 
-#: src/Admin/EventsPage.php:2206
+#: src/Admin/EventsPage.php:2208
 msgid "Einmal je Bestellung"
 msgstr "Eenmaal per bestelling"
 
-#: src/Admin/EventsPage.php:2208
+#: src/Admin/EventsPage.php:2210
 msgid "Pflichtfeld"
 msgstr "Verplicht veld"
 
-#: src/Admin/EventsPage.php:2208
+#: src/Admin/EventsPage.php:2210
 msgid "Erforderlich"
 msgstr "Verplicht"
 
-#: src/Admin/EventsPage.php:2210
+#: src/Admin/EventsPage.php:2212
 msgid "Als Einwilligung protokollieren und Widerruf ermöglichen"
 msgstr "Als toestemming vastleggen en intrekking mogelijk maken"
 
-#: src/Admin/EventsPage.php:2211
+#: src/Admin/EventsPage.php:2213
 msgid "Nur für Checkboxen. Jede Erteilung und jeder Widerruf wird mit Textfassung, Zeitpunkt und Quelle protokolliert; Teilnehmende können in der Bestellübersicht und auf der Ticketseite widerrufen. Zweck ist Pflicht. Eine Änderung von Bezeichnung oder Zweck gilt als neue Textfassung."
 msgstr "Alleen voor selectievakjes. Elke verlening en elke intrekking wordt met tekstversie, tijdstip en bron vastgelegd; deelnemers kunnen intrekken in het besteloverzicht en op de ticketpagina. Het doel is verplicht. Een wijziging van label of doel geldt als nieuwe tekstversie."
 
-#: src/Admin/EventsPage.php:2213
+#: src/Admin/EventsPage.php:2215
 #: src/Consents.php:619
 #: src/Sales/Consents.php:444
 msgid "Einwilligungstext"
 msgstr "Toestemmingstekst"
 
-#: src/Admin/EventsPage.php:2213
+#: src/Admin/EventsPage.php:2215
 msgid "Nur für den Typ „Einwilligung“: Text, dem zugestimmt wird. Text, Version, Zeitpunkt und Quelle werden je Ticket protokolliert; Käufer können im Bestellportal widerrufen."
 msgstr "Alleen voor het type ‘Toestemming’: tekst waarmee wordt ingestemd. Tekst, versie, tijdstip en bron worden per ticket gelogd; kopers kunnen hun toestemming in het bestelportaal intrekken."
 
-#: src/Admin/EventsPage.php:2214
+#: src/Admin/EventsPage.php:2216
 #: src/Modules/Sms.php:454
 msgid "Version des Einwilligungstexts"
 msgstr "Versie van de toestemmingstekst"
 
-#: src/Admin/EventsPage.php:2217
+#: src/Admin/EventsPage.php:2219
 msgid "Selbst ändern"
 msgstr "Zelf wijzigen"
 
-#: src/Admin/EventsPage.php:2217
+#: src/Admin/EventsPage.php:2219
 msgid "Teilnehmende dürfen ändern"
 msgstr "Deelnemers mogen wijzigen"
 
-#: src/Admin/EventsPage.php:2217
+#: src/Admin/EventsPage.php:2219
 msgid "Gesperrt (nur durch das Team)"
 msgstr "Vergrendeld (alleen door het team)"
 
-#: src/Admin/EventsPage.php:2219
+#: src/Admin/EventsPage.php:2221
 msgid "Gilt im Bestellportal und auf der Ticketseite. 0 = keine eigene Frist (es gilt die allgemeine Änderungsfrist). Das Team kann im Admin immer ändern."
 msgstr "Geldt in het bestelportaal en op de ticketpagina. 0 = geen eigen termijn (de algemene wijzigingstermijn geldt). Het team kan in het beheer altijd wijzigen."
 
 #. translators: %d: number of other upcoming dates
-#: src/Admin/EventsPage.php:2224
+#: src/Admin/EventsPage.php:2226
 #, php-format
 msgid "Auch bei der gleichnamigen Ticketart an %d weiteren kommenden Termin anlegen bzw. ändern"
 msgid_plural "Auch bei der gleichnamigen Ticketart an %d weiteren kommenden Terminen anlegen bzw. ändern"
 msgstr[0] "Ook bij het gelijknamige tickettype op %d andere komende datum aanmaken of wijzigen"
 msgstr[1] "Ook bij het gelijknamige tickettype op %d andere komende data aanmaken of wijzigen"
 
-#: src/Admin/EventsPage.php:2228
+#: src/Admin/EventsPage.php:2230
 msgid "Feld speichern"
 msgstr "Veld opslaan"
 
@@ -5318,7 +5319,7 @@ msgstr "Ongeldig btw-tarief."
 #. translators: %s: column
 #. translators: %s: field label
 #: src/Admin/Import.php:109
-#: src/SettingsSchema.php:230
+#: src/SettingsSchema.php:237
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr "„%s” moet een geheel getal zijn."
@@ -5343,7 +5344,7 @@ msgstr "De import is mislukt; er is niets opgeslagen."
 #: src/Memberships.php:481
 #: src/Memberships.php:499
 #: src/Passes/Definitions.php:305
-#: src/Rest/Controller.php:1169
+#: src/Rest/Controller.php:1171
 msgid "Pass nicht gefunden."
 msgstr "Pas niet gevonden."
 
@@ -5479,13 +5480,13 @@ msgstr "Voer een geldige periode in: ‘Geldig tot’ moet na ‘Geldig vanaf’
 #: src/Admin/MembershipsPage.php:152
 #: src/Memberships.php:243
 #: src/Memberships.php:258
-#: src/Rest/Controller.php:1172
-#: src/Rest/Controller.php:1173
+#: src/Rest/Controller.php:1174
+#: src/Rest/Controller.php:1175
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Geen toestemming voor deze pas."
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:661
+#: src/Admin/SettingsPage.php:785
 #: src/Integrations/WooCommerce/Attendees.php:482
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr "Geef een geldig e-mailadres op."
@@ -5821,7 +5822,7 @@ msgstr "Verkoop"
 
 #: src/Admin/Menu.php:503
 #: src/Admin/SecurityScreens.php:92
-#: src/Admin/SettingsPage.php:509
+#: src/Admin/SettingsPage.php:633
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr "Toegang"
@@ -5841,7 +5842,7 @@ msgstr "Instellingen en integraties"
 #: src/Admin/Menu.php:575
 #: src/Admin/Menu.php:586
 #: src/Admin/OrdersPage.php:1338
-#: src/Admin/SettingsPage.php:264
+#: src/Admin/SettingsPage.php:358
 #: src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:153
 #: src/Reports/Page.php:199
@@ -6036,6 +6037,7 @@ msgstr "Alle boekingen tonen"
 #: src/Admin/MyServicesPage.php:118
 #: src/Admin/ServiceSlotsPage.php:477
 #: src/Admin/ServicesPage.php:451
+#: src/Admin/SettingsPage.php:107
 #: src/Services/Portal.php:190
 msgid "Buchung"
 msgstr "Boeking"
@@ -6258,7 +6260,7 @@ msgid "Prüfung ausführen"
 msgstr "Controle uitvoeren"
 
 #: src/Admin/OperationsPage.php:298
-#: src/Admin/SettingsPage.php:361
+#: src/Admin/SettingsPage.php:455
 #: src/Admin/StatusPage.php:219
 #: src/Log.php:394
 msgid "Warnung"
@@ -6529,12 +6531,12 @@ msgid "Bestellung %s auswählen"
 msgstr "Bestelling %s selecteren"
 
 #: src/Admin/OrdersPage.php:38
-#: src/Orders.php:2257
+#: src/Orders.php:2271
 #: src/ParticipantFields.php:348
 #: src/Partners/Sales.php:447
 #: src/Payments/PayPalGateway.php:218
-#: src/Rest/Controller.php:864
-#: src/Rest/Controller.php:1017
+#: src/Rest/Controller.php:866
+#: src/Rest/Controller.php:1019
 msgid "Bestellung nicht gefunden."
 msgstr "Bestelling niet gevonden."
 
@@ -6543,9 +6545,9 @@ msgstr "Bestelling niet gevonden."
 #: src/Admin/OrdersPage.php:481
 #: src/Api/Actions.php:96
 #: src/Consents.php:586
-#: src/Rest/Controller.php:1020
-#: src/Rest/Controller.php:1021
 #: src/Rest/Controller.php:1022
+#: src/Rest/Controller.php:1023
+#: src/Rest/Controller.php:1024
 #: src/Security/DataPolicy.php:133
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Geen toestemming voor deze bestelling."
@@ -6561,11 +6563,11 @@ msgid "Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung fr
 msgstr "De voucher (%2$s, %1$s) is bij het verlopen of annuleren van de bestelling vrijgegeven. Het getoonde openstaande bedrag bevat nog de voucherkorting; zonder voucher bedraagt het %3$s. Een te late betaling geeft pas tickets uit als de voucher opnieuw kon worden gereserveerd; anders wordt de bestelling gemarkeerd voor controle."
 
 #: src/Admin/OrdersPage.php:89
-#: src/Orders.php:2269
-#: src/Orders.php:2569
-#: src/Orders.php:2843
-#: src/Orders.php:2940
-#: src/Orders.php:3490
+#: src/Orders.php:2283
+#: src/Orders.php:2583
+#: src/Orders.php:2857
+#: src/Orders.php:2954
+#: src/Orders.php:3504
 #: src/Partners/Sales.php:694
 #: src/Partners/Sales.php:743
 #: src/Payments/ReturnNotice.php:441
@@ -6681,7 +6683,7 @@ msgid "Keine Berechtigung für Erstattungen."
 msgstr "Geen toestemming voor terugbetalingen."
 
 #: src/Admin/OrdersPage.php:264
-#: src/Orders.php:2572
+#: src/Orders.php:2586
 #: src/Refunds.php:65
 #: src/Refunds.php:237
 #: src/Services/Refunder.php:60
@@ -7187,14 +7189,14 @@ msgstr "Regels"
 
 #: src/Admin/OrdersPage.php:1182
 #: src/Admin/OrganizerTools.php:57
-#: src/Invoices.php:875
+#: src/Invoices.php:915
 #: src/Partners/AdminPage.php:525
 #: src/Printing/InvoicePdf.php:115
 msgid "Menge"
 msgstr "Aantal"
 
 #: src/Admin/OrdersPage.php:1183
-#: src/Invoices.php:875
+#: src/Invoices.php:915
 #: src/Printing/InvoicePdf.php:115
 msgid "Einzelpreis"
 msgstr "Stukprijs"
@@ -7216,7 +7218,7 @@ msgid "Zwischensumme"
 msgstr "Subtotaal"
 
 #: src/Admin/OrdersPage.php:1217
-#: src/Invoices.php:875
+#: src/Invoices.php:915
 msgid "Gesamt (brutto)"
 msgstr "Totaal (bruto)"
 
@@ -7298,7 +7300,7 @@ msgid "Höchstbetrag (optional, Kulanz)"
 msgstr "Maximumbedrag (optioneel, coulance)"
 
 #: src/Admin/OrdersPage.php:1305
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:372
 #: src/ServiceFee.php:428
 msgid "Servicegebühr"
 msgstr "Servicekosten"
@@ -7312,12 +7314,12 @@ msgid "automatisch (bei Absage erstatten, sonst einbehalten)"
 msgstr "automatisch (terugbetalen bij afgelasting, anders inhouden)"
 
 #: src/Admin/OrdersPage.php:1307
-#: src/Admin/SettingsPage.php:309
+#: src/Admin/SettingsPage.php:403
 msgid "mit erstatten"
 msgstr "mee terugbetalen"
 
 #: src/Admin/OrdersPage.php:1308
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:402
 msgid "einbehalten"
 msgstr "inhouden"
 
@@ -8763,841 +8765,838 @@ msgstr "Deze inschrijving van de wachtlijst verwijderen?"
 msgid "Freie Plätze jetzt anbieten"
 msgstr "Vrije plaatsen nu aanbieden"
 
-#: src/Admin/SettingsPage.php:54
+#: src/Admin/SettingsPage.php:138
 msgid "„Steuersatz der Servicegebühr“ ist ungültig. Beispiel: 20 oder 7,7 (leer = Satz der Ticketposition)."
 msgstr "‘Btw-tarief van de servicekosten’ is ongeldig. Voorbeeld: 20 of 7,7 (leeg = tarief van de ticketregel)."
 
-#: src/Admin/SettingsPage.php:62
+#: src/Admin/SettingsPage.php:146
 #: src/Security/Policy.php:117
 msgid "Allgemein / Reservierung"
 msgstr "Algemeen / Reservering"
 
-#: src/Admin/SettingsPage.php:65
+#: src/Admin/SettingsPage.php:149
 msgid "Reservierungsdauer im Checkout (Minuten)"
 msgstr "Reserveringsduur bij het afrekenen (minuten)"
 
-#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:153
 msgid "Standarddauer von Terminen ohne Ende (Stunden)"
 msgstr "Standaardduur van data zonder einde (uren)"
 
-#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:153
 msgid "Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen."
 msgstr "Een datum zonder eindtijd geldt zo lang na aanvang als lopend (kassa, datumlijsten van scanner en app). Maak meerdaagse data met een einde aan."
 
-#: src/Admin/SettingsPage.php:70
+#: src/Admin/SettingsPage.php:154
 msgid "Bei Terminabsage bezahlte Bestellungen automatisch erstatten"
 msgstr "Betaalde bestellingen automatisch terugbetalen bij annulering van een datum"
 
-#: src/Admin/SettingsPage.php:71
+#: src/Admin/SettingsPage.php:155
 msgid "Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten"
 msgstr "Te late betalingen waarvoor geen tickets meer kunnen worden uitgegeven, automatisch terugbetalen"
 
-#: src/Admin/SettingsPage.php:71
+#: src/Admin/SettingsPage.php:155
 msgid "Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen."
 msgstr "Betreft betalingen na het verlopen van de reservering (datum geannuleerd of voorbij, contingent, kortingscodelimiet of koperslimiet uitgeput) en betalingen voor geannuleerde bestellingen. Zonder deze optie blijft de bestelling staan voor handmatige afhandeling."
 
-#: src/Admin/SettingsPage.php:72
+#: src/Admin/SettingsPage.php:156
 msgid "Rabattcodes je Bestellung (höchstens)"
 msgstr "Kortingscodes per bestelling (maximaal)"
 
-#: src/Admin/SettingsPage.php:75
+#: src/Admin/SettingsPage.php:159
 msgid "Mehrere Rabattcodes"
 msgstr "Meerdere kortingscodes"
 
-#: src/Admin/SettingsPage.php:77
+#: src/Admin/SettingsPage.php:161
 msgid "nacheinander anwenden (jeder Code auf den Restbetrag, Reihenfolge nach Priorität)"
 msgstr "na elkaar toepassen (elke code op het resterende bedrag, in volgorde van prioriteit)"
 
-#: src/Admin/SettingsPage.php:78
+#: src/Admin/SettingsPage.php:162
 msgid "nur den günstigsten Code anwenden"
 msgstr "alleen de voordeligste code toepassen"
 
-#: src/Admin/SettingsPage.php:80
+#: src/Admin/SettingsPage.php:164
 msgid "Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein."
 msgstr "Codes die als „niet combineerbaar” zijn aangemaakt, gelden altijd alleen los."
 
-#: src/Admin/SettingsPage.php:82
+#: src/Admin/SettingsPage.php:166
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
 msgstr "Vierogenprincipe voor vrijkaartjes (gastenlijst: wie aanvraagt, mag niet zelf goedkeuren; beheerders uitgezonderd)"
 
-#: src/Admin/SettingsPage.php:130
+#: src/Admin/SettingsPage.php:214
 msgid "Proxy / Client-Adresse"
 msgstr "Proxy / clientadres"
 
-#: src/Admin/SettingsPage.php:133
+#: src/Admin/SettingsPage.php:217
 msgid "Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)"
 msgstr "Vertrouwde proxy's (IP-adressen of CIDR-bereiken)"
 
-#: src/Admin/SettingsPage.php:133
+#: src/Admin/SettingsPage.php:217
 msgid "Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse."
 msgstr "Eén adres of bereik per regel, bijv. 10.0.0.0/8 of de adresbereiken van het CDN. Alleen als de directe tegenpartij (REMOTE_ADDR) hier staat, wordt de doorstuurheader uitgelezen; leeg = altijd REMOTE_ADDR. Snelheidslimieten en toestemmingsbewijzen gebruiken dit adres."
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:220
 msgid "Header mit der Client-Adresse"
 msgstr "Header met het clientadres"
 
-#: src/Admin/SettingsPage.php:138
+#: src/Admin/SettingsPage.php:222
 msgid "X-Forwarded-For (rechteste nicht vertrauenswürdige Adresse)"
 msgstr "X-Forwarded-For (meest rechtse niet-vertrouwde adres)"
 
-#: src/Admin/SettingsPage.php:139
+#: src/Admin/SettingsPage.php:223
 msgid "Forwarded (RFC 7239, rechteste nicht vertrauenswürdige Adresse)"
 msgstr "Forwarded (RFC 7239, meest rechtse niet-vertrouwde adres)"
 
-#: src/Admin/SettingsPage.php:140
+#: src/Admin/SettingsPage.php:224
 msgid "CF-Connecting-IP (Cloudflare)"
 msgstr "CF-Connecting-IP (Cloudflare)"
 
-#: src/Admin/SettingsPage.php:144
+#: src/Admin/SettingsPage.php:228
 msgid "Auch per Konstante WPCAP_CLIENT_IP_HEADER oder Filter wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), solange hier X-Forwarded-For gewählt ist."
 msgstr "Ook via de constante WPCAP_CLIENT_IP_HEADER of het filter wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), zolang hier X-Forwarded-For is gekozen."
 
-#: src/Admin/SettingsPage.php:149
+#: src/Admin/SettingsPage.php:233
 msgid "Funktionen"
 msgstr "Functies"
 
-#: src/Admin/SettingsPage.php:152
+#: src/Admin/SettingsPage.php:236
 msgid "Funktionen abschalten"
 msgstr "Functies uitschakelen"
 
-#: src/Admin/SettingsPage.php:152
+#: src/Admin/SettingsPage.php:236
 msgid "Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter."
 msgstr "Uitgeschakelde functies registreren geen menu's, pagina's, shortcodes, REST-routes of achtergrondtaken meer. Tabellen en instellingen blijven bewaard; na opnieuw inschakelen gaat het verder waar het gebleven was."
 
-#: src/Admin/SettingsPage.php:153
+#: src/Admin/SettingsPage.php:237
 msgid "Im Menü ausblenden"
 msgstr "Verbergen in menu"
 
-#: src/Admin/SettingsPage.php:157
+#: src/Admin/SettingsPage.php:241
 msgid "Begriffe"
 msgstr "Begrippen"
 
-#: src/Admin/SettingsPage.php:162
+#: src/Admin/SettingsPage.php:246
 msgid "Bezeichnung der Personen auf den Tickets"
 msgstr "Aanduiding van de personen op de tickets"
 
-#: src/Admin/SettingsPage.php:164
+#: src/Admin/SettingsPage.php:248
 msgid "Gilt für Eventseiten, Checkout, Bestellportal, Ticketseite und E-Mails (nicht für die Verwaltung). Die Vorgaben ersetzen die deutschen Wortformen; für andere Sprachen eigene Ersetzungen eintragen."
 msgstr "Geldt voor evenementpagina’s, checkout, bestelportaal, ticketpagina en e-mails (niet voor het beheer). De voorinstellingen vervangen de Duitse woordvormen; vul voor andere talen eigen vervangingen in."
 
-#: src/Admin/SettingsPage.php:166
+#: src/Admin/SettingsPage.php:250
 msgid "Eigene Ersetzungen"
 msgstr "Eigen vervangingen"
 
-#: src/Admin/SettingsPage.php:166
+#: src/Admin/SettingsPage.php:250
 msgid "Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen."
 msgstr "Eén vervanging per regel in de vorm „Oud = Nieuw”, bijv. „deelnemers = cursisten” of „attendee = guest”. Hele woorden, hoofdlettergevoelig; vult de gekozen voorinstelling aan en heeft voorrang. Maximaal 60 regels."
 
-#: src/Admin/SettingsPage.php:180
+#: src/Admin/SettingsPage.php:264
 msgid "Eventseiten"
 msgstr "Evenementpagina’s"
 
-#: src/Admin/SettingsPage.php:183
+#: src/Admin/SettingsPage.php:267
 msgid "Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)"
 msgstr "Eigen pagina per evenement met deelbaar adres en gestructureerde gegevens (schema.org/Event)"
 
-#: src/Admin/SettingsPage.php:184
+#: src/Admin/SettingsPage.php:268
 msgid "Adress-Basis der Eventseiten"
 msgstr "Basisadres van de evenementpagina’s"
 
-#: src/Admin/SettingsPage.php:184
+#: src/Admin/SettingsPage.php:268
 msgid "Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen."
 msgstr "Voorbeeld: ‘event’ geeft https://example.com/event/sommerfest-ab12cd/. Alleen kleine letters, cijfers en koppeltekens; mag niet zo heten als een bestaande pagina."
 
-#: src/Admin/SettingsPage.php:188
+#: src/Admin/SettingsPage.php:272
 #: src/Security/Policy.php:92
 msgid "Einlass / Scanner-Geräte"
 msgstr "Toegang / Scannerapparaten"
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:275
 msgid "Teilnehmernamen beim Scannen anzeigen"
 msgstr "Namen van deelnemers tonen tijdens het scannen"
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:276
 msgid "Signierte QR-Codes ausgeben (PC1, Ed25519)"
 msgstr "Ondertekende QR-codes uitgeven (PC1, Ed25519)"
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:276
 msgid "Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können."
 msgstr "Nieuwe QR-codes bevatten in plaats van de ticketcode een ondertekende vermelding (ticket-ID, datum, geldigheidsperiode, codeversie) zonder persoonsgegevens; scanners kunnen de handtekening offline controleren. Klassieke codes blijven geldig. Standaard uit, zodat scannersystemen van derden de ticketcode kunnen blijven lezen."
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:277
 msgid "Maximale Gültigkeit einer Gerätekopplung (Stunden)"
 msgstr "Maximale geldigheid van een apparaatkoppeling (uren)"
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:278
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
 msgstr "Dagwisseling toegang (tijdstip, hele uren)"
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:278
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
 msgstr "0 = middernacht. Voorbeeld 6: scans tot 05:59 uur tellen nog mee voor de vorige dag (festivals, nachtevenementen). Geldt voor dagtickets en daglimieten."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:279
 msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
 msgstr "Standaard toegangsvenster voor tickettypen zonder eigen toegangsregel"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:280
 msgid "Einlass ab (Minuten vor Beginn)"
 msgstr "Toegang vanaf (minuten voor aanvang)"
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:281
 msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
 msgstr "Toegang tot (minuten na afloop; zonder einde: na afloop van de evenementdag)"
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:290
 msgid "Aktive Zahlungsarten"
 msgstr "Actieve betaalmethoden"
 
-#: src/Admin/SettingsPage.php:211
+#: src/Admin/SettingsPage.php:295
 #: src/Payments/ManualGateway.php:12
 msgid "Überweisung"
 msgstr "Overschrijving"
 
-#: src/Admin/SettingsPage.php:215
+#: src/Admin/SettingsPage.php:299
 msgid "Zahlungshinweis"
 msgstr "Betalingsinstructie"
 
-#: src/Admin/SettingsPage.php:215
+#: src/Admin/SettingsPage.php:299
 msgid "Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten."
 msgstr "Wordt na de bestelling aan kopers getoond. Zonder IBAN en begunstigde vervangt deze de overschrijvingsgegevens."
 
-#: src/Admin/SettingsPage.php:216
+#: src/Admin/SettingsPage.php:300
 msgid "Überweisung: Empfänger (Kontoinhaber)"
 msgstr "Overschrijving: begunstigde (rekeninghouder)"
 
-#: src/Admin/SettingsPage.php:216
+#: src/Admin/SettingsPage.php:300
 msgid "Leer = Name / Firma des Rechnungsstellers."
 msgstr "Leeg = naam / bedrijf van de factuuruitgever."
 
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:301
 msgid "Überweisung: IBAN"
 msgstr "Overschrijving: IBAN"
 
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:301
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
 msgstr "Wordt na de bestelling en in de bestelmail getoond, samen met het bedrag, de betalingsreferentie en de betaaltermijn."
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:302
 msgid "Überweisung: BIC"
 msgstr "Overschrijving: BIC"
 
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:303
 msgid "Reservierung bei manueller Zahlung (Stunden)"
 msgstr "Reservering bij handmatige betaling (uren)"
 
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:303
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
 msgstr "Eindigt uiterlijk bij het begin van de (eerste) datum."
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:304
 msgid "Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren"
 msgstr "Overschrijving: maximaal dit percentage van een contingent onbetaald reserveren"
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:304
 msgid "Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze."
 msgstr "Geldt per tickettype en per datum met capaciteit. Openstaande, onbetaalde overschrijvingsbestellingen houden samen maximaal dit aandeel vast (maar minstens 10 tickets); daarna is overschrijving voor deze datum pas weer mogelijk als bestellingen worden betaald of verlopen. 0 of 100 = geen bovengrens."
 
-#: src/Admin/SettingsPage.php:222
+#: src/Admin/SettingsPage.php:306
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
 msgstr "Overschrijving alleen aanbieden tot … uur voor aanvang"
 
-#: src/Admin/SettingsPage.php:222
+#: src/Admin/SettingsPage.php:306
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
 msgstr "0 = tot het begin. Aanbevolen: 24–48 uur, zodat de betaling op tijd binnenkomt."
 
-#: src/Admin/SettingsPage.php:227
+#: src/Admin/SettingsPage.php:311
 msgid "Stripe"
 msgstr "Stripe"
 
-#: src/Admin/SettingsPage.php:232
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:327
 msgid "Modus"
 msgstr "Modus"
 
-#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:316
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1365
 #: src/Operations/SiteHealth.php:734
 msgid "Test"
 msgstr "Test"
 
-#: src/Admin/SettingsPage.php:232
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:316
+#: src/Admin/SettingsPage.php:327
 #: src/Operations/SiteHealth.php:733
 msgid "Live"
 msgstr "Live"
 
-#: src/Admin/SettingsPage.php:233
+#: src/Admin/SettingsPage.php:317
 msgid "Geheimer API-Schlüssel (Secret Key)"
 msgstr "Geheime API-sleutel (Secret Key)"
 
-#: src/Admin/SettingsPage.php:233
+#: src/Admin/SettingsPage.php:317
 msgid "Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…)."
 msgstr "Stripe-dashboard → Ontwikkelaars → API-sleutels. Begint met sk_test_ of sk_live_ (beperkte sleutel: rk_…)."
 
-#: src/Admin/SettingsPage.php:234
+#: src/Admin/SettingsPage.php:318
 msgid "Webhook-Signaturgeheimnis (Signing Secret)"
 msgstr "Webhook-ondertekeningsgeheim (Signing Secret)"
 
-#: src/Admin/SettingsPage.php:234
+#: src/Admin/SettingsPage.php:318
 msgid "Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt."
 msgstr "Wordt bij het webhook-eindpunt in het Stripe-dashboard getoond en begint met whsec_. Zonder dit geheim worden betalingen nooit bevestigd."
 
-#: src/Admin/SettingsPage.php:238
+#: src/Admin/SettingsPage.php:322
 #: src/Payments/PayPalGateway.php:46
 msgid "PayPal"
 msgstr "PayPal"
 
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:327
 #: src/WalletPasses/AdminPage.php:192
 msgid "Sandbox"
 msgstr "Sandbox"
 
-#: src/Admin/SettingsPage.php:244
+#: src/Admin/SettingsPage.php:328
 #: src/Payments/PayPalGateway.php:71
 msgid "Client-ID"
 msgstr "Client-ID"
 
-#: src/Admin/SettingsPage.php:244
+#: src/Admin/SettingsPage.php:328
 msgid "PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus)."
 msgstr "PayPal Developer Dashboard → Apps & Credentials → eigen app (Sandbox of Live, passend bij de modus)."
 
-#: src/Admin/SettingsPage.php:245
+#: src/Admin/SettingsPage.php:329
 #: src/Payments/PayPalGateway.php:72
 msgid "Client-Geheimnis (Secret)"
 msgstr "Clientgeheim (Secret)"
 
-#: src/Admin/SettingsPage.php:245
+#: src/Admin/SettingsPage.php:329
 msgid "Steht in derselben App unter der Client-ID."
 msgstr "Staat in dezelfde app onder de client-ID."
 
-#: src/Admin/SettingsPage.php:246
+#: src/Admin/SettingsPage.php:330
 msgid "Webhook-ID"
 msgstr "Webhook-ID"
 
-#: src/Admin/SettingsPage.php:246
+#: src/Admin/SettingsPage.php:330
 msgid "Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt."
 msgstr "Wordt na het aanmaken van de webhook in de app getoond (een kenmerk, niet de URL). Zonder deze worden betalingen nooit bevestigd."
 
-#: src/Admin/SettingsPage.php:250
-#: src/Admin/SettingsPage.php:511
+#: src/Admin/SettingsPage.php:334
+#: src/Admin/SettingsPage.php:635
 msgid "Rechtstexte"
 msgstr "Juridische teksten"
 
-#: src/Admin/SettingsPage.php:255
+#: src/Admin/SettingsPage.php:339
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Toestemming vereisen bij het afrekenen"
 
-#: src/Admin/SettingsPage.php:255
+#: src/Admin/SettingsPage.php:339
 msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer)."
 msgstr "Toont de algemene voorwaarden/deelnamevoorwaarden bij het afrekenen en vereist bevestiging. Zonder deze optie verschijnen de algemene voorwaarden niet bij het afrekenen (de consumenteninformatie altijd)."
 
-#: src/Admin/SettingsPage.php:256
-#: src/Admin/SettingsPage.php:1140
+#: src/Admin/SettingsPage.php:340
+#: src/Admin/SettingsPage.php:1275
 #: src/Diagnostics.php:210
 msgid "AGB / Teilnahmebedingungen"
 msgstr "Algemene voorwaarden / Deelnamevoorwaarden"
 
-#: src/Admin/SettingsPage.php:257
-#: src/Admin/SettingsPage.php:1140
+#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:1275
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Consumenteninformatie (bijv. herroepingsrecht)"
 
-#: src/Admin/SettingsPage.php:258
+#: src/Admin/SettingsPage.php:342
 msgid "Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen"
 msgstr "Melding ‘geen herroepingsrecht’ naast de bestelknop tonen"
 
-#: src/Admin/SettingsPage.php:258
+#: src/Admin/SettingsPage.php:342
 msgid "Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung."
 msgstr "Alleen als alle regels een vaste evenementdatum hebben. Standaardtekst, controleer en pas aan – geen juridisch advies."
 
-#: src/Admin/SettingsPage.php:259
+#: src/Admin/SettingsPage.php:343
 msgid "Text: kein Widerrufsrecht (terminierte Tickets)"
 msgstr "Tekst: geen herroepingsrecht (tickets met datum)"
 
-#: src/Admin/SettingsPage.php:260
+#: src/Admin/SettingsPage.php:344
 msgid "Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)"
 msgstr "Tekst: herroepingsrecht van toepassing (producten zonder datum, bijv. passen, cadeaubonnen)"
 
-#: src/Admin/SettingsPage.php:260
+#: src/Admin/SettingsPage.php:344
 msgid "Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen."
 msgstr "Wordt getoond als een regel geen vaste datum heeft. Vul hier bijv. de herroepingsinformatie of een verwijzing daarnaar in."
 
-#: src/Admin/SettingsPage.php:267
+#: src/Admin/SettingsPage.php:361
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Tweede goedkeuring vanaf bedrag"
 
-#: src/Admin/SettingsPage.php:267
+#: src/Admin/SettingsPage.php:361
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = geen tweede goedkeuring. Bedrag in de valuta van de bestelling, bijv. 100,00."
 
-#: src/Admin/SettingsPage.php:268
+#: src/Admin/SettingsPage.php:362
 msgid "Vier-Augen-Prinzip auch für Freigebende"
 msgstr "Vier-ogenprincipe ook voor goedkeurders"
 
-#: src/Admin/SettingsPage.php:268
+#: src/Admin/SettingsPage.php:362
 msgid "Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person."
 msgstr "Zonder deze optie voeren personen met goedkeuringsbevoegdheid eigen terugbetalingen boven het bedrag direct uit. Met de optie wacht elke terugbetaling boven het bedrag op goedkeuring door een andere bevoegde persoon."
 
-#: src/Admin/SettingsPage.php:269
+#: src/Admin/SettingsPage.php:363
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Tweestapsverificatie vereisen voor terugbetalingen"
 
-#: src/Admin/SettingsPage.php:270
+#: src/Admin/SettingsPage.php:364
 msgid "Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten"
 msgstr "Dubbele betalingen en betalingen voor geannuleerde/verlopen bestellingen automatisch terugbetalen"
 
-#: src/Admin/SettingsPage.php:270
+#: src/Admin/SettingsPage.php:364
 msgid "Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter."
 msgstr "Standaard uit: de gevallen verschijnen in de systeemstatus en worden handmatig afgehandeld. Ingeschakeld betaalt een achtergrondtaak het bedrag terug bij de betaalaanbieder."
 
-#: src/Admin/SettingsPage.php:271
+#: src/Admin/SettingsPage.php:365
 msgid "Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben"
 msgstr "Terugbetalingsverzoeken in het bestelportaal toestaan na verplaatsing van een datum"
 
-#: src/Admin/SettingsPage.php:271
+#: src/Admin/SettingsPage.php:365
 msgid "Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“."
 msgstr "Tickethouders kunnen tot de deadline een terugbetaling aanvragen; elk verzoek moet worden goedgekeurd onder ‘Terugbetalingen’."
 
-#: src/Admin/SettingsPage.php:272
+#: src/Admin/SettingsPage.php:366
 msgid "Antragsfrist: Stunden vor dem neuen Termin"
 msgstr "Aanvraagtermijn: uren vóór de nieuwe datum"
 
-#: src/Admin/SettingsPage.php:272
+#: src/Admin/SettingsPage.php:366
 msgid "0 = bis zum Beginn des neuen Termins."
 msgstr "0 = tot het begin van de nieuwe datum."
 
-#: src/Admin/SettingsPage.php:273
+#: src/Admin/SettingsPage.php:367
 msgid "Erstattungshinweis in der Verschiebungs-Mail"
 msgstr "Terugbetalingsmelding in de verplaatsingsmail"
 
-#: src/Admin/SettingsPage.php:273
+#: src/Admin/SettingsPage.php:367
 msgid "Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen."
 msgstr "Placeholder {refund_deadline} (deadline). Leeg = melding om contact op te nemen met de organisator. Geen juridisch advies – controleer de annuleringsrechten bij een aanzienlijke verplaatsing."
 
-#: src/Admin/SettingsPage.php:274
+#: src/Admin/SettingsPage.php:368
 msgid "Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)"
 msgstr "Annuleringsverzoeken in het bestelportaal tot (uren voor aanvang)"
 
-#: src/Admin/SettingsPage.php:274
+#: src/Admin/SettingsPage.php:368
 msgid "0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe."
 msgstr "0 = uit. Kopers kunnen voor geldige, ongebruikte tickets tot deze termijn annulering met terugbetaling aanvragen (niet bij vrijkaartjes en WooCommerce-bestellingen). Elk verzoek wacht onder „Terugbetalingen ter goedkeuring” op een beslissing; er wordt pas na goedkeuring uitbetaald."
 
-#: src/Admin/SettingsPage.php:281
+#: src/Admin/SettingsPage.php:375
 msgid "0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen."
 msgstr "0 = geen. Geldt in de eigen online checkout voor betaalde tickets; per tickettype afwijkend in te stellen. Niet bij kassa, WooCommerce, partners, vrijkaartjes en serviceboekingen."
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:376
 #: src/ServiceFee.php:423
 msgid "Servicegebühr je Bestellung"
 msgstr "Servicekosten per bestelling"
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:376
 msgid "0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen."
 msgstr "0 = geen. Eenmaal per betaalde bestelling in de eigen online checkout; kopers zien ze als ‘administratiekosten per bestelling’ naast de prijzen."
 
-#: src/Admin/SettingsPage.php:285
+#: src/Admin/SettingsPage.php:379
 msgid "Steuer der Servicegebühr"
 msgstr "Btw op de servicekosten"
 
-#: src/Admin/SettingsPage.php:287
+#: src/Admin/SettingsPage.php:381
 msgid "wie das Ticket (Nebenleistung)"
 msgstr "zoals het ticket (bijkomende dienst)"
 
-#: src/Admin/SettingsPage.php:288
+#: src/Admin/SettingsPage.php:382
 msgid "eigenes Steuerprofil"
 msgstr "eigen belastingprofiel"
 
-#: src/Admin/SettingsPage.php:290
+#: src/Admin/SettingsPage.php:384
 msgid "„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile."
 msgstr "‘Zoals het ticket’: btw-tarief en belastingprofiel van de bijbehorende ticketregel. ‘Eigen belastingprofiel’: belastingklasse hieronder, tarief uit het actieve belastingprofiel van de plaats van dienst. Geldt voor nieuwe bestellingen; facturen, fiscale bonnen en rapporten volgen de bestelregel."
 
-#: src/Admin/SettingsPage.php:294
+#: src/Admin/SettingsPage.php:388
 msgid "Steuerklasse der Servicegebühr"
 msgstr "Belastingklasse van de servicekosten"
 
-#: src/Admin/SettingsPage.php:296
+#: src/Admin/SettingsPage.php:390
 msgid "Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben."
 msgstr "Alleen bij ‘eigen belastingprofiel’. Maak belastingprofielen per land en belastingklasse aan onder Verkoop → Belastingprofielen en geef ze vrij."
 
-#: src/Admin/SettingsPage.php:300
+#: src/Admin/SettingsPage.php:394
 msgid "Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)"
 msgstr "Btw-tarief van de servicekosten zonder passend belastingprofiel (%)"
 
-#: src/Admin/SettingsPage.php:301
+#: src/Admin/SettingsPage.php:395
 msgid "Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition."
 msgstr "Alleen bij ‘eigen belastingprofiel’, als voor plaats van dienst en belastingklasse geen actief profiel geldt. Leeg = tarief van de ticketregel."
 
-#: src/Admin/SettingsPage.php:306
+#: src/Admin/SettingsPage.php:400
 msgid "Servicegebühr bei Erstattung auf Käuferwunsch"
 msgstr "Servicekosten bij terugbetaling op verzoek van de koper"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:405
 msgid "Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet."
 msgstr "Voor terugbetalingen die niet door een afgelasting zijn veroorzaakt (annuleringsverzoek in het bestelportaal, terugbetaling door het team zonder afgelasting). Bij afgelasting van een datum of evenement door de organisator worden de kosten altijd terugbetaald."
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:407
 msgid "Servicegebühr an Partner weitergeben"
 msgstr "Servicekosten doorgeven aan partners"
 
-#: src/Admin/SettingsPage.php:313
+#: src/Admin/SettingsPage.php:407
 msgid "Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös."
 msgstr "Standaard uit: de servicekosten zijn omzet van de exploitant en tellen in partnerafrekeningen en in de dealbasis van het afrekenblad niet mee als opbrengst van de organisator; beide tonen ze apart. Ingeschakeld tellen ze net als de ticketprijs mee als opbrengst van de organisator."
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:409
 msgid "Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen."
 msgstr "Eigen regel in bestelling, factuur en rapporten. Bij terugbetalingen gaan de kosten per ticket samen met het ticket terug, de kosten per bestelling met het laatste ticket – bij afgelasting altijd, op verzoek van de koper volgens de instelling hieronder. Controleer de juridische en fiscale indeling met je belastingadviseur."
 
-#: src/Admin/SettingsPage.php:318
+#: src/Admin/SettingsPage.php:412
 msgid "Gutscheine"
 msgstr "Cadeaubonnen"
 
-#: src/Admin/SettingsPage.php:323
+#: src/Admin/SettingsPage.php:417
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
 msgstr "Cadeaubonnen standaard behandelen als voucher voor meervoudig gebruik"
 
-#: src/Admin/SettingsPage.php:325
+#: src/Admin/SettingsPage.php:419
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
 msgstr "Ja – voucher voor meervoudig gebruik (betaalmiddel, btw bij verzilvering)"
 
-#: src/Admin/SettingsPage.php:326
+#: src/Admin/SettingsPage.php:420
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "Nee – voucher voor enkelvoudig gebruik (btw al verschuldigd bij verkoop van de voucher)"
 
-#: src/Admin/SettingsPage.php:328
+#: src/Admin/SettingsPage.php:422
 msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären."
 msgstr "Geldt alleen als Voucher Captain voor de bon geen type doorgeeft. Voucher voor meervoudig gebruik: tickets behouden de volledige prijs en de volledige btw, en de voucher verschijnt op de factuur als betaling. Voucher voor enkelvoudig gebruik (plaats van de dienst en btw-tarief stonden bij de verkoop vast, bijv. een voucher voor een bepaald evenement in het binnenland): de btw is al afgedragen bij de verkoop van de voucher en verzilvering verlaagt de prijs. Overleg bij twijfel met je belastingadviseur."
 
-#: src/Admin/SettingsPage.php:333
-#: src/Admin/SettingsPage.php:513
+#: src/Admin/SettingsPage.php:427
+#: src/Admin/SettingsPage.php:637
 msgid "Datenschutz"
 msgstr "Privacy"
 
-#: src/Admin/SettingsPage.php:336
+#: src/Admin/SettingsPage.php:430
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Deelnemersgegevens verwijderen na het evenement na (dagen)"
 
-#: src/Admin/SettingsPage.php:336
+#: src/Admin/SettingsPage.php:430
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = veldinstelling gebruiken."
 
-#: src/Admin/SettingsPage.php:337
+#: src/Admin/SettingsPage.php:431
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Deelnemersgegevens wijzigbaar tot (uren voor begin)"
 
-#: src/Admin/SettingsPage.php:338
+#: src/Admin/SettingsPage.php:432
 msgid "E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)"
 msgstr "E-mailadressen van nooit betaalde bestellingen pseudonimiseren na (dagen)"
 
-#: src/Admin/SettingsPage.php:338
-#: src/Admin/SettingsPage.php:347
+#: src/Admin/SettingsPage.php:432
+#: src/Admin/SettingsPage.php:441
 msgid "0 = nie."
 msgstr "0 = nooit."
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:433
 msgid "Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)"
 msgstr "Inhoud en ontvanger van verzonden berichten verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:340
+#: src/Admin/SettingsPage.php:434
 msgid "Versandprotokoll der Nachrichten löschen nach (Tagen)"
 msgstr "Verzendlog van berichten verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:435
 msgid "Personal und Gerät an Check-ins entfernen nach (Tagen)"
 msgstr "Medewerker en apparaat bij check-ins verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:342
+#: src/Admin/SettingsPage.php:436
 msgid "Protokolleinträge (Audit-Log) löschen nach (Tagen)"
 msgstr "Auditlogregels verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:343
+#: src/Admin/SettingsPage.php:437
 msgid "Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)"
 msgstr "Ticketcodes van partnerverkopen verwijderen (dagen na de datum)"
 
-#: src/Admin/SettingsPage.php:343
+#: src/Admin/SettingsPage.php:437
 msgid "0 = direkt nach Ende des Termins."
 msgstr "0 = direct na afloop van de datum."
 
-#: src/Admin/SettingsPage.php:344
+#: src/Admin/SettingsPage.php:438
 msgid "Rechnungen und Rechnungskorrekturen löschen nach (Jahren)"
 msgstr "Facturen en factuurcorrecties verwijderen na (jaren)"
 
-#: src/Admin/SettingsPage.php:344
+#: src/Admin/SettingsPage.php:438
 msgid "0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert."
 msgstr "0 = nooit verwijderen. De termijn begint aan het einde van het jaar van uitgifte. Houd rekening met de wettelijke bewaartermijnen (bijv. Oostenrijk 7 jaar, Duitsland 8 of 10 jaar) en archiveer de documenten eerst in je boekhoudsysteem. Koperdata van de betreffende bestellingen worden daarbij gepseudonimiseerd."
 
-#: src/Admin/SettingsPage.php:345
+#: src/Admin/SettingsPage.php:439
 msgid "Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)"
 msgstr "Kopersgegevens uit bestellingen verwijderen na (jaren vanaf het einde van het besteljaar)"
 
-#: src/Admin/SettingsPage.php:346
+#: src/Admin/SettingsPage.php:440
 msgid "Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)"
 msgstr "Wachtlijstinschrijvingen na de datum anonimiseren na (dagen)"
 
-#: src/Admin/SettingsPage.php:346
+#: src/Admin/SettingsPage.php:440
 msgid "Gilt für Event- und Termin-Wartelisten. 0 = nie."
 msgstr "Geldt voor wachtlijsten van evenementen en afspraken. 0 = nooit."
 
-#: src/Admin/SettingsPage.php:347
+#: src/Admin/SettingsPage.php:441
 msgid "Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)"
 msgstr "Ledenpassen na afloop van de geldigheid anonimiseren na (dagen)"
 
-#: src/Admin/SettingsPage.php:371
+#: src/Admin/SettingsPage.php:465
 msgid "E-Mail-Versand"
 msgstr "E-mailverzending"
 
-#: src/Admin/SettingsPage.php:374
+#: src/Admin/SettingsPage.php:468
 msgid "Absenderadresse"
 msgstr "Afzenderadres"
 
-#: src/Admin/SettingsPage.php:375
+#: src/Admin/SettingsPage.php:469
 msgid "Absendername"
 msgstr "Afzendernaam"
 
-#: src/Admin/SettingsPage.php:375
+#: src/Admin/SettingsPage.php:469
 msgid "Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain)."
 msgstr "Naam die kopers als afzender zien. Leeg = naam / bedrijf van de factuurverstrekker, anders de naam van de website. Het afzenderadres zelf komt van WordPress of de SMTP-plugin (passend bij SPF/DKIM van het domein)."
 
-#: src/Admin/SettingsPage.php:376
+#: src/Admin/SettingsPage.php:470
 msgid "Antwort an (E-Mail-Adresse)"
 msgstr "Antwoord aan (e-mailadres)"
 
-#: src/Admin/SettingsPage.php:376
+#: src/Admin/SettingsPage.php:470
 msgid "Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website."
 msgstr "Antwoorden van kopers gaan naar dit adres. Leeg = het afzenderadres; is er geen eigen afzenderadres ingesteld, dan het beheerders-e-mailadres van de website."
 
-#: src/Admin/SettingsPage.php:377
+#: src/Admin/SettingsPage.php:471
 msgid "Betriebsalarme an"
 msgstr "Operationele meldingen naar"
 
-#: src/Admin/SettingsPage.php:377
+#: src/Admin/SettingsPage.php:471
 msgid "Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus."
 msgstr "Meldingen die actie vereisen (terugbetaling wacht op goedkeuring, betaling controleren, betaalde bestelling zonder tickets, webhook uitgeschakeld …). Leeg = het beheerdersadres van de site. De laatste meldingen staan ook bij de systeemstatus."
 
-#: src/Admin/SettingsPage.php:378
+#: src/Admin/SettingsPage.php:472
 msgid "Bounce-/Beschwerde-Webhook des Versanddienstes annehmen"
 msgstr "Bounce-/klachtenwebhook van de verzenddienst accepteren"
 
 #. translators: %s: webhook URL with token
-#: src/Admin/SettingsPage.php:380
+#: src/Admin/SettingsPage.php:474
 #, php-format
 msgid "Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token."
 msgstr "Voer deze URL bij de verzenddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) in als webhook voor bounces en spamklachten: %s – onbestelbare mails worden als mislukt gemarkeerd en bij de bestelling getoond; na een klacht worden geen herinneringen meer naar het adres gestuurd. De URL bevat een geheim token."
 
-#: src/Admin/SettingsPage.php:381
+#: src/Admin/SettingsPage.php:475
 msgid "Nach dem Aktivieren erscheint hier die Webhook-URL (mit geheimem Token) für den Versanddienst."
 msgstr "Na het inschakelen verschijnt hier de webhook-URL (met geheim token) voor de verzenddienst."
 
-#: src/Admin/SettingsPage.php:382
+#: src/Admin/SettingsPage.php:476
 msgid "Geplante Mails je Minute (höchstens)"
 msgstr "Geplande mails per minuut (maximaal)"
 
-#: src/Admin/SettingsPage.php:382
+#: src/Admin/SettingsPage.php:476
 msgid "0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warteschlange auf das Limit deines Mail-Anbieters; der Rest geht in den nächsten Läufen hinaus. Meldet der Anbieter ein Limit, wird die Mail später erneut versucht statt verworfen."
 msgstr "0 = zonder limiet. Beperkt herinneringen en andere mails uit de wachtrij tot de limiet van je mailprovider; de rest gaat in de volgende runs de deur uit. Meldt de provider een limiet, dan wordt de mail later opnieuw geprobeerd in plaats van weggegooid."
 
-#: src/Admin/SettingsPage.php:386
+#: src/Admin/SettingsPage.php:480
 #: src/Partners/Settlements.php:1049
 msgid "Rechnungssteller"
 msgstr "Factuurafzender"
 
-#: src/Admin/SettingsPage.php:389
+#: src/Admin/SettingsPage.php:483
 msgid "Name / Firma"
 msgstr "Naam / Bedrijf"
 
-#: src/Admin/SettingsPage.php:390
+#: src/Admin/SettingsPage.php:484
 msgid "Anschrift"
 msgstr "Adres"
 
-#: src/Admin/SettingsPage.php:391
+#: src/Admin/SettingsPage.php:485
 #: src/Partners/AdminPage.php:331
 msgid "USt-IdNr."
 msgstr "Btw-nummer"
 
-#: src/Admin/SettingsPage.php:392
+#: src/Admin/SettingsPage.php:486
 #: src/Partners/AdminPage.php:593
 msgid "Steuernummer"
 msgstr "Belastingnummer"
 
-#: src/Admin/SettingsPage.php:392
+#: src/Admin/SettingsPage.php:486
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Verplichte vermelding op facturen als er geen btw-nummer is opgegeven."
 
-#: src/Admin/SettingsPage.php:393
+#: src/Admin/SettingsPage.php:487
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "Land (ISO-code, bijv. DE of AT)"
 
-#: src/Admin/SettingsPage.php:393
+#: src/Admin/SettingsPage.php:487
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
 msgstr "Wordt gebruikt voor de controle op btw verlegd bij organisatoren in het buitenland binnen de EU en geldt als plaats van de dienst voor data zonder eigen land van het evenement (belastingprofielen)."
 
-#: src/Admin/SettingsPage.php:396
+#: src/Admin/SettingsPage.php:490
 msgid "Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)"
 msgstr "Vierogenprincipe voor belastingprofielen (wie een profiel aanmaakt of bewerkt, mag het niet zelf activeren; beheerders uitgezonderd)"
 
-#: src/Admin/SettingsPage.php:397
+#: src/Admin/SettingsPage.php:491
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Kleine ondernemer (geen btw op eigen facturen)"
 
-#: src/Admin/SettingsPage.php:397
+#: src/Admin/SettingsPage.php:491
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "Facturen van het platform krijgen dan de vermelding kleine ondernemer en worden geweigerd zolang tickettypes btw bevatten (maak tickettypes aan met 0 %)."
 
-#: src/Admin/SettingsPage.php:398
+#: src/Admin/SettingsPage.php:492
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Vermelding kleine ondernemer (leeg = standaardtekst voor het land)"
 
-#: src/Admin/SettingsPage.php:398
+#: src/Admin/SettingsPage.php:492
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE: ‘Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.’ – AT: ‘Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.’"
 
-#: src/Admin/SettingsPage.php:399
+#: src/Admin/SettingsPage.php:493
 msgid "Präfix Rechnungsnummer"
 msgstr "Voorvoegsel factuurnummer"
 
-#: src/Admin/SettingsPage.php:401
+#: src/Admin/SettingsPage.php:495
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Voorvoegsel factuurcorrectie (annulerings-/correctiedocument)"
 
-#: src/Admin/SettingsPage.php:402
+#: src/Admin/SettingsPage.php:496
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Factuur automatisch aanmaken na betaling"
 
-#: src/Admin/SettingsPage.php:403
+#: src/Admin/SettingsPage.php:526
 msgid "Kontenrahmen für den DATEV-Buchungsstapel"
 msgstr "Rekeningschema voor de DATEV-boekingsbatch"
 
-#: src/Admin/SettingsPage.php:403
+#: src/Admin/SettingsPage.php:526
 msgid "SKR03 (Erlöse 8400/8300, Geldtransit 1360)"
 msgstr "SKR03 (omzet 8400/8300, kruisposten 1360)"
 
-#: src/Admin/SettingsPage.php:403
+#: src/Admin/SettingsPage.php:526
 msgid "SKR04 (Erlöse 4400/4300, Geldtransit 1460)"
 msgstr "SKR04 (omzet 4400/4300, kruisposten 1460)"
 
-#: src/Admin/SettingsPage.php:403
-msgid "Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts."
-msgstr "Eigen rekeningen, btw-sleutels en één rekening per betaalprovider via het filter wpcap_datev_accounts."
-
-#: src/Admin/SettingsPage.php:404
+#: src/Admin/SettingsPage.php:527
 msgid "Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)"
 msgstr "Geldrekening in de boekingsbatch (leeg = kruisposten van het schema)"
 
-#: src/Admin/SettingsPage.php:404
+#: src/Admin/SettingsPage.php:527
 msgid "4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters."
 msgstr "4 tot 8 cijfers, bijv. de tussenrekening van de betaaldienstverlener."
 
-#: src/Admin/SettingsPage.php:408
+#: src/Admin/SettingsPage.php:532
 #: src/Security/Policy.php:90
 msgid "Sicherheit"
 msgstr "Beveiliging"
 
-#: src/Admin/SettingsPage.php:411
+#: src/Admin/SettingsPage.php:535
 msgid "Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)"
 msgstr "Lokale fiscale dienst toestaan (HTTP naar loopback-/privéadressen)"
 
-#: src/Admin/SettingsPage.php:411
+#: src/Admin/SettingsPage.php:535
 msgid "Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden."
 msgstr "Alleen voor een fiscale dienst op dezelfde server of in het lokale netwerk (bijv. efsta EFR op http://127.0.0.1:5618). Alle andere uitgaande verbindingen naar configureerbare doelen moeten HTTPS naar openbare adressen gebruiken."
 
-#: src/Admin/SettingsPage.php:415
+#: src/Admin/SettingsPage.php:539
 msgid "Support und Fehlersuche"
 msgstr "Support en foutopsporing"
 
-#: src/Admin/SettingsPage.php:418
+#: src/Admin/SettingsPage.php:542
 msgid "Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten"
 msgstr "Foutopsporingslogboek (debugmodus) 24 uur inschakelen"
 
-#: src/Admin/SettingsPage.php:418
+#: src/Admin/SettingsPage.php:542
 msgid "Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang."
 msgstr "Slaat daarnaast uitgebreide diagnose-items op in het supportlogboek (Beheer → Supportlogboek). Schakelt zichzelf 24 uur na het inschakelen uit; om opnieuw in te schakelen uit- en weer inschakelen. Fouten en waarschuwingen worden altijd gelogd. Secrets, ticketcodes en e-mailadressen worden nooit opgeslagen. De constante WPCAP_DEBUG in wp-config.php heeft voorrang."
 
-#: src/Admin/SettingsPage.php:422
+#: src/Admin/SettingsPage.php:546
 msgid "Deinstallation"
 msgstr "Verwijderen"
 
-#: src/Admin/SettingsPage.php:425
+#: src/Admin/SettingsPage.php:549
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Bij het verwijderen van de plug-in alle gegevens wissen"
 
-#: src/Admin/SettingsPage.php:425
+#: src/Admin/SettingsPage.php:549
 msgid "Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren."
 msgstr "Let op: bij het verwijderen van de plugin worden evenementen, bestellingen, tickets, facturen, factuurcorrecties, kassa- en fiscale bonnen onherroepelijk verwijderd. Facturen en boekhoudstukken vallen onder wettelijke bewaartermijnen (DE 10 jaar, AT 7 jaar): exporteer vooraf de facturen en het fiscale archief en bewaar ze veilig."
 
-#: src/Admin/SettingsPage.php:493
+#: src/Admin/SettingsPage.php:617
 msgid "Weitere Einstellungen"
 msgstr "Overige instellingen"
 
-#: src/Admin/SettingsPage.php:508
+#: src/Admin/SettingsPage.php:632
 #: src/WalletPasses/AdminPage.php:180
 msgid "Allgemein"
 msgstr "Algemeen"
 
-#: src/Admin/SettingsPage.php:510
+#: src/Admin/SettingsPage.php:634
 msgid "Zahlungsarten"
 msgstr "Betaalmethoden"
 
-#: src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:636
+#: src/DocumentNumbers.php:383
 msgid "Rechnungen"
 msgstr "Facturen"
 
-#: src/Admin/SettingsPage.php:514
+#: src/Admin/SettingsPage.php:638
 msgid "Erweitert"
 msgstr "Geavanceerd"
 
-#: src/Admin/SettingsPage.php:616
+#: src/Admin/SettingsPage.php:740
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr "Voer een nieuwe waarde in om hem te vervangen – leeg laten om hem te behouden"
 
-#: src/Admin/SettingsPage.php:616
+#: src/Admin/SettingsPage.php:740
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr "Niet ingesteld"
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:622
+#: src/Admin/SettingsPage.php:746
 #, php-format
 msgid "gespeichert %s"
 msgstr "opgeslagen %s"
 
-#: src/Admin/SettingsPage.php:624
+#: src/Admin/SettingsPage.php:748
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr "Opgeslagen waarde kan niet worden ontsleuteld – voer hem opnieuw in"
 
-#: src/Admin/SettingsPage.php:626
+#: src/Admin/SettingsPage.php:750
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr "Geen waarde opgeslagen"
 
-#: src/Admin/SettingsPage.php:629
+#: src/Admin/SettingsPage.php:753
 msgid "Gespeicherten Wert entfernen"
 msgstr "Opgeslagen waarde verwijderen"
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:252
 #: src/SettingsSchema.php:259
+#: src/SettingsSchema.php:266
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr "„%s” is geen geldig bedrag."
 
 #. translators: %s: field label
-#: src/Orders.php:1202
+#: src/Orders.php:1216
 #: src/ParticipantFields.php:170
-#: src/SettingsSchema.php:266
+#: src/SettingsSchema.php:273
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "„%s” is geen geldig e-mailadres."
 
-#: src/Admin/SettingsPage.php:747
+#: src/Admin/SettingsPage.php:876
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "‘Alle gegevens verwijderen bij het verwijderen van de plugin’ is niet ingeschakeld: typ LÖSCHEN of DELETE om te bevestigen."
 
-#: src/Admin/SettingsPage.php:798
+#: src/Admin/SettingsPage.php:927
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "Toestemming bij het afrekenen is actief, maar voor de standaardtaal is geen tekst voor de algemene voorwaarden ingevoerd. Kopers zouden voorwaarden moeten bevestigen die ze niet zien – vul de algemene voorwaarden/deelnamevoorwaarden in."
 
-#: src/Admin/SettingsPage.php:857
+#: src/Admin/SettingsPage.php:988
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
 #: src/BoxOffice/Page.php:622
@@ -9612,147 +9611,147 @@ msgstr "Toestemming bij het afrekenen is actief, maar voor de standaardtaal is g
 msgid "Einstellungen gespeichert."
 msgstr "Instellingen opgeslagen."
 
-#: src/Admin/SettingsPage.php:893
+#: src/Admin/SettingsPage.php:1024
 msgid "Pass Captain Einstellungen"
 msgstr "Pass Captain-instellingen"
 
-#: src/Admin/SettingsPage.php:900
+#: src/Admin/SettingsPage.php:1031
 msgid "Einstellungsbereiche"
 msgstr "Instellingsgebieden"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:954
+#: src/Admin/SettingsPage.php:1085
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "De volgende teksten gelden voor de standaardtaal (%s) en voor elke taal zonder eigen versie."
 
-#: src/Admin/SettingsPage.php:966
+#: src/Admin/SettingsPage.php:1101
 #: src/Partners/AdminPage.php:289
 msgid "Einstellungen speichern"
 msgstr "Instellingen opslaan"
 
-#: src/Admin/SettingsPage.php:1024
+#: src/Admin/SettingsPage.php:1159
 msgid "Webhook-URL:"
 msgstr "Webhook-URL:"
 
-#: src/Admin/SettingsPage.php:1026
+#: src/Admin/SettingsPage.php:1161
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "Maak in de PayPal-app onder „Webhooks” een webhook aan met deze URL en deze gebeurtenissen; vul de getoonde webhook-ID hieronder in:"
 
-#: src/Admin/SettingsPage.php:1026
+#: src/Admin/SettingsPage.php:1161
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "Maak in het Stripe-dashboard onder Ontwikkelaars → Webhooks een eindpunt aan met deze URL en deze gebeurtenissen; vul het getoonde ondertekeningsgeheim hieronder in:"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:1034
+#: src/Admin/SettingsPage.php:1169
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Nog niet volledig ingesteld. Ontbreekt: %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1035
+#: src/Admin/SettingsPage.php:1170
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s wordt pas daarna bij het afrekenen aangeboden."
 
-#: src/Admin/SettingsPage.php:1042
-#: src/Admin/SettingsPage.php:1046
+#: src/Admin/SettingsPage.php:1177
+#: src/Admin/SettingsPage.php:1181
 msgid "Verbindung testen"
 msgstr "Verbinding testen"
 
-#: src/Admin/SettingsPage.php:1043
+#: src/Admin/SettingsPage.php:1178
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Controleert met de opgeslagen inloggegevens de aanmelding bij de provider en of de webhook met deze URL en alle benodigde gebeurtenissen is ingesteld. Er wordt niets gewijzigd; sla eerst op."
 
-#: src/Admin/SettingsPage.php:1060
+#: src/Admin/SettingsPage.php:1195
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Voor deze betaalmethode is er geen verbindingstest."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1110
+#: src/Admin/SettingsPage.php:1245
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "%s aanbieden bij het afrekenen"
 
-#: src/Admin/SettingsPage.php:1112
-#: src/Admin/SettingsPage.php:1220
+#: src/Admin/SettingsPage.php:1247
+#: src/Admin/SettingsPage.php:1361
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(niet volledig geconfigureerd)"
 
-#: src/Admin/SettingsPage.php:1121
+#: src/Admin/SettingsPage.php:1256
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Testmodus actief: er worden geen echte betalingen geïnd. Kopers zien bij het afrekenen de melding „Testmodus”. Zet voor de verkoop om naar „Live” en vul live-inloggegevens in."
 
-#: src/Admin/SettingsPage.php:1124
+#: src/Admin/SettingsPage.php:1259
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "Overschrijving wordt pas bij het afrekenen aangeboden als begunstigde (of factuurverstrekker) en IBAN of een betalingsinstructie zijn ingevuld."
 
-#: src/Admin/SettingsPage.php:1133
-#: src/SettingsSchema.php:411
+#: src/Admin/SettingsPage.php:1268
+#: src/SettingsSchema.php:418
 msgid "Rechtstexte je Sprache"
 msgstr "Juridische teksten per taal"
 
-#: src/Admin/SettingsPage.php:1134
+#: src/Admin/SettingsPage.php:1269
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Kopers zien de teksten in hun eigen taal (taal van de pagina of van WPML/Polylang). Lege velden nemen de tekst van de standaardtaal over. Elke taal heeft een eigen versie, die bij de bestelling wordt opgeslagen."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:1146
+#: src/Admin/SettingsPage.php:1281
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Leeg: de tekst van %s is van toepassing."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:1153
+#: src/Admin/SettingsPage.php:1294
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Huidige versie voor %1$s: %2$s"
 
-#: src/Admin/SettingsPage.php:1159
+#: src/Admin/SettingsPage.php:1300
 msgid "Archivierte Fassungen"
 msgstr "Gearchiveerde versies"
 
-#: src/Admin/SettingsPage.php:1159
+#: src/Admin/SettingsPage.php:1300
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Elke versie die van kracht was, blijft ongewijzigd opgeslagen. In het bestellingsoverzicht staat welke versie voor de bestelling gold, en de tekst ervan kan daar worden getoond."
 
-#: src/Admin/SettingsPage.php:1160
+#: src/Admin/SettingsPage.php:1301
 msgid "Fassung"
 msgstr "Versie"
 
-#: src/Admin/SettingsPage.php:1160
+#: src/Admin/SettingsPage.php:1301
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Taal"
 
-#: src/Admin/SettingsPage.php:1160
+#: src/Admin/SettingsPage.php:1301
 msgid "Archiviert am"
 msgstr "Gearchiveerd op"
 
-#: src/Admin/SettingsPage.php:1168
+#: src/Admin/SettingsPage.php:1309
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Nog een taal toevoegen (locale, bijv. en_US):"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1226
+#: src/Admin/SettingsPage.php:1367
 #, php-format
 msgid "%s einrichten"
 msgstr "%s instellen"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:1250
+#: src/Admin/SettingsPage.php:1391
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Huidige versie: %s (wordt bij elke bestelling opgeslagen)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:1276
+#: src/Admin/SettingsPage.php:1417
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Wordt overschreven door %s (wp-config.php of omgevingsvariabele); de hier opgeslagen waarde wordt niet gebruikt."
 
-#: src/Admin/SettingsPage.php:1282
+#: src/Admin/SettingsPage.php:1423
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Typ LÖSCHEN of DELETE om in te schakelen:"
 
@@ -9837,7 +9836,7 @@ msgstr "Pass Captain: de achtergrondverwerking vraagt aandacht."
 msgid "OK"
 msgstr "OK"
 
-#: src/Admin/SettingsPage.php:362
+#: src/Admin/SettingsPage.php:456
 #: src/Admin/StatusPage.php:219
 #: src/Admin/StatusPage.php:337
 #: src/Log.php:395
@@ -10419,8 +10418,8 @@ msgstr "Concept aanmaken"
 #: src/Exchange/Service.php:184
 #: src/Exchange/Service.php:1271
 #: src/Mobile/Api.php:412
-#: src/Orders.php:3254
-#: src/Orders.php:4781
+#: src/Orders.php:3268
+#: src/Orders.php:4795
 #: src/PortalSelfService.php:218
 #: src/PortalSelfService.php:558
 #: src/PortalSelfService.php:775
@@ -10441,8 +10440,8 @@ msgstr "Het ticket kon zojuist niet worden ingetrokken. Probeer het opnieuw."
 
 #: src/Admin/TicketsPage.php:63
 #: src/Exchange/Service.php:603
-#: src/Orders.php:3191
-#: src/Orders.php:3272
+#: src/Orders.php:3205
+#: src/Orders.php:3286
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr "Voor dit ticket loopt een terugbetaling of deze wacht op goedkeuring. Het kan tot de beslissing niet worden overgedragen, omgeruild of ingetrokken."
 
@@ -10622,7 +10621,7 @@ msgid "%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut z
 msgstr "%1$d afgerond, %2$d al in de doelstatus, %3$d geweigerd, %4$d opnieuw te proberen."
 
 #: src/Admin/OperationsPage.php:271
-#: src/Admin/SettingsPage.php:360
+#: src/Admin/SettingsPage.php:454
 #: src/Admin/TicketsPage.php:568
 #: src/Log.php:393
 #: src/WalletPasses/AppleProvider.php:81
@@ -10824,7 +10823,7 @@ msgid "Angebot abgelaufen"
 msgstr "Aanbod verlopen"
 
 #: src/Admin/WaitlistsPage.php:65
-#: src/Rest/Controller.php:1235
+#: src/Rest/Controller.php:1237
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Geen toestemming voor dit tickettype."
 
@@ -11164,7 +11163,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Te veel dagen (maximaal 366)."
 
 #: src/Admission/Rest.php:64
-#: src/Rest/Controller.php:1088
+#: src/Rest/Controller.php:1090
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "De offline scanbatch moet 1 tot 100 codes bevatten."
 
@@ -12822,8 +12821,8 @@ msgstr "Medewerker %d"
 
 #. translators: %s: platform name
 #: src/BoxOffice/Service.php:1253
-#: src/Invoices.php:727
-#: src/Invoices.php:765
+#: src/Invoices.php:728
+#: src/Invoices.php:804
 #: src/Partners/Settlements.php:910
 msgid "USt-IdNr.:"
 msgstr "Btw-nr.:"
@@ -13234,8 +13233,8 @@ msgstr "Geopend"
 #: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:368
 #: src/BoxOffice/ZReport.php:373
-#: src/Invoices.php:878
-#: src/Invoices.php:889
+#: src/Invoices.php:918
+#: src/Invoices.php:929
 #: src/Partners/Settlements.php:837
 #: src/Partners/Settlements.php:843
 #: src/Partners/Settlements.php:966
@@ -13622,9 +13621,9 @@ msgstr "Btw-tarieven"
 
 #. translators: 1: invoice number, 2: date
 #: src/BoxOffice/ZReport.php:374
-#: src/Invoices.php:875
-#: src/Invoices.php:878
-#: src/Invoices.php:889
+#: src/Invoices.php:915
+#: src/Invoices.php:918
+#: src/Invoices.php:929
 #: src/Printing/InvoicePdf.php:115
 #: src/Printing/InvoicePdf.php:149
 #: src/Printing/InvoicePdf.php:200
@@ -13634,8 +13633,8 @@ msgstr "Btw"
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
 #: src/BoxOffice/ZReport.php:375
-#: src/Invoices.php:878
-#: src/Invoices.php:889
+#: src/Invoices.php:918
+#: src/Invoices.php:929
 #: src/Ops/Network.php:325
 #: src/Partners/AdminPage.php:687
 #: src/Partners/Settlements.php:837
@@ -14040,7 +14039,7 @@ msgstr "Kies minstens één ticket."
 
 #: src/Campaigns.php:699
 #: src/PublicEvents.php:162
-#: src/Rest/Controller.php:601
+#: src/Rest/Controller.php:602
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "De kortingscode is ongeldig of past niet bij de geselecteerde tickets."
 
@@ -14644,9 +14643,9 @@ msgstr "Toegang vanaf %s"
 
 #: src/Errors.php:18
 #: src/Exchange/Service.php:605
-#: src/Orders.php:300
-#: src/Orders.php:1418
-#: src/Orders.php:1895
+#: src/Orders.php:314
+#: src/Orders.php:1432
+#: src/Orders.php:1909
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Het is momenteel erg druk. Probeer het over een ogenblik opnieuw."
 
@@ -14948,7 +14947,7 @@ msgid "Event-Regeln speichern"
 msgstr "Evenementregels opslaan"
 
 #: src/Exchange/Portal.php:54
-#: src/Orders.php:3170
+#: src/Orders.php:3184
 #: src/PortalSelfService.php:70
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "De toegang tot de bestelling is ongeldig."
@@ -14957,15 +14956,15 @@ msgstr "De toegang tot de bestelling is ongeldig."
 #: src/Frontend/Availability.php:123
 #: src/Payments/ReturnNotice.php:406
 #: src/PublicEvents.php:1075
-#: src/Rest/Controller.php:771
-#: src/Rest/Controller.php:903
-#: src/Rest/Controller.php:949
-#: src/Rest/Controller.php:954
-#: src/Rest/Controller.php:967
-#: src/Rest/Controller.php:979
-#: src/Rest/Controller.php:994
-#: src/Rest/Controller.php:1007
-#: src/Rest/Controller.php:1183
+#: src/Rest/Controller.php:772
+#: src/Rest/Controller.php:905
+#: src/Rest/Controller.php:951
+#: src/Rest/Controller.php:956
+#: src/Rest/Controller.php:969
+#: src/Rest/Controller.php:981
+#: src/Rest/Controller.php:996
+#: src/Rest/Controller.php:1009
+#: src/Rest/Controller.php:1185
 #: src/Sales/CheckoutThrottle.php:132
 #: src/Seating/Rest.php:22
 msgid "Bitte warte kurz und versuche es erneut."
@@ -15095,7 +15094,7 @@ msgid "Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht
 msgstr "Dit ticket is overgedragen en kan alleen door de organisator worden omgeruild."
 
 #: src/Exchange/Service.php:228
-#: src/Orders.php:1420
+#: src/Orders.php:1434
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr "De verkoop voor dit tickettype is gesloten."
 
@@ -15480,11 +15479,11 @@ msgid "Sprache speichern"
 msgstr "Taal opslaan"
 
 #: src/Frontend/Language.php:94
-#: src/Rest/Controller.php:866
-#: src/Rest/Controller.php:906
-#: src/Rest/Controller.php:952
-#: src/Rest/Controller.php:970
-#: src/Rest/Controller.php:982
+#: src/Rest/Controller.php:868
+#: src/Rest/Controller.php:908
+#: src/Rest/Controller.php:954
+#: src/Rest/Controller.php:972
+#: src/Rest/Controller.php:984
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "De toegang tot de bestelling is ongeldig of verlopen."
 
@@ -15874,7 +15873,7 @@ msgstr "2. Je gegevens"
 #: src/Frontend/ServiceBooking.php:441
 #: src/Sales/AdminSections.php:202
 #: src/TicketRecovery.php:166
-#: templates/event-card.php:264
+#: templates/event-card.php:276
 msgid "E-Mail-Adresse"
 msgstr "E-mailadres"
 
@@ -17256,7 +17255,7 @@ msgstr "Voor deze voucher zijn geen tickets gevonden."
 
 #. translators: %d: allowed resends per hour
 #: src/Integrations/Vouchers/TicketService.php:453
-#: src/Rest/Controller.php:910
+#: src/Rest/Controller.php:912
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
@@ -17268,7 +17267,7 @@ msgid "Teilnehmerangaben (Pass Captain, noch keinen Tickets zugeordnet)"
 msgstr "Deelnemersgegevens (Pass Captain, nog niet aan tickets gekoppeld)"
 
 #: src/Integrations/WooCommerce/Attendees.php:230
-#: src/Orders.php:1131
+#: src/Orders.php:1145
 msgid "Es wurden mehr Teilnehmende angegeben als Tickets bestellt."
 msgstr "Er zijn meer deelnemers opgegeven dan tickets besteld."
 
@@ -17851,72 +17850,71 @@ msgstr "Een factuur kan pas voor betaalde bestellingen worden aangemaakt."
 msgid "Die Bestellung ist nicht mehr als bezahlt markiert."
 msgstr "De bestelling is niet meer als betaald gemarkeerd."
 
-#: src/Invoices.php:91
+#: src/Invoices.php:92
 msgid "Rechnung konnte nicht erstellt werden."
 msgstr "Factuur kon niet worden aangemaakt."
 
-#: src/Invoices.php:108
+#: src/Invoices.php:109
 msgid "Rechnungsposition konnte nicht gespeichert werden."
 msgstr "Factuurregel kon niet worden opgeslagen."
 
-#: src/Invoices.php:168
+#: src/Invoices.php:169
 msgid "Die Rechnungskorrektur konnte nicht gespeichert werden."
 msgstr "De factuurcorrectie kon niet worden opgeslagen."
 
-#: src/Invoices.php:306
+#: src/Invoices.php:307
 msgid "Die Rechnungskorrektur konnte nicht storniert werden."
 msgstr "De factuurcorrectie kon niet worden geannuleerd."
 
-#: src/Invoices.php:728
+#: src/Invoices.php:729
 msgid "Steuernummer:"
 msgstr "Belastingnummer:"
 
 #. translators: %s: platform name
-#: src/Invoices.php:765
+#: src/Invoices.php:804
 #, php-format
 msgid "Vermittelt durch %s"
 msgstr "Bemiddeld door %s"
 
 #. translators: %s: organizer name
-#: src/Invoices.php:767
+#: src/Invoices.php:806
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
 msgstr "De dienst wordt verricht door %s. Het platform handelt in naam en voor rekening van de organisator."
 
 #. translators: %s: organizer
-#: src/Invoices.php:778
+#: src/Invoices.php:817
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
 msgstr "Bemiddelaar – factuurafzender: %s"
 
-#: src/Invoices.php:780
+#: src/Invoices.php:819
 msgid "Eigenhändler – Rechnungssteller: Plattform"
 msgstr "Verkoper in eigen naam – factuurafzender: platform"
 
-#: src/Invoices.php:795
-#: src/Invoices.php:798
+#: src/Invoices.php:835
 msgid "Rechnungsnummer konnte nicht reserviert werden."
 msgstr "Factuurnummer kon niet worden gereserveerd."
 
-#: src/Invoices.php:838
+#: src/Invoices.php:877
 msgid "Belegnummer konnte nicht reserviert werden."
 msgstr "Documentnummer kon niet worden gereserveerd."
 
-#: src/Invoices.php:872
+#: src/Invoices.php:912
 #: src/Printing/InvoicePdf.php:107
 msgid "Rechnungsdatum:"
 msgstr "Factuurdatum:"
 
-#: src/Invoices.php:872
-#: src/Invoices.php:873
+#: src/Invoices.php:912
+#: src/Invoices.php:913
 #: src/Printing/InvoicePdf.php:66
 #: src/Printing/InvoicePdf.php:112
 msgid "Rechnungsempfänger:"
 msgstr "Factuur aan:"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:878
-#: src/Invoices.php:889
+#: src/Invoices.php:918
+#: src/Invoices.php:929
 #: src/Printing/InvoicePdf.php:147
 #: src/Printing/InvoicePdf.php:198
 msgid "Aufstellung nach Steuersätzen"
@@ -17924,8 +17922,8 @@ msgstr "Specificatie per btw-tarief"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/Invoices.php:878
-#: src/Invoices.php:889
+#: src/Invoices.php:918
+#: src/Invoices.php:929
 #: src/Partners/Settlements.php:971
 #: src/Partners/Settlements.php:976
 #: src/Partners/Settlements.php:1027
@@ -17939,8 +17937,8 @@ msgid "USt-Satz"
 msgstr "Btw-tarief"
 
 #. translators: %s: fee per ticket
-#: src/Invoices.php:882
-#: src/Invoices.php:892
+#: src/Invoices.php:922
+#: src/Invoices.php:932
 #: src/Partners/Settlements.php:1057
 #: src/Printing/InvoicePdf.php:160
 #: src/Printing/InvoicePdf.php:210
@@ -17949,8 +17947,8 @@ msgstr "Nettobedrag"
 
 #. translators: %s: rate
 #. translators: %s: VAT rate
-#: src/Invoices.php:883
-#: src/Invoices.php:893
+#: src/Invoices.php:923
+#: src/Invoices.php:933
 #: src/Printing/InvoicePdf.php:164
 #: src/Printing/InvoicePdf.php:212
 #, php-format
@@ -17958,78 +17956,78 @@ msgid "Umsatzsteuer %s %%"
 msgstr "Btw %s %%"
 
 #. translators: %s: rate
-#: src/Invoices.php:884
+#: src/Invoices.php:924
 #: src/Partners/Settlements.php:1063
 #: src/Printing/InvoicePdf.php:168
 msgid "Rechnungsbetrag"
 msgstr "Factuurbedrag"
 
-#: src/Invoices.php:888
+#: src/Invoices.php:928
 #: src/Printing/InvoicePdf.php:183
 msgid "Rechnungskorrektur"
 msgstr "Factuurcorrectie"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: invoice number, 2: invoice date
-#: src/Invoices.php:888
+#: src/Invoices.php:928
 #: src/Printing/InvoicePdf.php:185
 #, php-format
 msgid "Korrektur zu Rechnung %1$s vom %2$s"
 msgstr "Correctie op factuur %1$s van %2$s"
 
 #. translators: %s: rate
-#: src/Invoices.php:894
+#: src/Invoices.php:934
 #: src/Printing/InvoicePdf.php:214
 msgid "Korrekturbetrag"
 msgstr "Correctiebedrag"
 
 #. translators: %s: date
-#: src/Invoices.php:895
+#: src/Invoices.php:935
 #: src/Printing/InvoicePdf.php:191
 #, php-format
 msgid "Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt."
 msgstr "Geannuleerd op %s: de terugbetaling bij de betaalaanbieder is mislukt; het bedrag is niet terugbetaald."
 
 #. translators: 1: reversal document number, 2: date
-#: src/Invoices.php:896
+#: src/Invoices.php:936
 #, php-format
 msgid "Storniert durch Beleg %1$s vom %2$s (Erstattung beim Zahlungsanbieter gescheitert)"
 msgstr "Geannuleerd door bon %1$s van %2$s (terugbetaling bij de betaalprovider mislukt)"
 
 #. translators: %s: short order number
-#: src/Invoices.php:899
+#: src/Invoices.php:939
 #: src/Partners/Settlements.php:982
 #: src/TicketPage.php:103
 msgid "Drucken oder als PDF speichern"
 msgstr "Afdrukken of opslaan als PDF"
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:1575
+#: src/Invoices.php:1615
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
 msgstr "Betaald met voucher %s (voucher voor meervoudig gebruik)"
 
 #. translators: %s: masked code
-#: src/Invoices.php:1579
+#: src/Invoices.php:1619
 #, php-format
 msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
 msgstr "Ingewisselde kortingscode %s: verwerkt als prijskorting."
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:1582
+#: src/Invoices.php:1622
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Verzilverde voucher voor enkelvoudig gebruik %s: de btw is al verrekend bij de verkoop van de voucher; de waarde van de voucher is verwerkt als prijskorting."
 
-#: src/Invoices.php:1586
+#: src/Invoices.php:1626
 msgid "Restbetrag (bezahlt)"
 msgstr "Restbedrag (betaald)"
 
-#: src/Invoices.php:1587
+#: src/Invoices.php:1627
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
 msgstr "De voucher is een betaalmiddel (voucher voor meervoudig gebruik); de btw wordt weergegeven over het volledige factuurbedrag."
 
-#: src/Invoices.php:1596
+#: src/Invoices.php:1636
 #: src/Printing/InvoicePdf.php:353
 msgid "Zahlungen"
 msgstr "Betalingen"
@@ -21194,7 +21192,7 @@ msgid "Unerwartete Antwort von Mollie."
 msgstr "Onverwacht antwoord van Mollie."
 
 #: src/Mollie/MollieGateway.php:210
-#: src/Rest/Controller.php:594
+#: src/Rest/Controller.php:595
 #: src/Waitlists.php:959
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Betalen per overschrijving is zo kort voor aanvang niet meer mogelijk. Kies een andere betaalmethode."
@@ -22785,7 +22783,7 @@ msgstr "niet ingesteld"
 msgid "Zahlungsarten (Modus)"
 msgstr "Betaalmethoden (modus)"
 
-#: src/Admin/SettingsPage.php:170
+#: src/Admin/SettingsPage.php:254
 #: src/Operations/SiteHealth.php:748
 msgid "WooCommerce"
 msgstr "WooCommerce"
@@ -23328,28 +23326,28 @@ msgstr "Tot de factuur is uitgegeven, kun je hier bedrijf, naam, adres en btw-nu
 msgid "Rechnungsdaten speichern"
 msgstr "Factuurgegevens opslaan"
 
-#: src/Orders.php:120
+#: src/Orders.php:121
 msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr "Geef een geldig e-mailadres op en selecteer tickets."
 
-#: src/Orders.php:152
+#: src/Orders.php:153
 #: src/Waitlists.php:934
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Bevestig de voorwaarden en consumenteninformatie."
 
-#: src/Orders.php:206
+#: src/Orders.php:207
 #: src/Waitlists.php:938
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr "De voorwaarden zijn inmiddels gewijzigd. Laad de pagina opnieuw en bevestig de actuele versie."
 
-#: src/Orders.php:225
-#: src/Orders.php:229
+#: src/Orders.php:226
+#: src/Orders.php:230
 msgid "Eine Ticketposition ist ungültig."
 msgstr "Een ticketregel is ongeldig."
 
-#: src/Orders.php:489
-#: src/Rest/Controller.php:572
-#: src/Rest/Controller.php:586
+#: src/Orders.php:503
+#: src/Rest/Controller.php:573
+#: src/Rest/Controller.php:587
 #: src/ServiceBookings.php:743
 #: src/ServiceBookings.php:757
 #: src/ServiceBookings.php:856
@@ -23358,285 +23356,285 @@ msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Deze betaalmethode is niet beschikbaar."
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1007
+#: src/Orders.php:1021
 #, php-format
 msgid "Die E-Mail-Adresse ist zu lang (höchstens %d Zeichen)."
 msgstr "Het e-mailadres is te lang (maximaal %d tekens)."
 
-#: src/Orders.php:1098
+#: src/Orders.php:1112
 msgid "Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets."
 msgstr "De deelnemersgegevens passen niet bij de bestelde tickets."
 
-#: src/Orders.php:1141
+#: src/Orders.php:1155
 msgid "Ein Teilnehmerfeld wird nicht mehr abgefragt. Bitte lade die Seite neu und prüfe die Angaben."
 msgstr "Een deelnemersveld wordt niet meer uitgevraagd. Laad de pagina opnieuw en controleer de gegevens."
 
-#: src/Orders.php:1141
+#: src/Orders.php:1155
 msgid "Die Angaben zu Teilnehmenden enthalten ein unbekanntes Feld. Bitte lade die Seite neu."
 msgstr "De deelnemersgegevens bevatten een onbekend veld. Laad de pagina opnieuw."
 
 #. translators: %s: field label
-#: src/Orders.php:1157
+#: src/Orders.php:1171
 #, php-format
 msgid "Bitte „%s“ für die Bestellung ausfüllen."
 msgstr "Vul „%s” in voor de bestelling."
 
 #. translators: %s: field label
-#: src/Orders.php:1177
+#: src/Orders.php:1191
 #, php-format
 msgid "Bitte „%s“ für jedes Ticket ausfüllen."
 msgstr "Vul „%s” in voor elk ticket."
 
-#: src/Orders.php:1190
+#: src/Orders.php:1204
 msgid "Bitte den Namen für jedes Ticket angeben."
 msgstr "Geef de naam voor elk ticket op."
 
-#: src/Orders.php:1200
+#: src/Orders.php:1214
 msgid "E-Mail der Teilnehmer:in"
 msgstr "E-mail van de deelnemer"
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1291
+#: src/Orders.php:1305
 #, php-format
 msgid "Diese E-Mail-Adresse ist zu lang. Bitte verwende eine Adresse mit höchstens %d Zeichen."
 msgstr "Dit e-mailadres is te lang. Gebruik een adres met maximaal %d tekens."
 
-#: src/Orders.php:1325
+#: src/Orders.php:1339
 msgid "Dieser Bestellversuch gehört zu einem anderen Warenkorb. Bitte lade die Seite neu und bestelle erneut."
 msgstr "Deze bestelpoging hoort bij een ander winkelmandje. Laad de pagina opnieuw en bestel opnieuw."
 
 #. translators: 1: ticket type, 2: new price
-#: src/Orders.php:1339
+#: src/Orders.php:1353
 #, php-format
 msgid "„%1$s“ jetzt %2$s"
 msgstr "„%1$s” nu %2$s"
 
 #. translators: %s: list of ticket types with their new price
-#: src/Orders.php:1343
+#: src/Orders.php:1357
 #, php-format
 msgid "Der Preis hat sich seit dem Laden der Seite geändert (%s). Bitte prüfe die Summe und bestelle erneut."
 msgstr "De prijs is gewijzigd sinds de pagina is geladen (%s). Controleer het totaal en bestel opnieuw."
 
 #. translators: %s: new date and time (and location) of the occurrence
-#: src/Orders.php:1363
+#: src/Orders.php:1377
 #, php-format
 msgid "Der Termin wurde inzwischen geändert – jetzt: %s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "De datum is inmiddels gewijzigd – nu: %s. Controleer de gegevens en verstuur de bestelling opnieuw."
 
 #. translators: 1: ticket type name, 2: new price
-#: src/Orders.php:1370
+#: src/Orders.php:1384
 #, php-format
 msgid "Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "De prijs voor „%1$s” is inmiddels gewijzigd – nu %2$s. Controleer de gegevens en verstuur de bestelling opnieuw."
 
-#: src/Orders.php:1416
+#: src/Orders.php:1430
 #: src/Waitlists.php:159
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr "Dit tickettype is niet beschikbaar."
 
-#: src/Orders.php:1417
+#: src/Orders.php:1431
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
 msgstr "Zoveel tickets per bestelling zijn voor dit tickettype niet mogelijk."
 
-#: src/Orders.php:1419
+#: src/Orders.php:1433
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr "Deze datum is niet meer beschikbaar."
 
-#: src/Orders.php:1421
+#: src/Orders.php:1435
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "Tickets met verschillende valuta kunnen niet samen worden besteld."
 
-#: src/Orders.php:1422
-#: src/Orders.php:1896
+#: src/Orders.php:1436
+#: src/Orders.php:1910
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Voor dit tickettype zijn niet genoeg tickets meer beschikbaar."
 
-#: src/Orders.php:1423
-#: src/Orders.php:1897
+#: src/Orders.php:1437
+#: src/Orders.php:1911
 #: src/Passes/Capacity.php:180
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Voor deze datum zijn niet genoeg plaatsen meer beschikbaar."
 
-#: src/Orders.php:1424
+#: src/Orders.php:1438
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr "Een campagnecode is ongeldig of past niet bij de bestelling."
 
-#: src/Orders.php:1425
+#: src/Orders.php:1439
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr "De korting kon niet veilig op de bestelling worden toegepast."
 
-#: src/Orders.php:1426
+#: src/Orders.php:1440
 msgid "Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Via overschrijving kunnen voor deze datum op dit moment geen tickets meer worden gereserveerd. Kies een andere betaalmethode of een kleiner aantal."
 
-#: src/Orders.php:1455
+#: src/Orders.php:1469
 msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben."
 msgstr "Een gegeven is te lang of bevat ongeldige tekens. Controleer je invoer."
 
-#: src/Orders.php:1459
+#: src/Orders.php:1473
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Voor dit bestelbedrag hebben we je naam en adres nodig voor de factuur. Schakel „Ik heb een factuur op naam van een bedrijf/adres nodig” in en vul de velden in."
 
-#: src/Orders.php:1463
+#: src/Orders.php:1477
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "De bestelling kon niet worden aangemaakt."
 
 #. translators: 1: error message, 2: error reference for support
-#: src/Orders.php:1487
+#: src/Orders.php:1501
 #, php-format
 msgid "%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s."
 msgstr "%1$s Probeer het opnieuw. Lukt het weer niet, vermeld dan de fout-ID %2$s."
 
-#: src/Orders.php:1550
+#: src/Orders.php:1564
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "De betaling kon nu niet worden verwerkt. Probeer het opnieuw."
 
-#: src/Orders.php:2428
+#: src/Orders.php:2442
 msgid "Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden."
 msgstr "De reservering was verlopen en de tickets kunnen niet meer worden uitgegeven. De bestelling moet handmatig worden afgehandeld."
 
-#: src/Orders.php:2456
+#: src/Orders.php:2470
 msgid "Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf."
 msgstr "De datum of het evenement is inmiddels geannuleerd of niet meer in de verkoop."
 
-#: src/Orders.php:2458
+#: src/Orders.php:2472
 msgid "Der Termin ist bereits vorbei."
 msgstr "De datum is al voorbij."
 
-#: src/Orders.php:2460
+#: src/Orders.php:2474
 msgid "Die Ticketart ist nicht mehr vorhanden."
 msgstr "Het tickettype bestaat niet meer."
 
-#: src/Orders.php:2462
+#: src/Orders.php:2476
 msgid "Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft."
 msgstr "De gebruikslimiet van de kortingscode is inmiddels bereikt."
 
-#: src/Orders.php:2465
+#: src/Orders.php:2479
 msgid "Die maximale Anzahl an Tickets pro Person wäre überschritten."
 msgstr "Het maximale aantal tickets per persoon zou worden overschreden."
 
-#: src/Orders.php:2467
+#: src/Orders.php:2481
 msgid "Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf."
 msgstr "De datum is inmiddels geannuleerd of voorbij, of het tickettype is niet meer in de verkoop."
 
-#: src/Orders.php:2469
+#: src/Orders.php:2483
 msgid "Die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei."
 msgstr "De zitplaatsen zijn inmiddels vergeven en er zijn geen passende plaatsen meer vrij."
 
-#: src/Orders.php:2471
+#: src/Orders.php:2485
 msgid "Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug."
 msgstr "De voucher van de bestelling is bij het verlopen van de reservering vrijgegeven en kon niet opnieuw worden gereserveerd; de betaling dekt alleen het bedrag na voucherkorting."
 
-#: src/Orders.php:2473
+#: src/Orders.php:2487
 msgid "Es ist kein Kontingent mehr frei."
 msgstr "Er is geen contingent meer vrij."
 
 #. translators: 1: order number, 2: payment reference, 3: reason
-#: src/Orders.php:2486
+#: src/Orders.php:2500
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s"
 msgstr "De betaling voor bestelling %1$s (referentie %2$s) is na het verlopen van de reservering binnengekomen. Er zijn geen tickets uitgegeven: %3$s"
 
-#: src/Orders.php:2492
+#: src/Orders.php:2506
 msgid "Die Zahlung wird automatisch erstattet."
 msgstr "De betaling wordt automatisch terugbetaald."
 
-#: src/Orders.php:2493
+#: src/Orders.php:2507
 msgid "Bitte manuell klären (Zuteilung erneut versuchen oder erstatten)."
 msgstr "Handel dit handmatig af (toewijzing opnieuw proberen of terugbetalen)."
 
-#: src/Orders.php:2496
+#: src/Orders.php:2510
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr "Pass Captain: betaalde bestelling zonder tickets"
 
-#: src/Orders.php:2578
+#: src/Orders.php:2592
 msgid "Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden."
 msgstr "Deze betaalmethode kan niet automatisch terugbetalen. Betaal de betaling buiten de plugin terug en gebruik „Extern terugbetaald – afronden”."
 
-#: src/Orders.php:2587
+#: src/Orders.php:2601
 msgid "Unbekannte Art der Erstattung."
 msgstr "Onbekend type terugbetaling."
 
-#: src/Orders.php:2825
+#: src/Orders.php:2839
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr "De bestelling kon zojuist niet worden geannuleerd. Probeer het opnieuw."
 
-#: src/Orders.php:2930
+#: src/Orders.php:2944
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "De bestelling kon zojuist niet als terugbetaald worden gemarkeerd; dit wordt automatisch ingehaald."
 
-#: src/Orders.php:3166
+#: src/Orders.php:3180
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "De overdrachtsgegevens zijn ongeldig."
 
-#: src/Orders.php:3173
+#: src/Orders.php:3187
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Tickets kunnen pas na bevestigde betaling worden overgedragen."
 
-#: src/Orders.php:3186
+#: src/Orders.php:3200
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Dit ticket kan niet meer worden overgedragen."
 
-#: src/Orders.php:3196
+#: src/Orders.php:3210
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "De houder van dit ticket is al gewijzigd; een nieuwe overdracht is niet mogelijk."
 
-#: src/Orders.php:3314
+#: src/Orders.php:3328
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "De ticketoverdracht kon niet worden opgeslagen."
 
-#: src/Orders.php:3207
+#: src/Orders.php:3221
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "De ticketoverdracht is opgeslagen, maar de e-mail kon niet worden bezorgd. Neem contact op met de organisator om hem opnieuw te laten verzenden."
 
-#: src/Orders.php:3377
-#: src/Orders.php:3387
+#: src/Orders.php:3391
+#: src/Orders.php:3401
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Dit evenement kan niet worden geannuleerd."
 
-#: src/Orders.php:3421
+#: src/Orders.php:3435
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Dit evenement is niet geannuleerd."
 
-#: src/Orders.php:3939
+#: src/Orders.php:3953
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "De tickets konden zojuist niet worden uitgegeven. Probeer het opnieuw."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:4187
+#: src/Orders.php:4201
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "De stap is zonder foutmelding mislukt. %s"
 
-#: src/Orders.php:4463
+#: src/Orders.php:4477
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "De tickets konden zojuist niet worden vernieuwd. Probeer het opnieuw."
 
-#: src/Orders.php:4467
+#: src/Orders.php:4481
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Tickets kunnen pas na bevestigde betaling opnieuw worden verzonden."
 
-#: src/Orders.php:4485
+#: src/Orders.php:4499
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Dit formulier is al verzonden; de tickets zijn al opnieuw verzonden. Laad de pagina opnieuw voor een nieuwe verzending."
 
-#: src/Orders.php:4546
-#: src/Orders.php:4625
-#: src/Orders.php:4796
+#: src/Orders.php:4560
+#: src/Orders.php:4639
+#: src/Orders.php:4810
 #: src/PortalSelfService.php:251
 #: src/PortalSelfService.php:264
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Ticketcode kon niet worden vernieuwd."
 
-#: src/Orders.php:4573
+#: src/Orders.php:4587
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Geen geldige tickets gevonden om opnieuw te verzenden."
 
-#: src/Orders.php:4649
+#: src/Orders.php:4663
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Minstens één e-mail kon niet worden bezorgd. De eerdere ticketcodes blijven geldig; de verzending wordt automatisch herhaald."
 
-#: src/Orders.php:4785
+#: src/Orders.php:4799
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Alleen geldige, nog niet ingecheckte tickets van betaalde bestellingen kunnen opnieuw worden uitgegeven."
 
@@ -28373,6 +28371,7 @@ msgstr "Vergelijking"
 msgid "Änderung %"
 msgstr "Wijziging %"
 
+#: src/DocumentNumbers.php:384
 #: src/Reports/Data.php:827
 msgid "Rechnungskorrekturen"
 msgstr "Factuurcorrecties"
@@ -28414,6 +28413,7 @@ msgstr "Datum volgens"
 msgid "Bestelldatum"
 msgstr "Besteldatum"
 
+#: src/Admin/SettingsPage.php:503
 #: src/Reports/Page.php:130
 msgid "Zahlungsdatum"
 msgstr "Betaaldatum"
@@ -28763,97 +28763,97 @@ msgstr "Voor deze bestelling kan momenteel geen terugbetaling worden aangevraagd
 msgid "Erstattungsantrag nach Terminverschiebung (Bestellportal)"
 msgstr "Terugbetalingsverzoek na verplaatsing (bestelportaal)"
 
-#: src/Rest/Controller.php:578
+#: src/Rest/Controller.php:579
 msgid "Der Bestellversuch ist ungültig. Bitte lade die Seite neu und versuche es erneut."
 msgstr "De bestelpoging is ongeldig. Laad de pagina opnieuw en probeer het nog eens."
 
-#: src/Rest/Controller.php:602
+#: src/Rest/Controller.php:603
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
 msgstr "De kortingscode kon niet betrouwbaar op de bestelling worden toegepast. Probeer het opnieuw."
 
-#: src/Rest/Controller.php:624
+#: src/Rest/Controller.php:625
 msgid "Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen."
 msgstr "Deze bestelpoging loopt al met een andere betaalmethode. Laad de pagina opnieuw om met een andere betaalmethode te bestellen."
 
-#: src/Rest/Controller.php:628
+#: src/Rest/Controller.php:629
 msgid "Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab."
 msgstr "Deze bestelling is met andere gegevens gestart. Laad de pagina opnieuw en verstuur het formulier nogmaals."
 
-#: src/Rest/Controller.php:634
-#: src/Rest/Controller.php:671
+#: src/Rest/Controller.php:635
+#: src/Rest/Controller.php:672
 msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
 msgstr "Deze bestelpoging is afgebroken. Verstuur het formulier opnieuw."
 
-#: src/Rest/Controller.php:655
+#: src/Rest/Controller.php:656
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "Deze betaalmethode ondersteunt de valuta niet."
 
-#: src/Rest/Controller.php:765
+#: src/Rest/Controller.php:766
 msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
 msgstr "Voor dit e-mailadres zijn er al openstaande, onbetaalde bestellingen. Betaal die eerst of laat ze verlopen."
 
-#: src/Rest/Controller.php:1044
+#: src/Rest/Controller.php:1046
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "POS-verkoopregels of idempotency-key zijn ongeldig."
 
-#: src/Rest/Controller.php:1046
+#: src/Rest/Controller.php:1048
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Kassaverkopen lopen via de kassamodule (dienst, bonnummer, Z-rapport)."
 
-#: src/Rest/Controller.php:1054
+#: src/Rest/Controller.php:1056
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "Alle posten van een kassaverkoop moeten bij dezelfde datum horen."
 
-#: src/Rest/Controller.php:1058
+#: src/Rest/Controller.php:1060
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "Voor dit evenement ontbreekt de POS-bevoegdheid."
 
-#: src/Rest/Controller.php:1114
+#: src/Rest/Controller.php:1116
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "Voor dit evenement ontbreekt de toegangsbevoegdheid."
 
-#: src/Rest/Controller.php:1123
-#: src/Rest/Controller.php:1133
+#: src/Rest/Controller.php:1125
+#: src/Rest/Controller.php:1135
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "Minstens één pasregel is vereist."
 
-#: src/Rest/Controller.php:1128
+#: src/Rest/Controller.php:1130
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Geen toestemming voor een pasregel."
 
-#: src/Rest/Controller.php:1279
+#: src/Rest/Controller.php:1281
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "De rapportperiode moet geldig zijn en mag maximaal 90 dagen lang zijn."
 
-#: src/Rest/Controller.php:1347
+#: src/Rest/Controller.php:1349
 msgid "Übersetzung nicht gefunden."
 msgstr "Vertaling niet gevonden."
 
-#: src/Rest/Controller.php:1357
+#: src/Rest/Controller.php:1359
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale of vertaalde titel is ongeldig."
 
-#: src/Rest/Controller.php:1396
+#: src/Rest/Controller.php:1398
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Geen toestemming voor deze datum."
 
-#: src/Rest/Controller.php:1399
+#: src/Rest/Controller.php:1401
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Geef 1 tot 31 evenementdagen op."
 
-#: src/Rest/Controller.php:1408
+#: src/Rest/Controller.php:1410
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Een evenementdag of toegangsregel is ongeldig."
 
-#: src/Rest/Controller.php:1410
+#: src/Rest/Controller.php:1412
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Toegangsregels konden niet worden opgeslagen."
 
-#: src/Rest/Controller.php:1424
+#: src/Rest/Controller.php:1426
 msgid "Ungültige Woche."
 msgstr "Ongeldige week."
 
-#: src/Rest/Controller.php:1435
+#: src/Rest/Controller.php:1437
 #: src/Waitlists.php:154
 msgid "Bitte eine gültige Anzahl angeben."
 msgstr "Geef een geldig aantal op."
@@ -29589,7 +29589,7 @@ msgstr "Categorieën"
 msgid "Stehbereiche"
 msgstr "Staanplaatsgebieden"
 
-#: src/Admin/SettingsPage.php:515
+#: src/Admin/SettingsPage.php:639
 #: src/Seating/AdminPage.php:163
 msgid "Werkzeuge"
 msgstr "Gereedschap"
@@ -33298,35 +33298,35 @@ msgstr "Voucher- of kortingscode (optioneel)"
 msgid "Rabattcode (optional)"
 msgstr "Kortingscode (optioneel)"
 
-#: templates/event-card.php:231
+#: templates/event-card.php:243
 msgid "Zahlungspflichtig bestellen"
 msgstr "Bestellen met betalingsverplichting"
 
-#: templates/event-card.php:231
+#: templates/event-card.php:243
 msgid "Kostenlos anmelden"
 msgstr "Gratis aanmelden"
 
-#: templates/event-card.php:237
+#: templates/event-card.php:249
 msgid "Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser."
 msgstr "Om te bestellen is JavaScript nodig. Schakel JavaScript in je browser in."
 
 #. translators: %d: hours an offer can be accepted
-#: templates/event-card.php:251
+#: templates/event-card.php:263
 #, php-format
 msgid "Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunde lang annehmen, höchstens bis zum Beginn des Termins."
 msgid_plural "Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunden lang annehmen, höchstens bis zum Beginn des Termins."
 msgstr[0] "Komt er een plek vrij, dan sturen we je een aanbod per e-mail. Je kunt het %d uur lang aannemen, uiterlijk tot de aanvang van de datum."
 msgstr[1] "Komt er een plek vrij, dan sturen we je een aanbod per e-mail. Je kunt het %d uur lang aannemen, uiterlijk tot de aanvang van de datum."
 
-#: templates/event-card.php:267
+#: templates/event-card.php:279
 msgid "Wir verwenden deine E-Mail-Adresse nur für die Warteliste dieses Termins. Ein Angebot kannst du annehmen oder ablehnen."
 msgstr "We gebruiken je e-mailadres alleen voor de wachtlijst van deze datum. Een aanbod kun je aannemen of afwijzen."
 
-#: templates/event-card.php:268
+#: templates/event-card.php:280
 msgid "Auf die Warteliste setzen"
 msgstr "Op de wachtlijst zetten"
 
-#: templates/event-card.php:269
+#: templates/event-card.php:281
 msgid "Für die Warteliste wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser."
 msgstr "Voor de wachtlijst is JavaScript nodig. Schakel JavaScript in je browser in."
 
@@ -33515,87 +33515,87 @@ msgctxt "block keyword"
 msgid "Service"
 msgstr "service"
 
-#: src/Admin/SettingsPage.php:65
+#: src/Admin/SettingsPage.php:149
 msgid "So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei."
 msgstr "Zo lang blijven de gekozen tickets bij het afrekenen voor de persoon gereserveerd; daarna komen ze weer vrij."
 
-#: src/Admin/SettingsPage.php:72
+#: src/Admin/SettingsPage.php:156
 msgid "So viele Rabattcodes darf eine Person in einer Bestellung eingeben."
 msgstr "Zoveel kortingscodes mag een persoon in één bestelling invoeren."
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:277
 msgid "Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden."
 msgstr "Daarna moet een gekoppeld scannerapparaat opnieuw worden gekoppeld."
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:280
 msgid "Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "Vanaf dit moment vóór de start accepteert de scanner tickets voor een datum als het toegangsvenster is ingeschakeld."
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:281
 msgid "Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "Tot dit moment na het einde accepteert de scanner tickets voor een datum als het toegangsvenster is ingeschakeld."
 
-#: src/Admin/SettingsPage.php:206
+#: src/Admin/SettingsPage.php:290
 msgid "Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten."
 msgstr "Deze betaalmethoden zijn bij het afrekenen beschikbaar; elke methode heeft daarnaast eigen inloggegevens nodig."
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:302
 msgid "BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode."
 msgstr "BIC van de bank voor overboekingen; verschijnt op de betaalpagina en in de GiroCode."
 
-#: src/Admin/SettingsPage.php:256
+#: src/Admin/SettingsPage.php:340
 msgid "Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen."
 msgstr "Tekst die kopers bij het afrekenen bevestigen als ‘Algemene voorwaarden laten accepteren’ is ingeschakeld. Laat dit juridisch controleren."
 
-#: src/Admin/SettingsPage.php:257
+#: src/Admin/SettingsPage.php:341
 msgid "Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen."
 msgstr "Verplichte consumenteninformatie, gelinkt bij het afrekenen en in de bevestiging. Laat dit juridisch controleren."
 
-#: src/Admin/SettingsPage.php:259
+#: src/Admin/SettingsPage.php:343
 msgid "Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen."
 msgstr "Melding bij het afrekenen dat voor tickets met een vaste datum doorgaans geen herroepingsrecht geldt. Laat dit juridisch controleren."
 
-#: src/Admin/SettingsPage.php:337
+#: src/Admin/SettingsPage.php:431
 msgid "Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern."
 msgstr "Tot dit moment vóór de start kunnen kopers deelnemersgegevens in het bestelportaal wijzigen."
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:433
 msgid "Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert."
 msgstr "Daarna worden onderwerp, tekst en ontvangeradres van verzonden berichten verwijderd; de verzending zelf blijft gelogd."
 
-#: src/Admin/SettingsPage.php:340
+#: src/Admin/SettingsPage.php:434
 msgid "Danach werden die Einträge im Versandprotokoll vollständig gelöscht."
 msgstr "Daarna worden de items in het verzendlogboek volledig verwijderd."
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:435
 msgid "Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat."
 msgstr "Daarna wordt bij check-ins niet meer opgeslagen welke persoon of welk apparaat toegang heeft verleend."
 
-#: src/Admin/SettingsPage.php:342
+#: src/Admin/SettingsPage.php:436
 msgid "Danach werden Einträge des Audit-Logs gelöscht."
 msgstr "Daarna worden items uit het auditlog verwijderd."
 
-#: src/Admin/SettingsPage.php:389
+#: src/Admin/SettingsPage.php:483
 msgid "Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails."
 msgstr "Verschijnt als verkoper op facturen, kassabonnen en in e-mails."
 
-#: src/Admin/SettingsPage.php:390
+#: src/Admin/SettingsPage.php:484
 msgid "Erscheint als Anschrift des Verkäufers auf Rechnungen."
 msgstr "Verschijnt als adres van de verkoper op facturen."
 
-#: src/Admin/SettingsPage.php:391
+#: src/Admin/SettingsPage.php:485
 msgid "Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen."
 msgstr "Btw-identificatienummer van de verkoper voor facturen. Laat dit juridisch controleren."
 
-#: src/Admin/SettingsPage.php:399
+#: src/Admin/SettingsPage.php:493
 msgid "Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird."
 msgstr "Wordt vóór het doorlopende factuurnummer geplaatst. Laat dit juridisch controleren voordat je een bestaand prefix wijzigt."
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:494
 msgid "Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen."
 msgstr "Vanaf dit bestelbedrag vraagt het afrekenen om naam en adres voor de factuur. De grens hangt af van het land; laat dit juridisch controleren."
 
-#: src/Admin/SettingsPage.php:401
+#: src/Admin/SettingsPage.php:495
 msgid "Vorangestellt vor die Nummer von Storno- und Korrekturbelegen."
 msgstr "Wordt vóór het nummer van annulerings- en correctiebewijzen geplaatst."
 
@@ -33896,103 +33896,103 @@ msgid "Wie lange Zustellprotokolle der Webhooks aufbewahrt werden."
 msgstr "Hoe lang afleverlogs van de Webhooks worden bewaard."
 
 #. translators: %s: setting key
-#: src/SettingsSchema.php:151
+#: src/SettingsSchema.php:158
 #, php-format
 msgid "Unbekannte Einstellung „%s“."
 msgstr "Onbekende instelling ‘%s’."
 
 #. translators: 1: field label, 2: smallest allowed value, 3: largest allowed value
-#: src/SettingsSchema.php:235
+#: src/SettingsSchema.php:242
 #, php-format
 msgid "„%1$s“ muss zwischen %2$d und %3$d liegen."
 msgstr "‘%1$s’ moet tussen %2$d en %3$d liggen."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:244
+#: src/SettingsSchema.php:251
 #, php-format
 msgid "„%s“: Dieser Wert steht nicht zur Auswahl."
 msgstr "‘%s’: deze waarde staat niet ter keuze."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:342
+#: src/SettingsSchema.php:349
 #, php-format
 msgid "„%s“ erwartet eine Liste von Werten."
 msgstr "‘%s’ verwacht een lijst met waarden."
 
-#: src/SettingsSchema.php:412
+#: src/SettingsSchema.php:419
 msgid "Übersetzungen von AGB und Verbraucherinformationen je Sprache; bearbeitet im Reiter „Rechtliches“."
 msgstr "Vertalingen van algemene voorwaarden en consumenteninformatie per taal; te bewerken op het tabblad ‘Juridisch’."
 
-#: src/SettingsSchema.php:421
+#: src/SettingsSchema.php:428
 msgid "Zahlungsstatus nachfragen nach (Minuten)"
 msgstr "Betaalstatus opvragen na (minuten)"
 
-#: src/SettingsSchema.php:422
+#: src/SettingsSchema.php:429
 msgid "Nach dieser Zeit fragt Pass Captain den Zahlungsanbieter selbst nach dem Status, falls keine Benachrichtigung (Webhook) eingegangen ist."
 msgstr "Na deze tijd vraagt Pass Captain zelf de status op bij de betaalprovider als er geen melding (Webhook) is ontvangen."
 
-#: src/SettingsSchema.php:426
+#: src/SettingsSchema.php:433
 msgid "Header der Client-Adresse (intern)"
 msgstr "Header van het clientadres (intern)"
 
-#: src/SettingsSchema.php:427
+#: src/SettingsSchema.php:434
 msgid "Wird aus „Header mit der Client-Adresse“ abgeleitet und nicht direkt bearbeitet."
 msgstr "Wordt afgeleid van ‘Header met het clientadres’ en niet rechtstreeks bewerkt."
 
 #. translators: 1: field label, 2: largest number of values
-#: src/SettingsSchema.php:347
+#: src/SettingsSchema.php:354
 #, php-format
 msgid "„%1$s“: höchstens %2$d Werte."
 msgstr "‘%1$s’: maximaal %2$d waarden."
 
-#: src/Admin/SettingsPage.php:70
+#: src/Admin/SettingsPage.php:154
 msgid "Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“."
 msgstr "Als je een datum annuleert, start Pass Captain direct de terugbetaling van betaalde bestellingen. Zonder deze optie betaal je zelf terug onder ‘Bestellingen’."
 
-#: src/Admin/SettingsPage.php:82
+#: src/Admin/SettingsPage.php:166
 msgid "Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert."
 msgstr "Aanbevolen als meerdere mensen vrijkaarten uitgeven: elke goedkeuring vraagt een tweede persoon en wordt gelogd."
 
-#: src/Admin/SettingsPage.php:183
+#: src/Admin/SettingsPage.php:267
 msgid "Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst."
 msgstr "Elk evenement krijgt een eigen adres dat zoekmachines als evenement herkennen. Zet dit uit als je evenementen alleen via blokken of shortcodes toont."
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:275
 msgid "Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst."
 msgstr "Toont bij de toegang de naam op het ticket, zodat het personeel die met een identiteitsbewijs kan vergelijken. Om privacyredenen alleen inschakelen als je dat nodig hebt."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:279
 msgid "Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn."
 msgstr "Geldt voor tickettypes zonder eigen regel: toegang vanaf ‘Toegang opent’ vóór de start tot ‘Toegang sluit’ na de start."
 
-#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:316
 msgid "„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind."
 msgstr "‘Test’ gebruikt de testsleutels van Stripe; er wordt geen geld overgemaakt. Zet pas op ‘Live’ als de live-sleutels zijn ingevuld."
 
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:327
 msgid "„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind."
 msgstr "‘Sandbox’ gebruikt de testomgeving van PayPal; er wordt geen geld overgemaakt. Zet pas op ‘Live’ als de live-gegevens zijn ingevuld."
 
-#: src/Admin/SettingsPage.php:269
+#: src/Admin/SettingsPage.php:363
 msgid "Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts."
 msgstr "Wie een terugbetaling start, moet zich daarnaast met een tweede factor aanmelden. Beschermt tegen misbruik van een gestolen wachtwoord."
 
-#: src/Admin/SettingsPage.php:396
+#: src/Admin/SettingsPage.php:490
 msgid "Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam."
 msgstr "Aanbevolen als meerdere mensen belastingprofielen beheren: een nieuw of gewijzigd profiel werkt pas na goedkeuring door een tweede persoon."
 
-#: src/Admin/SettingsPage.php:402
+#: src/Admin/SettingsPage.php:496
 msgid "Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab."
 msgstr "Maakt na elke betaalde bestelling een doorlopend genummerde factuur en voegt die toe aan de bevestigingsmail. Juridische controle: of je facturen moet uitreiken, hangt af van land en klanten."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:276
+#: src/SettingsSchema.php:283
 #, php-format
 msgid "„%s“ ist keine gültige IBAN (Prüfziffer stimmt nicht)."
 msgstr "‘%s’ is geen geldige IBAN (de controlecijfers kloppen niet)."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:283
+#: src/SettingsSchema.php:290
 #, php-format
 msgid "„%s“ ist kein gültiger BIC (8 oder 11 Zeichen, z. B. GIBAATWWXXX)."
 msgstr "‘%s’ is geen geldige BIC (8 of 11 tekens, bijv. GIBAATWWXXX)."
@@ -34092,7 +34092,7 @@ msgid_plural "%d Einstellungen"
 msgstr[0] "%d instelling"
 msgstr[1] "%d instellingen"
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:1124
 #: src/Admin/SettingsTools.php:264
 #: src/Admin/SettingsTools.php:300
 #: src/Admin/SettingsTools.php:323
@@ -34385,39 +34385,39 @@ msgstr "niet gecontroleerd"
 msgid "Unbekanntes Länderprofil."
 msgstr "Onbekend landprofiel."
 
-#: src/Admin/SettingsPage.php:66
+#: src/Admin/SettingsPage.php:150
 msgid "Standardwährung"
 msgstr "Standaardvaluta"
 
-#: src/Admin/SettingsPage.php:66
+#: src/Admin/SettingsPage.php:150
 msgid "Währung für neue Ticketarten, Kassen, Rabattcodes und SMS-Kosten (ISO-Code, z. B. EUR oder CHF). Bestehende Preise behalten ihre Währung."
 msgstr "Valuta voor nieuwe tickettypes, kassa’s, kortingscodes en sms-kosten (ISO-code, bijv. EUR of CHF). Bestaande prijzen houden hun valuta."
 
-#: src/Admin/SettingsPage.php:68
+#: src/Admin/SettingsPage.php:152
 msgid "Angebotene Währungen"
 msgstr "Aangeboden valuta’s"
 
-#: src/Admin/SettingsPage.php:68
+#: src/Admin/SettingsPage.php:152
 msgid "ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, CHF, GBP, CAD, AUD. Ein Filter (wp_pass_captain_currencies_v1) hat Vorrang."
 msgstr "ISO-codes gescheiden door komma’s, bijv. ‘CHF, EUR’. Leeg = EUR, USD, CHF, GBP, CAD, AUD. Een filter (wp_pass_captain_currencies_v1) heeft voorrang."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:314
+#: src/SettingsSchema.php:321
 #, php-format
 msgid "„%s“ muss ein Währungscode aus drei Buchstaben sein (z. B. EUR)."
 msgstr "‘%s’ moet een valutacode van drie letters zijn (bijv. EUR)."
 
 #. translators: 1: field label, 2: invalid code
-#: src/SettingsSchema.php:322
+#: src/SettingsSchema.php:329
 #, php-format
 msgid "„%1$s“: „%2$s“ ist kein Währungscode aus drei Buchstaben."
 msgstr "‘%1$s’: ‘%2$s’ is geen valutacode van drie letters."
 
-#: src/Admin/SettingsPage.php:153
+#: src/Admin/SettingsPage.php:237
 msgid "Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die du nicht nutzt."
 msgstr "Alleen de menu-items worden verborgen; de functies blijven werken, gegevens blijven behouden en directe links werken. Voor functies die u niet gebruikt."
 
-#: src/Admin/SettingsPage.php:374
+#: src/Admin/SettingsPage.php:468
 msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@deine-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. deinen SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
 msgstr "Afzender (From) en envelope-afzender (Return-Path) van alle klant-e-mails, bijv. tickets@uw-domein.nl. Het domein moet dat van de website zijn en via SPF, DKIM en DMARC zijn toegestaan voor verzending via deze server of uw SMTP-dienst. Leeg: WordPress-standaard (wordpress@…). Een SMTP-plugin die een eigen afzender afdwingt, heeft voorrang."
 
@@ -34523,7 +34523,7 @@ msgstr "Je rechten"
 msgid "Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO). Hast du Tickets für künftige Termine, bleiben diese gültig, und wir löschen die zugehörigen Bestelldaten automatisch nach dem letzten Termin; möchtest du die Tickets sofort aufgeben, teile uns das bitte mit. Du kannst dich bei einer Datenschutzaufsichtsbehörde beschweren."
 msgstr "Je hebt het recht op inzage, rectificatie, wissing, beperking van de verwerking, overdraagbaarheid van gegevens en bezwaar, en op intrekking van gegeven toestemming met werking voor de toekomst. Bij wissing blijven facturen en boekingsgegevens bewaard tot het einde van de wettelijke bewaartermijn (art. 17 lid 3 sub b AVG). Heb je tickets voor toekomstige data, dan blijven die geldig en verwijderen wij de bijbehorende bestelgegevens automatisch na de laatste datum; wil je de tickets direct opgeven, laat het ons dan weten. Je kunt een klacht indienen bij een toezichthoudende autoriteit voor gegevensbescherming."
 
-#: src/Admin/SettingsPage.php:345
+#: src/Admin/SettingsPage.php:439
 msgid "Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; über deren Löschung nach Fristablauf entscheidest du selbst (laufende Prüfungen verlängern die Frist). 0 = nie."
 msgstr "Wettelijke bewaartermijn voor boekhoudstukken: Duitsland 10 jaar (§ 147 AO, § 257 HGB), Oostenrijk 7 jaar (§ 132 BAO). Daarna worden het e-mailadres van de koper, het factuuradres en de deelnemersgegevens van de bestelling, de tickets en de afspraakboekingen verwijderd. Bedragen, regels, terugbetalingen, facturen, creditnota’s en fiscale bonnen blijven ongewijzigd; u beslist zelf wanneer u die na de termijn verwijdert (lopende controles verlengen de termijn). 0 = nooit."
 
@@ -34546,19 +34546,19 @@ msgstr "Melding ‘%s’ verbergen"
 msgid "Ausblenden"
 msgstr "Verbergen"
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:337
 msgid "Impressum (Adresse)"
 msgstr "Colofon (adres)"
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:337
 msgid "Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht."
 msgstr "Link naar het colofon; verschijnt in de checkout, in de voettekst van e-mails en als plaatshouder {imprint_url}. Leeg = geen link. Juridische controle: in veel landen is een colofon verplicht."
 
-#: src/Admin/SettingsPage.php:254
+#: src/Admin/SettingsPage.php:338
 msgid "Datenschutzerklärung (Adresse)"
 msgstr "Privacyverklaring (adres)"
 
-#: src/Admin/SettingsPage.php:254
+#: src/Admin/SettingsPage.php:338
 msgid "Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz)."
 msgstr "Link naar de privacyverklaring in de checkout, in de voettekst van e-mails en als plaatshouder {privacy_url}. Leeg = de privacypagina van WordPress (Instellingen → Privacy)."
 
@@ -34577,60 +34577,60 @@ msgid "Link zur Datenschutzerklärung"
 msgstr "Link naar de privacyverklaring"
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:291
+#: src/SettingsSchema.php:298
 #, php-format
 msgid "„%s“ muss eine vollständige Adresse mit http:// oder https:// sein."
 msgstr "‘%s’ moet een volledig adres met http:// of https:// zijn."
 
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:256
 msgid "Gilt nur, wenn Tickets über WooCommerce verkauft werden. Ticketpreise aus Pass Captain, gemischte Rechnungssteller und Erstattungen nach dem Einlass stellst du unter WooCommerce → Einstellungen → Produkte ein."
 msgstr "Geldt alleen als tickets via WooCommerce worden verkocht. Ticketprijzen uit Pass Captain, gemengde verkopers en terugbetalingen na toegang stel je in onder WooCommerce → Instellingen → Producten."
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:258
 msgid "Reservierung bei WooCommerce-Bestellungen (Minuten)"
 msgstr "Reservering bij WooCommerce-bestellingen (minuten)"
 
-#: src/Admin/SettingsPage.php:175
+#: src/Admin/SettingsPage.php:259
 msgid "Tickets erst bei Status „Abgeschlossen“ für diese Zahlungsarten"
 msgstr "Tickets pas bij status ‘Voltooid’ voor deze betaalmethoden"
 
-#: src/Admin/SettingsPage.php:175
+#: src/Admin/SettingsPage.php:259
 msgid "Kennungen der WooCommerce-Zahlungsarten, durch Komma getrennt, z. B. „cod, bacs“. Bei allen anderen Zahlungsarten werden Tickets nach der Zahlung ausgestellt."
 msgstr "ID’s van WooCommerce-betaalmethoden, gescheiden door komma’s, bijv. ‘cod, bacs’. Bij alle andere betaalmethoden worden tickets na betaling uitgegeven."
 
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:260
 msgid "Teilnehmerdaten im WooCommerce-Checkout"
 msgstr "Deelnemersgegevens in de WooCommerce-checkout"
 
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:260
 msgid "nur wenn die Ticketart Teilnehmerfelder hat (Standard)"
 msgstr "alleen als het tickettype deelnemersvelden heeft (standaard)"
 
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:260
 msgid "immer (Name und E-Mail je Ticket)"
 msgstr "altijd (naam en e-mail per ticket)"
 
-#: src/Admin/SettingsPage.php:176
+#: src/Admin/SettingsPage.php:260
 msgid "Ob der WooCommerce-Checkout je Ticket Name, E-Mail und Teilnehmerfelder abfragt."
 msgstr "Of de WooCommerce-checkout per ticket naam, e-mail en deelnemersvelden vraagt."
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:291
 msgid "Regeln für Zahlungsarten"
 msgstr "Regels voor betaalmethoden"
 
-#: src/Admin/SettingsPage.php:394
+#: src/Admin/SettingsPage.php:488
 msgid "Länder der Rechnungsadresse"
 msgstr "Landen van het factuuradres"
 
-#: src/Admin/SettingsPage.php:394
+#: src/Admin/SettingsPage.php:488
 msgid "Ländercodes, durch Komma getrennt, z. B. „AT, DE, CH“. Nur diese Länder stehen in der Rechnungsadresse zur Auswahl. Leer = EU-Länder und häufige Nachbarländer."
 msgstr "Landcodes, gescheiden door komma’s, bijv. ‘AT, DE, CH’. Alleen deze landen zijn te kiezen in het factuuradres. Leeg = EU-landen en vaak voorkomende buurlanden."
 
-#: src/Admin/SettingsPage.php:395
+#: src/Admin/SettingsPage.php:489
 msgid "Feld „Region / Bundesland“ in der Rechnungsadresse anzeigen"
 msgstr "Veld ‘Regio / provincie’ in het factuuradres tonen"
 
-#: src/Admin/SettingsPage.php:395
+#: src/Admin/SettingsPage.php:489
 msgid "Optionales Feld, z. B. für Kanton oder Provinz; erscheint auf der Rechnung unter dem Ort."
 msgstr "Optioneel veld, bijv. voor kanton of provincie; verschijnt op de factuur onder de plaats."
 
@@ -34638,18 +34638,18 @@ msgstr "Optioneel veld, bijv. voor kanton of provincie; verschijnt op de factuur
 msgid "Region / Bundesland"
 msgstr "Regio / provincie"
 
-#: src/Rest/Controller.php:660
+#: src/Rest/Controller.php:661
 msgid "Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart."
 msgstr "Deze betaalmethode is niet beschikbaar voor deze bestelling. Kies een andere betaalmethode."
 
 #. translators: %s: field label
-#: src/SettingsSchema.php:298
+#: src/SettingsSchema.php:305
 #, php-format
 msgid "„%s“ muss ein Ländercode aus zwei Buchstaben sein (z. B. DE)."
 msgstr "‘%s’ moet een landcode van twee letters zijn (bijv. DE)."
 
 #. translators: 1: field label, 2: invalid code
-#: src/SettingsSchema.php:306
+#: src/SettingsSchema.php:313
 #, php-format
 msgid "„%1$s“: „%2$s“ ist kein Ländercode aus zwei Buchstaben."
 msgstr "‘%1$s’: ‘%2$s’ is geen landcode van twee letters."
@@ -34658,23 +34658,23 @@ msgstr "‘%1$s’: ‘%2$s’ is geen landcode van twee letters."
 msgid "Preis (netto, ohne Steuer)"
 msgstr "Prijs (netto, zonder belasting)"
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:151
 msgid "Preiseingabe"
 msgstr "Prijsinvoer"
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:151
 msgid "brutto (inkl. Steuer, Standard)"
 msgstr "bruto (inclusief belasting, standaard)"
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:151
 msgid "netto (ohne Steuer)"
 msgstr "netto (zonder belasting)"
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:151
 msgid "Ob du Ticketpreise mit oder ohne Steuer einträgst. Gespeichert und Käufern angezeigt wird immer der Bruttopreis; bei netto rechnet Pass Captain den Steuersatz der Ticketart dazu (auf den Cent gerundet)."
 msgstr "Of je ticketprijzen met of zonder belasting invoert. De brutoprijs wordt altijd opgeslagen en aan kopers getoond; bij netto telt Pass Captain het belastingtarief van het tickettype erbij op (op de cent afgerond)."
 
-#: src/Admin/SettingsPage.php:935
+#: src/Admin/SettingsPage.php:1066
 msgid "Bitte prüfe diese Felder:"
 msgstr "Controleer deze velden:"
 
@@ -34686,139 +34686,139 @@ msgstr "Land kiezen"
 msgid "Ein Länderprofil schlägt passende Werte für Fristen, Hinweise und Vorwahlen vor; du übernimmst nur, was du auswählst."
 msgstr "Een landprofiel stelt passende waarden voor termijnen, meldingen en kengetallen voor; je neemt alleen over wat je kiest."
 
-#: src/Admin/SettingsPage.php:86
+#: src/Admin/SettingsPage.php:170
 msgid "Bestellportal und Änderungen durch Käufer"
 msgstr "Bestelportaal en wijzigingen door kopers"
 
-#: src/Admin/SettingsPage.php:89
+#: src/Admin/SettingsPage.php:173
 msgid "Persönlicher Bestelllink gültig (Tage)"
 msgstr "Persoonlijke bestellink geldig (dagen)"
 
-#: src/Admin/SettingsPage.php:89
+#: src/Admin/SettingsPage.php:173
 msgid "So lange ab dem Versand funktioniert der Link zum Bestellportal, mindestens aber so viele Tage nach dem Ende des letzten Termins der Bestellung. Standard: 30. Ein Filter (wpcap_order_access_days) hat Vorrang."
 msgstr "Zo lang werkt de link naar het bestelportaal vanaf de verzending, maar minstens zoveel dagen na het einde van de laatste datum van de bestelling. Standaard: 30. Een filter (wpcap_order_access_days) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:92
+#: src/Admin/SettingsPage.php:176
 msgid "Link „Zahlung fortsetzen“ nach abgebrochener Zahlung"
 msgstr "Link ‘Betaling voortzetten’ na een afgebroken betaling"
 
-#: src/Admin/SettingsPage.php:94
+#: src/Admin/SettingsPage.php:178
 msgid "anbieten (Standard)"
 msgstr "aanbieden (standaard)"
 
-#: src/Admin/SettingsPage.php:95
+#: src/Admin/SettingsPage.php:179
 msgid "nicht anbieten"
 msgstr "niet aanbieden"
 
-#: src/Admin/SettingsPage.php:97
+#: src/Admin/SettingsPage.php:181
 msgid "Solange die Reservierung läuft, können Käufer nach Abbruch oder Fehlschlag die Zahlung derselben Bestellung fortsetzen (Rückkehrseite und Kaufformular). Ohne den Link bleibt nur „Bestellung stornieren“ bzw. eine neue Bestellung."
 msgstr "Zolang de reservering loopt, kunnen kopers na een afbreking of mislukking de betaling van dezelfde bestelling voortzetten (terugkeerpagina en aankoopformulier). Zonder de link blijft alleen ‘Bestelling annuleren’ of een nieuwe bestelling over."
 
-#: src/Admin/SettingsPage.php:99
+#: src/Admin/SettingsPage.php:183
 msgid "Namensänderungen je Ticket (höchstens)"
 msgstr "Naamswijzigingen per ticket (maximaal)"
 
-#: src/Admin/SettingsPage.php:99
+#: src/Admin/SettingsPage.php:183
 msgid "So oft dürfen Käufer den Teilnehmernamen eines Tickets im Bestellportal oder auf der Ticketseite ändern, Tippfehler-Korrekturen eingeschlossen. 0 = gar nicht. Änderungen durch dein Team sind nicht begrenzt. Standard: 3. Ein Filter (wpcap_max_attendee_name_changes) hat Vorrang."
 msgstr "Zo vaak mogen kopers de deelnemersnaam van een ticket wijzigen in het bestelportaal of op de ticketpagina, correcties van typefouten inbegrepen. 0 = helemaal niet. Wijzigingen door je team zijn niet beperkt. Standaard: 3. Een filter (wpcap_max_attendee_name_changes) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:100
+#: src/Admin/SettingsPage.php:184
 msgid "Inhaberwechsel je Ticket (höchstens)"
 msgstr "Houderwijzigingen per ticket (maximaal)"
 
-#: src/Admin/SettingsPage.php:100
+#: src/Admin/SettingsPage.php:184
 msgid "So oft darf ein Ticket an eine andere Person gehen: Zuweisung, Übertragung oder Namensänderung auf eine andere Person. 0 = gar nicht. Standard: 1. Ein Filter (wpcap_max_holder_changes) hat Vorrang."
 msgstr "Zo vaak mag een ticket naar een andere persoon gaan: toewijzing, overdracht of naamswijziging naar een andere persoon. 0 = helemaal niet. Standaard: 1. Een filter (wpcap_max_holder_changes) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:101
+#: src/Admin/SettingsPage.php:185
 msgid "Höchstmenge je Bestellposition"
 msgstr "Maximale hoeveelheid per bestelregel"
 
-#: src/Admin/SettingsPage.php:101
+#: src/Admin/SettingsPage.php:185
 msgid "Absolute Obergrenze der Tickets je Position einer Bestellung, als Schutz gegen versehentliche oder missbräuchliche Mengen. Die Höchstmenge je Bestellung der Ticketart gilt zusätzlich. Standard: 100. Ein Filter (wpcap_max_line_quantity) hat Vorrang."
 msgstr "Absolute bovengrens van tickets per regel van een bestelling, als bescherming tegen per ongeluk of misbruikend ingevoerde hoeveelheden. Het maximum per bestelling van het tickettype geldt daarnaast. Standaard: 100. Een filter (wpcap_max_line_quantity) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:198
+#: src/Admin/SettingsPage.php:282
 msgid "Offline-Scanner: Standard-Paketdauer (Stunden)"
 msgstr "Offline scanner: standaard pakketduur (uren)"
 
-#: src/Admin/SettingsPage.php:198
+#: src/Admin/SettingsPage.php:282
 msgid "Vorschlag für die maximale Offline-Dauer, wenn du ein Event zum ersten Mal für den Offline-Scanner einrichtest: So lange gilt ein Prüfpaket auf dem Gerät. Bereits eingerichtete Events behalten ihren Wert. Standard: 12."
 msgstr "Voorstel voor de maximale offlineduur wanneer je een event voor het eerst voor de offline scanner instelt: zo lang is een controlepakket op het apparaat geldig. Al ingestelde events behouden hun waarde. Standaard: 12."
 
-#: src/Admin/SettingsPage.php:199
+#: src/Admin/SettingsPage.php:283
 msgid "No-Show-Kulanz nach Terminende (Stunden)"
 msgstr "No-show-marge na einde van de datum (uren)"
 
-#: src/Admin/SettingsPage.php:199
+#: src/Admin/SettingsPage.php:283
 msgid "Erst so lange nach dem Ende eines Termins gilt ein gültiges Ticket ohne Einlass als „nicht erschienen“ und bekommt keine Bewertungsanfrage. Standard: 6. Ein Filter (wpcap_review_no_show_grace_hours) hat Vorrang."
 msgstr "Pas zo lang na het einde van een datum geldt een geldig ticket zonder toegang als ‘niet verschenen’ en krijgt het geen beoordelingsverzoek. Standaard: 6. Een filter (wpcap_review_no_show_grace_hours) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:223
+#: src/Admin/SettingsPage.php:307
 msgid "Überweisung: offene Bestellungen je E-Mail-Adresse (höchstens)"
 msgstr "Overschrijving: openstaande bestellingen per e-mailadres (maximaal)"
 
-#: src/Admin/SettingsPage.php:223
+#: src/Admin/SettingsPage.php:307
 msgid "So viele unbezahlte Überweisungsbestellungen darf eine E-Mail-Adresse gleichzeitig haben; darüber lehnt der Checkout ab. Bezahlte und abgelaufene Bestellungen zählen nicht. Standard: 2. Ein Filter (wpcap_manual_open_orders_per_email) hat Vorrang."
 msgstr "Zoveel onbetaalde overschrijvingsbestellingen mag een e-mailadres tegelijk hebben; daarboven weigert de checkout. Betaalde en verlopen bestellingen tellen niet mee. Standaard: 2. Een filter (wpcap_manual_open_orders_per_email) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:351
+#: src/Admin/SettingsPage.php:445
 msgid "Protokolle und Druckdateien"
 msgstr "Logboeken en printbestanden"
 
-#: src/Admin/SettingsPage.php:354
+#: src/Admin/SettingsPage.php:448
 msgid "Support-Protokoll löschen nach (Tagen)"
 msgstr "Supportlogboek verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:354
+#: src/Admin/SettingsPage.php:448
 msgid "Einträge des Support-Protokolls (Betrieb → Support) werden danach gelöscht; Einträge der Stufen „debug“ und „info“ spätestens nach 7 Tagen. Standard: 30. Ein Filter (wpcap_log_retention_days) hat Vorrang."
 msgstr "Items van het supportlogboek (Beheer → Support) worden daarna verwijderd; items van de niveaus ‘debug’ en ‘info’ uiterlijk na 7 dagen. Standaard: 30. Een filter (wpcap_log_retention_days) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:357
+#: src/Admin/SettingsPage.php:451
 msgid "Support-Protokoll: niedrigste gespeicherte Stufe"
 msgstr "Supportlogboek: laagste opgeslagen niveau"
 
-#: src/Admin/SettingsPage.php:359
+#: src/Admin/SettingsPage.php:453
 msgid "Info (Standard)"
 msgstr "Info (standaard)"
 
-#: src/Admin/SettingsPage.php:364
+#: src/Admin/SettingsPage.php:458
 msgid "Einträge unterhalb dieser Stufe werden nicht gespeichert. Der Debug-Modus (Erweitert → Support und Fehlersuche) speichert für 24 Stunden alles. Ein Filter (wpcap_log_min_level) hat Vorrang."
 msgstr "Items onder dit niveau worden niet opgeslagen. De debugmodus (Geavanceerd → Support en probleemoplossing) slaat 24 uur lang alles op. Een filter (wpcap_log_min_level) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:366
+#: src/Admin/SettingsPage.php:460
 msgid "Zustellprotokoll der Connectors löschen nach (Tagen)"
 msgstr "Afleverlogboek van de connectors verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:366
+#: src/Admin/SettingsPage.php:460
 msgid "Zugestellte und endgültig fehlgeschlagene Einträge der HTTP/JSON-Connectors werden danach gelöscht. Standard: 30. Ein Filter (wpcap_connector_log_days) hat Vorrang."
 msgstr "Afgeleverde en definitief mislukte items van de HTTP/JSON-connectors worden daarna verwijderd. Standaard: 30. Een filter (wpcap_connector_log_days) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:367
+#: src/Admin/SettingsPage.php:461
 msgid "Druckstapel und ihre PDF-Dateien löschen nach (Tagen)"
 msgstr "Printbatches en hun pdf-bestanden verwijderen na (dagen)"
 
-#: src/Admin/SettingsPage.php:367
+#: src/Admin/SettingsPage.php:461
 msgid "Gerechnet ab der letzten Änderung des Stapels. Die Dateien enthalten Ticketcodes und Namen; lade sie rechtzeitig herunter. Standard: 7. Ein Filter (wpcap_print_batch_keep_days) hat Vorrang."
 msgstr "Gerekend vanaf de laatste wijziging van de batch. De bestanden bevatten ticketcodes en namen; download ze op tijd. Standaard: 7. Een filter (wpcap_print_batch_keep_days) heeft voorrang."
 
-#: src/Admin/SettingsPage.php:987
+#: src/Admin/SettingsPage.php:1122
 msgid "Was wird wann gelöscht"
 msgstr "Wat wordt wanneer verwijderd"
 
-#: src/Admin/SettingsPage.php:988
+#: src/Admin/SettingsPage.php:1123
 msgid "Übersicht der gespeicherten Fristen (nur Anzeige). Gelöscht oder anonymisiert wird im täglichen Datenschutz-Lauf bzw. im stündlichen Aufräumlauf. Ein Filter kann eine Frist abweichend festlegen; die Tabelle zeigt den wirksamen Wert."
 msgstr "Overzicht van de opgeslagen termijnen (alleen weergave). Verwijderen of anonimiseren gebeurt in de dagelijkse privacyrun of in de opruimrun per uur. Een filter kan een afwijkende termijn vastleggen; de tabel toont de werkelijke waarde."
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:1124
 msgid "Daten"
 msgstr "Gegevens"
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:1124
 msgid "Gelöscht bzw. anonymisiert"
 msgstr "Verwijderd of geanonimiseerd"
 
-#: src/Admin/SettingsPage.php:992
+#: src/Admin/SettingsPage.php:1127
 msgid "fest (Filter wpcap_privacy_retention_days)"
 msgstr "vast (filter wpcap_privacy_retention_days)"
 
@@ -35014,99 +35014,99 @@ msgstr "Printbatches en hun pdf-bestanden"
 msgid "nach der letzten Änderung"
 msgstr "na de laatste wijziging"
 
-#: src/Admin/SettingsPage.php:105
+#: src/Admin/SettingsPage.php:189
 msgid "Datum und Uhrzeit in Dokumenten"
 msgstr "Datum en tijd in documenten"
 
-#: src/Admin/SettingsPage.php:108
+#: src/Admin/SettingsPage.php:192
 msgid "Datumsformat für E-Mails, Tickets und Belege"
 msgstr "Datumnotatie voor e-mails, tickets en bonnen"
 
-#: src/Admin/SettingsPage.php:108
+#: src/Admin/SettingsPage.php:192
 msgid "PHP-Datumsformat, z. B. „d.m.Y“ (24.12.2026) oder „j. F Y“ (24. Dezember 2026). Leer = Datumsformat der WordPress-Einstellungen. Gilt in der Sprache der Website; E-Mails und Dokumente in anderen Sprachen nutzen das Format ihrer Sprache. Der Filter wpcap_date_format hat Vorrang."
 msgstr "PHP-datumnotatie, bijv. ‘d.m.Y’ (24.12.2026) of ‘j. F Y’ (24. Dezember 2026). Leeg = datumnotatie uit de WordPress-instellingen. Geldt in de taal van de website; e-mails en documenten in andere talen gebruiken de notatie van hun taal. Het filter wpcap_date_format heeft voorrang."
 
-#: src/Admin/SettingsPage.php:109
+#: src/Admin/SettingsPage.php:193
 msgid "Zeitformat für E-Mails, Tickets und Belege"
 msgstr "Tijdnotatie voor e-mails, tickets en bonnen"
 
-#: src/Admin/SettingsPage.php:109
+#: src/Admin/SettingsPage.php:193
 msgid "PHP-Zeitformat, z. B. „H:i“ (20:00) oder „g:i a“ (8:00 pm). Leer = Zeitformat der WordPress-Einstellungen, auf Ticket-PDFs 24 Stunden (H:i). Der Filter wpcap_time_format hat Vorrang."
 msgstr "PHP-tijdnotatie, bijv. ‘H:i’ (20:00) of ‘g:i a’ (8:00 pm). Leeg = tijdnotatie uit de WordPress-instellingen; op ticket-pdf’s 24 uur (H:i). Het filter wpcap_time_format heeft voorrang."
 
-#: src/Admin/SettingsPage.php:113
+#: src/Admin/SettingsPage.php:197
 msgid "Ratenlimits"
 msgstr "Snelheidslimieten"
 
-#: src/Admin/SettingsPage.php:115
+#: src/Admin/SettingsPage.php:199
 msgid "Schützt Checkout, Warteliste und Bestellportal vor automatisierten Anfragen. Die Untergrenzen sind fest, damit echte Käufer nicht ausgesperrt werden; Filter (z. B. wpcap_checkout_ip_limit) haben Vorrang."
 msgstr "Beschermt checkout, wachtlijst en bestelportaal tegen geautomatiseerde verzoeken. De ondergrenzen liggen vast zodat echte kopers niet worden buitengesloten; filters (bijv. wpcap_checkout_ip_limit) hebben voorrang."
 
-#: src/Admin/SettingsPage.php:117
+#: src/Admin/SettingsPage.php:201
 msgid "Checkout: Bestellungen je Netzwerk und Stunde"
 msgstr "Checkout: bestellingen per netwerk per uur"
 
-#: src/Admin/SettingsPage.php:117
+#: src/Admin/SettingsPage.php:201
 msgid "Reservierungen, die ein Netzwerk (IPv4-Adresse oder IPv6-/64) je Stunde anlegen darf; Versuche dürfen das Vierfache sein. Mindestens 10 (Firmen- und Mobilfunknetze teilen sich Adressen). Filter wpcap_checkout_ip_limit."
 msgstr "Reserveringen die een netwerk (IPv4-adres of IPv6-/64) per uur mag aanmaken; pogingen mogen het viervoudige zijn. Minimaal 10 (bedrijfs- en mobiele netwerken delen adressen). Filter wpcap_checkout_ip_limit."
 
-#: src/Admin/SettingsPage.php:118
+#: src/Admin/SettingsPage.php:202
 msgid "Checkout: Bestellungen je E-Mail-Adresse und Stunde"
 msgstr "Checkout: bestellingen per e-mailadres per uur"
 
-#: src/Admin/SettingsPage.php:118
+#: src/Admin/SettingsPage.php:202
 msgid "Reservierungen je Netzwerk und E-Mail-Adresse (ohne +Zusatz) je Stunde. Mindestens 3."
 msgstr "Reserveringen per netwerk en e-mailadres (zonder +toevoeging) per uur. Minimaal 3."
 
-#: src/Admin/SettingsPage.php:119
+#: src/Admin/SettingsPage.php:203
 msgid "Checkout: offene unbezahlte Bestellungen je Netzwerk"
 msgstr "Checkout: openstaande onbetaalde bestellingen per netwerk"
 
-#: src/Admin/SettingsPage.php:119
+#: src/Admin/SettingsPage.php:203
 msgid "So viele unbezahlte Bestellungen darf ein Netzwerk innerhalb der Reservierungsdauer gleichzeitig halten. Mindestens 3. Filter wpcap_checkout_unpaid_per_network."
 msgstr "Zoveel onbetaalde bestellingen mag een netwerk binnen de reserveringsduur tegelijk aanhouden. Minimaal 3. Filter wpcap_checkout_unpaid_per_network."
 
-#: src/Admin/SettingsPage.php:120
+#: src/Admin/SettingsPage.php:204
 msgid "Warteliste: Eintragungen je Netzwerk und Stunde (alle Events)"
 msgstr "Wachtlijst: aanmeldingen per netwerk per uur (alle evenementen)"
 
-#: src/Admin/SettingsPage.php:120
+#: src/Admin/SettingsPage.php:204
 msgid "Mindestens 10. Filter wp_pass_captain_waitlist_ip_limit_v1."
 msgstr "Minimaal 10. Filter wp_pass_captain_waitlist_ip_limit_v1."
 
-#: src/Admin/SettingsPage.php:121
+#: src/Admin/SettingsPage.php:205
 msgid "Warteliste: Bestätigungsmails je E-Mail-Adresse, Event und Stunde"
 msgstr "Wachtlijst: bevestigingsmails per e-mailadres, evenement en uur"
 
-#: src/Admin/SettingsPage.php:121
+#: src/Admin/SettingsPage.php:205
 msgid "Begrenzt Mails an eine Adresse, die jemand anderes eintragen könnte. Mindestens 2."
 msgstr "Beperkt mails naar een adres dat iemand anders zou kunnen aanmelden. Minimaal 2."
 
-#: src/Admin/SettingsPage.php:122
+#: src/Admin/SettingsPage.php:206
 msgid "Bestellportal: Tickets erneut senden je Bestellung und Stunde"
 msgstr "Bestelportaal: tickets opnieuw verzenden per bestelling per uur"
 
-#: src/Admin/SettingsPage.php:122
+#: src/Admin/SettingsPage.php:206
 msgid "Mindestens 1. Filter wpcap_portal_resend_limit."
 msgstr "Minimaal 1. Filter wpcap_portal_resend_limit."
 
-#: src/Admin/SettingsPage.php:123
+#: src/Admin/SettingsPage.php:207
 msgid "Bestellportal: Namens- und Inhaberänderungen je Bestellung und Stunde"
 msgstr "Bestelportaal: naam- en houderwijzigingen per bestelling per uur"
 
-#: src/Admin/SettingsPage.php:123
+#: src/Admin/SettingsPage.php:207
 msgid "Jede Inhaberänderung schickt eine E-Mail. Mindestens 5. Filter wpcap_portal_assign_rate_limit."
 msgstr "Elke houderwijziging verstuurt een e-mail. Minimaal 5. Filter wpcap_portal_assign_rate_limit."
 
-#: src/Admin/SettingsPage.php:126
+#: src/Admin/SettingsPage.php:210
 msgid "Bestellportal: Ticket-PDFs je Bestellung und Stunde"
 msgstr "Bestelportaal: ticket-pdf’s per bestelling per uur"
 
-#: src/Admin/SettingsPage.php:126
+#: src/Admin/SettingsPage.php:210
 msgid "Mindestens 5. Filter wpcap_portal_pdf_rate_limit."
 msgstr "Minimaal 5. Filter wpcap_portal_pdf_rate_limit."
 
-#: src/Admin/SettingsPage.php:651
+#: src/Admin/SettingsPage.php:775
 msgid "Bitte ein gültiges PHP-Datums- oder Zeitformat angeben, z. B. „d.m.Y“ oder „H:i“ (höchstens 40 Zeichen)."
 msgstr "Geef een geldige PHP-datum- of tijdnotatie op, bijv. ‘d.m.Y’ of ‘H:i’ (maximaal 40 tekens)."
 
@@ -35286,7 +35286,7 @@ msgstr "Colofon en privacyverklaring in de voettekst en op de ticketpagina linke
 msgid "Adressen unter Einstellungen → Rechtstexte. Ohne Adresse erscheint kein Link."
 msgstr "Adressen onder Instellingen → Juridische teksten. Zonder adres verschijnt er geen link."
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:258
 msgid "0 = automatisch: die Reservierungsdauer von Pass Captain, mindestens aber „Lagerbestand halten“ aus WooCommerce. Ein eigener Wert verlängert die Reservierung, verkürzt sie aber nie."
 msgstr "0 = automatisch: de reserveringsduur van Pass Captain, maar minstens ‘Voorraad vasthouden’ uit WooCommerce. Een eigen waarde verlengt de reservering, maar verkort die nooit."
 
@@ -35311,7 +35311,7 @@ msgstr "Ingang: %s"
 msgid "Personal: %s"
 msgstr "Personeel: %s"
 
-#: src/Rest/Controller.php:1110
+#: src/Rest/Controller.php:1112
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Je mag geen passen inwisselen."
 
@@ -35565,31 +35565,31 @@ msgstr "Ik heb de lijst gecontroleerd: deze bestellingen moeten worden vrijgegev
 msgid "Gezeigte Bestellungen freigeben"
 msgstr "Getoonde bestellingen vrijgeven"
 
-#: src/Admin/SettingsPage.php:124
+#: src/Admin/SettingsPage.php:208
 msgid "Checkout: Schutz vor Bots im Bestellformular"
 msgstr "Checkout: bescherming tegen bots in het bestelformulier"
 
-#: src/Admin/SettingsPage.php:124
+#: src/Admin/SettingsPage.php:208
 msgid "Unsichtbares Fangfeld und Mindest-Ausfüllzeit im Bestellformular der Eventseiten (Block und Shortcode), ohne Cookies und ohne externen Dienst. Geprüft werden nur Bestellungen aus diesem Formular; die REST-API für eigene Integrationen, Partner, WooCommerce, Kasse und Admin sind nicht betroffen. Wer zu schnell absendet, bekommt einen Hinweis und kann sofort noch einmal absenden."
 msgstr "Onzichtbaar valveld en minimale invultijd in het bestelformulier van de evenementpagina’s (blok en shortcode), zonder cookies en zonder externe dienst. Alleen bestellingen uit dit formulier worden gecontroleerd; de REST-API voor eigen integraties, partners, WooCommerce, kassa en beheer worden niet geraakt. Wie te snel verstuurt, krijgt een melding en kan meteen opnieuw versturen."
 
-#: src/Admin/SettingsPage.php:125
+#: src/Admin/SettingsPage.php:209
 msgid "Checkout: Mindest-Ausfüllzeit (Sekunden)"
 msgstr "Checkout: minimale invultijd (seconden)"
 
-#: src/Admin/SettingsPage.php:125
+#: src/Admin/SettingsPage.php:209
 msgid "So viele Sekunden müssen zwischen dem Laden des Formulars und dem Absenden liegen. Standard: 3. 0 = nur das Fangfeld prüfen."
 msgstr "Zoveel seconden moeten er liggen tussen het laden van het formulier en het versturen. Standaard: 3. 0 = alleen het valveld controleren."
 
-#: src/Admin/SettingsPage.php:221
+#: src/Admin/SettingsPage.php:305
 msgid "Überweisung: höchstens so viele Tickets je Veranstaltung unbezahlt reservieren"
 msgstr "Overschrijving: hoogstens zoveel onbetaalde tickets per evenement reserveren"
 
-#: src/Admin/SettingsPage.php:221
+#: src/Admin/SettingsPage.php:305
 msgid "Gilt je Veranstaltung über alle Termine, auch ohne Kapazität. Halten offene, unbezahlte Überweisungsbestellungen zusammen so viele Tickets, wird Überweisung im Checkout nicht mehr angeboten (andere Zahlungsarten bleiben) und neue Überweisungsbestellungen werden mit einem Hinweis abgelehnt, bis Bestellungen bezahlt werden oder ablaufen. 0 = keine Obergrenze. Offene Überweisungen kannst du unter „Systemstatus → Betrieb“ gesammelt freigeben."
 msgstr "Geldt per evenement over alle data, ook zonder capaciteit. Houden openstaande, onbetaalde overschrijvingsbestellingen samen zoveel tickets vast, dan wordt overschrijving bij het afrekenen niet meer aangeboden (andere betaalmethoden blijven) en worden nieuwe overschrijvingsbestellingen met een melding geweigerd tot bestellingen betaald worden of verlopen. 0 = geen limiet. Openstaande overschrijvingen kun je gezamenlijk vrijgeven onder ‘Systeemstatus → Beheer’."
 
-#: src/Orders.php:1428
+#: src/Orders.php:1442
 msgid "Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Op dit moment kunnen er voor dit evenement geen tickets meer per overschrijving worden gereserveerd, omdat er al veel overschrijvingen openstaan. Kies een andere betaalmethode of een kleiner aantal."
 
@@ -35892,11 +35892,11 @@ msgstr "price is de nettoprijs zonder belasting (instelling ‘Prijsinvoer’: n
 msgid "price ist der Bruttopreis inklusive Steuer."
 msgstr "price is de brutoprijs inclusief belasting."
 
-#: src/Admin/SettingsPage.php:207
+#: src/Admin/SettingsPage.php:291
 msgid "Optional, eine Regel je Zeile: Zahlungsart | events=Event-IDs | min=Betrag | max=Betrag | currency=Währungscodes | countries=Ländercodes. Beispiel: „manual | max=500 | currency=EUR | countries=DE,AT“. Beträge gelten in der Währung der Bestellung; currency beschränkt die Regel auf Bestellungen in diesen Währungen (leer = jede Währung). Ländercodes brauchen ein bekanntes Rechnungsland (im Checkout abgefragte Rechnungsadresse); ohne Rechnungsland bietet diese Regel die Zahlungsart nicht an. Eine Zahlungsart ohne Regel gilt überall; mehrere Zeilen für dieselbe Zahlungsart sind Alternativen."
 msgstr "Optioneel, één regel per regel: betaalmethode | events=evenement-ID's | min=bedrag | max=bedrag | currency=valutacodes | countries=landcodes. Voorbeeld: ‘manual | max=500 | currency=EUR | countries=DE,AT’. Bedragen gelden in de valuta van de bestelling; currency beperkt de regel tot bestellingen in deze valuta (leeg = elke valuta). Landcodes vereisen een bekend factuurland (factuuradres gevraagd bij het afrekenen); zonder factuurland biedt deze regel de betaalmethode niet aan. Een betaalmethode zonder regel geldt overal; meerdere regels voor dezelfde betaalmethode zijn alternatieven."
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:494
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €, CH: 400 CHF)"
 msgstr "Naam en adres bij het afrekenen vragen vanaf bestelbedrag (0 = nooit; DE: € 250, AT: € 400, CH: CHF 400)"
 
@@ -35988,7 +35988,7 @@ msgstr "Evenementen openen"
 msgid "Pass Captain: Ticketarten mit Umsatzsteuer bei Kleinunternehmern"
 msgstr "Pass Captain: tickettypen met btw bij kleine ondernemers"
 
-#: src/Orders.php:1427
+#: src/Orders.php:1441
 msgid "Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter."
 msgstr "Deze tickets kunnen op dit moment niet worden verkocht, omdat de belastinggegevens van het tickettype nog moeten worden gecontroleerd. Probeer het later opnieuw of neem contact op met de organisator."
 
@@ -36063,23 +36063,23 @@ msgstr "Alleen voor typefouten van dezelfde persoon; de ticketcode blijft geldig
 msgid "Teilnehmerliste als CSV (alle Termine des Events)"
 msgstr "Deelnemerslijst als CSV (alle data van het evenement)"
 
-#: src/Orders.php:3235
+#: src/Orders.php:3249
 msgid "Bitte einen Grund für den Inhaberwechsel angeben."
 msgstr "Geef een reden voor de houderwijziging op."
 
-#: src/Orders.php:3241
+#: src/Orders.php:3255
 msgid "Bitte Name und eine gültige E-Mail-Adresse der neuen Person angeben."
 msgstr "Voer de naam en een geldig e-mailadres van de nieuwe persoon in."
 
-#: src/Orders.php:3259
+#: src/Orders.php:3273
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können an eine andere Person gehen."
 msgstr "Alleen geldige, niet ingecheckte tickets van betaalde bestellingen kunnen naar een andere persoon gaan."
 
-#: src/Orders.php:3264
+#: src/Orders.php:3278
 msgid "Das ist bereits die Adresse der Inhaber:in. Für Tippfehler derselben Person „Teilnehmerdaten korrigieren“ verwenden."
 msgstr "Dit is al het adres van de houder. Gebruik voor typefouten van dezelfde persoon ‘Deelnemergegevens corrigeren’."
 
-#: src/Orders.php:3271
+#: src/Orders.php:3285
 msgid "Der Inhaber konnte gerade nicht geändert werden. Bitte erneut versuchen."
 msgstr "De houder kon op dit moment niet worden gewijzigd. Probeer het opnieuw."
 
@@ -36191,11 +36191,11 @@ msgstr "Hoogstens per ticket"
 msgid "Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem Ticket desselben Termins in derselben Bestellung. Es erzeugt kein Ticket und keinen QR-Code, belegt keine Plätze des Termins und steht als eigene Position mit eigenem Steuersatz in Bestellübersicht und Rechnung. „Höchstens je Ticket“ gilt nur für Zusatzprodukte (0 = ohne Grenze). Nach den ersten Bestellungen lässt sich die Art nicht mehr ändern."
 msgstr "Een extra product is alleen verkrijgbaar samen met ten minste één ticket voor dezelfde datum in dezelfde bestelling. Het maakt geen ticket en geen QR-code aan, neemt geen plaatsen van de datum in en staat als eigen regel met eigen belastingtarief in het besteloverzicht en op de factuur. ‘Hoogstens per ticket’ geldt alleen voor extra producten (0 = geen limiet). Na de eerste bestellingen kan het soort niet meer worden gewijzigd."
 
-#: src/Orders.php:1429
+#: src/Orders.php:1443
 msgid "Zusatzprodukte kannst du nur zusammen mit mindestens einem Ticket für denselben Termin bestellen."
 msgstr "Je kunt extra producten alleen samen met ten minste één ticket voor dezelfde datum bestellen."
 
-#: src/Orders.php:1430
+#: src/Orders.php:1444
 msgid "Für dieses Zusatzprodukt sind pro Ticket nicht so viele Stück möglich."
 msgstr "Van dit extra product zijn niet zoveel stuks per ticket mogelijk."
 
@@ -36218,3 +36218,286 @@ msgstr "Alleen samen met ten minste één ticket voor deze datum."
 #, php-format
 msgid "(höchstens %d je Ticket)"
 msgstr "(hoogstens %d per ticket)"
+
+#. translators: %s: document kind, e.g. Rechnungen
+#: src/Admin/SettingsPage.php:53
+#, php-format
+msgid "%s: Nummernmuster"
+msgstr "%s: nummerpatroon"
+
+#. translators: %s: document kind, e.g. Rechnungen
+#: src/Admin/SettingsPage.php:53
+#: src/Admin/SettingsPage.php:86
+msgid "Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}."
+msgstr "Plaatshouders {prefix} (voorvoegsel), {year} (jaar, vier cijfers), {yy} (jaar, twee cijfers), {number} (volgnummer, verplicht). Standaard: {prefix}-{year}-{number}."
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:55
+#, php-format
+msgid "%s: Stellen der laufenden Nummer"
+msgstr "%s: cijfers van het volgnummer"
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:55
+msgid "Mit Nullen aufgefüllt, z. B. 6 = 000123. Standard: 6."
+msgstr "Aangevuld met nullen, bijv. 6 = 000123. Standaard: 6."
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:57
+#, php-format
+msgid "%s: Startnummer"
+msgstr "%s: startnummer"
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:57
+msgid "Erste Nummer eines neuen Nummernkreises (bei jährlichem Neubeginn in jedem Jahr). 0 = ab 1. Nur nach oben: Sie muss größer sein als die zuletzt vergebene Nummer."
+msgstr "Eerste nummer van een nieuwe nummerreeks (bij jaarlijkse herstart elk jaar). 0 = vanaf 1. Alleen omhoog: het moet groter zijn dan het laatst uitgegeven nummer."
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:59
+#, php-format
+msgid "%s: jedes Jahr neu beginnen"
+msgstr "%s: elk jaar opnieuw beginnen"
+
+#. translators: %s: document kind
+#: src/Admin/SettingsPage.php:59
+msgid "Nur wenn das Muster {year} oder {yy} enthält; sonst läuft die Nummer über die Jahre weiter."
+msgstr "Alleen als het patroon {year} of {yy} bevat; anders loopt het nummer over de jaren door."
+
+#: src/Admin/SettingsPage.php:72
+msgid "Belegart"
+msgstr "Documentsoort"
+
+#: src/Admin/SettingsPage.php:72
+msgid "Muster"
+msgstr "Patroon"
+
+#: src/Admin/SettingsPage.php:72
+msgid "Stellen"
+msgstr "Cijfers"
+
+#: src/Admin/SettingsPage.php:72
+msgid "Startnummer"
+msgstr "Startnummer"
+
+#: src/Admin/SettingsPage.php:72
+msgid "Jedes Jahr neu"
+msgstr "Elk jaar opnieuw"
+
+#: src/Admin/SettingsPage.php:72
+msgid "Nächste Nummer"
+msgstr "Volgend nummer"
+
+#: src/Admin/SettingsPage.php:86
+msgid "Die Präfixe stehen bei den Rechnungsdaten, an der Kasse und bei den Partnern. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat."
+msgstr "De voorvoegsels staan bij de factuurgegevens, aan de kassa en bij de partners. Nummerreeksen van organisatoren in het bemiddelingsmodel houden het standaardformaat."
+
+#: src/Admin/SettingsPage.php:107
+#: src/Admin/SettingsPage.php:113
+msgid "Steuersatz (%)"
+msgstr "Belastingtarief (%)"
+
+#: src/Admin/SettingsPage.php:107
+msgid "Konto"
+msgstr "Rekening"
+
+#: src/Admin/SettingsPage.php:107
+msgid "BU-Schlüssel"
+msgstr "BU-sleutel"
+
+#: src/Admin/SettingsPage.php:111
+msgid "weiterer Steuersatz"
+msgstr "ander belastingtarief"
+
+#: src/Admin/SettingsPage.php:112
+#: src/Admin/SettingsPage.php:117
+msgid "Erlöse"
+msgstr "Opbrengsten"
+
+#. translators: %s: VAT rate
+#: src/Admin/SettingsPage.php:114
+#: src/DatevAccounts.php:118
+#, php-format
+msgid "Erlöskonto %s"
+msgstr "Opbrengstrekening %s"
+
+#. translators: %s: VAT rate
+#: src/Admin/SettingsPage.php:115
+#, php-format
+msgid "BU-Schlüssel %s"
+msgstr "BU-sleutel %s"
+
+#: src/Admin/SettingsPage.php:117
+msgid "alle übrigen Sätze"
+msgstr "alle overige tarieven"
+
+#: src/Admin/SettingsPage.php:117
+#: src/DatevAccounts.php:130
+msgid "Erlöskonto für alle übrigen Sätze"
+msgstr "Opbrengstrekening voor alle overige tarieven"
+
+#: src/Admin/SettingsPage.php:118
+#: src/Admin/SettingsPage.php:123
+msgid "Geldkonto"
+msgstr "Geldrekening"
+
+#: src/Admin/SettingsPage.php:118
+msgid "alle Zahlungsarten"
+msgstr "alle betaalmethoden"
+
+#. translators: %s: payment method
+#: src/Admin/SettingsPage.php:123
+#: src/DatevAccounts.php:135
+#, php-format
+msgid "Geldkonto %s"
+msgstr "Geldrekening %s"
+
+#: src/Admin/SettingsPage.php:352
+msgid "Mindestalter für neue Ticketarten"
+msgstr "Minimumleeftijd voor nieuwe tickettypen"
+
+#: src/Admin/SettingsPage.php:352
+msgid "0 = keines. Wird beim Anlegen einer Ticketart vorausgefüllt und kann dort geändert werden; bestehende Ticketarten bleiben unverändert."
+msgstr "0 = geen. Wordt bij het aanmaken van een tickettype vooraf ingevuld en kan daar worden gewijzigd; bestaande tickettypen blijven ongewijzigd."
+
+#: src/Admin/SettingsPage.php:353
+msgid "Alter im Checkout bestätigen lassen"
+msgstr "Leeftijd laten bevestigen bij het afrekenen"
+
+#: src/Admin/SettingsPage.php:353
+msgid "Hat eine bestellte Ticketart ein Mindestalter, müssen Käufer im eigenen Checkout bestätigen, dass alle Ticketinhaber alt genug sind; der Server prüft die Bestätigung. Ob und wie das Alter zu prüfen ist, hängt vom Land ab (Jugendschutz) – rechtlich prüfen lassen."
+msgstr "Als een besteld tickettype een minimumleeftijd heeft, moeten kopers bij het eigen afrekenen bevestigen dat alle tickethouders oud genoeg zijn; de server controleert de bevestiging. Of en hoe de leeftijd moet worden gecontroleerd, hangt af van het land (jeugdbescherming) – juridisch laten controleren."
+
+#: src/Admin/SettingsPage.php:354
+#: src/Admin/SettingsPage.php:1287
+msgid "Text der Altersbestätigung"
+msgstr "Tekst van de leeftijdsbevestiging"
+
+#: src/Admin/SettingsPage.php:354
+msgid "Leer = eingebauter Text in der Sprache der Käufer. Platzhalter {min_age} = höchstes Mindestalter der Bestellung. Übersetzungen unter „Rechtstexte je Sprache“."
+msgstr "Leeg = ingebouwde tekst in de taal van de koper. Plaatshouder {min_age} = hoogste minimumleeftijd van de bestelling. Vertalingen onder ‘Juridische teksten per taal’."
+
+#: src/Admin/SettingsPage.php:500
+msgid "Leistungsdatum für Positionen ohne Termin"
+msgstr "Leveringsdatum voor regels zonder datum"
+
+#: src/Admin/SettingsPage.php:502
+msgid "kein Leistungsdatum (bisheriges Verhalten)"
+msgstr "geen leveringsdatum (vorig gedrag)"
+
+#: src/Admin/SettingsPage.php:504
+msgid "Gültigkeitsbeginn"
+msgstr "Begin geldigheid"
+
+#: src/Admin/SettingsPage.php:505
+msgid "Gültigkeitszeitraum"
+msgstr "Geldigheidsperiode"
+
+#: src/Admin/SettingsPage.php:507
+msgid "Gilt für neue Rechnungen mit Positionen ohne Veranstaltungstermin (z. B. Pässe, Gutscheine, Gebühren). Gültigkeitsbeginn und -zeitraum kommen von der Position; fehlen sie, gilt das Zahlungsdatum. Rechtlich prüfen lassen, welches Datum in deinem Land als Leistungsdatum gilt."
+msgstr "Geldt voor nieuwe facturen met regels zonder evenementdatum (bijv. passen, tegoedbonnen, kosten). Begin en periode van geldigheid komen van de regel; ontbreken ze, dan geldt de betaaldatum. Laat juridisch controleren welke datum in jouw land als leveringsdatum geldt."
+
+#: src/Admin/SettingsPage.php:513
+msgid "Nummernkreise"
+msgstr "Nummerreeksen"
+
+#: src/Admin/SettingsPage.php:515
+msgid "Muster mit den Platzhaltern {prefix}, {year}, {yy} und {number}. Nummern bleiben fortlaufend und lückenlos; eine Änderung gilt ab der nächsten Nummer, vergebene Nummern werden nie wiederverwendet. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden. Rechtlich prüfen lassen, bevor du ein Muster im laufenden Jahr änderst."
+msgstr "Patroon met de plaatshouders {prefix}, {year}, {yy} en {number}. Nummers blijven doorlopend en zonder gaten; een wijziging geldt vanaf het volgende nummer, uitgegeven nummers worden nooit hergebruikt. Het startnummer kan alleen boven het laatst uitgegeven nummer worden verhoogd. Laat juridisch controleren voordat je een patroon in de loop van het jaar wijzigt."
+
+#: src/Admin/SettingsPage.php:521
+msgid "DATEV-Buchungsstapel"
+msgstr "DATEV-boekingsbatch"
+
+#: src/Admin/SettingsPage.php:523
+msgid "Leere Felder übernehmen das Konto des Kontenrahmens. Kontonummern mit 4 bis 8 Ziffern, BU-Schlüssel mit 1 bis 4 Ziffern. Die Konten bitte mit der Steuerberatung abstimmen. Der Filter wpcap_datev_accounts hat weiterhin das letzte Wort."
+msgstr "Lege velden nemen de rekening van het rekeningschema over. Rekeningnummers met 4 tot 8 cijfers, BU-sleutels met 1 tot 4 cijfers. Stem de rekeningen af met je belastingadviseur. Het filter wpcap_datev_accounts heeft nog steeds het laatste woord."
+
+#: src/Admin/SettingsPage.php:526
+msgid "Bestimmt die Standardkonten; leere Felder der Tabelle übernehmen sie."
+msgstr "Bepaalt de standaardrekeningen; lege velden van de tabel nemen ze over."
+
+#: src/Admin/SettingsPage.php:528
+msgid "DATEV-Konten je Steuersatz und Zahlungsart"
+msgstr "DATEV-rekeningen per belastingtarief en betaalmethode"
+
+#: src/Admin/SettingsPage.php:528
+msgid "Erlöskonto und BU-Schlüssel je Steuersatz, Erlöskonto für alle übrigen Sätze und Geldkonto je Zahlungsart. Leer = Konten des Kontenrahmens."
+msgstr "Opbrengstrekening en BU-sleutel per belastingtarief, opbrengstrekening voor alle overige tarieven en geldrekening per betaalmethode. Leeg = rekeningen van het rekeningschema."
+
+#: src/Admin/SettingsPage.php:1289
+msgid "Leer: es gilt der Text der Standardsprache bzw. der eingebaute Text. Platzhalter {min_age} = Mindestalter."
+msgstr "Leeg: de tekst van de standaardtaal of de ingebouwde tekst geldt. Plaatshouder {min_age} = minimumleeftijd."
+
+#: src/DatevAccounts.php:75
+msgid "„DATEV-Konten“ erwartet eine Liste von Werten."
+msgstr "‘DATEV-rekeningen’ verwacht een lijst met waarden."
+
+#. translators: %s: row of the DATEV table, e.g. "Erlöskonto 19 %"
+#: src/DatevAccounts.php:83
+#, php-format
+msgid "%s: Das Konto muss 4 bis 8 Ziffern haben."
+msgstr "%s: de rekening moet 4 tot 8 cijfers hebben."
+
+#. translators: %s: entered VAT rate
+#: src/DatevAccounts.php:114
+#, php-format
+msgid "DATEV-Konten: „%s“ ist kein gültiger Steuersatz (0 bis 100)."
+msgstr "DATEV-rekeningen: ‘%s’ is geen geldig belastingtarief (0 tot 100)."
+
+#. translators: %s: VAT rate
+#: src/DatevAccounts.php:126
+#, php-format
+msgid "BU-Schlüssel %s: 1 bis 4 Ziffern."
+msgstr "BU-sleutel %s: 1 tot 4 cijfers."
+
+#: src/DatevAccounts.php:166
+msgid "Das Geldkonto muss 4 bis 8 Ziffern haben (leer = Geldtransit des Kontenrahmens)."
+msgstr "De geldrekening moet 4 tot 8 cijfers hebben (leeg = transitorekening van het rekeningschema)."
+
+#. translators: %s: placeholder, e.g. {year}
+#: src/DocumentNumbers.php:152
+#, php-format
+msgid "Das Nummernmuster darf %s nur einmal enthalten."
+msgstr "Het nummerpatroon mag %s maar één keer bevatten."
+
+#: src/DocumentNumbers.php:157
+msgid "Das Nummernmuster muss den Platzhalter {number} enthalten."
+msgstr "Het nummerpatroon moet de plaatshouder {number} bevatten."
+
+#: src/DocumentNumbers.php:160
+msgid "Das Nummernmuster enthält einen unbekannten Platzhalter. Erlaubt sind {prefix}, {year}, {yy} und {number}."
+msgstr "Het nummerpatroon bevat een onbekende plaatshouder. Toegestaan zijn {prefix}, {year}, {yy} en {number}."
+
+#: src/DocumentNumbers.php:163
+msgid "Außer den Platzhaltern darf das Nummernmuster nur Buchstaben, Ziffern, „-“, „_“ und „.“ enthalten (höchstens 12 Zeichen)."
+msgstr "Naast de plaatshouders mag het nummerpatroon alleen letters, cijfers, ‘-’, ‘_’ en ‘.’ bevatten (hoogstens 12 tekens)."
+
+#. translators: %d: last issued number
+#: src/DocumentNumbers.php:183
+#, php-format
+msgid "Die Startnummer muss größer sein als die zuletzt vergebene Nummer (%d). Nummern werden nie zurückgesetzt."
+msgstr "Het startnummer moet groter zijn dan het laatst uitgegeven nummer (%d). Nummers worden nooit teruggezet."
+
+#: src/DocumentNumbers.php:385
+msgid "Kassenbons"
+msgstr "Kassabonnen"
+
+#: src/DocumentNumbers.php:386
+msgid "Partner-Abrechnungen"
+msgstr "Partnerafrekeningen"
+
+#: src/DocumentNumbers.php:387
+msgid "Gutschriften (Partner)"
+msgstr "Creditnota’s (partners)"
+
+#. translators: %d: minimum age in years
+#: src/Orders.php:253
+#, php-format
+msgid "Bitte bestätige, dass alle Ticketinhaber mindestens %d Jahre alt sind."
+msgstr "Bevestig dat alle tickethouders minstens %d jaar oud zijn."
+
+#. translators: keep the placeholder {min_age} (minimum age in years)
+#: src/Settings.php:663
+msgid "Ich bestätige, dass alle Personen, für die ich Tickets kaufe, mindestens {min_age} Jahre alt sind."
+msgstr "Ik bevestig dat alle personen voor wie ik tickets koop minstens {min_age} jaar oud zijn."
