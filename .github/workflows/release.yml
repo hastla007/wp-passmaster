@@ -14,6 +14,12 @@ name: Release
 # Then build/check-versions.sh (CHANGELOG, composer.json, requirements), a reproducible build whose
 # sha256 must equal the ZIP the CI run tested, and the release gets pass-captain.zip plus
 # pass-captain.zip.sha256 (verification: docs/COMPATIBILITY.md, "Release-Artefakt prüfen").
+# Job "attest" then signs a build provenance attestation for exactly that ZIP (public repository, or
+# repository variable WPCAP_ATTEST=1 where the plan supports attestations for private repositories).
+#
+# Credentials (A653): the checkout does not persist the token in .git/config; only the three steps that
+# talk to origin (fetch main, verify-release.sh, tag check) get it through GIT_CONFIG_* for that step, so
+# the build steps (Composer, WP-CLI, build scripts) cannot read it from the repository.
 on:
   push:
     tags:
@@ -47,14 +53,17 @@ jobs:
     permissions:
       contents: write # create the release (and the tag for CI-triggered runs)
       actions: read # read CI workflow runs for the release commit
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+      sha256: ${{ steps.publish.outputs.sha256 }}
     env:
       # The commit to release: the one CI tested for workflow_run, else the triggering commit.
       RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          # Kept: the job runs `git fetch origin main` after checkout (private repository needs the token).
-          persist-credentials: true
+          # The token is not left in .git/config; steps that fetch from origin pass it per step (see top).
+          persist-credentials: false
           ref: ${{ env.RELEASE_SHA }}
           # Full history so the ancestry check against origin/main works.
           fetch-depth: 0
@@ -67,6 +76,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Token for git only in this step (persist-credentials: false), masked in the log.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           git fetch --no-tags origin main
           bash build/release-guard.sh "$RELEASE_SHA" origin/main "WordPress plugin checks"
 
@@ -90,6 +103,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Token for git only in this step (persist-credentials: false), masked in the log.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           # The checkout is the release commit itself; HEAD must be exactly RELEASE_SHA.
           test "$(git rev-parse HEAD)" = "$RELEASE_SHA" || { echo "::error::Checked out $(git rev-parse HEAD), expected $RELEASE_SHA"; exit 1; }
           bash build/verify-release.sh "$TAG" "$RELEASE_SHA"
@@ -145,10 +162,15 @@ jobs:
           test -s release-notes.md || echo "Siehe CHANGELOG.md" > release-notes.md
 
       - name: Publish release
+        id: publish
         if: env.SKIP == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Token for git only in this step (persist-credentials: false), masked in the log.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::${auth}"
+          export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}"
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             # The tag must still point at the verified commit (it could have been moved meanwhile).
             remote="$(git ls-remote origin "refs/tags/${TAG}^{}" | cut -f1)"
@@ -162,3 +184,45 @@ jobs:
             --title "Pass Captain ${TAG}" \
             --notes-file release-notes.md \
             "${target_args[@]}"
+          echo "published=1" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(cut -d' ' -f1 build/dist/pass-captain.zip.sha256)" >> "$GITHUB_OUTPUT"
+
+      # Handed to the attest job (which has the signing permissions, this job does not).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.publish.outputs.published == '1'
+        with:
+          name: release-zip
+          path: |
+            build/dist/pass-captain.zip
+            build/dist/pass-captain.zip.sha256
+          retention-days: 7
+
+  attest:
+    # Build provenance (SLSA, Sigstore) for the published ZIP: `gh attestation verify pass-captain.zip
+    # --repo hastla007/wp-passmaster` (docs/COMPATIBILITY.md). Separate job so only this one may mint an
+    # OIDC token; it runs no build code. Attestations for private repositories need a plan that supports
+    # them: there set the repository variable WPCAP_ATTEST=1. The published .sha256 is always there.
+    needs: [release]
+    if: >-
+      needs.release.outputs.published == '1' &&
+      (!github.event.repository.private || vars.WPCAP_ATTEST == '1')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write # Sigstore signing certificate
+      attestations: write # store the attestation
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-zip
+          path: dist
+      - name: ZIP is the one the release published (checksum)
+        env:
+          EXPECTED: ${{ needs.release.outputs.sha256 }}
+        run: |
+          (cd dist && sha256sum -c pass-captain.zip.sha256)
+          test "$(cut -d' ' -f1 dist/pass-captain.zip.sha256)" = "$EXPECTED"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/pass-captain.zip

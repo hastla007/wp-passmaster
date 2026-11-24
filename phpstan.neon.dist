@@ -2,7 +2,10 @@
 # Known findings are frozen in phpstan-baseline.neon; new ones fail CI.
 # Regenerate the baseline only after fixing findings: composer phpstan:baseline
 # See docs/TESTING.md, section "Statische Analyse".
+# Extensions are included explicitly (no phpstan/extension-installer Composer plugin): CI installs with
+# `composer install --no-scripts --no-plugins` (supply-chain hardening, A653).
 includes:
+	- vendor/szepeviktor/phpstan-wordpress/extension.neon
 	- phpstan-baseline.neon
 
 parameters:

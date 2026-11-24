@@ -34,7 +34,7 @@ $parsed = Templates::parse( "*18|{event}\n9|x\n{qr}\nplain" );
 check( 'template lines parse size, bold and QR', 18.0 === $parsed[0]['size'] && $parsed[0]['bold'] && ! $parsed[1]['bold'] && $parsed[2]['qr'] && 12.0 === $parsed[3]['size'] );
 $ticket_pdf = Templates::render( 'ticket', array( $item, $item, $item ) );
 check( 'ticket layout: valid PDF, one A4 page per ticket, escaped text', wpp_pdf_ok( $ticket_pdf, 3 ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '(Gala \\(Wien\\)) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $ticket_pdf ), '/MediaBox [0 0 595.28 841.89]' ) );
-check( 'QR code is drawn when the encoder is installed (merged PdfWriter/QrCode: > 200 modules drawn)', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
+check( 'QR code is drawn when the encoder is installed (merged PdfWriter/QrCode: > 200 modules drawn)', ! class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $ticket_pdf ), " re\n" ) > 200 );
 $badge = Templates::render( 'badge', array( $item ) );
 check( 'badge layout is A6', wpp_pdf_ok( $badge, 1 ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '/MediaBox [0 0 297.64 419.53]' ) && false !== strpos( wpcap_test_pdf_plain( $badge ), '(Ada Lovelace) Tj' ) );
 $tags = Templates::render( 'nametag', array_fill( 0, 12, $item ) );
@@ -65,7 +65,7 @@ Templates::assign( $pevent, 'badge', $tid );
 add_filter( 'wpcap_ticket_seat_label', static function ( $label, $ticket_id ) use ( $ptickets ) { return (int) $ticket_id === (int) $ptickets[1]->ticket_id ? 'Reihe 3, Platz 7' : $label; }, 20, 2 );
 $batch = PrintPage::batch_request( $pocc, 'badge', false );
 check( 'batch print uses the event template incl. seat label for all non-revoked tickets', ! is_wp_error( $batch ) && wpp_pdf_ok( $batch['pdf'], 3 ) && false !== strpos( wpcap_test_pdf_plain( $batch['pdf'] ), '(Hallo Ada Lovelace) Tj' ) && false !== strpos( wpcap_test_pdf_plain( $batch['pdf'] ), '(Reihe 3, Platz 7) Tj' ) );
-check( 'without new codes no QR code is printed and codes stay unchanged', ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $batch['pdf'] ), " re\n" ) < 10 ) );
+check( 'without new codes no QR code is printed and codes stay unchanged', ( ! class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( wpcap_test_pdf_plain( $batch['pdf'] ), " re\n" ) < 10 ) );
 check( 'other events keep the default layout', Templates::default_body( 'badge' ) === Templates::body_for_event( $pevent + 999, 'badge' ) );
 // Regression: template editing is scoped (global templates only for administrators, event templates per event).
 $other_type = make_type( 5 );

@@ -8,7 +8,7 @@
 use PassCaptain\TicketPdf;
 
 echo "A618: compact ticket PDF\n";
-if ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) && is_readable( WPCAP_PATH . 'vendor/autoload.php' ) ) { require_once WPCAP_PATH . 'vendor/autoload.php'; }
+if ( ! class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder' ) && is_readable( WPCAP_PATH . 'vendor/autoload.php' ) ) { require_once WPCAP_PATH . 'vendor/autoload.php'; }
 $a618_ticket = array( 'event' => 'A618 Konzert', 'ticket' => 'Stehplatz', 'when' => '24.12.2026 20:00', 'location' => 'Wien', 'token' => str_repeat( 'ab', 32 ), 'help_code' => 'ABCD2345', 'ticket_id' => 1 );
 $a618_ten = array_fill( 0, 10, $a618_ticket );
 $a618_plain = TicketPdf::render( $a618_ten, array( 'title' => 'T' ) );
