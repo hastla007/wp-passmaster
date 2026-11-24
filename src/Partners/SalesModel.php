@@ -323,6 +323,32 @@ final class SalesModel {
 
 	/* ------------------------------------------------------------------ Small-business seller (no VAT) */
 
+	/** @var array<int,int> Organizer (partner_id, 0 = none) of the events of the listing being rendered. */
+	private static $primed_partners = array();
+
+	/**
+	 * Loads the organizers of these events in one query for the cards of a listing; an empty list ends
+	 * the priming (PublicEvents::render_rows()), so later calls read the table again.
+	 *
+	 * @param int[]                $event_ids Events of the listing.
+	 * @param array<int,int>|null  $known     event_id => partner_id already read with the listing (no query).
+	 */
+	public static function prime_event_sellers( array $event_ids, $known = null ) {
+		global $wpdb;
+		self::$primed_partners = array();
+		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		if ( ! $event_ids ) { return; }
+		if ( is_array( $known ) ) {
+			foreach ( $event_ids as $event_id ) { self::$primed_partners[ $event_id ] = (int) ( $known[ $event_id ] ?? 0 ); }
+			return;
+		}
+		$map = array_fill_keys( $event_ids, 0 );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT event_id, partner_id FROM %i WHERE event_id IN (' . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_partner_events' ), $event_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list.
+		if ( ! is_array( $rows ) ) { return; } // Table missing or query failed: read per event as before.
+		foreach ( $rows as $row ) { $map[ (int) $row->event_id ] = (int) $row->partner_id; }
+		self::$primed_partners = $map;
+	}
+
 	/**
 	 * Seller responsible for the customer invoices of an event's tickets, with the rule of
 	 * order_context(): an agent organizer sells in its own name, everything else is sold by the platform
@@ -333,7 +359,11 @@ final class SalesModel {
 	public static function event_seller( $event_id ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
-		$partner_id = $event_id ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_partner_events', $event_id ) ) : 0;
+		if ( array_key_exists( $event_id, self::$primed_partners ) ) {
+			$partner_id = self::$primed_partners[ $event_id ];
+		} else {
+			$partner_id = $event_id ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_partner_events', $event_id ) ) : 0;
+		}
 		$partner = $partner_id ? Repository::get( $partner_id ) : null;
 		if ( $partner && self::AGENT === self::model_of( $partner ) ) {
 			$seller = self::organizer_seller( $partner );

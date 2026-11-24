@@ -570,7 +570,7 @@ final class PublicEvents {
 		$args = array();
 		if ( absint( $event_id ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $event_id ); }
 		if ( $none ) { $where .= ' AND 1=0'; } // A503: invalid event/occurrence attribute – no "all events".
-		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
+		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . ",(SELECT pe.partner_id FROM {$wpdb->prefix}wpcap_partner_events pe WHERE pe.event_id=e.event_id LIMIT 1) AS organizer_partner_id FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
 		return array( $sql, $args );
 	}
 
@@ -629,6 +629,23 @@ final class PublicEvents {
 	 * @param int      $requested Occurrence requested with ?wpcap_occurrence= (0 = none).
 	 */
 	private static function render_rows( array $rows, array $atts, $wrapper = '', $requested = 0 ) {
+		// The contract partner notice of every card (LegalNotice) reads the events' organizers from one query.
+		// Rows of listing_sql() bring the organizer along; other rows are read with one query.
+		$known = array();
+		foreach ( $rows as $row ) {
+			if ( ! property_exists( $row, 'organizer_partner_id' ) ) { $known = null; break; }
+			$known[ (int) $row->event_id ] = (int) $row->organizer_partner_id;
+		}
+		Partners\SalesModel::prime_event_sellers( array_map( static fn( $row ) => (int) $row->event_id, $rows ), $known );
+		try {
+			return self::render_rows_primed( $rows, $atts, $wrapper, $requested );
+		} finally {
+			Partners\SalesModel::prime_event_sellers( array() );
+		}
+	}
+
+	/** render_rows() with the organizers of the listing primed. */
+	private static function render_rows_primed( array $rows, array $atts, $wrapper, $requested ) {
 		/**
 		 * The occurrences of an event listing are known (A376): modules load their per-occurrence/per-
 		 * event data for exactly these in one query (seat map links, buyer limits) instead of per card

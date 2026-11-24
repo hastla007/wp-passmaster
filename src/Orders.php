@@ -2098,7 +2098,15 @@ final class Orders {
 			$no_addon = Sales\Addons::not_addon_sql( 'tt' );
 			if ( $counted ) {
 				$lapsed = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.counted_qty) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id IN ($in)$no_addon GROUP BY tt.occurrence_id", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
-				$addon_units = Sales\Addons::ready() ? $grouped( "SELECT occurrence_id,SUM(sold_qty+held_qty) FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($in) AND kind='" . Sales\Addons::ADDON . "' GROUP BY occurrence_id" ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and class constant.
+				// Rows of a listing already carry the add-on units (Sales\Addons::annotate_occurrences()).
+				$addon_units = array();
+				$addon_missing = array();
+				foreach ( $limited_occ as $occ_id ) {
+					if ( isset( $occurrences[ $occ_id ]->addon_qty ) ) { $addon_units[ $occ_id ] = (int) $occurrences[ $occ_id ]->addon_qty; } else { $addon_missing[] = (int) $occ_id; }
+				}
+				if ( $addon_missing && Sales\Addons::ready() ) {
+					$addon_units += $grouped( "SELECT occurrence_id,SUM(sold_qty+held_qty) FROM {$p}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', $addon_missing ) . ") AND kind='" . Sales\Addons::ADDON . "' GROUP BY occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and class constant.
+				}
 				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = (int) $occurrences[ $occ_id ]->sold_qty + (int) $occurrences[ $occ_id ]->held_qty - ( $addon_units[ $occ_id ] ?? 0 ) - ( $lapsed[ $occ_id ] ?? 0 ); }
 			} else {
 				$sold = $grouped( "SELECT tt.occurrence_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded'$no_addon GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.

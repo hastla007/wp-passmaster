@@ -73,7 +73,7 @@ check( 'A401 schema_statements() = the table group methods in order, then Sales\
 $z3m_long = array_filter( $z3m_groups_schema, static fn( $m ) => $z3m_len( Installer::class, $m ) > 160 );
 check( 'A401 schema_statements() <= 40 lines, no table group method longer than 160 lines' . ( $z3m_long ? ' – ' . implode( ', ', $z3m_long ) : '' ), $z3m_len( Installer::class, 'schema_statements' ) <= 40 && ! $z3m_long );
 
-$z3m_phases = array( 'checkout_state', 'checkout_existing_order', 'checkout_clean_lines', 'checkout_buyer_checks', 'checkout_prepare_transaction', 'checkout_lock_rows', 'checkout_reserve', 'checkout_price_lines', 'checkout_apply_campaigns', 'checkout_apply_taxes', 'checkout_insert_order', 'checkout_insert_lines', 'checkout_commit', 'checkout_failed', 'checkout_completed' );
+$z3m_phases = array( 'checkout_state', 'checkout_existing_order', 'checkout_clean_lines', 'checkout_age_confirmation', 'checkout_buyer_checks', 'checkout_prepare_transaction', 'checkout_lock_rows', 'checkout_reserve', 'checkout_price_lines', 'checkout_apply_campaigns', 'checkout_apply_taxes', 'checkout_insert_order', 'checkout_insert_lines', 'checkout_commit', 'checkout_failed', 'checkout_completed' );
 $z3m_attempt = new ReflectionMethod( PassCaptain\Orders::class, 'create_attempt' );
 $z3m_body = implode( '', array_slice( file( $z3m_attempt->getFileName() ), $z3m_attempt->getStartLine(), $z3m_len( PassCaptain\Orders::class, 'create_attempt' ) ) );
 preg_match_all( '/self::(checkout_\w+)\(/', $z3m_body, $z3m_calls );

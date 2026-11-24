@@ -102,6 +102,7 @@ $w13_saved = array( 'boxoffice_terminals' => Settings::get( 'boxoffice_terminals
 Settings::update( array( 'boxoffice_terminals' => '', 'boxoffice_cash_confirmed' => 1 ) );
 
 // Own register for location 31 / BOX-W13 without event binding (open_session() prefers the matching register).
+PassCaptain\BoxOffice\Registers::default_id( 'EUR' ); // The main register must exist first, or this module's register would become it.
 $w13_register = PassCaptain\BoxOffice\Registers::save( array( 'name' => 'W13 Kasse', 'location_id' => 31, 'fiscal_register_id' => 'BOX-W13', 'currency' => 'EUR', 'blind_count' => 0 ) );
 check( 'setup: register for location 31 / BOX-W13', is_object( $w13_register ) );
 
