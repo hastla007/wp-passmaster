@@ -591,8 +591,14 @@ parameters:
 		-
 			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'
 			identifier: notIdentical.alwaysFalse
-			count: 15
+			count: 12
 			path: src/Orders.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 3
+			path: src/Orders/Payment.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'

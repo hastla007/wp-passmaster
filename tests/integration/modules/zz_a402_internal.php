@@ -37,3 +37,11 @@ $a402_undecided = array_values( array_diff( $a402_named, $a402_public, WPCAP_NAM
 check( 'A402: every class named in CONTRACTS.md/EXTENSIONS.md is public or listed as named-but-internal' . ( $a402_undecided ? ': ' . implode( ', ', $a402_undecided ) : '' ), ! $a402_undecided );
 $a402_explicit_internal = array_filter( WPCAP_NAMED_INTERNAL_CLASSES, static fn( $c ) => isset( $a402_classes[ $c ] ) );
 check( 'A402: classes the docs call internal (Audit, Reports\\Data, Reports\\Scope) carry @internal', isset( $a402_classes['PassCaptain\\Audit'] ) && array() === array_filter( $a402_explicit_internal, static fn( $c ) => ! $a402_marked( $a402_classes[ $c ][2] ) ) );
+
+// The Orders split keeps the public surface: only the facade is public, every part under src/Orders/ is
+// @internal and none is listed or named as public API; the transaction helpers stay private on the facade.
+$a402_parts = array_keys( array_filter( $a402_classes, static fn( $i ) => false !== strpos( str_replace( '\\', '/', $i[0] ), '/src/Orders/' ) ) );
+$a402_parts_bad = array_values( array_filter( $a402_parts, static fn( $c ) => in_array( $c, $a402_public, true ) || in_array( $c, $a402_named, true ) || ! $a402_marked( $a402_classes[ $c ][2] ) ) );
+check( 'A402: the Orders parts (incl. Transaction, Payment, Cancellation) are @internal and not public API' . ( $a402_parts_bad ? ': ' . implode( ', ', $a402_parts_bad ) : '' ), ! $a402_parts_bad && ! array_diff( array( 'PassCaptain\\Orders\\Transaction', 'PassCaptain\\Orders\\Payment', 'PassCaptain\\Orders\\Cancellation' ), $a402_parts ) );
+$a402_private = array_filter( array( 'begin', 'in_transaction', 'capacity_released' ), static fn( $m ) => ! ( new ReflectionMethod( 'PassCaptain\\Orders', $m ) )->isPrivate() );
+check( 'A402: Orders::begin(), in_transaction() and capacity_released() stay private (the parts use Orders\\Transaction)', ! $a402_private );
