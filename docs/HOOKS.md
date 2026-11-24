@@ -592,6 +592,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_print_batch_inline_budget` | `float $seconds` (3) | Renderzeit im Admin-Request direkt nach dem Anlegen (kleine Stapel sind sofort fertig). |
 | `wpcap_print_batch_keep_days` | `int $days` (Einstellung `print_batch_keep_days`, Standard 7; SET-PC-21) | Aufbewahrung von Stapeldrucken und ihren Dateien nach der letzten Änderung. |
 | `wpcap_print_logo_file` | `string $file`, `int $attachment_id` | A685: lokale Datei des Logos einer Druckvorlage (`@logo|<Mediathek-ID>`; Standard `get_attached_file()`); `''` = kein Logo. JPEG oder PNG, höchstens 1 MB. |
+| `wpcap_print_check_margin` | `float $mm` (4, Einlassband 1), `string $kind` | PASS-FE-07: Mindestabstand des Drucks zum Blattrand für die Druckprüfung (`Printing\PrintCheck`); 0 für randlos druckende Geräte. |
 | `wpcap_print_batch_dir` | `string $dir` (`uploads/pass-captain-private`) | Privates Verzeichnis der Stapeldruck-Dateien. |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
 | `wpcap_cleanup_budget` | `float $seconds` (10) | Zeitbudget der stündlichen Aufräumung abgeschlossener Zeilen (`Privacy\Retention::housekeeping()`, A444); der nächste Lauf setzt fort. |

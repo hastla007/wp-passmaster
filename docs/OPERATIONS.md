@@ -1754,6 +1754,21 @@ für das Logo), Badge „Name groß“ (26 pt) und Namensschild „Name groß“
 Hilfscode unter dem QR-Code. Die angelegte Vorlage lässt sich danach wie jede andere bearbeiten und einem Event
 zuordnen.
 
+**Startdesign des Ticket-PDFs (PASS-FE-07):** Unter „Ticket-PDF: Logo und Fußzeile“ wählt die Verwaltung ein
+Startdesign für alle Events ohne eigene Ticket-Druckvorlage: „Eingebautes Layout“ (Standard, wie bisher) oder eine
+der drei Ticket-Startvorlagen. Je Event lässt sich ein anderes Startdesign wählen („wie Standardeinstellung“ =
+das globale). Eine dem Event zugewiesene Ticketvorlage hat immer Vorrang. Gespeichert wird `ticket_pdf.design`
+(bzw. die Event-Übersteuerung); ein unbekannter Wert druckt das eingebaute Layout.
+
+**Druckprüfung (PASS-FE-07):** Nach dem Speichern einer Vorlage misst `Printing\PrintCheck` das echte Layout mit
+Beispieldaten und zeigt Befunde als Warnung (gespeichert wird trotzdem): QR-Kontrast (dunkle Module mindestens 7:1
+auf Weiß), Ruhezone von 4 Modulen um den Code (ISO/IEC 18004; frei von Text, Logo und Flächen, innerhalb der Seite
+bzw. des Etiketts), Modulgröße mindestens 0,4 mm und Druckränder (mindestens 4 mm zum Blattrand, Einlassbänder
+1 mm; auf Etikettenbögen 1 mm Abstand zum Etikettenrand). Filter `wpcap_print_check_margin` (`float $mm`,
+`string $kind`) ändert den Blattrand, z. B. 0 für randlos druckende Geräte. Seit PASS-FE-07 zeichnen alle Layouts
+den QR-Code mit 4 Modulen Ruhezone innerhalb seiner Fläche (vorher 1 Modul; Text darunter kam bis auf 2 Module
+heran), und Etiketten 70 × 37 mm halten 4 mm Innenabstand.
+
 ### Teilnehmerfelder, Etikettenformate, Sortierung und Vorschau (A686)
 
 - **Teilnehmerfeld-Mapping:** `{field:<Schlüssel>}` druckt die Antwort auf das Teilnehmerfeld mit diesem Schlüssel

@@ -43,6 +43,12 @@ final class Templates {
 	/** A685: design lines of a template body. */
 	const DESIGN_KEYS = array( 'logo', 'accent', 'text' );
 
+	/**
+	 * PASS-FE-07: quiet zone of printed QR codes in modules, inside the QR box (ISO/IEC 18004: four modules;
+	 * with one module, text right below the code and label edges came closer than that, PrintCheck).
+	 */
+	const QR_QUIET = 4;
+
 	/** A685: minimum contrast of template colours on white (WCAG 2.2 AA, normal text). */
 	const MIN_CONTRAST = 4.5;
 
@@ -94,7 +100,7 @@ final class Templates {
 	public static function grids() {
 		return array(
 			'nametag'   => array( 'cols' => 2, 'rows' => 5, 'w' => 90, 'h' => 55, 'left' => 15, 'top' => 11, 'pitch_x' => 90, 'pitch_y' => 55, 'align' => 'center', 'qr' => 'right', 'frame' => true, 'pad' => 2.8222 ),
-			'label_3x8' => array( 'cols' => 3, 'rows' => 8, 'w' => 70, 'h' => 37, 'left' => 0, 'top' => 0.5, 'pitch_x' => 70, 'pitch_y' => 37, 'align' => 'left', 'qr' => 'right', 'frame' => false, 'pad' => 3.5 ),
+			'label_3x8' => array( 'cols' => 3, 'rows' => 8, 'w' => 70, 'h' => 37, 'left' => 0, 'top' => 0.5, 'pitch_x' => 70, 'pitch_y' => 37, 'align' => 'left', 'qr' => 'right', 'frame' => false, 'pad' => 4 ),
 			'label_2x7' => array( 'cols' => 2, 'rows' => 7, 'w' => 99.1, 'h' => 38.1, 'left' => 4.65, 'top' => 15.15, 'pitch_x' => 101.6, 'pitch_y' => 38.1, 'align' => 'left', 'qr' => 'right', 'frame' => false, 'pad' => 4 ),
 			'badge_4up' => array( 'cols' => 2, 'rows' => 2, 'w' => 105, 'h' => 148.5, 'left' => 0, 'top' => 0, 'pitch_x' => 105, 'pitch_y' => 148.5, 'align' => 'center', 'qr' => 'flow', 'frame' => true, 'pad' => 6 ),
 		);
@@ -319,6 +325,27 @@ final class Templates {
 		);
 	}
 
+	/**
+	 * PASS-FE-07: start designs of the ticket PDF (setting ticket_pdf.design, per event as override): ''
+	 * for the built-in layout and the ticket starters. Used for events without an own ticket template.
+	 *
+	 * @return array<string,string> design => label.
+	 */
+	public static function ticket_designs() {
+		$designs = array( '' => __( 'Eingebautes Layout', 'pass-captain' ) );
+		foreach ( self::starters() as $key => $starter ) {
+			if ( 'ticket' === $starter['kind'] ) { $designs[ $key ] = $starter['label']; }
+		}
+		return $designs;
+	}
+
+	/** PASS-FE-07: template body of a ticket start design; the built-in body for '' and unknown designs. */
+	public static function ticket_design_body( $design ) {
+		$starters = self::starters();
+		$design = (string) $design;
+		return isset( $starters[ $design ] ) && 'ticket' === $starters[ $design ]['kind'] ? $starters[ $design ]['body'] : self::default_body( 'ticket' );
+	}
+
 	/** A685: creates a template from a starter (permission checked like save_template()). */
 	public static function create_from_starter( $starter, $name, $owner_event_id = 0 ) {
 		$starters = self::starters();
@@ -445,7 +472,7 @@ final class Templates {
 		$text_w = $w;
 		if ( $wants_qr && 'right' === $qr_mode ) {
 			$q = min( $h, $w * 0.4 );
-			if ( $pdf->qr( $x + $w - $q, $y + ( $h - $q ) / 2, $q, $item['qr'] ) ) { $text_w = $w - $q - 6; }
+			if ( $pdf->qr( $x + $w - $q, $y + ( $h - $q ) / 2, $q, $item['qr'], self::QR_QUIET ) ) { $text_w = $w - $q - 6; }
 		}
 		$cursor = $y + $h;
 		$anchor = 'center' === $align ? $x + $text_w / 2 : $x;
@@ -456,7 +483,7 @@ final class Templates {
 				if ( $q < 40 ) { continue; }
 				$cursor -= 14;
 				$qx = 'center' === $align ? $x + ( $w - $q ) / 2 : $x + ( $w - $q ) / 2;
-				$drawn = $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] );
+				$drawn = $pdf->qr( $qx, $cursor - $q, $q, $item['qr'], self::QR_QUIET );
 				if ( $drawn ) { $cursor -= $q + 6; }
 				if ( $full ) {
 					// Ticket layout: the whole code (also without QR encoder), for typing it in by hand.
@@ -608,12 +635,18 @@ final class Templates {
 		return true;
 	}
 
-	/** Body used for an event and layout. */
+	/**
+	 * Body used for an event and layout: the template assigned to the event; otherwise for tickets the
+	 * start design of the ticket PDF (PASS-FE-07: event override, then the global setting), otherwise the
+	 * built-in body. $event_id 0: no assignment is looked up.
+	 */
 	public static function body_for_event( $event_id, $kind ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM %i et INNER JOIN %i t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", $p . 'wpcap_print_event_templates', $p . 'wpcap_print_templates', absint( $event_id ), $kind ) );
-		return $body ? (string) $body : self::default_body( $kind );
+		$body = absint( $event_id ) ? $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM %i et INNER JOIN %i t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", $p . 'wpcap_print_event_templates', $p . 'wpcap_print_templates', absint( $event_id ), $kind ) ) : '';
+		if ( $body ) { return (string) $body; }
+		if ( 'ticket' === $kind ) { return self::ticket_design_body( \PassCaptain\TicketPdf::settings_for_event( absint( $event_id ) )['design'] ); }
+		return self::default_body( $kind );
 	}
 
 	/* ------------------------------------------------------------------ data */

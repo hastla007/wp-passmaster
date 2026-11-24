@@ -63,6 +63,12 @@ final class PdfWriter {
 	private $lang = '';
 	/** @var float[]|null Text colour (r, g, b in 0..1) or null for black (A685). */
 	private $rgb = null;
+	/**
+	 * PASS-FE-07: drawn boxes per page while tracing (PrintCheck), null = not tracing.
+	 *
+	 * @var array<int,array{w:float,h:float,boxes:array}>|null
+	 */
+	private $trace = null;
 
 	/** Largest logo file read by load_image() (bytes). */
 	const IMAGE_MAX_BYTES = 1048576;
@@ -135,12 +141,38 @@ final class PdfWriter {
 	/** Starts a new page of the given size in points (file mode: the previous one is serialised). */
 	public function add_page( $width, $height ) {
 		if ( '' !== $this->file ) { $this->flush_pages(); }
+		if ( null !== $this->trace ) { $this->trace[] = array( 'w' => (float) $width, 'h' => (float) $height, 'boxes' => array() ); }
 		$this->pages[] = array( 'w' => (float) $width, 'h' => (float) $height, 'ops' => array() );
 		$this->current = count( $this->pages ) - 1;
 		return $this;
 	}
 
 	public function page_count() { return $this->flushed + count( $this->pages ); }
+
+	/**
+	 * PASS-FE-07: records the box of everything drawn from now on (text, QR codes, images, fills, frames and
+	 * lines, in points from the bottom left) so Printing\PrintCheck can check quiet zones and print margins.
+	 */
+	public function trace() {
+		if ( null === $this->trace ) { $this->trace = array(); }
+		return $this;
+	}
+
+	/**
+	 * PASS-FE-07: recorded pages with their boxes: type (text|qr|image|fill|frame|line), x, y, w, h and for
+	 * QR codes the module size and the colour of the dark modules. Empty when not tracing.
+	 *
+	 * @return array<int,array{w:float,h:float,boxes:array}>
+	 */
+	public function traced() {
+		return (array) $this->trace;
+	}
+
+	private function record( array $box ) {
+		if ( null === $this->trace ) { return; }
+		if ( ! $this->trace ) { $this->trace[] = array( 'w' => 595.28, 'h' => 841.89, 'boxes' => array() ); }
+		$this->trace[ count( $this->trace ) - 1 ]['boxes'][] = $box;
+	}
 
 	/** False once writing to the target file failed (file mode). */
 	public function ok() { return ! $this->failed; }
@@ -213,6 +245,8 @@ final class PdfWriter {
 		if ( 'center' === $align ) { $x -= self::text_width( $text, $size, $bold ) / 2; }
 		elseif ( 'right' === $align ) { $x -= self::text_width( $text, $size, $bold ); }
 		$font = $bold ? 'F2' : 'F1';
+		// Glyph box: descenders about 0.22 em below the baseline, ascenders about 0.75 em above it.
+		$this->record( array( 'type' => 'text', 'x' => (float) $x, 'y' => $y - 0.22 * $size, 'w' => self::text_width( $text, $size, $bold ), 'h' => 0.97 * $size, 'size' => (float) $size, 'color' => $this->rgb ) );
 		$string = $this->unicode ? $this->encode( $font, $text ) : '(' . self::escape( $text ) . ')';
 		$fonts = $this->unicode ? self::fonts() : array();
 		$colour = $this->rgb ? vsprintf( '%1$.3F %2$.3F %3$.3F rg %1$.3F %2$.3F %3$.3F RG ', $this->rgb ) : '';
@@ -254,6 +288,7 @@ final class PdfWriter {
 	public function fill_rgb( $x, $y, $w, $h, $rgb ) {
 		$rgb = self::rgb( $rgb );
 		if ( ! $rgb ) { return $this; }
+		$this->record( array( 'type' => 'fill', 'x' => (float) $x, 'y' => (float) $y, 'w' => (float) $w, 'h' => (float) $h, 'color' => $rgb ) );
 		$this->op( vsprintf( 'q %.3F %.3F %.3F rg %.2F %.2F %.2F %.2F re f Q', array_merge( $rgb, array( $x, $y, $w, $h ) ) ) );
 		return $this;
 	}
@@ -349,6 +384,7 @@ final class PdfWriter {
 		$dh = $img['h'] * $scale;
 		$dx = 'left' === $align ? $x : ( 'right' === $align ? $x + $w - $dw : $x + ( $w - $dw ) / 2 );
 		$dy = $y + ( $h - $dh ) / 2;
+		$this->record( array( 'type' => 'image', 'x' => $dx, 'y' => $dy, 'w' => $dw, 'h' => $dh ) );
 		$this->op( sprintf( "q %.2F 0 0 %.2F %.2F %.2F cm\nBI /W %d /H %d /CS /%s /BPC %d /F [/AHx /%s]%s\nID\n%s>\nEI Q", $dw, $dh, $dx, $dy, $img['w'], $img['h'], $img['cs'], $img['bpc'], $img['filter'], $img['parms'], chunk_split( bin2hex( $img['data'] ), 128, "\n" ) ) );
 		return array( $dw, $dh );
 	}
@@ -371,11 +407,13 @@ final class PdfWriter {
 	}
 
 	public function rect( $x, $y, $w, $h, $fill = true, $gray = 0.0 ) {
+		$this->record( array( 'type' => $fill ? 'fill' : 'frame', 'x' => (float) $x, 'y' => (float) $y, 'w' => (float) $w, 'h' => (float) $h, 'color' => array( (float) $gray, (float) $gray, (float) $gray ) ) );
 		$this->op( sprintf( $fill ? '%.3F g %.2F %.2F %.2F %.2F re f 0 g' : '%.3F G 0.5 w %.2F %.2F %.2F %.2F re S 0 G', $gray, $x, $y, $w, $h ) );
 		return $this;
 	}
 
 	public function line( $x1, $y1, $x2, $y2, $gray = 0.6 ) {
+		$this->record( array( 'type' => 'line', 'x' => (float) min( $x1, $x2 ), 'y' => (float) min( $y1, $y2 ), 'w' => (float) abs( $x2 - $x1 ), 'h' => (float) abs( $y2 - $y1 ) ) );
 		$this->op( sprintf( '%.3F G 0.5 w %.2F %.2F m %.2F %.2F l S 0 G', $gray, $x1, $y1, $x2, $y2 ) );
 		return $this;
 	}
@@ -391,7 +429,10 @@ final class PdfWriter {
 	/** Like qr() with a matrix computed by the caller (QR encoding is the expensive part). */
 	public function qr_matrix( $x, $y, $size, array $matrix, $quiet = 1 ) {
 		if ( ! $matrix ) { return false; }
-		$this->op( self::qr_ops( $matrix, $x, $y, $size / ( count( $matrix ) + 2 * $quiet ), $quiet ) );
+		$module = $size / ( count( $matrix ) + 2 * $quiet );
+		// The symbol without its quiet zone; the dark modules are always black ("0 g" in qr_ops()).
+		$this->record( array( 'type' => 'qr', 'x' => $x + $quiet * $module, 'y' => $y + $quiet * $module, 'w' => count( $matrix ) * $module, 'h' => count( $matrix ) * $module, 'module' => $module, 'modules' => count( $matrix ), 'color' => array( 0.0, 0.0, 0.0 ) ) );
+		$this->op( self::qr_ops( $matrix, $x, $y, $module, $quiet ) );
 		return true;
 	}
 
