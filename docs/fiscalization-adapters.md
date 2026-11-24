@@ -48,6 +48,10 @@ The efsta adapter additionally exposes a narrowly scoped, one-time full-void act
 
 Other country-specific correction/void and refund credit-note workflows, authority exports, provider certification, customer sandbox acceptance, and hardware commissioning remain separate production work. Run only the exact provider/country/seller/channel/payment combinations that have passed those checks.
 
+## Box office shift closing (optional)
+
+An adapter may additionally implement `PassCaptain\\Fiscalization\\ClosingAdapterInterface` (`close_shift( $closing, $seller, $configuration )`, capability key `shift_closing`). When the box office setting `boxoffice_fiscal_closing` is enabled (default off), `Fiscalization\\ShiftClosing` listens to `wpcap_boxoffice_shift_closed` and calls `close_shift()` once per (Z report, legal seller) for the sellers of the shift's fiscal receipts and the sellers with an active production POS profile for the shift's location/register. `$closing` carries a stable `idempotency_key`, the Z number and hash, register scope, period, the register's Z totals and the seller's confirmed receipts (count, gross, tax, document keys). The result (`reference` required, optional `signature` and scalar `fields`) is appended to the fiscal event log as `shift_closing` (document_id 0) with status `submitted`, `failed`, `unsupported` or `unavailable`; there is no automatic retry. The Z report shows a "Fiskalisierung" section per seller through `wpcap_boxoffice_zreport_html_extra`. No built-in adapter implements the closing yet; provider-specific day-end/closing requests remain production work.
+
 ## Hooks
 
 - `wpcap_fiscal_adapters` (filter): adapter list; built-in adapters are added at priority 5.

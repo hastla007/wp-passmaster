@@ -197,6 +197,8 @@ final class Fiscalization {
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'record_event_cancellation' ), 10, 1 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 		add_filter( 'wpcap_checkout_error_messages', array( __CLASS__, 'checkout_messages' ) );
+		// Box office Z report: provider closing on shift close (setting, default off) and fiscal section.
+		\PassCaptain\Fiscalization\ShiftClosing::register();
 	}
 
 	/** Customer facing messages for the RuntimeException codes thrown by snapshot_order(). */

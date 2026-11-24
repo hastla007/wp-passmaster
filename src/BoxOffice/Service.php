@@ -67,7 +67,18 @@ final class Service {
 	public static function fiscal_block() {
 		$country = \PassCaptain\Partners\SalesModel::platform_seller()['country'];
 		if ( ! in_array( $country, array( 'DE', 'AT' ), true ) || Settings::get( 'boxoffice_cash_confirmed' ) ) { return false; }
-		return ! apply_filters( 'wpcap_boxoffice_fiscal_ready', self::pos_fiscalization_ready(), $country );
+		return ! self::fiscal_ready( $country );
+	}
+
+	/**
+	 * Whether a fiscal integration signs the box office receipts (filter `wpcap_boxoffice_fiscal_ready`,
+	 * default pos_fiscalization_ready()). Also hides the "keine Registrierkasse" notice (A257).
+	 *
+	 * @param string|null $country Platform seller country; null = read it.
+	 */
+	public static function fiscal_ready( $country = null ) {
+		$country = null === $country ? (string) \PassCaptain\Partners\SalesModel::platform_seller()['country'] : (string) $country;
+		return (bool) apply_filters( 'wpcap_boxoffice_fiscal_ready', self::pos_fiscalization_ready(), $country );
 	}
 
 	/**
