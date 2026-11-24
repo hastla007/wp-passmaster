@@ -148,6 +148,14 @@ final class ServiceBooking {
 			'rebookButton' => __( 'Umbuchen', 'pass-captain' ),
 			'rebookNone' => __( 'Derzeit gibt es kein anderes freies Zeitfenster zum Umbuchen.', 'pass-captain' ),
 			'rebooked' => __( 'Der Termin ist umgebucht. Du erhältst eine Bestätigung per E-Mail.', 'pass-captain' ),
+			/* translators: %s: formatted amount */
+			'supplementChoice' => __( 'Zuzahlung %s', 'pass-captain' ),
+			'supplementHint' => __( 'Teurere Zeitfenster kannst du gegen Zuzahlung der Differenz wählen. Bis die Zuzahlung eingegangen ist, bleibt deine bisherige Buchung bestehen.', 'pass-captain' ),
+			'supplementProvider' => __( 'Zahlungsart für die Zuzahlung', 'pass-captain' ),
+			/* translators: 1: amount, 2: new slot (resource and date), 3: deadline */
+			'supplementOpen' => __( 'Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen.', 'pass-captain' ),
+			'supplementPay' => __( 'Zuzahlung jetzt bezahlen', 'pass-captain' ),
+			'supplementStarted' => __( 'Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung; danach wird deine Buchung automatisch umgebucht.', 'pass-captain' ),
 			/* translators: %s: deadline, e.g. "24 Stunden" */
 			'rebookUntil' => __( 'Umbuchen ist bis %s vor Beginn möglich.', 'pass-captain' ),
 			/* translators: %s: deadline, e.g. "24 Stunden" */

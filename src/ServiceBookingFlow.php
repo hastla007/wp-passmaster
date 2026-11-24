@@ -295,6 +295,11 @@ final class ServiceBookingFlow {
 		if ( ! $booking ) { return new \WP_Error( 'wpcap_booking_not_found', __( 'Buchung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$view = self::public_view( $booking );
 		$view['rebook_options'] = array_map( static function ( $slot ) { return array_intersect_key( $slot, array_flip( array( 'slot_id', 'resource_name', 'starts_at', 'ends_at', 'available' ) ) ); }, self::rebook_options( $booking ) );
+		// Additive (PASS-FE-17 follow-up): dearer slots with a supplementary payment, an open supplement, the providers for it.
+		$view['currency'] = (string) $booking->currency;
+		$view['supplement_options'] = self::supplement_options( $booking );
+		$view['open_supplement'] = self::open_supplement_view( $booking );
+		$view['supplement_providers'] = $view['supplement_options'] ? self::supplement_providers( (string) $booking->currency ) : array();
 		return rest_ensure_response( $view );
 	}
 
@@ -342,7 +347,11 @@ final class ServiceBookingFlow {
 
 	public static function rest_rebook( \WP_REST_Request $request ) {
 		self::remember_manage_link( $request );
-		$result = ServiceBookings::rebook( absint( $request['booking_id'] ), absint( self::param( $request, 'slot_id' ) ), array( 'actor' => 'customer' ) );
+		$ctx = array( 'actor' => 'customer' );
+		$provider = self::param( $request, 'provider' );
+		// Payment provider of a supplementary payment (dearer target); without it the first enabled one.
+		if ( is_string( $provider ) && '' !== sanitize_key( $provider ) ) { $ctx['provider'] = sanitize_key( $provider ); }
+		$result = ServiceBookings::rebook( absint( $request['booking_id'] ), absint( self::param( $request, 'slot_id' ) ), $ctx );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -374,6 +383,63 @@ final class ServiceBookingFlow {
 			$out[] = $slot;
 			if ( count( $out ) >= 50 ) { break; }
 		}
+		return $out;
+	}
+
+	/**
+	 * Dearer slots a booking can move to with a supplementary payment (PASS-FE-17 follow-up): the
+	 * rows of ServiceBookings::rebook_options() with a supplement (price_policy refund_difference, a
+	 * paid booking with its first order), restricted to publicly bookable slots inside the customer's
+	 * rules like rebook_options(). Empty while a supplement is open (further rebookings are refused
+	 * then) or when no payment provider is enabled for the booking's currency.
+	 *
+	 * @return array[] slot_id, resource_name, starts_at, ends_at, available, supplement_minor, currency.
+	 */
+	public static function supplement_options( $booking ) {
+		if ( ! ServiceBookings::flow_ready() || ! (int) $booking->order_id || ! in_array( (string) $booking->status, ServiceBookings::REBOOKABLE, true ) ) { return array(); }
+		if ( ServiceBookings::open_supplement( (int) $booking->booking_id ) || ! Payments\Registry::enabled( (string) $booking->currency ) ) { return array(); }
+		$public = array();
+		foreach ( ServiceBookings::public_slots( (int) $booking->event_id ) as $slot ) { $public[ (int) $slot['slot_id'] ] = $slot; }
+		$out = array();
+		foreach ( ServiceBookings::rebook_options( $booking ) as $row ) {
+			$supplement = (int) ( $row->supplement_minor ?? 0 );
+			$slot = $public[ (int) $row->slot_id ] ?? null;
+			if ( $supplement <= 0 || ! $slot || (int) $slot['available'] < (int) $booking->quantity ) { continue; }
+			$bookable = ServiceBookings::bookable_slot( (int) $row->slot_id );
+			if ( ! $bookable || ServiceBookings::rule_error( $bookable, (string) $booking->customer_email, (int) $booking->booking_id, (int) $booking->quantity ) || ServiceBookings::blocking_slot( $bookable, (int) $booking->booking_id ) ) { continue; }
+			$out[] = array(
+				'slot_id' => (int) $row->slot_id,
+				'resource_name' => (string) $slot['resource_name'],
+				'starts_at' => (string) $slot['starts_at'],
+				'ends_at' => (string) $slot['ends_at'],
+				'available' => min( (int) $slot['available'], (int) $row->free ),
+				'supplement_minor' => $supplement,
+				'currency' => (string) $booking->currency,
+			);
+		}
+		return $out;
+	}
+
+	/** Open supplementary payment of a booking (dearer rebooking waiting for payment) for the booking page, or null. */
+	public static function open_supplement_view( $booking ) {
+		$open = ServiceBookings::flow_ready() ? ServiceBookings::open_supplement( (int) $booking->booking_id ) : null;
+		if ( ! $open ) { return null; }
+		$slot = ServiceResources::slot( (int) $open->slot_id );
+		return array(
+			'slot_id' => (int) $open->slot_id,
+			'resource_name' => $slot ? (string) $slot->resource_name : '',
+			'starts_at' => $slot ? (string) $slot->starts_at : '',
+			'ends_at' => $slot ? (string) $slot->ends_at : '',
+			'amount_minor' => (int) $open->amount_minor,
+			'currency' => (string) $open->currency,
+			'expires_at' => (string) $open->expires_at,
+		);
+	}
+
+	/** Enabled payment providers for a supplementary payment in $currency: [{id, title}]. */
+	public static function supplement_providers( $currency ) {
+		$out = array();
+		foreach ( Payments\Registry::enabled( (string) $currency ) as $id => $gateway ) { $out[] = array( 'id' => (string) $id, 'title' => (string) $gateway->title() ); }
 		return $out;
 	}
 
