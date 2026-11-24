@@ -157,9 +157,11 @@ final class DocumentNumbers {
 			$literal = str_replace( $placeholder, '', $literal );
 		}
 		if ( 1 !== substr_count( $pattern, '{number}' ) ) {
+			/* translators: Keep the placeholder {number} unchanged. */
 			return new \WP_Error( 'wpcap_number_pattern', __( 'Das Nummernmuster muss den Platzhalter {number} enthalten.', 'pass-captain' ) );
 		}
 		if ( preg_match( '/[{}]/', $literal ) ) {
+			/* translators: Keep the placeholders {prefix}, {year}, {yy}, {number} unchanged. */
 			return new \WP_Error( 'wpcap_number_pattern', __( 'Das Nummernmuster enthält einen unbekannten Platzhalter. Erlaubt sind {prefix}, {year}, {yy} und {number}.', 'pass-captain' ) );
 		}
 		if ( ! preg_match( '/^[A-Za-z0-9_.\-]*$/', $literal ) || strlen( $literal ) > self::MAX_LITERAL ) {

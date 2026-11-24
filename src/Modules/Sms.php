@@ -138,7 +138,9 @@ final class Sms {
 				'http_auth_header' => 'Authorization',
 				'http_content_type' => 'json',
 				'http_body_template' => HttpProvider::DEFAULT_TEMPLATE,
+				/* translators: Keep the placeholders {event}, {date}, {time} unchanged. */
 				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'pass-captain' ),
+				/* translators: Keep the placeholders {event}, {date}, {time}, {timezone}, {old_date}, {refund_note} unchanged. */
 				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.{refund_note}', 'pass-captain' ),
 				'http_signature_header' => 'X-Signature',
 				// Replay protection of the HTTP callbacks (A366): signed Unix timestamp, optionally required.
@@ -599,7 +601,7 @@ final class Sms {
 		$row( __( 'Auth-Header-Name', 'pass-captain' ), $text( 'http_auth_header', $s['http_auth_header'] ?? '' ) );
 		$row( __( 'Auth-Header-Wert', 'pass-captain' ), $secret( 'sms_http_secret' ) );
 		ob_start(); Forms::select( 'http_content_type', array( 'json' => 'application/json', 'form' => 'application/x-www-form-urlencoded' ), (string) ( $s['http_content_type'] ?? 'json' ), 'wpcap-sms-http_content_type' ); $row( __( 'Content-Type', 'pass-captain' ), ob_get_clean() );
-		$row( __( 'Body-Vorlage', 'pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert. Antwortet der Dienst mit price, currency oder segments, werden diese Werte übernommen.', 'pass-captain' ) );
+		$row( __( 'Body-Vorlage', 'pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), /* translators: Keep the placeholders {to}, {body}, {reference} unchanged. */ __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert. Antwortet der Dienst mit price, currency oder segments, werden diese Werte übernommen.', 'pass-captain' ) );
 		$row( __( 'Signaturschlüssel für Rückmeldungen', 'pass-captain' ), $secret( 'sms_http_webhook_secret' ), __( 'HMAC-SHA256 über den Rohinhalt der Anfrage (hex oder Base64, optional mit „sha256=“). Ohne Schlüssel werden Rückmeldungen abgelehnt.', 'pass-captain' ) );
 		$row( __( 'Signatur-Header', 'pass-captain' ), $text( 'http_signature_header', $s['http_signature_header'] ?? 'X-Signature' ) );
 		$row( __( 'Zeitstempel-Header', 'pass-captain' ), $text( 'http_timestamp_header', $s['http_timestamp_header'] ?? 'X-Timestamp' ), __( 'Schutz gegen wiederholte Rückmeldungen: Sendet der Dienst hier einen Unix-Zeitstempel (Sekunden), wird „Zeitstempel.Rohinhalt“ signiert und die Rückmeldung nur bis 5 Minuten Abweichung angenommen. Jede Rückmeldung wird nur einmal verarbeitet.', 'pass-captain' ) );

@@ -173,7 +173,7 @@ final class Page {
 		<?php if ( ! $edit ) : ?><label><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ), array( absint( Forms::query_arg( 'event_id', 0 ) ) ) ), (string) absint( Forms::query_arg( 'event_id', 0 ) ) ); ?></label><?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?><?php endif; ?></p>
 		<?php list( $edit_content, $edit_design ) = Templates::split( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?>
 		<p><textarea name="body" rows="8" cols="70" class="code" aria-label="<?php esc_attr_e( 'Vorlagentext', 'pass-captain' ); ?>" aria-describedby="wpcap-print-body-help"><?php echo esc_html( $edit_content ); ?></textarea></p>
-		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
+		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( /* translators: Keep the placeholder {qr} unchanged. */ __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
 		<?php
 		$field_keys = Templates::field_keys();
 		/* translators: 1: placeholder pattern for participant fields, e.g. {field:Schlüssel}, 2: list of placeholders for participant fields */

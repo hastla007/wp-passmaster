@@ -155,9 +155,12 @@ final class Reminders {
 			'reminders' => array(
 				'enabled' => 0,
 				'offsets' => array( 24 ),
+				/* translators: Keep the placeholders {event}, {date} unchanged. */
 				'subject' => __( 'Erinnerung: {event} am {date}', 'pass-captain' ),
+				/* translators: Keep the placeholders {hours}, {event}, {date}, {time}, {timezone}, {location}, {tickets}, {ticket_links}, {ics_url}, {site} unchanged. */
 				'body' => __( "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\n{ticket_links}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}", 'pass-captain' ),
 				'sms' => 0,
+				/* translators: Keep the placeholders {event}, {date}, {time}, {location} unchanged. */
 				'sms_body' => __( 'Erinnerung: {event} am {date} um {time}, {location}.', 'pass-captain' ),
 				'translations' => array(),
 			),
