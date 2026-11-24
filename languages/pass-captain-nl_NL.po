@@ -191,14 +191,14 @@ msgstr "API-sleutel ingetrokken."
 #: src/Admin/Forms.php:458
 #: src/Admin/ManualHoldsRelease.php:155
 #: src/Admin/MembershipsPage.php:215
-#: src/Admin/Menu.php:198
-#: src/Admin/Menu.php:278
+#: src/Admin/Menu.php:199
+#: src/Admin/Menu.php:279
 #: src/Admin/MyServicesPage.php:80
 #: src/Admin/Notices.php:73
 #: src/Admin/OperationsPage.php:129
-#: src/Admin/OrdersPage.php:632
-#: src/Admin/OrdersPage.php:689
-#: src/Admin/OrdersPage.php:830
+#: src/Admin/OrdersPage.php:712
+#: src/Admin/OrdersPage.php:769
+#: src/Admin/OrdersPage.php:910
 #: src/Admin/ProHints.php:78
 #: src/Admin/RefundsPage.php:24
 #: src/Admin/ScannerPage.php:85
@@ -300,13 +300,14 @@ msgstr "API-sleutel ingetrokken."
 #: src/Suite/Outbox.php:293
 #: src/Waitlists/AdminPage.php:115
 #: src/WalletPasses/AdminPage.php:160
+#: src/Workflow/MailHandoff.php:53
 msgid "Keine Berechtigung."
 msgstr "Geen toestemming."
 
 #: src/Admin/ApiKeysPage.php:101
 #: src/Admin/DeveloperKeysPage.php:115
-#: src/Admin/Menu.php:608
-#: src/Admin/Menu.php:679
+#: src/Admin/Menu.php:609
+#: src/Admin/Menu.php:680
 msgid "Entwickler-API"
 msgstr "Ontwikkelaars-API"
 
@@ -394,9 +395,9 @@ msgstr "Naam"
 #: src/Admin/EventsPage.php:1474
 #: src/Admin/MembershipsPage.php:253
 #: src/Admin/MembershipsPage.php:303
-#: src/Admin/OrdersPage.php:722
-#: src/Admin/OrdersPage.php:890
-#: src/Admin/OrdersPage.php:1386
+#: src/Admin/OrdersPage.php:802
+#: src/Admin/OrdersPage.php:970
+#: src/Admin/OrdersPage.php:1477
 #: src/Admin/ServiceSlotsPage.php:360
 #: src/Admin/ServicesPage.php:252
 #: src/Admin/ServicesPage.php:261
@@ -414,15 +415,15 @@ msgstr "Naam"
 #: src/Integrations/WooCommerce/OrderAdapter.php:2339
 #: src/Mail/Types.php:94
 #: src/Mail/Types.php:194
-#: src/Mail/Types.php:540
-#: src/Mail/Types.php:549
-#: src/Mail/Types.php:567
-#: src/Mail/Types.php:587
-#: src/Mail/Types.php:607
-#: src/Mail/Types.php:630
-#: src/Mail/Types.php:645
-#: src/Mail/Types.php:669
-#: src/Mail/Types.php:688
+#: src/Mail/Types.php:565
+#: src/Mail/Types.php:574
+#: src/Mail/Types.php:592
+#: src/Mail/Types.php:612
+#: src/Mail/Types.php:632
+#: src/Mail/Types.php:655
+#: src/Mail/Types.php:670
+#: src/Mail/Types.php:694
+#: src/Mail/Types.php:713
 #: src/Modules/Reminders.php:547
 #: src/Modules/Reminders.php:557
 #: src/OfflineScanner/AdminPage.php:135
@@ -501,7 +502,7 @@ msgstr "Laatst gebruikt"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MembershipsPage.php:273
 #: src/Admin/MembershipsPage.php:295
-#: src/Mail/Types.php:713
+#: src/Mail/Types.php:738
 #: src/OfflineScanner/AdminPage.php:202
 #: src/OfflineScanner/AdminPage.php:219
 #: src/Partners/AdminPage.php:440
@@ -532,11 +533,11 @@ msgstr "Geldig tot"
 #: src/Admin/OperationsPage.php:261
 #: src/Admin/OperationsPage.php:300
 #: src/Admin/OrderHistory.php:141
-#: src/Admin/OrdersPage.php:666
-#: src/Admin/OrdersPage.php:724
-#: src/Admin/OrdersPage.php:1022
-#: src/Admin/OrdersPage.php:1178
-#: src/Admin/OrdersPage.php:1390
+#: src/Admin/OrdersPage.php:746
+#: src/Admin/OrdersPage.php:804
+#: src/Admin/OrdersPage.php:1102
+#: src/Admin/OrdersPage.php:1267
+#: src/Admin/OrdersPage.php:1481
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/ServiceSlotsPage.php:218
 #: src/Admin/ServiceSlotsPage.php:234
@@ -616,7 +617,7 @@ msgstr "Status"
 #: src/Admin/MyServicesPage.php:118
 #: src/Admin/OperationsPage.php:228
 #: src/Admin/OperationsPage.php:434
-#: src/Admin/OrdersPage.php:1260
+#: src/Admin/OrdersPage.php:1351
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:379
 #: src/Admin/ServiceSlotsPage.php:422
@@ -792,7 +793,7 @@ msgid "abgesagt"
 msgstr "geannuleerd"
 
 #: src/Admin/AssignmentsPage.php:112
-#: src/Admin/Menu.php:586
+#: src/Admin/Menu.php:587
 msgid "Zuweisungen"
 msgstr "Toewijzingen"
 
@@ -881,7 +882,7 @@ msgstr "Een persoon met minstens één datumtoewijzing voor een recht bereikt me
 #: src/Admin/AssignmentsPage.php:178
 #: src/Admin/AuditLogPage.php:315
 #: src/Admin/CheckinsPage.php:46
-#: src/Admin/OrdersPage.php:1092
+#: src/Admin/OrdersPage.php:1181
 #: src/Admin/TicketsPage.php:608
 #: src/Admin/WaitlistsPage.php:105
 #: src/Admin/WaitlistsPage.php:146
@@ -928,7 +929,7 @@ msgstr "Datum"
 #: src/Admin/EventsPage.php:1642
 #: src/Admin/EventsPage.php:1762
 #: src/Admin/EventsPage.php:1943
-#: src/Admin/OrdersPage.php:1392
+#: src/Admin/OrdersPage.php:1483
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/SecurityScreens.php:212
 #: src/Admin/StatusPage.php:403
@@ -1357,8 +1358,8 @@ msgstr "Database-update mislukt"
 #: src/Admin/ManualHoldsRelease.php:208
 #: src/Admin/OperationsPage.php:228
 #: src/Admin/OperationsPage.php:271
-#: src/Admin/OrdersPage.php:719
-#: src/Admin/OrdersPage.php:1386
+#: src/Admin/OrdersPage.php:799
+#: src/Admin/OrdersPage.php:1477
 #: src/Admin/ServiceSlotsPage.php:300
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:378
@@ -1378,7 +1379,7 @@ msgstr "Bestelling"
 
 #: src/Admin/AuditLogPage.php:313
 #: src/Admin/CheckinsPage.php:103
-#: src/Admin/OrdersPage.php:1176
+#: src/Admin/OrdersPage.php:1265
 #: src/Admin/TicketsPage.php:517
 #: src/Admin/TicketsPage.php:627
 #: src/Admission/ConflictsPage.php:88
@@ -1405,8 +1406,8 @@ msgid "Benutzer"
 msgstr "Gebruiker"
 
 #: src/Admin/AuditLogPage.php:317
-#: src/Admin/Menu.php:105
-#: src/Admin/Menu.php:606
+#: src/Admin/Menu.php:106
+#: src/Admin/Menu.php:607
 #: src/Allocations/AdminPage.php:226
 #: src/Partners/AdminPage.php:278
 #: src/Passes/AdminPage.php:261
@@ -1420,7 +1421,7 @@ msgid "System"
 msgstr "Systeem"
 
 #: src/Admin/AuditLogPage.php:319
-#: src/Admin/OrdersPage.php:1047
+#: src/Admin/OrdersPage.php:1136
 #: src/BoxOffice/Service.php:38
 #: src/Invoices.php:871
 #: src/Printing/InvoicePdf.php:105
@@ -1443,7 +1444,7 @@ msgid "Serie"
 msgstr "Reeks"
 
 #: src/Admin/AuditLogPage.php:322
-#: src/Admin/Menu.php:678
+#: src/Admin/Menu.php:679
 #: src/Admin/ServicesPage.php:343
 #: src/Admin/ServicesPage.php:494
 #: src/Modules/Waitlist.php:37
@@ -1489,7 +1490,7 @@ msgid "Alle Objekte"
 msgstr "Alle objecten"
 
 #: src/Admin/AuditLogPage.php:367
-#: src/Admin/Menu.php:609
+#: src/Admin/Menu.php:610
 #: src/Admin/SecurityScreens.php:45
 #: src/Privacy/Retention.php:235
 msgid "Audit-Log"
@@ -1546,7 +1547,7 @@ msgstr "Tot"
 #: src/Admin/AuditLogPage.php:386
 #: src/Admin/CheckinsPage.php:94
 #: src/Admin/OperationsPage.php:188
-#: src/Admin/OrdersPage.php:892
+#: src/Admin/OrdersPage.php:972
 #: src/Admin/ServicesPage.php:254
 #: src/Admission/ConflictsPage.php:76
 msgid "Filtern"
@@ -1824,7 +1825,7 @@ msgid "Code"
 msgstr "Code"
 
 #: src/Admin/CampaignsPage.php:245
-#: src/Admin/OrdersPage.php:1126
+#: src/Admin/OrdersPage.php:1215
 #: src/BoxOffice/Service.php:1249
 #: src/Invoices.php:875
 #: src/Printing/InvoicePdf.php:115
@@ -1873,7 +1874,7 @@ msgstr "Combineerbaar"
 #: src/Admin/CheckinsPage.php:90
 #: src/Admin/MembershipsPage.php:251
 #: src/Admin/MembershipsPage.php:310
-#: src/Admin/OrdersPage.php:890
+#: src/Admin/OrdersPage.php:970
 #: src/Admin/ServicesPage.php:253
 #: src/Admin/TicketsPage.php:606
 #: src/Admission/ConflictsPage.php:74
@@ -1943,7 +1944,7 @@ msgstr "Percentage (bijv. 10 of 7,5) of bedrag (bijv. 5,00), afhankelijk van het
 #: src/Admin/ChangeHistory.php:94
 #: src/Admin/EventsPage.php:1541
 #: src/Admin/EventsPage.php:1862
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/BoxOffice/ShiftPage.php:439
 #: src/BoxOffice/ShiftPage.php:486
 #: src/Modules/Sms.php:582
@@ -1978,7 +1979,7 @@ msgstr "Optioneel. Tijdzone: %s"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MembershipsPage.php:272
 #: src/Admin/MembershipsPage.php:294
-#: src/Mail/Types.php:712
+#: src/Mail/Types.php:737
 #: src/Partners/AdminPage.php:426
 #: src/Partners/AdminPage.php:440
 #: src/Sales/TaxProfilesPage.php:111
@@ -2110,7 +2111,7 @@ msgstr "Datum geannuleerd"
 
 #: src/Admin/ChangeHistory.php:63
 #: src/Integrations/HttpJson/Endpoints.php:107
-#: src/OrderPortal.php:172
+#: src/OrderPortal.php:187
 msgid "Termin verschoben"
 msgstr "Datum verplaatst"
 
@@ -2218,9 +2219,9 @@ msgstr "Toegang vanaf"
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/ServicesPage.php:288
 #: src/Mail/Types.php:106
-#: src/Mail/Types.php:552
-#: src/Mail/Types.php:570
-#: src/Mail/Types.php:591
+#: src/Mail/Types.php:577
+#: src/Mail/Types.php:595
+#: src/Mail/Types.php:616
 #: src/Reminders/Placeholders.php:14
 #: src/Series/AdminPage.php:262
 #: src/WalletPasses/AppleProvider.php:80
@@ -2235,9 +2236,9 @@ msgstr "Tijdzone"
 #: src/Billing.php:145
 #: src/Mail/Types.php:97
 #: src/Mail/Types.php:105
-#: src/Mail/Types.php:551
-#: src/Mail/Types.php:571
-#: src/Mail/Types.php:599
+#: src/Mail/Types.php:576
+#: src/Mail/Types.php:596
+#: src/Mail/Types.php:624
 #: src/Modules/Fiscalization.php:1354
 #: src/Notifications.php:186
 #: src/PublicEvents.php:1223
@@ -2273,7 +2274,7 @@ msgstr "Prijs"
 
 #: src/Admin/ChangeHistory.php:95
 #: src/Admin/EventsPage.php:892
-#: src/Admin/OrdersPage.php:1095
+#: src/Admin/OrdersPage.php:1184
 msgid "Steuersatz"
 msgstr "Btw-tarief"
 
@@ -2406,7 +2407,7 @@ msgstr "Label"
 #: src/Admin/EventsPage.php:1540
 #: src/Admin/MembershipsPage.php:65
 #: src/Admin/MembershipsPage.php:303
-#: src/Admin/OrdersPage.php:1091
+#: src/Admin/OrdersPage.php:1180
 #: src/Admin/OrganizerTools.php:56
 #: src/Admin/TicketsPage.php:609
 #: src/Admin/WaitlistsPage.php:105
@@ -2421,11 +2422,11 @@ msgstr "Label"
 #: src/GuestLists/Service.php:667
 #: src/Integrations/FormCaptain/EventRequests.php:529
 #: src/Mail/Types.php:95
-#: src/Mail/Types.php:608
-#: src/Mail/Types.php:631
-#: src/Mail/Types.php:646
-#: src/Mail/Types.php:670
-#: src/Mail/Types.php:689
+#: src/Mail/Types.php:633
+#: src/Mail/Types.php:656
+#: src/Mail/Types.php:671
+#: src/Mail/Types.php:695
+#: src/Mail/Types.php:714
 #: src/Partners/AdminPage.php:502
 #: src/Partners/AdminPage.php:514
 #: src/Partners/AdminPage.php:525
@@ -2456,7 +2457,7 @@ msgid "Ticketart"
 msgstr "Tickettype"
 
 #: src/Admin/ChangeHistory.php:118
-#: src/Admin/OrdersPage.php:1177
+#: src/Admin/OrdersPage.php:1266
 #: src/Allocations/AdminPage.php:262
 #: src/Allocations/AdminPage.php:313
 #: src/BoxOffice/ShiftPage.php:191
@@ -2700,7 +2701,7 @@ msgid "Alle Ergebnisse"
 msgstr "Alle resultaten"
 
 #: src/Admin/CheckinsPage.php:85
-#: src/Admin/Menu.php:578
+#: src/Admin/Menu.php:579
 msgid "Check-ins"
 msgstr "Check-ins"
 
@@ -2799,7 +2800,7 @@ msgid "Offene Zahlungen"
 msgstr "Openstaande betalingen"
 
 #: src/Admin/Dashboard.php:98
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:123
 #: src/Admin/SettingsPage.php:203
 #: src/Admin/SettingsPage.php:1082
 #: src/Admin/StatusPage.php:247
@@ -2832,6 +2833,7 @@ msgstr "Kassa"
 #: src/Modules/Calendar.php:44
 #: src/Modules/Calendar.php:49
 #: src/Modules/Calendar.php:522
+#: src/PortalSelfService.php:400
 msgid "Kalender"
 msgstr "Agenda"
 
@@ -3086,7 +3088,7 @@ msgid "API-Keys"
 msgstr "API-sleutels"
 
 #: src/Admin/DeveloperKeysPage.php:157
-#: src/Admin/OrdersPage.php:765
+#: src/Admin/OrdersPage.php:845
 #: src/Admission/ConflictsPage.php:75
 #: src/BoxOffice/ShiftPage.php:353
 #: src/Series/AdminPage.php:584
@@ -3099,7 +3101,7 @@ msgid "Angelegt von"
 msgstr "Aangemaakt door"
 
 #: src/Admin/DeveloperKeysPage.php:164
-#: src/Admin/OrdersPage.php:1036
+#: src/Admin/OrdersPage.php:1125
 #: src/Admin/ServicesPage.php:451
 msgid "Angelegt"
 msgstr "Aangemaakt"
@@ -3170,7 +3172,7 @@ msgid "Gerät widerrufen."
 msgstr "Apparaat ingetrokken."
 
 #: src/Admin/DevicesPage.php:64
-#: src/Admin/Menu.php:583
+#: src/Admin/Menu.php:584
 msgid "Scanner-Geräte"
 msgstr "Scannerapparaten"
 
@@ -3221,8 +3223,8 @@ msgstr "Nieuw apparaat koppelen"
 #: src/Admin/DevicesPage.php:80
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/EventsPage.php:1466
-#: src/Admin/Menu.php:575
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/Menu.php:576
+#: src/Admin/OrdersPage.php:746
 #: src/Ops/Network.php:289
 #: src/Partners/AdminPage.php:270
 #: src/Partners/AdminPage.php:638
@@ -3768,7 +3770,7 @@ msgstr "Tekst"
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MyServicesPage.php:118
 #: src/Admin/OrderHistory.php:125
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:255
 #: src/Admin/ServiceSlotsPage.php:477
@@ -3817,8 +3819,8 @@ msgid "Telefon"
 msgstr "Telefoon"
 
 #: src/Admin/EventsPage.php:1053
-#: src/Admin/OrdersPage.php:720
-#: src/Admin/OrdersPage.php:1385
+#: src/Admin/OrdersPage.php:800
+#: src/Admin/OrdersPage.php:1476
 #: src/Allocations/AdminPage.php:346
 #: src/Exchange/AdminPage.php:149
 #: src/Partners/Settlements.php:976
@@ -4523,7 +4525,7 @@ msgstr "Wordt getoond tijdens het scannen (webscanner, app, offline scanner); mi
 
 #. translators: %s: missing attendee data
 #: src/Admin/EventsPage.php:1888
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 msgid "Teilnehmername"
 msgstr "Naam deelnemer"
 
@@ -4797,7 +4799,7 @@ msgstr "Resources & tijdslots"
 
 #: src/Admin/FeatureScreens.php:37
 #: src/Admin/MembershipsPage.php:216
-#: src/Admin/Menu.php:581
+#: src/Admin/Menu.php:582
 msgid "Mitgliedspässe"
 msgstr "Lidmaatschapspassen"
 
@@ -5078,7 +5080,7 @@ msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überwei
 msgstr "Activeer Stripe, PayPal of Mollie met toegangsgegevens of vul voor overschrijving de IBAN in."
 
 #: src/Admin/GettingStarted.php:160
-#: src/Admin/Menu.php:321
+#: src/Admin/Menu.php:322
 msgid "Zahlungsart einrichten"
 msgstr "Betaalmethode instellen"
 
@@ -5169,8 +5171,8 @@ msgid "Erste-Schritte-Checkliste anzeigen"
 msgstr "Checklist Eerste stappen tonen"
 
 #: src/Admin/GettingStarted.php:295
-#: src/Admin/Menu.php:106
-#: src/Admin/Menu.php:130
+#: src/Admin/Menu.php:107
+#: src/Admin/Menu.php:131
 msgid "Erste Schritte"
 msgstr "Eerste stappen"
 
@@ -5213,15 +5215,15 @@ msgstr "Checklist verbergen"
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/GettingStarted.php:364
 #: src/Admin/ManualHoldsRelease.php:208
-#: src/Admin/Menu.php:577
-#: src/Admin/OrdersPage.php:1140
-#: src/Admin/OrdersPage.php:1388
+#: src/Admin/Menu.php:578
+#: src/Admin/OrdersPage.php:1229
+#: src/Admin/OrdersPage.php:1479
 #: src/Admin/TicketsPage.php:598
 #: src/BoxOffice/ZReport.php:383
 #: src/GuestLists/Page.php:268
 #: src/GuestLists/Service.php:667
 #: src/Ops/Network.php:325
-#: src/OrderPortal.php:169
+#: src/OrderPortal.php:184
 #: src/Partners/Settlements.php:837
 #: src/Partners/Settlements.php:959
 #: src/Partners/Settlements.php:966
@@ -5409,14 +5411,14 @@ msgid "Beantragt von"
 msgstr "Aangevraagd door"
 
 #: src/Admin/MembershipsPage.php:81
-#: src/Admin/OrdersPage.php:1427
+#: src/Admin/OrdersPage.php:1518
 #: src/Allocations/AdminPage.php:300
 #: src/GuestLists/Page.php:274
 msgid "Freigeben"
 msgstr "Goedkeuren"
 
 #: src/Admin/MembershipsPage.php:82
-#: src/Admin/OrdersPage.php:1431
+#: src/Admin/OrdersPage.php:1522
 #: src/GuestLists/Page.php:275
 #: src/Integrations/FormCaptain/EventRequests.php:539
 msgid "Ablehnen"
@@ -5679,159 +5681,159 @@ msgstr "Een ingetrokken pas kan niet meer worden ingewisseld. Dit kan niet onged
 msgid "Diesen Pass endgültig widerrufen?"
 msgstr "Deze pas definitief intrekken?"
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:124
 msgid "Pass Captain verkauft Tickets und Servicezeiten, stellt QR-Tickets aus und prüft den Einlass. Neue Events legst du unter „Events“ an; Termine und Ticketarten gehören zum Event."
 msgstr "Pass Captain verkoopt tickets en servicetijdsloten, geeft QR-tickets uit en controleert de toegang. Nieuwe evenementen maak je aan onder ‘Evenementen’; data en tickettypes horen bij het evenement."
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:124
 msgid "Bestellungen, Erstattungen und Tickets findest du unter „Bestellungen“ und „Tickets“. Wer welche Daten sieht, richtet sich nach den Rollen und Eventzuweisungen."
 msgstr "Bestellingen, terugbetalingen en tickets vind je onder ‘Bestellingen’ en ‘Tickets’. Wie welke gegevens ziet, hangt af van rollen en evenementtoewijzingen."
 
-#: src/Admin/Menu.php:127
+#: src/Admin/Menu.php:128
 msgid "Probleme finden"
 msgstr "Problemen vinden"
 
-#: src/Admin/Menu.php:128
+#: src/Admin/Menu.php:129
 msgid "Der Systemstatus zeigt hängende Hintergrundaufgaben, fehlgeschlagene Mails, offene Erstattungen und die letzten Betriebsalarme. Dort lassen sich Aufgaben erneut versuchen."
 msgstr "De systeemstatus toont vastgelopen achtergrondtaken, mislukte e-mails, openstaande terugbetalingen en de laatste operationele meldingen. Daar kun je taken opnieuw proberen."
 
-#: src/Admin/Menu.php:130
-#: src/Admin/Menu.php:614
-#: src/Admin/Menu.php:680
+#: src/Admin/Menu.php:131
+#: src/Admin/Menu.php:615
+#: src/Admin/Menu.php:681
 #: src/Admin/StatusPage.php:72
 #: src/Admin/StatusPage.php:245
 msgid "Systemstatus"
 msgstr "Systeemstatus"
 
-#: src/Admin/Menu.php:131
+#: src/Admin/Menu.php:132
 msgid "Weitere Hilfe"
 msgstr "Meer hulp"
 
-#: src/Admin/Menu.php:185
+#: src/Admin/Menu.php:186
 msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "Pass Captain: de database-update is onvolledig."
 
-#: src/Admin/Menu.php:185
+#: src/Admin/Menu.php:186
 msgid "Es fehlen Tabellen, Spalten oder Indizes; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Update danach erneut starten."
 msgstr "Er ontbreken tabellen, kolommen of indexen; de plugin werkt verder met het oude schema. Controleer de databaserechten en start de update daarna opnieuw."
 
 #. translators: 1: number of failed attempts, 2: date and time of the next automatic attempt
-#: src/Admin/Menu.php:188
+#: src/Admin/Menu.php:189
 #, php-format
 msgid "%1$d Versuch fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgid_plural "%1$d Versuche fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr[0] "%1$d poging mislukt. Volgende automatische poging: %2$s."
 msgstr[1] "%1$d pogingen mislukt. Volgende automatische poging: %2$s."
 
-#: src/Admin/Menu.php:192
+#: src/Admin/Menu.php:193
 msgid "Datenbank-Update jetzt erneut versuchen"
 msgstr "Database-update nu opnieuw proberen"
 
-#: src/Admin/Menu.php:205
+#: src/Admin/Menu.php:206
 msgid "Das Datenbank-Update wurde abgeschlossen."
 msgstr "De database-update is voltooid."
 
-#: src/Admin/Menu.php:205
+#: src/Admin/Menu.php:206
 msgid "Das Datenbank-Update ist erneut fehlgeschlagen. Details stehen im Hinweis."
 msgstr "De database-update is opnieuw mislukt. Details staan in de melding."
 
-#: src/Admin/Menu.php:221
+#: src/Admin/Menu.php:222
 msgid "Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert."
 msgstr "Pass Captain: de betaalmethode „Overschrijving” is ingeschakeld, maar niet volledig geconfigureerd."
 
-#: src/Admin/Menu.php:221
+#: src/Admin/Menu.php:222
 msgid "Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten."
 msgstr "De begunstigde en IBAN of een betalingsinstructie ontbreken. Tot die tijd wordt overschrijving bij het afrekenen niet aangeboden."
 
-#: src/Admin/Menu.php:221
+#: src/Admin/Menu.php:222
 msgid "Überweisung einrichten"
 msgstr "Overschrijving instellen"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:242
+#: src/Admin/Menu.php:243
 #, php-format
 msgid "Pass Captain: %d bezahlte Bestellung ohne Tickets muss geklärt werden."
 msgid_plural "Pass Captain: %d bezahlte Bestellungen ohne Tickets müssen geklärt werden."
 msgstr[0] "Pass Captain: %d betaalde bestelling zonder tickets moet worden uitgezocht."
 msgstr[1] "Pass Captain: %d betaalde bestellingen zonder tickets moeten worden uitgezocht."
 
-#: src/Admin/Menu.php:243
+#: src/Admin/Menu.php:244
 msgid "Die Zahlung kam nach Ablauf der Reservierung und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten."
 msgstr "De betaling kwam binnen nadat de reservering was verlopen en er was geen contingent meer vrij. Geef een plek vrij en probeer de toewijzing opnieuw of betaal de betaling terug."
 
-#: src/Admin/Menu.php:243
+#: src/Admin/Menu.php:244
 msgid "Bestellungen anzeigen"
 msgstr "Bestellingen tonen"
 
-#: src/Admin/Menu.php:269
+#: src/Admin/Menu.php:270
 msgid "Pass Captain: Neues Standard-Einlassfenster"
 msgstr "Pass Captain: nieuw standaard toegangsvenster"
 
-#: src/Admin/Menu.php:269
+#: src/Admin/Menu.php:270
 msgid "Neue Installationen lassen Tickets ohne eigene Einlassregel nur von 2 Stunden vor Beginn bis zum Ende des Termins ein. Für diese bestehende Installation wurde das Einlassfenster beim Update ausgeschaltet, Scans verhalten sich also wie bisher. Es lässt sich unter Einstellungen → Einlass / Scanner-Geräte einschalten."
 msgstr "Nieuwe installaties laten tickets zonder eigen toegangsregel alleen toe van 2 uur vóór aanvang tot het einde van de datum. Voor deze bestaande installatie is het toegangsvenster bij de update uitgeschakeld, zodat scans zich gedragen zoals voorheen. Het kan worden ingeschakeld onder Instellingen → Toegang / Scannerapparaten."
 
-#: src/Admin/Menu.php:272
+#: src/Admin/Menu.php:273
 msgid "Einlass-Einstellungen öffnen"
 msgstr "Toegangsinstellingen openen"
 
-#: src/Admin/Menu.php:272
+#: src/Admin/Menu.php:273
 msgid "Hinweis ausblenden"
 msgstr "Melding verbergen"
 
 #. translators: %s: currency codes
-#: src/Admin/Menu.php:320
+#: src/Admin/Menu.php:321
 #, php-format
 msgid "Pass Captain: Keine verfügbare Zahlungsart für %s."
 msgstr "Pass Captain: geen beschikbare betaalmethode voor %s."
 
-#: src/Admin/Menu.php:321
+#: src/Admin/Menu.php:322
 msgid "Veröffentlichte Events können auf der Website nicht gebucht werden; die Eventkarten zeigen „Online-Verkauf derzeit nicht möglich“."
 msgstr "Gepubliceerde evenementen kunnen op de website niet worden geboekt; de evenementkaarten tonen „Online verkoop momenteel niet mogelijk”."
 
 #. translators: %s: payment method names
-#: src/Admin/Menu.php:364
+#: src/Admin/Menu.php:365
 #, php-format
 msgid "Pass Captain: Die Zahlungsart %s stellt Tickets vor dem Geldeingang aus."
 msgstr "Pass Captain: de betaalmethode %s geeft tickets uit voordat het geld binnen is."
 
-#: src/Admin/Menu.php:365
+#: src/Admin/Menu.php:366
 msgid "Kauf auf Rechnung setzt die Bestellung sofort auf „In Bearbeitung“; Pass Captain gibt dann die Tickets aus. Soll erst bei „Abgeschlossen“ ausgestellt werden, die Zahlungsart im Filter wpcap_woocommerce_issue_on_completed_gateways ergänzen."
 msgstr "Kopen op rekening zet de bestelling direct op „In behandeling”; Pass Captain geeft dan de tickets uit. Moeten ze pas bij „Voltooid” worden uitgegeven, voeg de betaalmethode dan toe aan het filter wpcap_woocommerce_issue_on_completed_gateways."
 
-#: src/Admin/Menu.php:494
+#: src/Admin/Menu.php:495
 msgid "Events & Programm"
 msgstr "Evenementen en programma"
 
-#: src/Admin/Menu.php:495
+#: src/Admin/Menu.php:496
 #: src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:66
 #: src/Partners/Statement.php:174
 msgid "Verkauf"
 msgstr "Verkoop"
 
-#: src/Admin/Menu.php:496
+#: src/Admin/Menu.php:497
 #: src/Admin/SecurityScreens.php:92
 #: src/Admin/SettingsPage.php:509
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr "Toegang"
 
-#: src/Admin/Menu.php:497
+#: src/Admin/Menu.php:498
 msgid "Finanzen & Auswertung"
 msgstr "Financiën en analyse"
 
-#: src/Admin/Menu.php:498
+#: src/Admin/Menu.php:499
 msgid "Kommunikation"
 msgstr "Communicatie"
 
-#: src/Admin/Menu.php:499
+#: src/Admin/Menu.php:500
 msgid "Einstellungen & Integrationen"
 msgstr "Instellingen en integraties"
 
-#: src/Admin/Menu.php:568
-#: src/Admin/Menu.php:579
-#: src/Admin/OrdersPage.php:1249
+#: src/Admin/Menu.php:569
+#: src/Admin/Menu.php:580
+#: src/Admin/OrdersPage.php:1338
 #: src/Admin/SettingsPage.php:264
 #: src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:153
@@ -5841,16 +5843,16 @@ msgid "Erstattungen"
 msgstr "Terugbetalingen"
 
 #. translators: %d: number of orders
-#: src/Admin/Menu.php:572
+#: src/Admin/Menu.php:573
 #, php-format
 msgid "%d Bestellung muss geklärt werden"
 msgid_plural "%d Bestellungen müssen geklärt werden"
 msgstr[0] "%d bestelling moet worden uitgezocht"
 msgstr[1] "%d bestellingen moeten worden uitgezocht"
 
-#: src/Admin/Menu.php:573
-#: src/Admin/Menu.php:576
-#: src/Admin/OrdersPage.php:903
+#: src/Admin/Menu.php:574
+#: src/Admin/Menu.php:577
+#: src/Admin/OrdersPage.php:983
 #: src/Exchange/AdminPage.php:149
 #: src/Ops/Network.php:289
 #: src/Ops/Network.php:325
@@ -5860,48 +5862,48 @@ msgstr[1] "%d bestellingen moeten worden uitgezocht"
 msgid "Bestellungen"
 msgstr "Bestellingen"
 
-#: src/Admin/Menu.php:580
+#: src/Admin/Menu.php:581
 msgid "Rabattcodes"
 msgstr "Kortingscodes"
 
-#: src/Admin/Menu.php:582
+#: src/Admin/Menu.php:583
 #: src/Admin/ScannerPage.php:87
 #: src/Admission/ConflictsPage.php:107
 #: src/Admission/ConflictsPage.php:108
 msgid "Web-Scanner"
 msgstr "Webscanner"
 
-#: src/Admin/Menu.php:584
+#: src/Admin/Menu.php:585
 #: src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr "Belastingcontrole"
 
-#: src/Admin/Menu.php:585
+#: src/Admin/Menu.php:586
 #: src/Admin/MyServicesPage.php:82
 msgid "Meine Leistungen"
 msgstr "Mijn diensten"
 
-#: src/Admin/Menu.php:617
+#: src/Admin/Menu.php:618
 #: src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:54
 msgid "Gemeinsamer Scanner"
 msgstr "Gedeelde scanner"
 
-#: src/Admin/Menu.php:617
+#: src/Admin/Menu.php:618
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Gedeelde scanner ↗"
 
-#: src/Admin/Menu.php:618
+#: src/Admin/Menu.php:619
 #: src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "Voucher Captain"
 msgstr "Voucher Captain"
 
-#: src/Admin/Menu.php:618
+#: src/Admin/Menu.php:619
 msgid "Voucher Captain ↗"
 msgstr "Voucher Captain ↗"
 
-#: src/Admin/Menu.php:632
+#: src/Admin/Menu.php:633
 #: src/Admin/ServiceSlotsPage.php:357
 msgid "Service-Zeitfenster"
 msgstr "Servicetijdvakken"
@@ -5948,7 +5950,7 @@ msgid "Storniert"
 msgstr "Geannuleerd"
 
 #: src/Admin/MyServicesPage.php:52
-#: src/Admin/OrdersPage.php:766
+#: src/Admin/OrdersPage.php:846
 #: src/Admin/ServiceSlotsPage.php:174
 #: src/Frontend/ServiceBooking.php:139
 #: src/ServiceBookingFlow.php:447
@@ -6208,7 +6210,7 @@ msgstr "De betaalprovider heeft bij deze terugbetalingen geen eenduidig antwoord
 
 #: src/Admin/ManualHoldsRelease.php:208
 #: src/Admin/OperationsPage.php:228
-#: src/Admin/OrdersPage.php:1387
+#: src/Admin/OrdersPage.php:1478
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:378
 #: src/Admin/StatusPage.php:403
@@ -6225,7 +6227,7 @@ msgid "Betrag"
 msgstr "Bedrag"
 
 #: src/Admin/OperationsPage.php:228
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/Reports/Data.php:782
 #: src/Reports/Page.php:223
 msgid "Zahlungsanbieter"
@@ -6302,14 +6304,14 @@ msgstr "Bestelling #%d"
 #. translators: %s: order number (shortened)
 #. translators: %s: short order number, e.g. AB12-CD34
 #: src/Admin/OperationsPage.php:386
-#: src/Admin/OrdersPage.php:972
+#: src/Admin/OrdersPage.php:1052
 #: src/Admin/TicketsPage.php:651
 #: src/BoxOffice/Service.php:716
-#: src/Mail/Types.php:386
+#: src/Mail/Types.php:411
 #: src/Mollie/MollieGateway.php:123
 #: src/Mollie/MollieGateway.php:469
-#: src/OrderPortal.php:159
-#: src/OrderPortal.php:161
+#: src/OrderPortal.php:174
+#: src/OrderPortal.php:176
 #: src/Payments/BankTransfer.php:68
 #: src/Payments/StripeGateway.php:225
 #: src/PublicEvents.php:124
@@ -6462,7 +6464,7 @@ msgid "Audit"
 msgstr "Audit"
 
 #: src/Admin/OrderHistory.php:124
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 msgid "Zahlung"
 msgstr "Betaling"
 
@@ -6556,7 +6558,7 @@ msgstr "De voucher (%2$s, %1$s) is bij het verlopen of annuleren van de bestelli
 #: src/Orders.php:2443
 #: src/Orders.php:2717
 #: src/Orders.php:2814
-#: src/Orders.php:3237
+#: src/Orders.php:3252
 #: src/Partners/Sales.php:694
 #: src/Partners/Sales.php:743
 #: src/Payments/ReturnNotice.php:441
@@ -6588,8 +6590,8 @@ msgid "Extern erstattet – abschließen"
 msgstr "Extern terugbetaald – afronden"
 
 #: src/Admin/OrdersPage.php:135
-#: src/Admin/OrdersPage.php:1222
-#: src/Admin/OrdersPage.php:1389
+#: src/Admin/OrdersPage.php:1311
+#: src/Admin/OrdersPage.php:1480
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/ServiceSlotsPage.php:327
 #: src/Admin/TicketsPage.php:661
@@ -6726,7 +6728,7 @@ msgid "Nicht automatisch: Betrag bitte außerhalb des Plugins zurückzahlen. Die
 msgstr "Niet automatisch: betaal het bedrag buiten de plugin terug. De tickets worden ingetrokken."
 
 #: src/Admin/OrdersPage.php:412
-#: src/Admin/OrdersPage.php:1236
+#: src/Admin/OrdersPage.php:1325
 msgid "Noch keine Tickets gewählt."
 msgstr "Nog geen tickets geselecteerd."
 
@@ -6839,39 +6841,39 @@ msgstr "De bestellink kon niet worden verzonden."
 msgid "Neuer Bestelllink gesendet. Der bisherige Link gilt, bis der neue zum ersten Mal geöffnet wird."
 msgstr "Nieuwe bestellink verzonden. De vorige link blijft geldig tot de nieuwe voor het eerst wordt geopend."
 
-#: src/Admin/OrdersPage.php:616
+#: src/Admin/OrdersPage.php:696
 msgid "Erstattung freigegeben."
 msgstr "Terugbetaling goedgekeurd."
 
-#: src/Admin/OrdersPage.php:624
+#: src/Admin/OrdersPage.php:704
 msgid "Erstattung abgelehnt."
 msgstr "Terugbetaling afgewezen."
 
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/Mail/Types.php:54
 #: src/Mail/Types.php:342
-#: src/Mail/Types.php:364
-#: src/Mail/Types.php:396
-#: src/Mail/Types.php:407
-#: src/Mail/Types.php:426
-#: src/Mail/Types.php:446
-#: src/Mail/Types.php:460
-#: src/Mail/Types.php:472
-#: src/Mail/Types.php:506
-#: src/Mail/Types.php:528
+#: src/Mail/Types.php:389
+#: src/Mail/Types.php:421
+#: src/Mail/Types.php:432
+#: src/Mail/Types.php:451
+#: src/Mail/Types.php:471
+#: src/Mail/Types.php:485
+#: src/Mail/Types.php:497
+#: src/Mail/Types.php:531
+#: src/Mail/Types.php:553
 msgid "Bestellnummer"
 msgstr "Bestelnummer"
 
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 msgid "Bestell-ID"
 msgstr "Bestel-ID"
 
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/Partners/Settlements.php:837
 msgid "Datum (UTC)"
 msgstr "Datum (UTC)"
 
-#: src/Admin/OrdersPage.php:666
+#: src/Admin/OrdersPage.php:746
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:181
 #: src/Reports/Settlement.php:271
@@ -6881,10 +6883,10 @@ msgstr "Datum (UTC)"
 msgid "Gesamt"
 msgstr "Totaal"
 
-#: src/Admin/OrdersPage.php:666
-#: src/Admin/OrdersPage.php:1134
+#: src/Admin/OrdersPage.php:746
+#: src/Admin/OrdersPage.php:1223
 #: src/Ops/Network.php:325
-#: src/PortalSelfService.php:410
+#: src/PortalSelfService.php:494
 #: src/Reports/Data.php:808
 #: src/Reports/Page.php:206
 #: src/Reports/Page.php:331
@@ -6893,56 +6895,56 @@ msgstr "Totaal"
 msgid "Erstattet"
 msgstr "Terugbetaald"
 
-#: src/Admin/OrdersPage.php:721
-#: src/Admin/OrdersPage.php:1026
+#: src/Admin/OrdersPage.php:801
+#: src/Admin/OrdersPage.php:1106
 #: src/Admin/TicketsPage.php:629
 #: src/Exchange/AdminPage.php:221
 #: src/Privacy.php:320
 msgid "Käufer"
 msgstr "Koper"
 
-#: src/Admin/OrdersPage.php:723
-#: src/Admin/OrdersPage.php:1097
+#: src/Admin/OrdersPage.php:803
+#: src/Admin/OrdersPage.php:1186
 msgid "Summe"
 msgstr "Totaal"
 
-#: src/Admin/OrdersPage.php:725
+#: src/Admin/OrdersPage.php:805
 #: src/BoxOffice/Page.php:281
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Zahlart"
 msgstr "Betaalmethode"
 
-#: src/Admin/OrdersPage.php:767
+#: src/Admin/OrdersPage.php:847
 #: src/Waitlists.php:1660
 msgid "Bezahlt"
 msgstr "Betaald"
 
-#: src/Admin/OrdersPage.php:768
+#: src/Admin/OrdersPage.php:848
 msgid "Zu klären"
 msgstr "Te verhelderen"
 
-#: src/Admin/OrdersPage.php:781
+#: src/Admin/OrdersPage.php:861
 msgid "Keine Bestellungen gefunden."
 msgstr "Geen bestellingen gevonden."
 
-#: src/Admin/OrdersPage.php:783
-#: src/Admin/OrdersPage.php:893
+#: src/Admin/OrdersPage.php:863
+#: src/Admin/OrdersPage.php:973
 msgid "Filter zurücksetzen"
 msgstr "Filters wissen"
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:802
+#: src/Admin/OrdersPage.php:882
 #, php-format
 msgid "erstattet: %s"
 msgstr "terugbetaald: %s"
 
-#: src/Admin/OrdersPage.php:822
+#: src/Admin/OrdersPage.php:902
 msgid "Bestellungen pro Seite"
 msgstr "Bestellingen per pagina"
 
 #. translators: %d: number of orders
-#: src/Admin/OrdersPage.php:868
+#: src/Admin/OrdersPage.php:948
 #, php-format
 msgid "Zahlung für %d Bestellung bestätigt."
 msgid_plural "Zahlung für %d Bestellungen bestätigt."
@@ -6950,7 +6952,7 @@ msgstr[0] "Betaling voor %d bestelling bevestigd."
 msgstr[1] "Betaling voor %d bestellingen bevestigd."
 
 #. translators: %d: number of orders
-#: src/Admin/OrdersPage.php:870
+#: src/Admin/OrdersPage.php:950
 #, php-format
 msgid "%d Bestellung übersprungen: keine offene Überweisung."
 msgid_plural "%d Bestellungen übersprungen: keine offene Überweisung."
@@ -6958,36 +6960,36 @@ msgstr[0] "%d bestelling overgeslagen: geen openstaande overschrijving."
 msgstr[1] "%d bestellingen overgeslagen: geen openstaande overschrijving."
 
 #. translators: 1: order id, 2: error message
-#: src/Admin/OrdersPage.php:873
+#: src/Admin/OrdersPage.php:953
 #, php-format
 msgid "Bestellung #%1$d: %2$s"
 msgstr "Bestelling #%1$d: %2$s"
 
-#: src/Admin/OrdersPage.php:875
+#: src/Admin/OrdersPage.php:955
 msgid "Keine Bestellung ausgewählt."
 msgstr "Geen bestelling geselecteerd."
 
-#: src/Admin/OrdersPage.php:881
+#: src/Admin/OrdersPage.php:961
 msgid "Alle Bestellstatus"
 msgstr "Alle bestelstatussen"
 
-#: src/Admin/OrdersPage.php:883
+#: src/Admin/OrdersPage.php:963
 msgid "Alle Zahlungsstatus"
 msgstr "Alle betaalstatussen"
 
-#: src/Admin/OrdersPage.php:888
+#: src/Admin/OrdersPage.php:968
 msgid "Bestellstatus"
 msgstr "Bestelstatus"
 
-#: src/Admin/OrdersPage.php:889
+#: src/Admin/OrdersPage.php:969
 msgid "Zahlungsstatus"
 msgstr "Betaalstatus"
 
-#: src/Admin/OrdersPage.php:891
+#: src/Admin/OrdersPage.php:971
 msgid "Bestellnummer, E-Mail, Name oder Ticket-ID"
 msgstr "Bestelnummer, e-mail, naam of ticket-ID"
 
-#: src/Admin/OrdersPage.php:894
+#: src/Admin/OrdersPage.php:974
 #: src/Printing/Page.php:153
 #: src/Reports/Page.php:132
 #: src/Reports/Page.php:326
@@ -6996,156 +6998,156 @@ msgstr "Bestelnummer, e-mail, naam of ticket-ID"
 msgid "CSV-Export"
 msgstr "CSV-export"
 
-#: src/Admin/OrdersPage.php:951
+#: src/Admin/OrdersPage.php:1031
 msgid "Bestellung nicht gefunden oder keine Berechtigung."
 msgstr "Bestelling niet gevonden of geen toestemming."
 
-#: src/Admin/OrdersPage.php:952
-#: src/Admin/OrdersPage.php:971
+#: src/Admin/OrdersPage.php:1032
+#: src/Admin/OrdersPage.php:1051
 msgid "← Zur Bestellliste"
 msgstr "← Naar bestellijst"
 
-#: src/Admin/OrdersPage.php:978
+#: src/Admin/OrdersPage.php:1058
 msgid "Diese Bestellung wurde über WooCommerce abgewickelt und ist hier nur lesbar. Zahlungen, Stornos und Erstattungen bitte in WooCommerce durchführen; Tickets werden automatisch widerrufen."
 msgstr "Deze bestelling is via WooCommerce afgehandeld en is hier alleen leesbaar. Voer betalingen, annuleringen en terugbetalingen uit in WooCommerce; tickets worden automatisch ingetrokken."
 
 #. translators: %d: WooCommerce order id
-#: src/Admin/OrdersPage.php:979
+#: src/Admin/OrdersPage.php:1059
 #, php-format
 msgid "WooCommerce-Bestellung #%d öffnen"
 msgstr "WooCommerce-bestelling #%d openen"
 
 #. translators: 1: amount, 2: error code
-#: src/Admin/OrdersPage.php:985
+#: src/Admin/OrdersPage.php:1065
 #, php-format
 msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in Voucher Captain manuell belasten."
 msgstr "Betaald, maar de cadeaubon ter waarde van %1$s kon niet worden afgeboekt (fout: %2$s). De tickets zijn geldig. Vorder het bedrag apart na of boek de cadeaubon handmatig af in Voucher Captain."
 
-#: src/Admin/OrdersPage.php:990
+#: src/Admin/OrdersPage.php:1070
 msgid "Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt."
 msgstr "Aanvullende bestelling bij een ticketomruil (meerprijs/vergoeding). Het ticket staat in de oorspronkelijke bestelling."
 
-#: src/Admin/OrdersPage.php:991
+#: src/Admin/OrdersPage.php:1071
 msgid "Ursprüngliche Bestellung öffnen"
 msgstr "Oorspronkelijke bestelling openen"
 
-#: src/Admin/OrdersPage.php:998
+#: src/Admin/OrdersPage.php:1078
 msgid "Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden."
 msgstr "De ticketmail kon ook na meerdere pogingen niet worden bezorgd. Controleer het e-mailadres en de e-mailverzending en gebruik „Tickets opnieuw verzenden”."
 
-#: src/Admin/OrdersPage.php:998
+#: src/Admin/OrdersPage.php:1078
 msgid "Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant."
 msgstr "De ticketmail kon niet worden bezorgd; er is een nieuwe poging (met nieuwe ticketcodes) gepland."
 
 #. translators: %d: attempts
-#: src/Admin/OrdersPage.php:1002
+#: src/Admin/OrdersPage.php:1082
 #, php-format
 msgid "Die Ticket-E-Mail konnte nach %d Versuchen nicht zugestellt werden. Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden."
 msgstr "De ticket-e-mail kon na %d pogingen niet worden bezorgd. Controleer het e-mailadres en verstuur de tickets opnieuw."
 
 #. translators: 1: attempts, 2: UTC date/time
-#: src/Admin/OrdersPage.php:1004
+#: src/Admin/OrdersPage.php:1084
 #, php-format
 msgid "Die Ticket-E-Mail konnte bisher nicht zugestellt werden (%1$d Versuche). Der Versand wird automatisch wiederholt (nächster Versuch: %2$s UTC)."
 msgstr "De ticket-e-mail kon nog niet worden bezorgd (%1$d pogingen). Het verzenden wordt automatisch herhaald (volgende poging: %2$s UTC)."
 
 #. translators: %s: UTC date/time
-#: src/Admin/OrdersPage.php:1010
+#: src/Admin/OrdersPage.php:1090
 #, php-format
 msgid "Der Versanddienst meldet eine Spam-Beschwerde der Käufer-Adresse (%s UTC). Erinnerungen gehen nicht mehr an diese Adresse."
 msgstr "De verzenddienst meldt een spamklacht van het adres van de koper (%s UTC). Herinneringen worden niet meer naar dit adres gestuurd."
 
 #. translators: %s: UTC date/time
-#: src/Admin/OrdersPage.php:1012
+#: src/Admin/OrdersPage.php:1092
 #, php-format
 msgid "Der Versanddienst meldet die Käufer-Adresse als unzustellbar (Bounce, %s UTC). Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden."
 msgstr "De verzenddienst meldt het adres van de koper als onbestelbaar (bounce, %s UTC). Controleer het e-mailadres en verstuur de tickets opnieuw."
 
-#: src/Admin/OrdersPage.php:1015
+#: src/Admin/OrdersPage.php:1095
 msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung erstatten und die Bestellung abschließen."
 msgstr "De betaling is binnengekomen nadat de reservering was verlopen en er was geen contingent meer vrij. Geef een plek vrij en probeer de toewijzing opnieuw, of betaal de betaling terug en rond de bestelling af."
 
-#: src/Admin/OrdersPage.php:1016
+#: src/Admin/OrdersPage.php:1096
 msgid "Zuteilung erneut versuchen"
 msgstr "Toewijzing opnieuw proberen"
 
-#: src/Admin/OrdersPage.php:1024
+#: src/Admin/OrdersPage.php:1104
 #: src/Admin/SettingsTools.php:262
 #: src/BoxOffice/ZReport.php:363
 msgid "Herkunft"
 msgstr "Herkomst"
 
-#: src/Admin/OrdersPage.php:1029
+#: src/Admin/OrdersPage.php:1109
 #: src/Admin/SecurityScreens.php:107
 msgid "Grund / Supportfall"
 msgstr "Reden / supportcase"
 
-#: src/Admin/OrdersPage.php:1030
+#: src/Admin/OrdersPage.php:1110
 msgid "Daten für diesen Fall anzeigen (wird protokolliert)"
 msgstr "Gegevens voor deze case tonen (wordt gelogd)"
 
-#: src/Admin/OrdersPage.php:1035
-#: src/OrderPortal.php:230
+#: src/Admin/OrdersPage.php:1124
+#: src/OrderPortal.php:245
 msgid "Rechnungsdaten"
 msgstr "Factuurgegevens"
 
-#: src/Admin/OrdersPage.php:1035
+#: src/Admin/OrdersPage.php:1124
 msgid "Maskiert"
 msgstr "Gemaskeerd"
 
-#: src/Admin/OrdersPage.php:1035
+#: src/Admin/OrdersPage.php:1124
 msgid "Keine (Rechnung nur mit E-Mail-Adresse)"
 msgstr "Geen (factuur alleen met e-mailadres)"
 
-#: src/Admin/OrdersPage.php:1037
+#: src/Admin/OrdersPage.php:1126
 msgid "Zahlart / Referenz"
 msgstr "Betaalmethode / Referentie"
 
-#: src/Admin/OrdersPage.php:1039
-#: src/OrderPortal.php:214
+#: src/Admin/OrdersPage.php:1128
+#: src/OrderPortal.php:229
 #: src/Privacy.php:182
 msgid "Bankverbindung für Erstattungen"
 msgstr "Bankgegevens voor terugbetalingen"
 
-#: src/Admin/OrdersPage.php:1039
+#: src/Admin/OrdersPage.php:1128
 msgid "Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintragen)."
 msgstr "Nog niet opgegeven (de koper kan ze invullen in het besteloverzicht)."
 
 #. translators: %s: invoice number
-#: src/Admin/OrdersPage.php:1049
+#: src/Admin/OrdersPage.php:1138
 #, php-format
 msgid "Rechnung %s anzeigen"
 msgstr "Factuur %s bekijken"
 
 #. translators: %s: credit note numbers
-#: src/Admin/OrdersPage.php:1050
+#: src/Admin/OrdersPage.php:1139
 #, php-format
 msgid "Rechnungskorrekturen (in der Rechnungsansicht): %s"
 msgstr "Factuurcorrecties (in de factuurweergave): %s"
 
-#: src/Admin/OrdersPage.php:1054
+#: src/Admin/OrdersPage.php:1143
 msgid "Rechnung erstellen"
 msgstr "Factuur aanmaken"
 
-#: src/Admin/OrdersPage.php:1066
+#: src/Admin/OrdersPage.php:1155
 #: src/Partners/AdminPage.php:270
 #: src/Partners/AdminPage.php:588
 msgid "Verkaufsmodell"
 msgstr "Verkoopmodel"
 
-#: src/Admin/OrdersPage.php:1071
+#: src/Admin/OrdersPage.php:1160
 msgid "Version AGB/Verbraucherinfo"
 msgstr "Versie algemene voorwaarden/consumenteninformatie"
 
-#: src/Admin/OrdersPage.php:1077
+#: src/Admin/OrdersPage.php:1166
 msgid "Text dieser Fassung anzeigen"
 msgstr "Tekst van deze versie tonen"
 
-#: src/Admin/OrdersPage.php:1077
+#: src/Admin/OrdersPage.php:1166
 msgid "Text dieser Fassung anzeigen (aktuell gültige Fassung, noch nicht archiviert)"
 msgstr "Tekst van deze versie tonen (momenteel geldende versie, nog niet gearchiveerd)"
 
-#: src/Admin/OrdersPage.php:1078
+#: src/Admin/OrdersPage.php:1167
 #: src/Frontend/ServiceBooking.php:551
 #: src/LegalVersions.php:122
 #: src/LegalVersions.php:137
@@ -7155,7 +7157,7 @@ msgstr "Tekst van deze versie tonen (momenteel geldende versie, nog niet gearchi
 msgid "Bedingungen"
 msgstr "Voorwaarden"
 
-#: src/Admin/OrdersPage.php:1078
+#: src/Admin/OrdersPage.php:1167
 #: src/Diagnostics.php:207
 #: src/Frontend/ServiceBooking.php:553
 #: src/LegalVersions.php:123
@@ -7165,17 +7167,17 @@ msgstr "Voorwaarden"
 msgid "Verbraucherinformationen"
 msgstr "Consumenteninformatie"
 
-#: src/Admin/OrdersPage.php:1083
+#: src/Admin/OrdersPage.php:1172
 msgid "Der Text dieser Fassung ist nicht archiviert (Bestellung vor dem Archiv, Schema 3.10.21)."
 msgstr "De tekst van deze versie is niet gearchiveerd (bestelling van vóór het archief, schema 3.10.21)."
 
-#: src/Admin/OrdersPage.php:1088
+#: src/Admin/OrdersPage.php:1177
 #: src/Partners/Settlements.php:976
 #: src/Privacy.php:167
 msgid "Positionen"
 msgstr "Regels"
 
-#: src/Admin/OrdersPage.php:1093
+#: src/Admin/OrdersPage.php:1182
 #: src/Admin/OrganizerTools.php:57
 #: src/Invoices.php:875
 #: src/Partners/AdminPage.php:525
@@ -7183,355 +7185,355 @@ msgstr "Regels"
 msgid "Menge"
 msgstr "Aantal"
 
-#: src/Admin/OrdersPage.php:1094
+#: src/Admin/OrdersPage.php:1183
 #: src/Invoices.php:875
 #: src/Printing/InvoicePdf.php:115
 msgid "Einzelpreis"
 msgstr "Stukprijs"
 
-#: src/Admin/OrdersPage.php:1096
+#: src/Admin/OrdersPage.php:1185
 msgid "enth. Steuer"
 msgstr "incl. btw"
 
-#: src/Admin/OrdersPage.php:1098
+#: src/Admin/OrdersPage.php:1187
 msgid "Erstattet (Stk.)"
 msgstr "Terugbetaald (stuks)"
 
-#: src/Admin/OrdersPage.php:1099
+#: src/Admin/OrdersPage.php:1188
 msgid "Umgebucht (Stk.)"
 msgstr "Omgeboekt (st.)"
 
-#: src/Admin/OrdersPage.php:1125
+#: src/Admin/OrdersPage.php:1214
 msgid "Zwischensumme"
 msgstr "Subtotaal"
 
-#: src/Admin/OrdersPage.php:1128
+#: src/Admin/OrdersPage.php:1217
 #: src/Invoices.php:875
 msgid "Gesamt (brutto)"
 msgstr "Totaal (bruto)"
 
-#: src/Admin/OrdersPage.php:1130
+#: src/Admin/OrdersPage.php:1219
 msgid "davon bezahlt mit Mehrzweckgutschein"
 msgstr "waarvan betaald met voucher voor meervoudig gebruik"
 
-#: src/Admin/OrdersPage.php:1131
+#: src/Admin/OrdersPage.php:1220
 msgid "Zahlbetrag"
 msgstr "Te betalen bedrag"
 
-#: src/Admin/OrdersPage.php:1133
+#: src/Admin/OrdersPage.php:1222
 msgid "darin enthaltene Steuer"
 msgstr "Daarin begrepen btw"
 
-#: src/Admin/OrdersPage.php:1179
+#: src/Admin/OrdersPage.php:1268
 #: src/Admin/TicketsPage.php:630
 #: src/Privacy.php:320
 msgid "Teilnehmer"
 msgstr "Deelnemer"
 
-#: src/Admin/OrdersPage.php:1180
+#: src/Admin/OrdersPage.php:1269
 msgid "Angaben"
 msgstr "Gegevens"
 
-#: src/Admin/OrdersPage.php:1183
+#: src/Admin/OrdersPage.php:1272
 msgid "Noch keine Tickets ausgestellt."
 msgstr "Nog geen tickets uitgegeven."
 
 #. translators: %s: ticket id
-#: src/Admin/OrdersPage.php:1189
+#: src/Admin/OrdersPage.php:1278
 #, php-format
 msgid "Ticket %s erstatten"
 msgstr "Ticket %s terugbetalen"
 
 #. translators: 1: used dates, 2: all dates, 3: prorated amount
-#: src/Admin/OrdersPage.php:1192
+#: src/Admin/OrdersPage.php:1281
 #, php-format
 msgid "Pass: %1$d von %2$d Terminen genutzt – anteilige Erstattung %3$s (als Höchstbetrag eintragen)."
 msgstr "Pass: %1$d van %2$d data gebruikt – naar rato terugbetaling %3$s (als maximumbedrag invullen)."
 
 #. translators: 1: used dates, 2: all dates, 3: prorated amount
-#: src/Admin/OrdersPage.php:1193
+#: src/Admin/OrdersPage.php:1282
 #: src/Admin/TicketsPage.php:655
 #: src/CodeHistory.php:118
 msgid "erstattet"
 msgstr "terugbetaald"
 
 #. translators: 1: used dates, 2: all dates, 3: prorated amount
-#: src/Admin/OrdersPage.php:1193
+#: src/Admin/OrdersPage.php:1282
 msgid "Erstattung läuft"
 msgstr "Terugbetaling bezig"
 
-#: src/Admin/OrdersPage.php:1200
+#: src/Admin/OrdersPage.php:1289
 msgid "Fehlt:"
 msgstr "Ontbreekt:"
 
-#: src/Admin/OrdersPage.php:1208
+#: src/Admin/OrdersPage.php:1297
 msgid "Erstatten"
 msgstr "Terugbetalen"
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:1210
+#: src/Admin/OrdersPage.php:1299
 #, php-format
 msgid "Alle offenen Tickets erstatten (Restbetrag der Bestellung: %s)"
 msgstr "Alle openstaande tickets terugbetalen (restbedrag van de bestelling: %s)"
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:1211
+#: src/Admin/OrdersPage.php:1300
 msgid "Ersetzt die Einzelauswahl in der Tabelle; diese ist dann gesperrt."
 msgstr "Vervangt de afzonderlijke selectie in de tabel; die is dan vergrendeld."
 
-#: src/Admin/OrdersPage.php:1212
+#: src/Admin/OrdersPage.php:1301
 msgid "Abzug (optional, z. B. Bearbeitungsgebühr)"
 msgstr "Inhouding (optioneel, bijv. administratiekosten)"
 
-#: src/Admin/OrdersPage.php:1213
+#: src/Admin/OrdersPage.php:1302
 msgid "Höchstbetrag (optional, Kulanz)"
 msgstr "Maximumbedrag (optioneel, coulance)"
 
-#: src/Admin/OrdersPage.php:1216
+#: src/Admin/OrdersPage.php:1305
 #: src/Admin/SettingsPage.php:278
 #: src/ServiceFee.php:427
 msgid "Servicegebühr"
 msgstr "Servicekosten"
 
-#: src/Admin/OrdersPage.php:1217
+#: src/Admin/OrdersPage.php:1306
 msgid "automatisch (mit erstatten)"
 msgstr "automatisch (mee terugbetalen)"
 
-#: src/Admin/OrdersPage.php:1217
+#: src/Admin/OrdersPage.php:1306
 msgid "automatisch (bei Absage erstatten, sonst einbehalten)"
 msgstr "automatisch (terugbetalen bij afgelasting, anders inhouden)"
 
-#: src/Admin/OrdersPage.php:1218
+#: src/Admin/OrdersPage.php:1307
 #: src/Admin/SettingsPage.php:309
 msgid "mit erstatten"
 msgstr "mee terugbetalen"
 
-#: src/Admin/OrdersPage.php:1219
+#: src/Admin/OrdersPage.php:1308
 #: src/Admin/SettingsPage.php:308
 msgid "einbehalten"
 msgstr "inhouden"
 
 #. translators: 1: tickets, 2: value, 3: fee, 4: refund, 5: VAT
-#: src/Admin/OrdersPage.php:1225
+#: src/Admin/OrdersPage.php:1314
 #, php-format
 msgid "Vorschau: %1$d Tickets, Wert %2$s, Abzug %3$s → Erstattung %4$s (darin USt %5$s). Die Rechnungskorrektur weist den erstatteten Betrag aus."
 msgstr "Voorbeeld: %1$d tickets, waarde %2$s, inhouding %3$s → terugbetaling %4$s (waarvan btw %5$s). De factuurcorrectie vermeldt het terugbetaalde bedrag."
 
-#: src/Admin/OrdersPage.php:1229
+#: src/Admin/OrdersPage.php:1318
 msgid "Betrag berechnen"
 msgstr "Bedrag berekenen"
 
-#: src/Admin/OrdersPage.php:1231
+#: src/Admin/OrdersPage.php:1320
 msgid "Ausnahme für bereits eingelassene Tickets (Begründung)"
 msgstr "Uitzondering voor al toegelaten tickets (motivering)"
 
-#: src/Admin/OrdersPage.php:1233
+#: src/Admin/OrdersPage.php:1322
 msgid "Nur ausfüllen, wenn eingelassene Tickets trotzdem erstattet werden sollen (z. B. Abbruch der Veranstaltung). Die Erstattung braucht dann immer eine zweite Freigabe."
 msgstr "Alleen invullen als toegelaten tickets toch moeten worden terugbetaald (bijv. afgebroken evenement). De terugbetaling heeft dan altijd een tweede goedkeuring nodig."
 
-#: src/Admin/OrdersPage.php:1236
+#: src/Admin/OrdersPage.php:1325
 msgid "Erstattungsbetrag:"
 msgstr "Terugbetalingsbedrag:"
 
-#: src/Admin/OrdersPage.php:1237
+#: src/Admin/OrdersPage.php:1326
 msgid "Weg:"
 msgstr "Manier:"
 
-#: src/Admin/OrdersPage.php:1238
+#: src/Admin/OrdersPage.php:1327
 msgid "Ab einem Betrag über der Freigabegrenze wartet die Erstattung auf eine zweite Person."
 msgstr "Vanaf een bedrag boven de goedkeuringsgrens wacht de terugbetaling op een tweede persoon."
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:1241
+#: src/Admin/OrdersPage.php:1330
 #, php-format
 msgid "Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig."
 msgstr "Als het totaal van alle terugbetalingen van deze bestelling (inclusief lopende en wachtende) hoger is dan %s, is een tweede goedkeuring nodig."
 
-#: src/Admin/OrdersPage.php:1243
+#: src/Admin/OrdersPage.php:1332
 msgid "Erstattung auslösen"
 msgstr "Terugbetaling starten"
 
-#: src/Admin/OrdersPage.php:1264
+#: src/Admin/OrdersPage.php:1355
 msgid "Zahlungseingang bestätigen und Tickets ausstellen?"
 msgstr "Ontvangst van betaling bevestigen en tickets uitgeven?"
 
-#: src/Admin/OrdersPage.php:1264
+#: src/Admin/OrdersPage.php:1355
 msgid "Als bezahlt markieren"
 msgstr "Markeren als betaald"
 
-#: src/Admin/OrdersPage.php:1269
-#: src/PortalSelfService.php:652
+#: src/Admin/OrdersPage.php:1360
+#: src/PortalSelfService.php:737
 #: src/Sales/SelfService.php:151
 msgid "Grund (optional)"
 msgstr "Reden (optioneel)"
 
-#: src/Admin/OrdersPage.php:1270
+#: src/Admin/OrdersPage.php:1361
 msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Onbetaalde bestelling annuleren en reservering vrijgeven?"
 
-#: src/Admin/OrdersPage.php:1270
+#: src/Admin/OrdersPage.php:1361
 #: src/Admin/ServiceSlotsPage.php:325
 #: src/BoxOffice/Page.php:324
 #: src/GuestLists/Page.php:278
 msgid "Stornieren"
 msgstr "Annuleren"
 
-#: src/Admin/OrdersPage.php:1274
+#: src/Admin/OrdersPage.php:1365
 msgid "Alle gültigen Tickets"
 msgstr "Alle geldige tickets"
 
 #. translators: 1: ticket number (short), 2: ticket type
-#: src/Admin/OrdersPage.php:1277
+#: src/Admin/OrdersPage.php:1368
 #, php-format
 msgid "Ticket %1$s (%2$s)"
 msgstr "Ticket %1$s (%2$s)"
 
-#: src/Admin/OrdersPage.php:1281
+#: src/Admin/OrdersPage.php:1372
 msgid "Tickets für das PDF"
 msgstr "Tickets voor de pdf"
 
-#: src/Admin/OrdersPage.php:1282
+#: src/Admin/OrdersPage.php:1373
 msgid "Ticket-PDF herunterladen"
 msgstr "Ticket-pdf downloaden"
 
-#: src/Admin/OrdersPage.php:1289
+#: src/Admin/OrdersPage.php:1380
 msgid "Bestelllink erneut senden"
 msgstr "Bestellink opnieuw verzenden"
 
-#: src/Admin/OrdersPage.php:1289
+#: src/Admin/OrdersPage.php:1380
 msgid "Für Rechnung und Tickets: „Tickets erneut senden“ (die Rechnung hängt an der Ticket-Mail)."
 msgstr "Voor factuur en tickets: ‘Tickets opnieuw verzenden’ (de factuur zit bij de ticketmail)."
 
-#: src/Admin/OrdersPage.php:1295
+#: src/Admin/OrdersPage.php:1386
 msgid "Fehlende Teilnehmerangaben anfordern"
 msgstr "Ontbrekende deelnemersgegevens opvragen"
 
-#: src/Admin/OrdersPage.php:1295
+#: src/Admin/OrdersPage.php:1386
 msgid "Die Käufer:in erhält eine E-Mail mit den fehlenden Angaben je Ticket und einem neuen Bestelllink; der bisherige Bestelllink wird ungültig."
 msgstr "De koper ontvangt een e-mail met de ontbrekende gegevens per ticket en een nieuwe bestellink; de vorige bestellink wordt ongeldig."
 
-#: src/Admin/OrdersPage.php:1316
+#: src/Admin/OrdersPage.php:1407
 msgid "Fehlende Teilnehmerangaben angefordert."
 msgstr "Ontbrekende deelnemersgegevens opgevraagd."
 
-#: src/Admin/OrdersPage.php:1329
-#: src/Admin/OrdersPage.php:1341
+#: src/Admin/OrdersPage.php:1420
+#: src/Admin/OrdersPage.php:1432
 #: src/Mail/Types.php:327
 msgid "Tickets erneut senden"
 msgstr "Tickets opnieuw verzenden"
 
-#: src/Admin/OrdersPage.php:1330
+#: src/Admin/OrdersPage.php:1421
 msgid "Zugestellt nicht angekommen? „Gespeicherte Codes erneut senden“ verschickt dieselben Codes noch einmal – nichts wird ungültig. „Neue Codes“ macht bisher gesendete Codes und Ausdrucke dieser Tickets ungültig (z. B. wenn ein Code weitergegeben wurde)."
 msgstr "Bezorgd maar niet aangekomen? „Opgeslagen codes opnieuw verzenden” verstuurt dezelfde codes nog een keer – niets wordt ongeldig. „Nieuwe codes” maakt eerder verzonden codes en afdrukken van deze tickets ongeldig (bijv. als een code is doorgegeven)."
 
-#: src/Admin/OrdersPage.php:1331
+#: src/Admin/OrdersPage.php:1422
 msgid "Gespeicherte Codes erneut senden (Tickets ohne gespeicherten Code erhalten einen neuen)"
 msgstr "Opgeslagen codes opnieuw verzenden (tickets zonder opgeslagen code krijgen een nieuwe)"
 
-#: src/Admin/OrdersPage.php:1332
+#: src/Admin/OrdersPage.php:1423
 msgid "Neue Codes ausstellen: bisherige Codes werden ungültig"
 msgstr "Nieuwe codes uitgeven: eerdere codes worden ongeldig"
 
 #. translators: %d: number of transferred tickets
-#: src/Admin/OrdersPage.php:1335
+#: src/Admin/OrdersPage.php:1426
 #, php-format
 msgid "Nur nicht übertragene Tickets (empfohlen) – %d übertragenes Ticket behält seinen Code"
 msgid_plural "Nur nicht übertragene Tickets (empfohlen) – %d übertragene Tickets behalten ihren Code"
 msgstr[0] "Alleen niet-overgedragen tickets (aanbevolen) – %d overgedragen ticket behoudt zijn code"
 msgstr[1] "Alleen niet-overgedragen tickets (aanbevolen) – %d overgedragen tickets behouden hun code"
 
-#: src/Admin/OrdersPage.php:1336
+#: src/Admin/OrdersPage.php:1427
 msgid "Auch übertragene Tickets: deren Empfänger:innen erhalten einen neuen Code, ihr bisheriger wird ungültig"
 msgstr "Ook overgedragen tickets: de ontvangers krijgen een nieuwe code, hun vorige wordt ongeldig"
 
-#: src/Admin/OrdersPage.php:1341
+#: src/Admin/OrdersPage.php:1432
 msgid "Tickets erneut senden? Mit „Neue Codes“ werden die bisherigen Codes dieser Tickets ungültig; übertragene Tickets nur, wenn sie ausdrücklich gewählt sind."
 msgstr "Tickets opnieuw verzenden? Met „Nieuwe codes” worden de eerdere codes van deze tickets ongeldig; overgedragen tickets alleen als ze uitdrukkelijk zijn geselecteerd."
 
-#: src/Admin/OrdersPage.php:1358
+#: src/Admin/OrdersPage.php:1449
 msgid "Beim Anbieter prüfen"
 msgstr "Bij de provider controleren"
 
-#: src/Admin/OrdersPage.php:1361
+#: src/Admin/OrdersPage.php:1452
 msgid "Manuell bestätigen"
 msgstr "Handmatig bevestigen"
 
-#: src/Admin/OrdersPage.php:1366
+#: src/Admin/OrdersPage.php:1457
 msgid "Wie wurde der Ausgang geprüft?"
 msgstr "Hoe is de uitkomst gecontroleerd?"
 
-#: src/Admin/OrdersPage.php:1367
+#: src/Admin/OrdersPage.php:1458
 msgid "Erstattungs-ID beim Anbieter (falls ausgezahlt)"
 msgstr "Terugbetalings-ID bij de provider (indien uitbetaald)"
 
-#: src/Admin/OrdersPage.php:1368
+#: src/Admin/OrdersPage.php:1459
 msgid "Bestätigen, dass der Zahlungsanbieter diese Erstattung ausgezahlt hat? Sie wird dann verbucht (Tickets, Gutschrift)."
 msgstr "Bevestigen dat de betaalprovider deze terugbetaling heeft uitbetaald? Ze wordt dan geboekt (tickets, creditnota)."
 
-#: src/Admin/OrdersPage.php:1368
+#: src/Admin/OrdersPage.php:1459
 #: src/Partners/Settlements.php:61
 msgid "Ausgezahlt"
 msgstr "Uitbetaald"
 
-#: src/Admin/OrdersPage.php:1369
+#: src/Admin/OrdersPage.php:1460
 msgid "Bestätigen, dass beim Zahlungsanbieter nichts ausgezahlt wurde? Die Erstattung gilt dann als fehlgeschlagen und kann neu angefordert werden."
 msgstr "Bevestigen dat bij de betaalprovider niets is uitbetaald? De terugbetaling geldt dan als mislukt en kan opnieuw worden aangevraagd."
 
-#: src/Admin/OrdersPage.php:1369
+#: src/Admin/OrdersPage.php:1460
 msgid "Nicht ausgezahlt"
 msgstr "Niet uitbetaald"
 
-#: src/Admin/OrdersPage.php:1391
+#: src/Admin/OrdersPage.php:1482
 msgid "Angefordert / freigegeben von"
 msgstr "Aangevraagd / goedgekeurd door"
 
-#: src/Admin/OrdersPage.php:1395
+#: src/Admin/OrdersPage.php:1486
 msgid "Keine Erstattungen."
 msgstr "Geen terugbetalingen."
 
 #. translators: %s: tax amount
-#: src/Admin/OrdersPage.php:1406
+#: src/Admin/OrdersPage.php:1497
 #, php-format
 msgid "davon Steuer %s"
 msgstr "waarvan btw %s"
 
-#: src/Admin/OrdersPage.php:1409
+#: src/Admin/OrdersPage.php:1500
 msgid "Ausgang unklar"
 msgstr "Uitkomst onduidelijk"
 
-#: src/Admin/OrdersPage.php:1409
+#: src/Admin/OrdersPage.php:1500
 msgid "Der Zahlungsanbieter hat nicht eindeutig geantwortet. Die Erstattung wird automatisch abgeglichen und nicht erneut ausgezahlt."
 msgstr "De betaalprovider heeft geen eenduidig antwoord gegeven. De terugbetaling wordt automatisch afgestemd en niet opnieuw uitbetaald."
 
-#: src/Admin/OrdersPage.php:1409
+#: src/Admin/OrdersPage.php:1500
 msgid "beim Zahlungsanbieter noch ausstehend"
 msgstr "nog in afwachting bij de betaalprovider"
 
-#: src/Admin/OrdersPage.php:1410
+#: src/Admin/OrdersPage.php:1501
 msgid "Käufer:in (Stornierungsanfrage im Bestellportal)"
 msgstr "Koper (annuleringsverzoek in het bestelportaal)"
 
-#: src/Admin/OrdersPage.php:1417
+#: src/Admin/OrdersPage.php:1508
 msgid "Den Betrag dieser gescheiterten Erstattung erneut über den Zahlungsanbieter auszahlen?"
 msgstr "Het bedrag van deze mislukte terugbetaling opnieuw via de betaalprovider uitbetalen?"
 
-#: src/Admin/OrdersPage.php:1417
+#: src/Admin/OrdersPage.php:1508
 msgid "Erneut auszahlen"
 msgstr "Opnieuw uitbetalen"
 
-#: src/Admin/OrdersPage.php:1422
+#: src/Admin/OrdersPage.php:1513
 msgid "Wartet auf Freigabe"
 msgstr "Wacht op goedkeuring"
 
-#: src/Admin/OrdersPage.php:1424
+#: src/Admin/OrdersPage.php:1515
 msgid "Freigabe durch eine andere Person erforderlich"
 msgstr "Goedkeuring door een andere persoon vereist"
 
-#: src/Admin/OrdersPage.php:1427
+#: src/Admin/OrdersPage.php:1518
 msgid "Erstattung freigeben und auszahlen?"
 msgstr "Terugbetaling goedkeuren en uitbetalen?"
 
-#: src/Admin/OrdersPage.php:1430
+#: src/Admin/OrdersPage.php:1521
 msgid "Grund der Ablehnung"
 msgstr "Reden van afwijzing"
 
@@ -8716,7 +8718,7 @@ msgstr "Aanvaard"
 #: src/Admin/ServicesPage.php:496
 #: src/GuestLists/Service.php:60
 #: src/Integrations/FormCaptain/EventRequests.php:485
-#: src/PortalSelfService.php:412
+#: src/PortalSelfService.php:496
 #: src/Services/Portal.php:205
 #: src/Services/Portal.php:261
 #: src/Waitlists.php:1662
@@ -10411,10 +10413,10 @@ msgstr "Concept aanmaken"
 #: src/Exchange/Service.php:184
 #: src/Exchange/Service.php:1270
 #: src/Mobile/Api.php:411
-#: src/Orders.php:4514
+#: src/Orders.php:4529
 #: src/PortalSelfService.php:218
-#: src/PortalSelfService.php:474
-#: src/PortalSelfService.php:690
+#: src/PortalSelfService.php:558
+#: src/PortalSelfService.php:775
 #: src/ScannerAdapters.php:88
 #: src/ScannerDesk.php:76
 #: src/TicketAssignments.php:352
@@ -10432,7 +10434,7 @@ msgstr "Het ticket kon zojuist niet worden ingetrokken. Probeer het opnieuw."
 
 #: src/Admin/TicketsPage.php:63
 #: src/Exchange/Service.php:602
-#: src/Orders.php:3050
+#: src/Orders.php:3065
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr "Voor dit ticket loopt een terugbetaling of deze wacht op goedkeuring. Het kan tot de beslissing niet worden overgedragen, omgeruild of ingetrokken."
 
@@ -10643,7 +10645,7 @@ msgstr "Rapport sluiten"
 #: src/Admin/SettingsTools.php:339
 #: src/Admin/TicketsPage.php:527
 #: src/OfflineScanner/I18n.php:247
-#: src/OrderPortal.php:125
+#: src/OrderPortal.php:140
 #: src/Printing/Page.php:381
 msgid "Abbrechen"
 msgstr "Annuleren"
@@ -12033,7 +12035,7 @@ msgstr "Alleen invullen als de koper een factuur met naam en adres nodig heeft. 
 #: src/Frontend/ServiceBooking.php:537
 #: src/Frontend/ServiceBooking.php:545
 #: src/Integrations/WooCommerce/Attendees.php:477
-#: src/OrderPortal.php:244
+#: src/OrderPortal.php:259
 #: templates/event-card.php:118
 #: templates/event-card.php:151
 #: templates/event-card.php:164
@@ -12042,12 +12044,12 @@ msgid "(optional)"
 msgstr "(optioneel)"
 
 #: src/Billing.php:344
-#: src/OrderPortal.php:234
+#: src/OrderPortal.php:249
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
 msgstr "De factuur is al uitgegeven. Neem voor een correctie contact op met de organisator."
 
 #: src/Billing.php:350
-#: src/OrderPortal.php:144
+#: src/OrderPortal.php:159
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
 msgstr "De factuurgegevens konden niet worden opgeslagen."
 
@@ -13836,12 +13838,12 @@ msgid "E-Mails versenden"
 msgstr "E-mails versturen"
 
 #: src/BulkRuns.php:715
-#: src/Mail/Types.php:546
+#: src/Mail/Types.php:571
 msgid "Terminabsage"
 msgstr "Annulering van datum"
 
 #: src/BulkRuns.php:715
-#: src/Mail/Types.php:538
+#: src/Mail/Types.php:563
 msgid "Eventabsage"
 msgstr "Annulering van evenement"
 
@@ -14376,7 +14378,7 @@ msgstr "Beheer"
 
 #: src/Consents.php:571
 #: src/Exchange/AdminPage.php:175
-#: src/Mail/Types.php:415
+#: src/Mail/Types.php:440
 msgid "Ticketumtausch"
 msgstr "Ticketomruil"
 
@@ -14938,7 +14940,7 @@ msgid "Event-Regeln speichern"
 msgstr "Evenementregels opslaan"
 
 #: src/Exchange/Portal.php:54
-#: src/Orders.php:3029
+#: src/Orders.php:3044
 #: src/PortalSelfService.php:70
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "De toegang tot de bestelling is ongeldig."
@@ -15148,7 +15150,7 @@ msgid "Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht 
 msgstr "De omruil is uitgevoerd, maar de terugbetaling van het verschil kon niet worden gestart: %s"
 
 #: src/Exchange/Service.php:886
-#: src/Mail/Types.php:435
+#: src/Mail/Types.php:460
 msgid "Sitzplatz:"
 msgstr "Zitplaats:"
 
@@ -15629,7 +15631,7 @@ msgstr "Bestelnummer: %s"
 
 #. translators: %s: formatted amount
 #: src/Frontend/ServiceBooking.php:115
-#: src/OrderPortal.php:167
+#: src/OrderPortal.php:182
 #, php-format
 msgid "Gesamtbetrag: %s"
 msgstr "Totaalbedrag: %s"
@@ -15666,7 +15668,7 @@ msgid "Empfänger"
 msgstr "Begunstigde"
 
 #: src/Frontend/ServiceBooking.php:124
-#: src/OrderPortal.php:221
+#: src/OrderPortal.php:236
 #: src/Payments/BankTransfer.php:125
 #: src/PublicEvents.php:254
 msgid "IBAN"
@@ -18250,7 +18252,7 @@ msgstr "Nog ontbrekende gegevens: %s – vul ze aan via „Ticket openen”."
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/Mail/Blocks.php:79
-#: src/OrderPortal.php:168
+#: src/OrderPortal.php:183
 msgid "Zahlungsinformationen"
 msgstr "Betaalgegevens"
 
@@ -18356,7 +18358,7 @@ msgid "Nur die Ticket-Links, einer pro Zeile"
 msgstr "Alleen de ticketlinks, één per regel"
 
 #: src/Mail/Types.php:62
-#: src/Mail/Types.php:369
+#: src/Mail/Types.php:394
 msgid "Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)"
 msgstr "Voorwaarden en consumenteninformatie in de versie die bij de bestelling gold (met versiekenmerk; leeg zonder juridische teksten)"
 
@@ -18637,8 +18639,8 @@ msgid "Bestätigung der Eintragung in die Warteliste eines ausgebuchten Zeitfens
 msgstr "Bevestiging van de inschrijving op de wachtlijst van een volgeboekt tijdslot."
 
 #: src/Mail/Types.php:283
-#: src/Mail/Types.php:605
-#: src/Mail/Types.php:687
+#: src/Mail/Types.php:630
+#: src/Mail/Types.php:712
 msgid "Position auf der Warteliste"
 msgstr "Positie op de wachtlijst"
 
@@ -18651,7 +18653,7 @@ msgid "Link zum Austragen"
 msgstr "Link om je uit te schrijven"
 
 #: src/Mail/Types.php:284
-#: src/Mail/Types.php:612
+#: src/Mail/Types.php:637
 msgid "Du stehst auf der Warteliste"
 msgstr "Je staat op de wachtlijst"
 
@@ -18712,12 +18714,12 @@ msgid "Befristetes Angebot an die nächste Person; die Plätze sind bis zum Abla
 msgstr "Tijdelijk aanbod aan de volgende persoon; de plaatsen zijn tot het verlopen gereserveerd."
 
 #: src/Mail/Types.php:301
-#: src/Mail/Types.php:683
+#: src/Mail/Types.php:708
 msgid "Ablauf des Angebots"
 msgstr "Verloop van de aanbieding"
 
 #: src/Mail/Types.php:301
-#: src/Mail/Types.php:684
+#: src/Mail/Types.php:709
 msgid "Link zur Annahme"
 msgstr "Link om te accepteren"
 
@@ -18811,344 +18813,344 @@ msgstr "Vul ze aan via je persoonlijke link naar de bestelling:"
 msgid "Der bisherige Link zur Bestellung gilt damit nicht mehr. Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "De vorige link naar de bestelling geldt daarmee niet meer. Bewaar deze link veilig en deel hem niet."
 
-#: src/Mail/Types.php:361
+#: src/Mail/Types.php:386
 msgid "Bestellzugang"
 msgstr "Toegang tot bestelling"
 
-#: src/Mail/Types.php:362
+#: src/Mail/Types.php:387
 msgid "Persönlicher Link zur Bestellübersicht nach der Bestellung."
 msgstr "Persoonlijke link naar het besteloverzicht na de bestelling."
 
-#: src/Mail/Types.php:365
+#: src/Mail/Types.php:390
 msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
 msgstr "Kort bestelnummer (bijv. 3F2A-9C1E, ook betalingsreferentie)"
 
-#: src/Mail/Types.php:366
+#: src/Mail/Types.php:391
 msgid "Persönlicher Link zur Bestellung"
 msgstr "Persoonlijke link naar de bestelling"
 
-#: src/Mail/Types.php:367
+#: src/Mail/Types.php:392
 msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
 msgstr "Betaalgegevens bij een openstaande overschrijving / handmatige betaling (bedrag, IBAN, BIC, begunstigde, betalingsreferentie, termijn); anders leeg"
 
-#: src/Mail/Types.php:368
+#: src/Mail/Types.php:393
 msgid "Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)"
 msgstr "Bestelde posten (evenement, tickettype, datum, aantal, prijs)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:372
+#: src/Mail/Types.php:397
 #, php-format
 msgid "Deine Bestellung bei %s"
 msgstr "Je bestelling bij %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:376
+#: src/Mail/Types.php:401
 #, php-format
 msgid "Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:"
 msgstr "Via deze persoonlijke link kun je de status van je bestelling bij %s bekijken en tickets beheren:"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:376
+#: src/Mail/Types.php:401
 msgid "Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "Bewaar deze link veilig en deel hem niet."
 
-#: src/Mail/Types.php:391
+#: src/Mail/Types.php:416
 msgid "Ticketübertragung: Empfänger:in"
 msgstr "Ticketoverdracht: ontvanger"
 
-#: src/Mail/Types.php:392
+#: src/Mail/Types.php:417
 msgid "Neues Ticket für die Person, an die ein Ticket übertragen wurde."
 msgstr "Nieuw ticket voor de persoon aan wie een ticket is overgedragen."
 
-#: src/Mail/Types.php:394
-#: src/Mail/Types.php:444
+#: src/Mail/Types.php:419
+#: src/Mail/Types.php:469
 msgid "Link zum Ticket"
 msgstr "Link naar het ticket"
 
-#: src/Mail/Types.php:395
-#: src/Mail/Types.php:425
-#: src/Mail/Types.php:445
+#: src/Mail/Types.php:420
+#: src/Mail/Types.php:450
+#: src/Mail/Types.php:470
 msgid "Zusatzinformationen zum Ticket (z. B. Wallet-Links)"
 msgstr "Aanvullende informatie bij het ticket (bijv. wallet-links)"
 
-#: src/Mail/Types.php:398
+#: src/Mail/Types.php:423
 msgid "Ein Ticket wurde an dich übertragen"
 msgstr "Er is een ticket aan je overgedragen"
 
-#: src/Mail/Types.php:403
+#: src/Mail/Types.php:428
 msgid "Ticketübertragung: Bestätigung"
 msgstr "Ticketoverdracht: bevestiging"
 
-#: src/Mail/Types.php:404
+#: src/Mail/Types.php:429
 msgid "Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde."
 msgstr "Bevestiging aan de koper dat een ticket is overgedragen."
 
-#: src/Mail/Types.php:406
+#: src/Mail/Types.php:431
 msgid "E-Mail-Adresse der neuen Inhaber:in"
 msgstr "E-mailadres van de nieuwe houder"
 
-#: src/Mail/Types.php:409
+#: src/Mail/Types.php:434
 msgid "Ticketübertragung abgeschlossen"
 msgstr "Ticketoverdracht voltooid"
 
 #. translators: 1: event, 2: recipient e-mail
-#: src/Mail/Types.php:411
+#: src/Mail/Types.php:436
 #, php-format
 msgid "Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig."
 msgstr "Je ticket voor %1$s is overgedragen aan %2$s. De vorige ticketcode is ongeldig."
 
-#: src/Mail/Types.php:416
+#: src/Mail/Types.php:441
 msgid "Neues Ticket nach einem Umtausch (anderer Termin oder andere Ticketart); der bisherige Code ist ungültig."
 msgstr "Nieuw ticket na een omruil (andere datum of ander tickettype); de vorige code is ongeldig."
 
-#: src/Mail/Types.php:418
+#: src/Mail/Types.php:443
 msgid "Bisheriges Event"
 msgstr "Vorig evenement"
 
-#: src/Mail/Types.php:419
+#: src/Mail/Types.php:444
 msgid "Bisherige Ticketart"
 msgstr "Vorig tickettype"
 
-#: src/Mail/Types.php:420
-#: src/Mail/Types.php:647
+#: src/Mail/Types.php:445
+#: src/Mail/Types.php:672
 msgid "Bisheriger Beginn mit Zeitzone"
 msgstr "Vorig begin met tijdzone"
 
-#: src/Mail/Types.php:421
+#: src/Mail/Types.php:446
 msgid "Sitzplatz (leer ohne Saalplan)"
 msgstr "Zitplaats (leeg zonder zaalplan)"
 
-#: src/Mail/Types.php:422
+#: src/Mail/Types.php:447
 msgid "Zeile „Sitzplatz: …“ mit Zeilenumbruch (leer ohne Saalplan)"
 msgstr "Regel „Zitplaats: …” met regeleinde (leeg zonder zaalplan)"
 
-#: src/Mail/Types.php:423
+#: src/Mail/Types.php:448
 msgid "Hinweis zu Aufpreis, Gebühr oder Erstattung mit Zeilenumbruch (leer ohne Preisdifferenz)"
 msgstr "Opmerking over meerprijs, vergoeding of terugbetaling met regeleinde (leeg zonder prijsverschil)"
 
-#: src/Mail/Types.php:424
+#: src/Mail/Types.php:449
 msgid "Link zum neuen Ticket"
 msgstr "Link naar het nieuwe ticket"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:429
+#: src/Mail/Types.php:454
 #, php-format
 msgid "Dein Ticket wurde umgetauscht – %s"
 msgstr "Je ticket is omgeruild – %s"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:432
+#: src/Mail/Types.php:457
 msgid "Dein Ticket wurde umgetauscht."
 msgstr "Je ticket is omgeruild."
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:432
+#: src/Mail/Types.php:457
 #, php-format
 msgid "Bisher: %1$s — %2$s (%3$s)"
 msgstr "Eerder: %1$s — %2$s (%3$s)"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:432
+#: src/Mail/Types.php:457
 msgid "Neu:"
 msgstr "Nieuw:"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:432
+#: src/Mail/Types.php:457
 msgid "Der bisherige Ticketcode ist ab sofort ungültig. Bitte verwende nur noch das neue Ticket."
 msgstr "De vorige ticketcode is vanaf nu ongeldig. Gebruik alleen nog het nieuwe ticket."
 
-#: src/Mail/Types.php:439
+#: src/Mail/Types.php:464
 msgid "Teilnehmerzuweisung: Teilnehmer:in"
 msgstr "Deelnemerstoewijzing: deelnemer"
 
-#: src/Mail/Types.php:440
+#: src/Mail/Types.php:465
 msgid "Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat."
 msgstr "Ticket voor een persoon aan wie de koper een ticket heeft toegewezen."
 
-#: src/Mail/Types.php:442
-#: src/Mail/Types.php:458
+#: src/Mail/Types.php:467
+#: src/Mail/Types.php:483
 msgid "Name der Teilnehmer:in"
 msgstr "Naam van de deelnemer"
 
-#: src/Mail/Types.php:443
-#: src/Mail/Types.php:459
+#: src/Mail/Types.php:468
+#: src/Mail/Types.php:484
 msgid "E-Mail-Adresse der Teilnehmer:in"
 msgstr "E-mailadres van de deelnemer"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:449
+#: src/Mail/Types.php:474
 #, php-format
 msgid "Dein Ticket für %s"
 msgstr "Je ticket voor %s"
 
 #. translators: %s: attendee name
-#: src/Mail/Types.php:451
+#: src/Mail/Types.php:476
 #, php-format
 msgid "Teilnehmer: %s"
 msgstr "Deelnemer: %s"
 
-#: src/Mail/Types.php:455
+#: src/Mail/Types.php:480
 msgid "Teilnehmerzuweisung: Käufer:in"
 msgstr "Deelnemerstoewijzing: koper"
 
-#: src/Mail/Types.php:456
+#: src/Mail/Types.php:481
 msgid "Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist."
 msgstr "Melding aan de koper dat de vorige code van een toegewezen ticket ongeldig is."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:463
+#: src/Mail/Types.php:488
 #, php-format
 msgid "Ticket zugewiesen – %s"
 msgstr "Ticket toegewezen – %s"
 
 #. translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email
-#: src/Mail/Types.php:465
+#: src/Mail/Types.php:490
 #, php-format
 msgid "Das Ticket %1$s (%2$s) wurde %3$s (%4$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig."
 msgstr "Het ticket %1$s (%2$s) is toegewezen aan %3$s (%4$s). De nieuwe ticketcode is naar dit adres gestuurd; de vorige code voor dit ticket is niet meer geldig."
 
-#: src/Mail/Types.php:469
+#: src/Mail/Types.php:494
 msgid "Erstattungsbestätigung"
 msgstr "Terugbetalingsbevestiging"
 
-#: src/Mail/Types.php:470
+#: src/Mail/Types.php:495
 msgid "Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen)."
 msgstr "Bevestiging van een afgeronde terugbetaling (niet bij WooCommerce-bestellingen)."
 
-#: src/Mail/Types.php:473
+#: src/Mail/Types.php:498
 msgid "Erstatteter Betrag mit Währung"
 msgstr "Terugbetaald bedrag met valuta"
 
-#: src/Mail/Types.php:474
+#: src/Mail/Types.php:499
 msgid "Anzahl ungültig gewordener Tickets"
 msgstr "Aantal ongeldig geworden tickets"
 
-#: src/Mail/Types.php:475
+#: src/Mail/Types.php:500
 msgid "Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)"
 msgstr "Zin over ongeldig geworden tickets met regeleinde (leeg als er geen zijn)"
 
-#: src/Mail/Types.php:476
+#: src/Mail/Types.php:501
 msgid "Nummer der Rechnungskorrektur"
 msgstr "Nummer van de factuurcorrectie"
 
-#: src/Mail/Types.php:477
+#: src/Mail/Types.php:502
 msgid "Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)"
 msgstr "Regel „Factuurcorrectie: …” met regeleinde (leeg zonder factuurcorrectie)"
 
-#: src/Mail/Types.php:478
+#: src/Mail/Types.php:503
 msgid "Grund der Erstattung"
 msgstr "Reden van de terugbetaling"
 
-#: src/Mail/Types.php:479
+#: src/Mail/Types.php:504
 msgid "Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)"
 msgstr "Inleidende zin passend bij de betaalmethode („we hebben … terugbetaald” of „we betalen … terug per overschrijving”)"
 
-#: src/Mail/Types.php:480
+#: src/Mail/Types.php:505
 msgid "Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)"
 msgstr "Opmerking over de uitbetaling per betaalmethode (terugboeking op de kaart, contant aan de kassa, overschrijving naar IBAN of verzoek om IBAN)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:483
+#: src/Mail/Types.php:508
 #, php-format
 msgid "Erstattung bestätigt – %s"
 msgstr "Terugbetaling bevestigd – %s"
 
-#: src/Mail/Types.php:503
+#: src/Mail/Types.php:528
 msgid "Stornierungsanfrage eingegangen"
 msgstr "Annuleringsverzoek ontvangen"
 
-#: src/Mail/Types.php:504
+#: src/Mail/Types.php:529
 msgid "Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung)."
 msgstr "Bevestiging aan de koper dat het annuleringsverzoek uit het bestelportaal is ontvangen en wordt gecontroleerd (nog geen terugbetaling)."
 
-#: src/Mail/Types.php:507
-#: src/Mail/Types.php:529
+#: src/Mail/Types.php:532
+#: src/Mail/Types.php:554
 msgid "Anzahl angefragter Tickets"
 msgstr "Aantal aangevraagde tickets"
 
-#: src/Mail/Types.php:508
+#: src/Mail/Types.php:533
 msgid "Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)"
 msgstr "Aangevraagde tickets, één per regel (evenement, tickettype, datum)"
 
-#: src/Mail/Types.php:509
+#: src/Mail/Types.php:534
 msgid "Voraussichtlicher Erstattungsbetrag mit Währung"
 msgstr "Verwacht terugbetalingsbedrag met valuta"
 
-#: src/Mail/Types.php:510
+#: src/Mail/Types.php:535
 msgid "Angegebener Grund (leer, wenn keiner)"
 msgstr "Opgegeven reden (leeg als er geen is)"
 
-#: src/Mail/Types.php:511
+#: src/Mail/Types.php:536
 msgid "Persönlicher Link zur Bestellung (Status der Anfrage)"
 msgstr "Persoonlijke link naar de bestelling (status van het verzoek)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:514
-#: src/Mail/Types.php:532
+#: src/Mail/Types.php:539
+#: src/Mail/Types.php:557
 #, php-format
 msgid "Deine Stornierungsanfrage – %s"
 msgstr "Je annuleringsverzoek – %s"
 
 #. translators: 1: short order number, 2: amount
-#: src/Mail/Types.php:517
+#: src/Mail/Types.php:542
 #, php-format
 msgid "Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s."
 msgstr "We hebben je annuleringsverzoek voor bestelling %1$s ontvangen. Verwachte terugbetaling: %2$s."
 
-#: src/Mail/Types.php:518
+#: src/Mail/Types.php:543
 msgid "Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:"
 msgstr "Je tickets blijven geldig totdat we het verzoek hebben beoordeeld. Wordt het geaccepteerd, dan worden de tickets ongeldig en ontvang je een bevestiging van de terugbetaling. De status zie je altijd in je bestelling:"
 
-#: src/Mail/Types.php:525
+#: src/Mail/Types.php:550
 msgid "Stornierungsanfrage abgelehnt"
 msgstr "Annuleringsverzoek afgewezen"
 
-#: src/Mail/Types.php:526
+#: src/Mail/Types.php:551
 msgid "Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig)."
 msgstr "Melding aan de koper dat het annuleringsverzoek uit het bestelportaal niet is geaccepteerd (tickets blijven geldig)."
 
 #. translators: %s: short order number
-#: src/Mail/Types.php:534
+#: src/Mail/Types.php:559
 #, php-format
 msgid "Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter."
 msgstr "Je annuleringsverzoek voor bestelling %s is niet geaccepteerd. Je tickets blijven geldig. Neem bij vragen contact op met de organisator."
 
-#: src/Mail/Types.php:539
+#: src/Mail/Types.php:564
 msgid "Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird."
 msgstr "Informatie aan kopers en tickethouders wanneer een heel evenement wordt geannuleerd."
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:541
+#: src/Mail/Types.php:566
 #, php-format
 msgid "Eventabsage: %s"
 msgstr "Evenement geannuleerd: %s"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:542
+#: src/Mail/Types.php:567
 #, php-format
 msgid "Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung."
 msgstr "Het evenement „%s” is geannuleerd. Neem contact op met de organisator voor informatie over de volgende stappen. Dit bericht is geen bevestiging van een terugbetaling."
 
-#: src/Mail/Types.php:547
+#: src/Mail/Types.php:572
 msgid "Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird."
 msgstr "Informatie aan tickethouders wanneer een enkele datum wordt geannuleerd."
 
-#: src/Mail/Types.php:550
+#: src/Mail/Types.php:575
 msgid "Datum und Uhrzeit des Termins"
 msgstr "Datum en tijd van de datum"
 
-#: src/Mail/Types.php:553
+#: src/Mail/Types.php:578
 msgid "Hinweis zur Erstattung (automatisch oder durch den Veranstalter)"
 msgstr "Opmerking over de terugbetaling (automatisch of door de organisator)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:556
+#: src/Mail/Types.php:581
 #, php-format
 msgid "Absage: %s"
 msgstr "Geannuleerd: %s"
 
 #. translators: 1: event, 2: date and time, 3: refund note
-#: src/Mail/Types.php:558
+#: src/Mail/Types.php:583
 #, php-format
 msgid ""
 "Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
@@ -19159,53 +19161,53 @@ msgstr ""
 "\n"
 "%3$s"
 
-#: src/Mail/Types.php:559
-#: src/Mail/Types.php:561
+#: src/Mail/Types.php:584
+#: src/Mail/Types.php:586
 #: src/OccurrenceCancellation.php:194
 #: src/Passes/Cancellation.php:303
 msgid "Der Ticketpreis wird automatisch erstattet."
 msgstr "De ticketprijs wordt automatisch terugbetaald."
 
-#: src/Mail/Types.php:561
+#: src/Mail/Types.php:586
 #: src/OccurrenceCancellation.php:194
 #: src/Passes/Cancellation.php:303
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
 msgstr "De organisator informeert je over terugbetaling of een vervangende datum."
 
-#: src/Mail/Types.php:564
+#: src/Mail/Types.php:589
 msgid "Terminänderung"
 msgstr "Wijziging van datum"
 
-#: src/Mail/Types.php:565
+#: src/Mail/Types.php:590
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
 msgstr "Informatie aan tickethouders wanneer een datum wordt verplaatst."
 
-#: src/Mail/Types.php:568
-#: src/Mail/Types.php:590
+#: src/Mail/Types.php:593
+#: src/Mail/Types.php:615
 msgid "Bisheriges Datum und Uhrzeit"
 msgstr "Vorige datum en tijd"
 
-#: src/Mail/Types.php:569
+#: src/Mail/Types.php:594
 msgid "Neues Datum und Uhrzeit"
 msgstr "Nieuwe datum en tijd"
 
-#: src/Mail/Types.php:572
+#: src/Mail/Types.php:597
 msgid "Erstattungshinweis mit Frist (Einstellungen → Erstattungen); ohne Antragsmöglichkeit der Hinweis, sich an den Veranstalter zu wenden"
 msgstr "Terugbetalingsmelding met deadline (Instellingen → Terugbetalingen); zonder aanvraagmogelijkheid de melding om contact op te nemen met de organisator"
 
-#: src/Mail/Types.php:573
-#: src/Mail/Types.php:593
+#: src/Mail/Types.php:598
+#: src/Mail/Types.php:618
 msgid "Link zur aktualisierten Kalenderdatei (.ics)"
 msgstr "Link naar het bijgewerkte agendabestand (.ics)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:576
+#: src/Mail/Types.php:601
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Wijziging van datum: %s"
 
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note
-#: src/Mail/Types.php:578
+#: src/Mail/Types.php:603
 #, php-format
 msgid ""
 "Der Termin für „%1$s“ wurde verschoben.\n"
@@ -19224,39 +19226,39 @@ msgstr ""
 "\n"
 "Je ticket blijft geldig. %6$s"
 
-#: src/Mail/Types.php:581
+#: src/Mail/Types.php:606
 #: src/RescheduleRefunds.php:57
 msgid "Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
 msgstr "Neem bij vragen over retourneren of terugbetaling contact op met de organisator."
 
-#: src/Mail/Types.php:584
+#: src/Mail/Types.php:609
 msgid "Termindetails geändert"
 msgstr "Gegevens van de datum gewijzigd"
 
-#: src/Mail/Types.php:585
+#: src/Mail/Types.php:610
 msgid "Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt."
 msgstr "Melding aan tickethouders wanneer locatie, einde, toegang of land van het evenement van een datum wijzigen – ook samen met een nieuw tijdstip (dan vervangt deze de e-mail „Wijziging van datum”). Maximaal één keer per wijziging; het bijgewerkte agendabestand is bijgevoegd."
 
-#: src/Mail/Types.php:588
+#: src/Mail/Types.php:613
 msgid "Liste der Änderungen (bisher → neu), eine Zeile je Angabe"
 msgstr "Lijst van de wijzigingen (eerder → nieuw), één regel per gegeven"
 
-#: src/Mail/Types.php:589
+#: src/Mail/Types.php:614
 msgid "Aktuelles Datum und Uhrzeit"
 msgstr "Actuele datum en tijd"
 
-#: src/Mail/Types.php:592
+#: src/Mail/Types.php:617
 msgid "Aktueller Ort"
 msgstr "Actuele locatie"
 
 #. translators: %s: event
-#: src/Mail/Types.php:596
+#: src/Mail/Types.php:621
 #, php-format
 msgid "Geänderte Termindetails: %s"
 msgstr "Gewijzigde gegevens van de datum: %s"
 
 #. translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file
-#: src/Mail/Types.php:598
+#: src/Mail/Types.php:623
 #, php-format
 msgid ""
 "Für deinen Termin „%1$s“ haben sich Angaben geändert:\n"
@@ -19279,65 +19281,65 @@ msgstr ""
 "Je ticket blijft geldig. Het bijgewerkte agendabestand is bijgevoegd; je kunt het ook hier downloaden: %6$s\n"
 "Neem bij vragen over retournering of terugbetaling contact op met de organisator."
 
-#: src/Mail/Types.php:602
+#: src/Mail/Types.php:627
 msgid "Warteliste: Eintragung"
 msgstr "Wachtlijst: inschrijving"
 
-#: src/Mail/Types.php:603
+#: src/Mail/Types.php:628
 msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr "Bevestiging van de inschrijving op de wachtlijst."
 
-#: src/Mail/Types.php:606
-#: src/Mail/Types.php:629
+#: src/Mail/Types.php:631
+#: src/Mail/Types.php:654
 msgid "Gewünschte Anzahl"
 msgstr "Gewenst aantal"
 
-#: src/Mail/Types.php:609
-#: src/Mail/Types.php:651
-#: src/Mail/Types.php:690
+#: src/Mail/Types.php:634
+#: src/Mail/Types.php:676
+#: src/Mail/Types.php:715
 msgid "Persönlicher Link zum Austragen aus der Warteliste"
 msgstr "Persoonlijke link om je af te melden voor de wachtlijst"
 
-#: src/Mail/Types.php:610
-#: src/Mail/Types.php:652
-#: src/Mail/Types.php:691
+#: src/Mail/Types.php:635
+#: src/Mail/Types.php:677
+#: src/Mail/Types.php:716
 msgid "Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})"
 msgstr "Link om je af te melden (oudere benaming, zoals {unsubscribe_link})"
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:615
+#: src/Mail/Types.php:640
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "Je bent ingeschreven op de wachtlijst (positie %d). We e-mailen je zodra er een plek vrijkomt."
 
-#: src/Mail/Types.php:623
+#: src/Mail/Types.php:648
 msgid "Warteliste: E-Mail-Bestätigung"
 msgstr "Wachtlijst: e-mailbevestiging"
 
-#: src/Mail/Types.php:624
+#: src/Mail/Types.php:649
 msgid "Bestätigungslink nach der Eintragung (Double-Opt-in). Erst nach der Bestätigung steht die Person auf der Warteliste; unbestätigte Eintragungen werden gelöscht."
 msgstr "Bevestigingslink na de inschrijving (double opt-in). Pas na de bevestiging staat de persoon op de wachtlijst; onbevestigde inschrijvingen worden verwijderd."
 
-#: src/Mail/Types.php:626
+#: src/Mail/Types.php:651
 msgid "Persönlicher Bestätigungslink"
 msgstr "Persoonlijke bevestigingslink"
 
-#: src/Mail/Types.php:627
+#: src/Mail/Types.php:652
 msgid "Ablauf des Bestätigungslinks"
 msgstr "Verloop van de bevestigingslink"
 
-#: src/Mail/Types.php:628
+#: src/Mail/Types.php:653
 msgid "Gültigkeit des Bestätigungslinks in Stunden"
 msgstr "Geldigheid van de bevestigingslink in uren"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:634
+#: src/Mail/Types.php:659
 #, php-format
 msgid "Bitte bestätige deinen Wartelistenplatz: %s"
 msgstr "Bevestig je plek op de wachtlijst: %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: date, 5: location, 6: confirmation link, 7: expiry
-#: src/Mail/Types.php:636
+#: src/Mail/Types.php:661
 #, php-format
 msgid ""
 "Du möchtest auf die Warteliste für %1$s × „%2$s“ bei „%3$s“ (%4$s, %5$s).\n"
@@ -19354,34 +19356,34 @@ msgstr ""
 "\n"
 "Pas na de bevestiging sta je op de wachtlijst. De link is geldig tot %7$s; daarna wordt de inschrijving verwijderd. Als je je niet hebt ingeschreven, hoef je niets te doen."
 
-#: src/Mail/Types.php:642
+#: src/Mail/Types.php:667
 msgid "Warteliste: Termin geändert"
 msgstr "Wachtlijst: datum gewijzigd"
 
-#: src/Mail/Types.php:643
+#: src/Mail/Types.php:668
 msgid "Information an Wartende und Personen mit offenem Angebot, wenn Beginn oder Ort des Termins geändert wurden."
 msgstr "Informatie aan wachtenden en personen met een openstaand aanbod wanneer de aanvang of locatie van de datum is gewijzigd."
 
-#: src/Mail/Types.php:648
+#: src/Mail/Types.php:673
 msgid "Bisheriger Ort"
 msgstr "Vorige locatie"
 
-#: src/Mail/Types.php:649
+#: src/Mail/Types.php:674
 msgid "Gewünschte bzw. reservierte Anzahl"
 msgstr "Gewenst of gereserveerd aantal"
 
-#: src/Mail/Types.php:650
+#: src/Mail/Types.php:675
 msgid "Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)"
 msgstr "Zin over de stand (blijft op de wachtlijst of aanbod blijft geldig)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:655
+#: src/Mail/Types.php:680
 #, php-format
 msgid "Geänderter Termin auf deiner Warteliste: %s"
 msgstr "Gewijzigde datum op je wachtlijst: %s"
 
 #. translators: 1: event, 2: ticket type, 3: old date, 4: old location, 5: new date, 6: new location, 7: status sentence
-#: src/Mail/Types.php:658
+#: src/Mail/Types.php:683
 #, php-format
 msgid ""
 "Für „%1$s“ (%2$s), auf dessen Warteliste du stehst, haben sich Angaben geändert.\n"
@@ -19398,31 +19400,31 @@ msgstr ""
 "\n"
 "%7$s"
 
-#: src/Mail/Types.php:663
+#: src/Mail/Types.php:688
 #: src/Waitlists.php:1552
 msgid "Du bleibst auf der Warteliste."
 msgstr "Je blijft op de wachtlijst."
 
-#: src/Mail/Types.php:666
+#: src/Mail/Types.php:691
 msgid "Warteliste: geschlossen"
 msgstr "Wachtlijst: gesloten"
 
-#: src/Mail/Types.php:667
+#: src/Mail/Types.php:692
 msgid "Der Wartelistenplatz endet, weil der Termin abgesagt wurde, begonnen hat oder der Verkauf beendet ist."
 msgstr "De plek op de wachtlijst eindigt omdat de datum is geannuleerd, is begonnen of de verkoop is beëindigd."
 
-#: src/Mail/Types.php:671
+#: src/Mail/Types.php:696
 msgid "Grund (Absage oder Ende)"
 msgstr "Reden (annulering of einde)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:674
+#: src/Mail/Types.php:699
 #, php-format
 msgid "Warteliste beendet: %s"
 msgstr "Wachtlijst beëindigd: %s"
 
 #. translators: 1: event, 2: ticket type, 3: reason
-#: src/Mail/Types.php:676
+#: src/Mail/Types.php:701
 #, php-format
 msgid ""
 "Dein Platz auf der Warteliste für „%1$s“ (%2$s) ist beendet. %3$s\n"
@@ -19433,35 +19435,35 @@ msgstr ""
 "\n"
 "Je hoeft verder niets te doen; we schrijven je over deze datum niet meer."
 
-#: src/Mail/Types.php:677
+#: src/Mail/Types.php:702
 #: src/Waitlists.php:1602
 msgid "Der Termin wurde abgesagt."
 msgstr "De datum is geannuleerd."
 
-#: src/Mail/Types.php:680
+#: src/Mail/Types.php:705
 msgid "Warteliste: Platzangebot"
 msgstr "Wachtlijst: plekaanbieding"
 
-#: src/Mail/Types.php:681
+#: src/Mail/Types.php:706
 msgid "Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert."
 msgstr "Aanbod aan de volgende persoon op de wachtlijst; de tickets zijn gereserveerd tot het aanbod verloopt."
 
-#: src/Mail/Types.php:685
+#: src/Mail/Types.php:710
 msgid "Link zum Ablehnen (optional; sonst über den Annahme-Link)"
 msgstr "Link om af te wijzen (optioneel; anders via de acceptatielink)"
 
-#: src/Mail/Types.php:686
+#: src/Mail/Types.php:711
 msgid "Anzahl der reservierten Tickets"
 msgstr "Aantal gereserveerde tickets"
 
 #. translators: %s: event
-#: src/Mail/Types.php:694
+#: src/Mail/Types.php:719
 #, php-format
 msgid "Tickets für dich reserviert: %s"
 msgstr "Tickets voor je gereserveerd: %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link
-#: src/Mail/Types.php:697
+#: src/Mail/Types.php:722
 #, php-format
 msgid ""
 "Gute Nachrichten: Für dich sind %1$s × „%2$s“ für „%3$s“ reserviert.\n"
@@ -19479,40 +19481,40 @@ msgstr ""
 "Als je de tickets niet meer nodig hebt, kun je het aanbod via dezelfde link afwijzen."
 
 #. translators: 1: date and time with time zone, 2: location
-#: src/Mail/Types.php:700
+#: src/Mail/Types.php:725
 #, php-format
 msgid "Termin: %1$s, %2$s"
 msgstr "Datum: %1$s, %2$s"
 
-#: src/Mail/Types.php:708
+#: src/Mail/Types.php:733
 #: src/Reports/Page.php:234
 msgid "Mitgliedspass"
 msgstr "Lidmaatschapspas"
 
-#: src/Mail/Types.php:709
+#: src/Mail/Types.php:734
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr "Passcode van een lidmaatschap of een meervoudige pas."
 
-#: src/Mail/Types.php:711
+#: src/Mail/Types.php:736
 msgid "Passcode"
 msgstr "Passcode"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:716
+#: src/Mail/Types.php:741
 #, php-format
 msgid "Dein Pass für %s"
 msgstr "Je pas voor %s"
 
-#: src/Mail/Types.php:717
+#: src/Mail/Types.php:742
 msgid "Dein Passcode:"
 msgstr "Je passcode:"
 
-#: src/Mail/Types.php:717
+#: src/Mail/Types.php:742
 msgid "Gültig bis:"
 msgstr "Geldig tot:"
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:727
+#: src/Mail/Types.php:752
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -19520,29 +19522,29 @@ msgstr[0] "%d ticket is hierdoor ongeldig."
 msgstr[1] "%d tickets zijn hierdoor ongeldig."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:740
+#: src/Mail/Types.php:765
 #, php-format
 msgid "Aufpreis bezahlt: %s"
 msgstr "Meerprijs betaald: %s"
 
 #. translators: %s: amount
-#: src/Mail/Types.php:742
+#: src/Mail/Types.php:767
 #, php-format
 msgid "Die Preisdifferenz von %s wird erstattet."
 msgstr "Het prijsverschil van %s wordt terugbetaald."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:744
+#: src/Mail/Types.php:769
 #, php-format
 msgid "Die Erstattung der Preisdifferenz von %s wird geprüft."
 msgstr "De terugbetaling van het prijsverschil van %s wordt gecontroleerd."
 
-#: src/Mail/Types.php:745
+#: src/Mail/Types.php:770
 msgid "Der Umtausch erfolgte aus Kulanz ohne Aufpreis."
 msgstr "De omruil is uit coulance zonder meerprijs uitgevoerd."
 
 #. translators: %s: personal unsubscribe link
-#: src/Mail/Types.php:756
+#: src/Mail/Types.php:781
 #, php-format
 msgid ""
 "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n"
@@ -19552,7 +19554,7 @@ msgstr ""
 "%s"
 
 #. translators: %s: credit note number
-#: src/Mail/Types.php:762
+#: src/Mail/Types.php:787
 #, php-format
 msgid "Rechnungskorrektur: %s"
 msgstr "Factuurcorrectie: %s"
@@ -23047,139 +23049,139 @@ msgstr "De QR-bibliotheek (BaconQrCode) wordt door een andere plugin geladen (%s
 msgid "QR-Codes können nicht erzeugt werden: Die QR-Bibliothek (BaconQrCode) fehlt oder ein anderes Plugin lädt eine inkompatible Version (%s). Tickets zeigen dann keinen QR-Code."
 msgstr "QR-codes kunnen niet worden gemaakt: de QR-bibliotheek (BaconQrCode) ontbreekt of een andere plugin laadt een incompatibele versie (%s). Tickets tonen dan geen QR-code."
 
-#: src/OrderPortal.php:126
+#: src/OrderPortal.php:141
 msgid "Übertragung fehlgeschlagen."
 msgstr "Overdracht mislukt."
 
-#: src/OrderPortal.php:127
+#: src/OrderPortal.php:142
 msgid "Ticket wurde übertragen. Der neue Code wurde per E-Mail versendet."
 msgstr "Ticket is overgedragen. De nieuwe code is per e-mail verzonden."
 
 #. translators: %s: recipient e-mail address
-#: src/OrderPortal.php:129
+#: src/OrderPortal.php:144
 #, php-format
 msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
 msgstr "Het ticket echt overdragen aan %s? Dit is definitief en kan maar één keer: de vorige ticketcode wordt direct ongeldig en de nieuwe persoon ontvangt een nieuwe code per e-mail."
 
-#: src/OrderPortal.php:130
+#: src/OrderPortal.php:145
 msgid "Ja, endgültig übertragen"
 msgstr "Ja, definitief overdragen"
 
-#: src/OrderPortal.php:131
+#: src/OrderPortal.php:146
 msgid "Zuweisung fehlgeschlagen."
 msgstr "Toewijzing mislukt."
 
-#: src/OrderPortal.php:132
+#: src/OrderPortal.php:147
 msgid "Teilnehmer wurde zugewiesen. Ein neuer Ticketcode wurde an die Teilnehmer-E-Mail gesendet; der bisherige Code ist ungültig."
 msgstr "Deelnemer is toegewezen. Er is een nieuwe ticketcode naar het e-mailadres van de deelnemer gestuurd; de vorige code is ongeldig."
 
-#: src/OrderPortal.php:133
+#: src/OrderPortal.php:148
 #: src/TicketPage.php:132
 msgid "Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert."
 msgstr "Deelnemersgegevens opgeslagen. De ticketcode blijft ongewijzigd."
 
-#: src/OrderPortal.php:134
+#: src/OrderPortal.php:149
 msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
 msgstr "Tickets nu opnieuw verzenden? Er worden nieuwe ticketcodes aangemaakt; de tot nu toe verzonden codes en afdrukken worden ongeldig."
 
-#: src/OrderPortal.php:135
+#: src/OrderPortal.php:150
 msgid "Ja, erneut senden"
 msgstr "Ja, opnieuw verzenden"
 
 #. translators: %d: number of tickets passed on to other people
-#: src/OrderPortal.php:137
+#: src/OrderPortal.php:152
 #, php-format
 msgid "Achtung: Auch die an andere Personen weitergegebenen Tickets (Anzahl: %d) bekommen neue Codes. Deren bisherige Tickets und Ausdrucke werden sofort ungültig; die neuen Codes gehen an die Teilnehmer-E-Mail. Trotzdem alle Tickets erneut senden?"
 msgstr "Let op: ook tickets die aan anderen zijn doorgegeven (aantal: %d) krijgen nieuwe codes. Hun vorige tickets en afdrukken worden direct ongeldig; de nieuwe codes gaan naar het e-mailadres van de deelnemer. Toch alle tickets opnieuw verzenden?"
 
 #. translators: %d: number of tickets passed on to other people
-#: src/OrderPortal.php:138
+#: src/OrderPortal.php:153
 msgid "Erneuter Versand fehlgeschlagen."
 msgstr "Opnieuw verzenden mislukt."
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:140
+#: src/OrderPortal.php:155
 #, php-format
 msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
 msgstr "De tickets zijn opnieuw verzonden naar %s. Gebruik vanaf nu alleen de nieuwe codes."
 
-#: src/OrderPortal.php:141
+#: src/OrderPortal.php:156
 msgid "Wird gesendet …"
 msgstr "Bezig met verzenden …"
 
-#: src/OrderPortal.php:142
+#: src/OrderPortal.php:157
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
 msgstr "Factuurgegevens opgeslagen. Ze worden op de factuur gebruikt."
 
-#: src/OrderPortal.php:143
+#: src/OrderPortal.php:158
 msgid "Rechnungsdaten entfernt."
 msgstr "Factuurgegevens verwijderd."
 
 #. translators: %s: masked IBAN
-#: src/OrderPortal.php:146
+#: src/OrderPortal.php:161
 #, php-format
 msgid "Bankverbindung gespeichert (%s). Erstattungen überweisen wir auf dieses Konto."
 msgstr "Bankgegevens opgeslagen (%s). Terugbetalingen maken we over naar deze rekening."
 
-#: src/OrderPortal.php:147
+#: src/OrderPortal.php:162
 msgid "Bankverbindung entfernt."
 msgstr "Bankgegevens verwijderd."
 
-#: src/OrderPortal.php:148
+#: src/OrderPortal.php:163
 #: src/PayoutAccount.php:81
 msgid "Die Bankverbindung konnte nicht gespeichert werden."
 msgstr "De bankgegevens konden niet worden opgeslagen."
 
-#: src/OrderPortal.php:150
+#: src/OrderPortal.php:165
 msgid "Erstattung für die Tickets der verschobenen Termine beantragen? Der Veranstalter prüft den Antrag; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet."
 msgstr "Terugbetaling aanvragen voor de tickets van de verplaatste datums? De organisator beoordeelt het verzoek; pas na goedkeuring worden de tickets ongeldig en wordt het bedrag terugbetaald."
 
-#: src/OrderPortal.php:151
+#: src/OrderPortal.php:166
 msgid "Ja, Erstattung beantragen"
 msgstr "Ja, terugbetaling aanvragen"
 
-#: src/OrderPortal.php:152
+#: src/OrderPortal.php:167
 msgid "Dein Erstattungsantrag ist eingegangen und wird geprüft."
 msgstr "Je terugbetalingsverzoek is ontvangen en wordt beoordeeld."
 
-#: src/OrderPortal.php:153
+#: src/OrderPortal.php:168
 msgid "Der Erstattungsantrag konnte nicht gestellt werden."
 msgstr "Het terugbetalingsverzoek kon niet worden ingediend."
 
 #. translators: %s: order date
-#: src/OrderPortal.php:162
+#: src/OrderPortal.php:177
 #, php-format
 msgid "Bestellt am %s"
 msgstr "Besteld op %s"
 
-#: src/OrderPortal.php:166
+#: src/OrderPortal.php:181
 msgid "Bestellte Tickets"
 msgstr "Bestelde tickets"
 
 #. translators: 1: voucher amount, 2: amount to pay
-#: src/OrderPortal.php:167
+#: src/OrderPortal.php:182
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
 msgstr "waarvan met voucher betaald: %1$s · Te betalen bedrag: %2$s"
 
 #. translators: 1: voucher amount, 2: amount to pay
-#: src/OrderPortal.php:168
+#: src/OrderPortal.php:183
 #: src/PublicEvents.php:250
 msgid "GiroCode: mit der Banking-App scannen, um die Überweisung vorauszufüllen"
 msgstr "GiroCode: scan met je bankapp om de overboeking vooraf in te vullen"
 
 #. translators: 1: voucher amount, 2: amount to pay
-#: src/OrderPortal.php:168
+#: src/OrderPortal.php:183
 #: src/PublicEvents.php:249
 msgid "Mit der Banking-App scannen (GiroCode)"
 msgstr "Scannen met de bankapp (GiroCode)"
 
-#: src/OrderPortal.php:169
+#: src/OrderPortal.php:184
 msgid "Die Ticketlinks und QR-Codes findest du in der Ticket-E-Mail (aus Sicherheitsgründen werden Ticketcodes nicht gespeichert und hier nicht angezeigt)."
 msgstr "De ticketlinks en QR-codes vind je in de ticket-e-mail (om veiligheidsredenen worden ticketcodes niet opgeslagen en hier niet getoond)."
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:170
+#: src/OrderPortal.php:185
 #, php-format
 msgid "Achtung: %d Ticket hast du an eine andere Person weitergegeben."
 msgid_plural "Achtung: %d Tickets hast du an andere Personen weitergegeben."
@@ -23187,28 +23189,28 @@ msgstr[0] "Let op: je hebt %d ticket aan iemand anders doorgegeven."
 msgstr[1] "Let op: je hebt %d tickets aan anderen doorgegeven."
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:170
+#: src/OrderPortal.php:185
 msgid "Ein erneuter Versand aller Tickets macht deren Tickets und Ausdrucke ungültig. Sende nur deine eigenen Tickets neu, wenn du nur deine E-Mail verloren hast."
 msgstr "Als je alle tickets opnieuw verstuurt, worden hun tickets en afdrukken ongeldig. Verstuur alleen je eigen tickets opnieuw als je alleen je e-mail kwijt bent."
 
 #. translators: %d: number of tickets
-#: src/OrderPortal.php:170
+#: src/OrderPortal.php:185
 msgid "Nur meine eigenen, nicht weitergegebenen Tickets erneut senden"
 msgstr "Alleen mijn eigen, niet doorgegeven tickets opnieuw versturen"
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:170
+#: src/OrderPortal.php:185
 #, php-format
 msgid "Tickets erneut an %s senden"
 msgstr "Tickets opnieuw verzenden naar %s"
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:170
+#: src/OrderPortal.php:185
 msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig. Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
 msgstr "Hierbij worden nieuwe ticketcodes aangemaakt; eerder verzonden codes worden ongeldig. Tickets met een eigen e-mailadres van de deelnemer gaan naar dat adres. Maximaal drie keer per uur."
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:172
+#: src/OrderPortal.php:187
 #, php-format
 msgid "Für %1$d Ticket wurde der Termin verschoben. Kannst du den neuen Termin nicht wahrnehmen, kannst du bis %2$s eine Erstattung beantragen."
 msgid_plural "Für %1$d Tickets wurde der Termin verschoben. Kannst du den neuen Termin nicht wahrnehmen, kannst du bis %2$s eine Erstattung beantragen."
@@ -23216,44 +23218,44 @@ msgstr[0] "Voor %1$d ticket is de datum verplaatst. Kun je niet op de nieuwe dat
 msgstr[1] "Voor %1$d tickets is de datum verplaatst. Kun je niet op de nieuwe datum komen, dan kun je tot %2$s een terugbetaling aanvragen."
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:172
+#: src/OrderPortal.php:187
 msgid "Ein Erstattungsantrag wird bereits geprüft."
 msgstr "Er wordt al een terugbetalingsverzoek beoordeeld."
 
 #. translators: 1: number of tickets, 2: deadline
-#: src/OrderPortal.php:172
+#: src/OrderPortal.php:187
 msgid "Erstattung beantragen"
 msgstr "Terugbetaling aanvragen"
 
 #. translators: %s: missing attendee data
-#: src/OrderPortal.php:175
+#: src/OrderPortal.php:190
 #, php-format
 msgid "Für dieses Ticket fehlen noch: %s"
 msgstr "Voor dit ticket ontbreekt nog: %s"
 
 #. translators: %s: missing attendee data
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 msgid "Dieses Ticket wurde übertragen. Name und Angaben pflegt die neue Inhaberin bzw. der neue Inhaber über den eigenen Ticketlink."
 msgstr "Dit ticket is overgedragen. Naam en gegevens beheert de nieuwe houder via de eigen ticketlink."
 
 #. translators: %s: missing attendee data
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 msgid "Teilnehmer-E-Mail (optional)"
 msgstr "E-mailadres deelnemer (optioneel)"
 
 #. translators: %s: missing attendee data
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 #: src/TicketPage.php:160
 msgid "(nicht mehr änderbar)"
 msgstr "(niet meer te wijzigen)"
 
 #. translators: %s: missing attendee data
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 msgid "Wenn du eine andere E-Mail-Adresse einträgst, erhält diese Person einen neuen Ticketcode und der bisherige Code wird ungültig. Namens- und Angabenkorrekturen behalten den Code."
 msgstr "Als je een ander e-mailadres invoert, ontvangt die persoon een nieuwe ticketcode en wordt de vorige code ongeldig. Correcties van namen en gegevens behouden de code."
 
 #. translators: %d: hours
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 #: src/TicketPage.php:175
 #, php-format
 msgid "Änderungen sind bis %d Stunde vor Beginn möglich."
@@ -23262,61 +23264,61 @@ msgstr[0] "Wijzigingen zijn mogelijk tot %d uur voor aanvang."
 msgstr[1] "Wijzigingen zijn mogelijk tot %d uur voor aanvang."
 
 #. translators: %d: hours
-#: src/OrderPortal.php:176
+#: src/OrderPortal.php:191
 msgid "Teilnehmer zuweisen"
 msgstr "Deelnemer toewijzen"
 
 #. translators: %d: hours
-#: src/OrderPortal.php:177
+#: src/OrderPortal.php:192
 msgid "An E-Mail übertragen"
 msgstr "Overdragen aan e-mailadres"
 
 #. translators: %d: hours
-#: src/OrderPortal.php:177
+#: src/OrderPortal.php:192
 msgid "Ticket einmalig übertragen"
 msgstr "Ticket eenmalig overdragen"
 
-#: src/OrderPortal.php:185
+#: src/OrderPortal.php:200
 msgid "Rechnung anzeigen"
 msgstr "Factuur bekijken"
 
-#: src/OrderPortal.php:186
+#: src/OrderPortal.php:201
 msgid "Diesen persönlichen Link sicher aufbewahren und nicht teilen."
 msgstr "Bewaar deze persoonlijke link veilig en deel hem niet."
 
 #. translators: %s: full order id
-#: src/OrderPortal.php:187
+#: src/OrderPortal.php:202
 #, php-format
 msgid "Vollständige Bestell-ID: %s"
 msgstr "Volledig bestel-ID: %s"
 
-#: src/OrderPortal.php:215
+#: src/OrderPortal.php:230
 msgid "Du hast per Überweisung bezahlt. Falls wir dir etwas erstatten (z. B. bei einer Absage), überweisen wir den Betrag auf dieses Konto."
 msgstr "Je hebt per overschrijving betaald. Als we je iets terugbetalen (bijv. bij een annulering), maken we het bedrag over naar deze rekening."
 
 #. translators: 1: masked IBAN, 2: account holder
-#: src/OrderPortal.php:218
+#: src/OrderPortal.php:233
 #, php-format
 msgid "Gespeichert: %1$s (%2$s)"
 msgstr "Opgeslagen: %1$s (%2$s)"
 
-#: src/OrderPortal.php:220
+#: src/OrderPortal.php:235
 msgid "Kontoinhaber:in"
 msgstr "Rekeninghouder"
 
-#: src/OrderPortal.php:222
+#: src/OrderPortal.php:237
 msgid "IBAN leer lassen und speichern, um die Bankverbindung zu entfernen."
 msgstr "Laat de IBAN leeg en sla op om de bankgegevens te verwijderen."
 
-#: src/OrderPortal.php:223
+#: src/OrderPortal.php:238
 msgid "Bankverbindung speichern"
 msgstr "Bankgegevens opslaan"
 
-#: src/OrderPortal.php:237
+#: src/OrderPortal.php:252
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
 msgstr "Tot de factuur is uitgegeven, kun je hier bedrijf, naam, adres en btw-nummer voor de factuur invullen of corrigeren."
 
-#: src/OrderPortal.php:255
+#: src/OrderPortal.php:270
 msgid "Rechnungsdaten speichern"
 msgstr "Factuurgegevens opslaan"
 
@@ -23557,78 +23559,78 @@ msgstr "De bestelling kon zojuist niet worden geannuleerd. Probeer het opnieuw."
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "De bestelling kon zojuist niet als terugbetaald worden gemarkeerd; dit wordt automatisch ingehaald."
 
-#: src/Orders.php:3025
+#: src/Orders.php:3040
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "De overdrachtsgegevens zijn ongeldig."
 
-#: src/Orders.php:3032
+#: src/Orders.php:3047
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Tickets kunnen pas na bevestigde betaling worden overgedragen."
 
-#: src/Orders.php:3045
+#: src/Orders.php:3060
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Dit ticket kan niet meer worden overgedragen."
 
-#: src/Orders.php:3055
+#: src/Orders.php:3070
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "De houder van dit ticket is al gewijzigd; een nieuwe overdracht is niet mogelijk."
 
-#: src/Orders.php:3074
+#: src/Orders.php:3089
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "De ticketoverdracht kon niet worden opgeslagen."
 
-#: src/Orders.php:3099
+#: src/Orders.php:3114
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "De ticketoverdracht is opgeslagen, maar de e-mail kon niet worden bezorgd. Neem contact op met de organisator om hem opnieuw te laten verzenden."
 
-#: src/Orders.php:3124
-#: src/Orders.php:3134
+#: src/Orders.php:3139
+#: src/Orders.php:3149
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Dit evenement kan niet worden geannuleerd."
 
-#: src/Orders.php:3168
+#: src/Orders.php:3183
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Dit evenement is niet geannuleerd."
 
-#: src/Orders.php:3684
+#: src/Orders.php:3699
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "De tickets konden zojuist niet worden uitgegeven. Probeer het opnieuw."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:3932
+#: src/Orders.php:3947
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "De stap is zonder foutmelding mislukt. %s"
 
-#: src/Orders.php:4196
+#: src/Orders.php:4211
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "De tickets konden zojuist niet worden vernieuwd. Probeer het opnieuw."
 
-#: src/Orders.php:4200
+#: src/Orders.php:4215
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Tickets kunnen pas na bevestigde betaling opnieuw worden verzonden."
 
-#: src/Orders.php:4218
+#: src/Orders.php:4233
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Dit formulier is al verzonden; de tickets zijn al opnieuw verzonden. Laad de pagina opnieuw voor een nieuwe verzending."
 
-#: src/Orders.php:4279
-#: src/Orders.php:4358
-#: src/Orders.php:4529
+#: src/Orders.php:4294
+#: src/Orders.php:4373
+#: src/Orders.php:4544
 #: src/PortalSelfService.php:251
 #: src/PortalSelfService.php:264
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Ticketcode kon niet worden vernieuwd."
 
-#: src/Orders.php:4306
+#: src/Orders.php:4321
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Geen geldige tickets gevonden om opnieuw te verzenden."
 
-#: src/Orders.php:4382
+#: src/Orders.php:4397
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Minstens één e-mail kon niet worden bezorgd. De eerdere ticketcodes blijven geldig; de verzending wordt automatisch herhaald."
 
-#: src/Orders.php:4518
+#: src/Orders.php:4533
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Alleen geldige, nog niet ingecheckte tickets van betaalde bestellingen kunnen opnieuw worden uitgegeven."
 
@@ -26137,83 +26139,84 @@ msgstr "Dit ticket is overgedragen of toegewezen aan een andere persoon; alleen 
 msgid "Für diese Bestellung gibt es keine Tickets, die du herunterladen kannst."
 msgstr "Voor deze bestelling zijn er geen tickets die je kunt downloaden."
 
-#: src/PortalSelfService.php:310
-#: src/PortalSelfService.php:444
-#: src/PortalSelfService.php:524
+#: src/PortalSelfService.php:311
+#: src/PortalSelfService.php:378
+#: src/PortalSelfService.php:528
+#: src/PortalSelfService.php:608
 msgid "Das Formular ist abgelaufen. Bitte lade die Bestellseite neu."
 msgstr "Het formulier is verlopen. Laad de bestelpagina opnieuw."
 
-#: src/PortalSelfService.php:378
+#: src/PortalSelfService.php:462
 msgid "Für diese Bestellung ist keine Stornierungsanfrage im Bestellportal möglich. Bitte wende dich an den Veranstalter."
 msgstr "Voor deze bestelling is geen annuleringsverzoek via het bestelportaal mogelijk. Neem contact op met de organisator."
 
-#: src/PortalSelfService.php:380
+#: src/PortalSelfService.php:464
 msgid "Eine Stornierung kann erst nach bestätigter Zahlung angefragt werden."
 msgstr "Annulering kan pas na bevestigde betaling worden aangevraagd."
 
-#: src/PortalSelfService.php:382
+#: src/PortalSelfService.php:466
 msgid "Diese Bestellung wurde im Shop abgewickelt. Bitte wende dich für eine Stornierung an den Shop."
 msgstr "Deze bestelling is via de webwinkel afgehandeld. Neem voor annulering contact op met de webwinkel."
 
-#: src/PortalSelfService.php:384
+#: src/PortalSelfService.php:468
 msgid "Für Freikarten ist keine Erstattung möglich."
 msgstr "Voor vrijkaartjes is geen terugbetaling mogelijk."
 
-#: src/PortalSelfService.php:386
+#: src/PortalSelfService.php:470
 msgid "Dieses Ticket wurde bereits erstattet."
 msgstr "Dit ticket is al terugbetaald."
 
-#: src/PortalSelfService.php:388
+#: src/PortalSelfService.php:472
 msgid "Für dieses Ticket liegt bereits eine Stornierungsanfrage vor."
 msgstr "Voor dit ticket is al een annuleringsverzoek ingediend."
 
-#: src/PortalSelfService.php:390
+#: src/PortalSelfService.php:474
 msgid "Nur gültige, noch nicht verwendete Tickets können storniert werden."
 msgstr "Alleen geldige, nog niet gebruikte tickets kunnen worden geannuleerd."
 
-#: src/PortalSelfService.php:392
+#: src/PortalSelfService.php:476
 msgid "Übertragene Tickets können nicht über das Bestellportal storniert werden."
 msgstr "Overgedragen tickets kunnen niet via het bestelportaal worden geannuleerd."
 
 #. translators: %d: hours
-#: src/PortalSelfService.php:395
+#: src/PortalSelfService.php:479
 #, php-format
 msgid "Stornierungen können nur bis %d Stunde vor Beginn angefragt werden."
 msgid_plural "Stornierungen können nur bis %d Stunden vor Beginn angefragt werden."
 msgstr[0] "Annulering kan alleen tot %d uur voor aanvang worden aangevraagd."
 msgstr[1] "Annulering kan alleen tot %d uur voor aanvang worden aangevraagd."
 
-#: src/PortalSelfService.php:397
+#: src/PortalSelfService.php:481
 msgid "Die Stornierung ist für dieses Ticket nicht möglich."
 msgstr "Annuleren is voor dit ticket niet mogelijk."
 
-#: src/PortalSelfService.php:404
+#: src/PortalSelfService.php:488
 msgid "Angefragt – wird geprüft"
 msgstr "Aangevraagd – wordt gecontroleerd"
 
-#: src/PortalSelfService.php:408
+#: src/PortalSelfService.php:492
 msgid "Angenommen – Erstattung in Bearbeitung"
 msgstr "Geaccepteerd – terugbetaling in behandeling"
 
-#: src/PortalSelfService.php:461
-#: src/PortalSelfService.php:672
+#: src/PortalSelfService.php:545
+#: src/PortalSelfService.php:757
 msgid "Bitte wähle mindestens ein Ticket aus."
 msgstr "Selecteer minstens één ticket."
 
-#: src/PortalSelfService.php:464
+#: src/PortalSelfService.php:548
 msgid "Zu viele Tickets ausgewählt."
 msgstr "Te veel tickets geselecteerd."
 
-#: src/PortalSelfService.php:513
+#: src/PortalSelfService.php:597
 msgid "Deine Stornierungsanfrage ist eingegangen. Wir prüfen sie und melden uns per E-Mail. Bis dahin bleiben deine Tickets gültig."
 msgstr "Je annuleringsverzoek is ontvangen. We beoordelen het en laten het je per e-mail weten. Tot die tijd blijven je tickets geldig."
 
-#: src/PortalSelfService.php:554
+#: src/PortalSelfService.php:638
 msgid "Tickets als PDF"
 msgstr "Tickets als PDF"
 
 #. translators: %d: number of tickets
-#: src/PortalSelfService.php:557
+#: src/PortalSelfService.php:641
 #, php-format
 msgid "%d Ticket als PDF herunterladen"
 msgid_plural "Alle %d Tickets als PDF herunterladen"
@@ -26221,7 +26224,7 @@ msgstr[0] "%d ticket als PDF downloaden"
 msgstr[1] "Alle %d tickets als PDF downloaden"
 
 #. translators: %d: tickets per PDF
-#: src/PortalSelfService.php:560
+#: src/PortalSelfService.php:644
 #, php-format
 msgid "Je PDF höchstens %d Ticket:"
 msgid_plural "Je PDF höchstens %d Tickets:"
@@ -26229,91 +26232,91 @@ msgstr[0] "Per pdf maximaal %d ticket:"
 msgstr[1] "Per pdf maximaal %d tickets:"
 
 #. translators: 1: first ticket number, 2: last ticket number, 3: number of tickets
-#: src/PortalSelfService.php:565
+#: src/PortalSelfService.php:649
 #, php-format
 msgid "Tickets %1$d–%2$d von %3$d als PDF herunterladen"
 msgstr "Tickets %1$d–%2$d van %3$d als pdf downloaden"
 
-#: src/PortalSelfService.php:574
+#: src/PortalSelfService.php:658
 msgid "Stornierte, erstattete, bereits verwendete und an andere Personen übertragene Tickets sind nicht enthalten."
 msgstr "Geannuleerde, terugbetaalde, al gebruikte en aan anderen overgedragen tickets zijn niet inbegrepen."
 
-#: src/PortalSelfService.php:587
+#: src/PortalSelfService.php:672
 msgid "Dieses Ticket als PDF"
 msgstr "Dit ticket als PDF"
 
-#: src/PortalSelfService.php:601
+#: src/PortalSelfService.php:686
 msgid "Beim Herunterladen erhalten die Tickets neue Codes: Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke dieser Tickets werden ungültig. Verwende danach nur noch das PDF."
 msgstr "Bij het downloaden krijgen de tickets nieuwe codes: eerder verzonden ticketlinks, QR-codes en afdrukken van deze tickets worden ongeldig. Gebruik daarna alleen nog de PDF."
 
-#: src/PortalSelfService.php:610
+#: src/PortalSelfService.php:695
 msgid "Stornierungen und Erstattungen"
 msgstr "Annuleringen en terugbetalingen"
 
 #. translators: 1: date, 2: number of tickets, 3: amount, 4: status
-#: src/PortalSelfService.php:615
+#: src/PortalSelfService.php:700
 #, php-format
 msgid "%1$s: %2$d Ticket, %3$s – %4$s"
 msgid_plural "%1$s: %2$d Tickets, %3$s – %4$s"
 msgstr[0] "%1$s: %2$d ticket, %3$s – %4$s"
 msgstr[1] "%1$s: %2$d tickets, %3$s – %4$s"
 
-#: src/PortalSelfService.php:630
-#: src/PortalSelfService.php:661
+#: src/PortalSelfService.php:715
+#: src/PortalSelfService.php:746
 #: src/Sales/SelfService.php:137
 #: src/Sales/SelfService.php:151
 msgid "Stornierung anfragen"
 msgstr "Annulering aanvragen"
 
-#: src/PortalSelfService.php:648
+#: src/PortalSelfService.php:733
 msgid "Derzeit kann für keines deiner Tickets eine Stornierung angefragt werden."
 msgstr "Op dit moment kan voor geen van je tickets annulering worden aangevraagd."
 
-#: src/PortalSelfService.php:651
+#: src/PortalSelfService.php:736
 msgid "Welche Tickets möchtest du stornieren?"
 msgstr "Welke tickets wil je annuleren?"
 
 #. translators: %d: hours
-#: src/PortalSelfService.php:654
+#: src/PortalSelfService.php:739
 #, php-format
 msgid "Anfragen sind bis %d Stunde vor Beginn möglich."
 msgid_plural "Anfragen sind bis %d Stunden vor Beginn möglich."
 msgstr[0] "Aanvragen zijn mogelijk tot %d uur voor aanvang."
 msgstr[1] "Aanvragen zijn mogelijk tot %d uur voor aanvang."
 
-#: src/PortalSelfService.php:655
+#: src/PortalSelfService.php:740
 msgid "Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet."
 msgstr "Het verzoek wordt door de organisator beoordeeld; pas na goedkeuring worden de tickets ongeldig en wordt het bedrag terugbetaald."
 
-#: src/PortalSelfService.php:658
+#: src/PortalSelfService.php:743
 msgid "Die Servicegebühr wird bei einer Stornierung auf deinen Wunsch nicht erstattet."
 msgstr "De servicekosten worden bij een annulering op je verzoek niet terugbetaald."
 
-#: src/PortalSelfService.php:668
+#: src/PortalSelfService.php:753
 msgid "Beim Herunterladen erhalten die Tickets neue Codes. Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke werden ungültig. Fortfahren?"
 msgstr "Bij het downloaden krijgen de tickets nieuwe codes. Eerder verzonden ticketlinks, QR-codes en afdrukken worden ongeldig. Doorgaan?"
 
-#: src/PortalSelfService.php:669
+#: src/PortalSelfService.php:754
 msgid "Ja, PDF erstellen"
 msgstr "Ja, PDF maken"
 
-#: src/PortalSelfService.php:670
+#: src/PortalSelfService.php:755
 msgid "Stornierung der ausgewählten Tickets jetzt anfragen?"
 msgstr "Annulering van de geselecteerde tickets nu aanvragen?"
 
-#: src/PortalSelfService.php:671
+#: src/PortalSelfService.php:756
 msgid "Ja, Stornierung anfragen"
 msgstr "Ja, annulering aanvragen"
 
-#: src/PortalSelfService.php:673
+#: src/PortalSelfService.php:758
 msgid "Die Anfrage konnte nicht gesendet werden."
 msgstr "Het verzoek kon niet worden verzonden."
 
-#: src/PortalSelfService.php:694
+#: src/PortalSelfService.php:779
 msgid "Für dieses Ticket kann kein Bestelllink gesendet werden."
 msgstr "Voor dit ticket kan geen bestellink worden verzonden."
 
-#: src/PortalSelfService.php:701
+#: src/PortalSelfService.php:786
 msgid "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut."
 msgstr "De e-mail kon niet worden verzonden. Probeer het later opnieuw."
 
@@ -27578,6 +27581,7 @@ msgstr "Je staat op de wachtlijst. We laten het je per e-mail weten zodra er een
 msgid "Eintragen fehlgeschlagen."
 msgstr "Inschrijven mislukt."
 
+#: src/OrderLinkRequest.php:68
 #: src/PublicEvents.php:166
 #: src/TicketRecovery.php:68
 msgid "Bitte gib eine gültige E-Mail-Adresse ein."
@@ -32254,6 +32258,7 @@ msgstr[1] "Je %d tickets zijn vanwege het aantal niet als pdf bijgevoegd. Open z
 msgid "Wenn zu dieser Adresse Tickets gehören, erhältst du in wenigen Minuten eine E-Mail mit einem Bestätigungslink."
 msgstr "Als er tickets bij dit adres horen, ontvang je binnen enkele minuten een e-mail met een bevestigingslink."
 
+#: src/OrderLinkRequest.php:71
 #: src/TicketRecovery.php:71
 msgid "Zu viele Anfragen. Bitte versuche es später erneut."
 msgstr "Te veel aanvragen. Probeer het later opnieuw."
@@ -32280,6 +32285,7 @@ msgstr "Heb je dit niet aangevraagd, negeer deze e-mail dan; je tickets blijven 
 msgid "Dieser Link ist abgelaufen oder wurde schon verwendet. Bitte fordere einen neuen an."
 msgstr "Deze link is verlopen of al gebruikt. Vraag een nieuwe aan."
 
+#: src/OrderLinkRequest.php:157
 #: src/TicketRecovery.php:157
 #: src/TicketRecovery.php:170
 msgid "Die Anfrage konnte nicht geprüft werden. Bitte lade die Seite neu."
@@ -34404,10 +34410,6 @@ msgstr "Alleen de menu-items worden verborgen; de functies blijven werken, gegev
 msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@deine-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. deinen SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
 msgstr "Afzender (From) en envelope-afzender (Return-Path) van alle klant-e-mails, bijv. tickets@uw-domein.nl. Het domein moet dat van de website zijn en via SPF, DKIM en DMARC zijn toegestaan voor verzending via deze server of uw SMTP-dienst. Leeg: WordPress-standaard (wordpress@…). Een SMTP-plugin die een eigen afzender afdwingt, heeft voorrang."
 
-#: src/Billing.php:381
-msgid "Deine Bestell-/Referenznummer:"
-msgstr "Je bestel-/referentienummer:"
-
 #. translators: 1: theme template path(s) in the old folder, 2: new folder name
 #: src/LegacySlug.php:356
 #, php-format
@@ -35618,3 +35620,173 @@ msgstr "De bestelling kon niet worden verstuurd. Laad de pagina opnieuw en probe
 #: src/Security/FormGuard.php:74
 msgid "Das ging sehr schnell. Bitte prüfe deine Angaben und sende das Formular noch einmal ab."
 msgstr "Dat ging erg snel. Controleer je gegevens en verstuur het formulier opnieuw."
+
+#: src/Admin/OrdersPage.php:598
+msgid "Die Käuferdaten dieser Bestellung sind für dich maskiert; die E-Mail-Adresse kann nur ändern, wer sie sehen darf."
+msgstr "De kopergegevens van deze bestelling zijn voor jou gemaskeerd; alleen wie het e-mailadres mag zien, kan het wijzigen."
+
+#: src/Admin/OrdersPage.php:601
+msgid "Diese Bestellung wurde über WooCommerce abgewickelt. Die Käufer-E-Mail bitte in WooCommerce ändern."
+msgstr "Deze bestelling is via WooCommerce verwerkt. Wijzig het e-mailadres van de koper in WooCommerce."
+
+#: src/Admin/OrdersPage.php:605
+msgid "Diese Bestellung hat keine Käufer-E-Mail mehr (anonymisiert oder ohne Adresse verkauft)."
+msgstr "Deze bestelling heeft geen e-mailadres van de koper meer (geanonimiseerd of zonder adres verkocht)."
+
+#: src/Admin/OrdersPage.php:609
+msgid "Bitte gib eine gültige neue E-Mail-Adresse ein."
+msgstr "Voer een geldig nieuw e-mailadres in."
+
+#: src/Admin/OrdersPage.php:612
+msgid "Die neue E-Mail-Adresse ist dieselbe wie die bisherige."
+msgstr "Het nieuwe e-mailadres is hetzelfde als het huidige."
+
+#: src/Admin/OrdersPage.php:616
+msgid "Bitte gib einen Grund an (wird protokolliert)."
+msgstr "Geef een reden op (wordt vastgelegd)."
+
+#: src/Admin/OrdersPage.php:623
+msgid "Die E-Mail-Adresse konnte nicht gespeichert werden."
+msgstr "Het e-mailadres kon niet worden opgeslagen."
+
+#. translators: %s: new e-mail address
+#: src/Admin/OrdersPage.php:658
+#, php-format
+msgid "Käufer-E-Mail geändert. Der neue Bestelllink wurde an %s gesendet; alle bisherigen Bestelllinks sind ungültig."
+msgstr "E-mailadres van de koper gewijzigd. De nieuwe bestellink is naar %s gestuurd; alle eerdere bestellinks zijn ongeldig."
+
+#. translators: %s: new e-mail address
+#: src/Admin/OrdersPage.php:660
+#, php-format
+msgid "Käufer-E-Mail auf %s geändert; alle bisherigen Bestelllinks sind ungültig. Mit „Bestelllink erneut senden“ erhält die neue Adresse einen Link."
+msgstr "E-mailadres van de koper gewijzigd in %s; alle eerdere bestellinks zijn ongeldig. Met ‘Bestellink opnieuw versturen’ krijgt het nieuwe adres een link."
+
+#: src/Admin/OrdersPage.php:1113
+msgid "Käufer-E-Mail ändern"
+msgstr "E-mailadres koper wijzigen"
+
+#: src/Admin/OrdersPage.php:1115
+msgid "Neue E-Mail-Adresse"
+msgstr "Nieuw e-mailadres"
+
+#: src/Admin/OrdersPage.php:1116
+msgid "Grund (wird protokolliert)"
+msgstr "Reden (wordt vastgelegd)"
+
+#: src/Admin/OrdersPage.php:1117
+msgid "Neuen Bestelllink an die neue Adresse senden"
+msgstr "Nieuwe bestellink naar het nieuwe adres sturen"
+
+#: src/Admin/OrdersPage.php:1118
+msgid "Alle bisher gesendeten Bestelllinks werden sofort ungültig. Tickets, die die Käufer:in unter der bisherigen Adresse hält, gehen auf die neue Adresse über; Ticketcodes bleiben unverändert."
+msgstr "Alle tot nu toe verstuurde bestellinks worden direct ongeldig. Tickets die de koper onder het vorige adres heeft, gaan over naar het nieuwe adres; ticketcodes blijven hetzelfde."
+
+#: src/Admin/OrdersPage.php:1119
+msgid "E-Mail-Adresse ändern"
+msgstr "E-mailadres wijzigen"
+
+#: src/Billing.php:381
+msgid "Bestell-/Referenznummer des Leistungsempfängers:"
+msgstr "Order-/referentienummer van de afnemer:"
+
+#: src/Mail/Types.php:361
+msgid "Bestelllinks angefordert"
+msgstr "Bestellinks aangevraagd"
+
+#: src/Mail/Types.php:362
+msgid "Neue persönliche Links zu allen Bestellungen einer Adresse, angefordert über das Formular „Tickets/Bestelllink anfordern“."
+msgstr "Nieuwe persoonlijke links naar alle bestellingen van een adres, aangevraagd via het formulier ‘Tickets/bestellink aanvragen’."
+
+#: src/Mail/Types.php:364
+msgid "Anzahl Bestellungen"
+msgstr "Aantal bestellingen"
+
+#: src/Mail/Types.php:365
+msgid "Bestellungen mit Bestellnummer, Datum, Events und persönlichem Link"
+msgstr "Bestellingen met bestelnummer, datum, evenementen en persoonlijke link"
+
+#: src/Mail/Types.php:366
+msgid "Gültigkeit der neuen Links in Tagen (bis zum ersten Öffnen)"
+msgstr "Geldigheid van de nieuwe links in dagen (tot de eerste keer openen)"
+
+#. translators: %s: site name
+#: src/Mail/Types.php:369
+#, php-format
+msgid "Deine Bestellungen bei %s"
+msgstr "Je bestellingen bij %s"
+
+#: src/Mail/Types.php:371
+msgid "Du hast neue Links zu deinen Bestellungen angefordert. Über diese persönlichen Links siehst du deine Bestellungen und Tickets:"
+msgstr "Je hebt nieuwe links naar je bestellingen aangevraagd. Via deze persoonlijke links zie je je bestellingen en tickets:"
+
+#. translators: %s: number of days placeholder
+#: src/Mail/Types.php:373
+#, php-format
+msgid "Die Links gelten %s Tage. Bisherige Links bleiben gültig, bis du einen neuen Link zum ersten Mal öffnest."
+msgstr "De links zijn %s dagen geldig. Eerdere links blijven geldig tot je een nieuwe link voor het eerst opent."
+
+#: src/Mail/Types.php:374
+msgid "Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren."
+msgstr "Als je dit niet hebt aangevraagd, kun je deze e-mail negeren."
+
+#: src/OrderLinkRequest.php:57
+msgid "Wenn zu dieser Adresse Bestellungen gehören, erhältst du in wenigen Minuten eine E-Mail mit neuen Links zu deinen Bestellungen und Tickets."
+msgstr "Als er bestellingen bij dit adres horen, ontvang je binnen een paar minuten een e-mail met nieuwe links naar je bestellingen en tickets."
+
+#: src/OrderLinkRequest.php:167
+msgid "E-Mail-Adresse deiner Bestellung"
+msgstr "E-mailadres van je bestelling"
+
+#: src/OrderLinkRequest.php:168
+msgid "Neue Links anfordern"
+msgstr "Nieuwe links aanvragen"
+
+#: src/OrderLinkRequest.php:178
+msgid "Du findest die E-Mail mit deinen Tickets oder den Link zu deiner Bestellung nicht mehr? Gib die E-Mail-Adresse ein, mit der du bestellt hast. Wir senden dir neue Links zu deinen Bestellungen."
+msgstr "Kun je de e-mail met je tickets of de link naar je bestelling niet meer vinden? Voer het e-mailadres in waarmee je hebt besteld. We sturen je nieuwe links naar je bestellingen."
+
+#: src/OrderLinkRequest.php:180
+#: src/OrderLinkRequest.php:191
+msgid "Du hast ein Ticket von jemand anderem erhalten?"
+msgstr "Heb je een ticket van iemand anders gekregen?"
+
+#: src/OrderLinkRequest.php:180
+#: src/OrderLinkRequest.php:191
+msgid "Ticketlinks für übertragene Tickets anfordern"
+msgstr "Ticketlinks voor overgedragen tickets aanvragen"
+
+#: src/OrderLinkRequest.php:181
+msgid "Tickets/Bestelllink anfordern"
+msgstr "Tickets/bestellink aanvragen"
+
+#: src/OrderLinkRequest.php:188
+msgid "Dieser Link zu deiner Bestellung ist abgelaufen oder nicht mehr gültig, zum Beispiel weil inzwischen ein neuer Link gesendet oder die E-Mail-Adresse der Bestellung geändert wurde."
+msgstr "Deze link naar je bestelling is verlopen of niet meer geldig, bijvoorbeeld omdat er inmiddels een nieuwe link is verstuurd of het e-mailadres van de bestelling is gewijzigd."
+
+#: src/OrderLinkRequest.php:189
+msgid "Deine Tickets bleiben davon unberührt. Fordere hier einen neuen Link an:"
+msgstr "Je tickets blijven ongemoeid. Vraag hier een nieuwe link aan:"
+
+#: src/OrderLinkRequest.php:192
+msgid "Link nicht mehr gültig"
+msgstr "Link niet meer geldig"
+
+#: src/PortalSelfService.php:363
+msgid "Für diese Bestellung gibt es keine anstehenden Termine."
+msgstr "Er zijn geen komende data voor deze bestelling."
+
+#. translators: %d: number of dates
+#: src/PortalSelfService.php:406
+#, php-format
+msgid "%d Termin in den Kalender übernehmen (.ics)"
+msgid_plural "%d Termine in den Kalender übernehmen (.ics)"
+msgstr[0] "%d datum in je agenda zetten (.ics)"
+msgstr[1] "%d data in je agenda zetten (.ics)"
+
+#: src/PortalSelfService.php:408
+msgid "Die Datei enthält nur Datum, Ort und Event, keine Ticketcodes. Ändert sich ein Termin, informieren wir dich per E-Mail."
+msgstr "Het bestand bevat alleen datum, locatie en evenement, geen ticketcodes. Als een datum verandert, laten we het je per e-mail weten."
+
+#: src/Workflow/MailHandoff.php:35
+msgid "Terminerinnerung (Modul Erinnerungen)"
+msgstr "Herinnering voor datum (module Herinneringen)"

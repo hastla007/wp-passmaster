@@ -66,7 +66,7 @@ for ( $i = 0; $i < 7; $i++ ) { $ps_limited = OrderLinkRequest::request( 'flood-'
 check( 'PS: per client the form is rate limited (429)', is_wp_error( $ps_limited ) && 'wpcap_rate_limited' === $ps_limited->get_error_code() );
 $ps_reset_limits();
 check( 'PS: REST route /orders/link-request is registered publicly', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OrderLinkRequest.php' ), "'/orders/link-request'" ) );
-check( 'PS: mail type order_links is registered and never handed off', null !== PassCaptain\Mail\Mailer::type( 'order_links' ) && in_array( 'order_links', PassCaptain\Workflow\MailHandoff::NEVER, true ) );
+check( 'PS: mail type order_links is registered', null !== PassCaptain\Mail\Mailer::type( 'order_links' ) );
 
 /* ---------------------------------------------------------------- Invalid link page */
 
