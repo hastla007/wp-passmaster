@@ -39,6 +39,10 @@
 ### Admin-Listen
 - Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
 
+### Verkaufsmodelle
+- Kleinunternehmer als Rechnungssteller (Plattform oder Veranstalter im Vermittlermodell): Ticketarten mit Steuersatz > 0 % werden beim Speichern (Event-Formular, Event anlegen, CSV-Import) abgelehnt, der Checkout lehnt Bestellungen mit USt ab (`small_business_vat`); bestehende Ticketarten zeigt der Website-Zustand.
+- Vermittlermodell: „Vertragspartner: Veranstalter, Anschrift“ im Checkout, im Bestellportal und in Ticket- und Zugangsmail (Platzhalter `{contract_partner}`).
+
 ### Browser-Fehler und Tests
 - Bestellportal und Warteliste zeigen offline ihre eigene Fehlermeldung statt „Failed to fetch“.
 - Saalplan-Zoom zeigte „%%“; Saalplan und Datumsauswahl des Web-Scanners machen die Seite bei 320 px nicht mehr breiter.
