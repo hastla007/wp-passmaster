@@ -12,8 +12,9 @@
 require __DIR__ . '/bootstrap.php';
 
 // Fixture: an install with a configured bank transfer (A265: new installs start without a payment
-// method, and "manual" is only offered with recipient + IBAN or payment instructions).
-$GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'enabled_providers' => array( 'manual' ), 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' );
+// method, and "manual" is only offered with recipient + IBAN or payment instructions). The seller name,
+// address and tax number make the platform's master data complete (L908: no invoice without them).
+$GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'enabled_providers' => array( 'manual' ), 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein', 'seller_name' => 'Testverein', 'seller_address' => "Teststraße 1\n1010 Wien", 'seller_tax_number' => '12/345/67890' );
 
 use PassCaptain\Orders;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
@@ -360,12 +361,27 @@ function assert_capacity_counters( $after ) {
 	}
 }
 assert_capacity_counters( 'run.php core' );
+/**
+ * L908: invoices in the platform's name need complete master data. Tests that blank the seller data
+ * (checklists, mail sender fallbacks, …) do not restore it; each test file starts with the fixture
+ * values for the fields that are empty, values a file set itself stay.
+ */
+function wpcap_test_seller_fixture() {
+	$fixture = array( 'seller_name' => 'Testverein', 'seller_address' => "Teststraße 1\n1010 Wien", 'seller_tax_number' => '12/345/67890' );
+	$missing = array();
+	foreach ( $fixture as $key => $value ) {
+		if ( '' === trim( (string) PassCaptain\Settings::get( $key ) ) ) { $missing[ $key ] = $value; }
+	}
+	if ( $missing && '' !== trim( (string) PassCaptain\Settings::get( 'seller_vat_id' ) ) ) { unset( $missing['seller_tax_number'] ); }
+	if ( $missing ) { PassCaptain\Settings::update( $missing ); }
+}
 // WPCAP_TEST_ONLY=<regex>: run only the module files whose name matches (core files only with WPCAP_TEST_CORE=1).
 $wpcap_only = (string) getenv( 'WPCAP_TEST_ONLY' );
 foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {
 	// Shared stubs and helpers of a core file load at its position even when the file itself is skipped (Z1).
 	if ( is_file( __DIR__ . "/lib/fixtures_$core_test.php" ) ) { require_once __DIR__ . "/lib/fixtures_$core_test.php"; }
 	if ( '' !== $wpcap_only && '1' !== getenv( 'WPCAP_TEST_CORE' ) && ! preg_match( '#' . $wpcap_only . '#', $core_test ) ) { continue; }
+	wpcap_test_seller_fixture();
 	require __DIR__ . "/$core_test.php";
 	assert_capacity_counters( "$core_test.php" );
 	drain_lapsed_holds();
@@ -378,6 +394,7 @@ require_once __DIR__ . '/lib/wp_stubs.php';
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
 	if ( '' !== (string) getenv( 'WPCAP_TEST_SKIP' ) && preg_match( '#' . getenv( 'WPCAP_TEST_SKIP' ) . '#', basename( $module_test, '.php' ) ) ) { continue; }
+	wpcap_test_seller_fixture();
 	try {
 		require $module_test;
 	} catch ( \Throwable $wpcap_module_error ) {
