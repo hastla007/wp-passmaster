@@ -1161,7 +1161,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A526** [OPTIMIERUNG] Fehlend: anteilige Erstattung von Pässen nach Teilnutzung — _R3 Eigen (Deep Dive 2)_ (TODO L878; Audit Runde 4)
   - src/Refunds.php:78–93: Anteiligen Betrag vorschlagen
   - Erledigt: `Passes\Cancellation::prorated()` (Wert × ungenutzte Termine ÷ alle Termine, Einlass zählt als genutzt); das Erstattungsformular zeigt den Vorschlag je Pass-Ticket zum Eintragen als Höchstbetrag. Test zz_a526.
-- [ ] **A527** [OPTIMIERUNG] Fehlend: Kasse ohne Netz unbenutzbar — _R3 Eigen (Deep Dive 2)_ (TODO L879; Audit Runde 4)
+- [x] **A527** [OPTIMIERUNG] Fehlend: Kasse ohne Netz unbenutzbar — _R3 Eigen (Deep Dive 2)_ (TODO L879; Audit Runde 4) – erledigt (24.11.2026, Abgleich): Offline-Sperre der Geldformulare gemäß E-13, Tests `tests/js/pos.test.js`, `zz_boxoffice_fiscal_closing`
   - assets/boxoffice/pos.js, BoxOffice/Service.php:263: Notfallmodus mit lokalen Belegen oder klare Offline-Anzeige
 - [x] **A528** [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — _R3 QA_ (TODO L880; Audit Runde 4)
   - src/Seating/Layouts.php:311–312: Kollision als Fehler, kollisionsfreie Schlüssel (belegt)
