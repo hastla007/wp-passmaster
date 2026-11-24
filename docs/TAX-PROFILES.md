@@ -104,6 +104,28 @@ Rechnungshinweis: Ist im Profil ein `place_of_supply_note` hinterlegt, wird er a
 gedruckt (`buyer_snapshot.tax_notes`, `Invoices::seller_notes`). Ohne Text wird nur dann
 „Leistungsort: Veranstaltungsort (XX).“ gedruckt, wenn das Eventland vom Verkäuferland abweicht.
 
+## Auswertungen für die Steuerberatung: Länder/Sätze (OSS) und Zusammenfassende Meldung
+
+Auf der Seite „Berichte“ stehen für Personen mit Finanzrechten (`wpcap_view_finance`) zwei weitere
+CSV-Exporte für den gewählten Zeitraum (`Reports\TaxSummary`, Exporttypen `tax_oss` und `tax_zm`; nur
+für die ganze Website, eine auf Events beschränkte Berichtssicht erhält nur die Kopfzeile):
+
+- **Steuerauswertung nach Land und Satz (OSS):** die Zeilen des Buchungsexports (Zahlungen,
+  Erstattungen, Chargebacks, fehlgeschlagene und zurückgebuchte Erstattungen) summiert je Steuerland,
+  USt-Satz und Währung (Netto, USt, Brutto, Anzahl Buchungen). Zeilen ohne Steuerland zählen zum
+  Verkäuferland. Spalte `OSS-Kandidat`: `ja` für ein anderes EU-Land als das Verkäuferland, `nein` für
+  das Verkäuferland und Länder außerhalb der EU, `prüfen` für Erstattungen gemischter Bestellungen mit
+  mehreren Ländern.
+- **Zusammenfassende Meldung (Reverse Charge):** abgeschlossene und bezahlte Veranstalter-Abrechnungen,
+  deren Provisions-/Gebührenrechnung im Reverse-Charge-Verfahren ausgestellt wurde, summiert je
+  USt-IdNr. und Land des Veranstalters (aus dem Schnappschuss beim Abschluss) über die
+  Abrechnungsmonate des Zeitraums; Art „Sonstige Leistung“, mit Belegnummern und Monaten.
+
+Beide Auswertungen rechnen nichts neu, sie fassen die gespeicherten Belege zusammen. Ob und für welchen
+Zeitraum eine OSS-Erklärung oder ZM abzugeben ist (Registrierung, Schwellen, Meldezeitraum), prüft die
+Steuerberatung. Spalten lassen sich über `wp_pass_captain_export_rows_v1` (Typ `tax_oss` bzw. `tax_zm`)
+ergänzen.
+
 ## Offene fachliche Punkte
 
 - Maßgeblicher Zeitpunkt bei Satzänderungen und Anzahlungen (Mindest-Istversteuerung bei

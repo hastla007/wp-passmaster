@@ -10,6 +10,7 @@
  * - wp_pass_captain_export_types_v1 ( array $types ): additional export types, shown as buttons on
  *   the reports page: id => [ 'label' => string, 'capability' => string (default wpcap_view_reports),
  *   'rows' => callable( array $filters, $scope ): array rows, 'filename' => string (optional) ].
+ *   The filter receives the core types `tax_oss` and `tax_zm` (Reports\TaxSummary, wpcap_view_finance).
  *
  * @package PassCaptain
  */
@@ -39,7 +40,8 @@ final class Exports {
 	 * @return array<string,array{label:string,capability:string,rows:callable,filename:string}>
 	 */
 	public static function types() {
-		$types = apply_filters( 'wp_pass_captain_export_types_v1', array() );
+		// Core types first (TaxSummary: OSS and ZM summaries for finance users); the filter may add or remove.
+		$types = apply_filters( 'wp_pass_captain_export_types_v1', TaxSummary::types() );
 		if ( ! is_array( $types ) ) { return array(); }
 		$out = array();
 		foreach ( $types as $id => $def ) {
