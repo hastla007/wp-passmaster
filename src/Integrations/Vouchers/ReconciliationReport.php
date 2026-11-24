@@ -33,7 +33,7 @@ final class ReconciliationReport {
 	public static function report( array $args = array() ) {
 		global $wpdb;
 		$limit = max( 1, absint( $args['limit'] ?? self::LIMIT ) );
-		$now = (int) ( $args['now'] ?? time() );
+		$now = (int) ( $args['now'] ?? \PassCaptain\Clock::now() );
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status,currency,created_at,voucher_snapshot FROM %i WHERE voucher_snapshot IS NOT NULL AND voucher_snapshot<>'' ORDER BY order_id DESC LIMIT %d", $wpdb->prefix . 'wpcap_orders', $limit ) );
 		$orders = array();
 		foreach ( $rows as $row ) {

@@ -255,10 +255,10 @@ final class TicketService {
 				'event_id' => (int) $row->event_id,
 				'occurrence_id' => (int) $row->occurrence_id,
 				/* translators: 1: date, 2: ticket type */
-				'date_label' => sprintf( __( '%1$s – %2$s', 'pass-captain' ), $local->format( 'd.m.Y H:i' ), $row->name ),
+				'date_label' => sprintf( __( '%1$s – %2$s', 'pass-captain' ), wp_date( \PassCaptain\Frontend\Format::datetime_format(), $local->getTimestamp(), $tz ), $row->name ),
 				'name' => (string) $row->name,
 				/* translators: 1: event, 2: date, 3: ticket type */
-				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'pass-captain' ), $row->event_name, $local->format( 'd.m.Y H:i' ), $row->name ),
+				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'pass-captain' ), $row->event_name, wp_date( \PassCaptain\Frontend\Format::datetime_format(), $local->getTimestamp(), $tz ), $row->name ),
 				'event' => (string) $row->event_name,
 				'starts_at' => (string) $row->starts_at,
 				'currency' => (string) $row->currency,
