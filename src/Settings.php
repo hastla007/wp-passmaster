@@ -152,6 +152,39 @@ final class Settings {
 			// A380: chart of accounts of the DATEV booking batch (skr03|skr04) and an optional own money account.
 			'datev_chart'               => 'skr03',
 			'datev_contra_account'      => '',
+			// SET-PC-37: own accounts per VAT rate (revenue, bu_keys, revenue_default) and money account per payment
+			// provider (contra_by_provider); empty = the accounts of the chart (former behaviour).
+			'datev_accounts'            => array(),
+			// SET-PC-15: service date of invoice lines without an occurrence: 'none' (no date, former behaviour),
+			// 'payment' (payment date), 'valid_from' (start of validity), 'period' (validity period).
+			'invoice_service_date_fallback' => 'none',
+			// SET-PC-03: number patterns per document kind (defaults = the former format PREFIX-YYYY-000123, yearly).
+			'invoice_number_pattern'    => '{prefix}-{year}-{number}',
+			'invoice_number_digits'     => 6,
+			'invoice_number_start'      => 0,
+			'invoice_number_yearly'     => 1,
+			'credit_number_pattern'     => '{prefix}-{year}-{number}',
+			'credit_number_digits'      => 6,
+			'credit_number_start'       => 0,
+			'credit_number_yearly'      => 1,
+			'receipt_number_pattern'    => '{prefix}-{year}-{number}',
+			'receipt_number_digits'     => 6,
+			'receipt_number_start'      => 0,
+			'receipt_number_yearly'     => 1,
+			'settlement_number_pattern' => '{prefix}-{year}-{number}',
+			'settlement_number_digits'  => 6,
+			'settlement_number_start'   => 0,
+			'settlement_number_yearly'  => 1,
+			'self_billing_number_pattern' => '{prefix}-{year}-{number}',
+			'self_billing_number_digits' => 6,
+			'self_billing_number_start' => 0,
+			'self_billing_number_yearly' => 1,
+			// SET-PC-18: minimum age rule. default_min_age pre-fills new ticket types (0 = none); min_age_checkbox
+			// makes the buyer confirm the age in the own checkout when a line has a minimum age; the label text
+			// ('' = built-in text) has translations per language in legal_texts.
+			'default_min_age'           => 0,
+			'min_age_checkbox'          => 0,
+			'min_age_notice_text'       => '',
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
@@ -514,6 +547,12 @@ final class Settings {
 	const LEGAL_KEYS = array( 'terms_text', 'consumer_info_text' );
 
 	/**
+	 * Texts with translations per language in legal_texts: the legal texts (versioned with each order,
+	 * LEGAL_KEYS) plus short checkout texts that are not part of the contract version (SET-PC-18).
+	 */
+	const TEXT_KEYS = array( 'terms_text', 'consumer_info_text', 'min_age_notice_text' );
+
+	/**
 	 * Locale of the default-language legal texts (the plain terms_text / consumer_info_text keys):
 	 * Polylang's or WPML's default language, otherwise the site locale. Filter: wpcap_legal_default_locale.
 	 */
@@ -567,7 +606,7 @@ final class Settings {
 		foreach ( (array) self::get( 'legal_texts' ) as $locale => $texts ) {
 			$locale = Mail\Mailer::normalize_locale( (string) $locale );
 			if ( '' === $locale || ! is_array( $texts ) ) { continue; }
-			foreach ( self::LEGAL_KEYS as $key ) {
+			foreach ( self::TEXT_KEYS as $key ) {
 				if ( isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) && '' !== trim( (string) $texts[ $key ] ) ) { $out[ $locale ][ $key ] = (string) $texts[ $key ]; }
 			}
 		}
@@ -603,10 +642,27 @@ final class Settings {
 	 * @param string|null $locale Buyer locale; null = determine_locale().
 	 */
 	public static function legal_text( $key, $locale = null ) {
-		if ( ! in_array( $key, self::LEGAL_KEYS, true ) ) { return ''; }
+		if ( ! in_array( $key, self::TEXT_KEYS, true ) ) { return ''; }
 		$source = self::legal_source_locale( $key, $locale );
 		if ( $source === self::legal_default_locale() ) { return (string) self::get( $key ); }
 		return self::legal_translations()[ $source ][ $key ] ?? (string) self::get( $key );
+	}
+
+	/**
+	 * SET-PC-18: label of the age confirmation in the checkout for a buyer locale: the text of that language
+	 * (legal_texts, fallback as legal_text()), else the built-in text in the current language. {min_age} is
+	 * replaced by the highest minimum age of the lines.
+	 *
+	 * @param int         $min_age Highest minimum age of the checkout lines.
+	 * @param string|null $locale  Buyer locale; null = determine_locale().
+	 */
+	public static function min_age_notice( $min_age, $locale = null ) {
+		$text = trim( wp_strip_all_tags( self::legal_text( 'min_age_notice_text', $locale ) ) );
+		if ( '' === $text ) {
+			/* translators: keep the placeholder {min_age} (minimum age in years) */
+			$text = __( 'Ich bestätige, dass alle Personen, für die ich Tickets kaufe, mindestens {min_age} Jahre alt sind.', 'pass-captain' );
+		}
+		return str_replace( '{min_age}', (string) max( 0, (int) $min_age ), $text );
 	}
 
 	/**

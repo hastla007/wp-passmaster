@@ -2096,6 +2096,8 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-attname"><?php esc_html_e( 'Name je Ticket', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'attendee_name', array( 'optional' => __( 'Optional abfragen', 'pass-captain' ), 'required' => __( 'Pflichtangabe (personalisiertes Ticket)', 'pass-captain' ), 'off' => __( 'Nicht abfragen', 'pass-captain' ) ), $type ? \PassCaptain\Orders::attendee_name_mode( $type->attendee_name ?? '' ) : 'optional', 'wpcap-tt-attname' ); ?></td></tr>
 			<?php
 			$checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 );
+			// SET-PC-18: a new ticket type starts with the minimum age of the settings (0 = none).
+			if ( ! $type ) { $checks['min_age'] = max( 0, min( \PassCaptain\AdmissionChecks::MAX_AGE, (int) \PassCaptain\Settings::get( 'default_min_age', 0 ) ) ); }
 			if ( $old ) {
 				$checks = array( 'id_check' => Forms::old_flag( $old, 'id_check', false ), 'min_age' => (int) $v( 'min_age', '0' ), 'staff_note' => $v( 'staff_note', '' ) ) + $checks;
 			}
