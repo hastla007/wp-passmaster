@@ -19,38 +19,8 @@ $z3l_root = dirname( __DIR__, 3 );
 foreach ( array( 'esc_url' => 'return htmlspecialchars( (string) $a[0], ENT_QUOTES );', 'esc_attr__' => 'return esc_attr( $a[0] );', 'esc_attr_e' => 'echo esc_attr( $a[0] );', 'esc_html_e' => 'echo esc_html( $a[0] );', 'wp_nonce_url' => 'return $a[0] . "&_wpnonce=n";', 'wp_timezone_string' => 'return "Europe/Vienna";', 'selected' => 'return (string) $a[0] === (string) ( $a[1] ?? true ) ? " selected=\'selected\'" : "";', 'number_format_i18n' => 'return number_format( (float) $a[0] );' ) as $z3l_fn => $z3l_body ) {
 	if ( ! function_exists( $z3l_fn ) ) { eval( "function $z3l_fn( ...\$a ) { $z3l_body }" ); }
 }
-if ( ! class_exists( 'WP_List_Table', false ) ) {
-	// Stand-in with the parts of the core API the order list uses.
-	class WP_List_Table {
-		public $items = array();
-		protected $_args = array();
-		protected $_column_headers = array();
-		protected $_pagination_args = array();
-		public function __construct( $args = array() ) { $this->_args = $args; }
-		protected function get_items_per_page( $option, $default = 20 ) { $v = (int) ( $GLOBALS['z3l_user_options'][ $option ] ?? 0 ); return $v > 0 ? $v : $default; }
-		public function get_pagenum() { return max( 1, absint( $_REQUEST['paged'] ?? 1 ) ); }
-		protected function set_pagination_args( $args ) { $this->_pagination_args = $args; }
-		protected function get_views() { return array(); }
-		protected function get_bulk_actions() { return array(); }
-		public function views() { echo '<ul class="subsubsub">' . implode( ' | ', $this->get_views() ) . '</ul>'; }
-		public function no_items() { echo 'No items'; }
-		public function display() {
-			echo '<input type="hidden" name="_wpnonce" value="bulk-' . $this->_args['plural'] . '"><select name="action"><option value="-1">-</option>';
-			foreach ( $this->get_bulk_actions() as $k => $l ) { echo '<option value="' . $k . '">' . $l . '</option>'; }
-			echo '</select><table class="wp-list-table"><thead><tr>';
-			list( $columns, , $sortable ) = $this->_column_headers;
-			foreach ( $columns as $k => $l ) { echo '<th class="column-' . $k . ( isset( $sortable[ $k ] ) ? ' sortable' : '' ) . '">' . $l . '</th>'; }
-			echo '</tr></thead><tbody>';
-			if ( ! $this->items ) { echo '<tr class="no-items"><td>'; $this->no_items(); echo '</td></tr>'; }
-			foreach ( $this->items as $item ) {
-				echo '<tr>';
-				foreach ( array_keys( $columns ) as $k ) { echo '<td>' . ( 'cb' === $k ? $this->column_cb( $item ) : $this->column_default( $item, $k ) ) . '</td>'; }
-				echo '</tr>';
-			}
-			echo '</tbody></table><span class="pages">' . (int) ( $this->_pagination_args['total_items'] ?? 0 ) . '/' . (int) ( $this->_pagination_args['per_page'] ?? 0 ) . '</span>';
-		}
-	}
-}
+// Stand-in with the parts of the core API the list tables use (shared with zz_a411_lists).
+require_once dirname( __DIR__ ) . '/lib/list_table_standin.php';
 
 wpcap_test_reset_transients();
 $z3l_type = make_type( 50, 10, 1200 );

@@ -1457,68 +1457,210 @@ final class EventsPage {
 		return array( 'draft' => __( 'Entwurf', 'pass-captain' ), 'published' => __( 'Veröffentlicht', 'pass-captain' ) );
 	}
 
+	/* ---------------------------------------------------------------------------------------------
+	 * Event list (A411: WP_List_Table with status views, sorting, screen option, bulk duplicate)
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Bulk action of the event list: duplicate the selected events as drafts (like "Als Entwurf duplizieren"). */
+	const BULK_DUPLICATE = 'wpcap_bulk_duplicate_event';
+
+	/** Events per bulk duplication at most (each copy takes its upcoming dates with it). */
+	const BULK_LIMIT = 20;
+
+	/** Screen option (user meta) with the number of events per page. */
+	const PER_PAGE_OPTION = 'wpcap_events_per_page';
+	const PER_PAGE_DEFAULT = 50;
+
+	/**
+	 * State of the list from the query string: status view and whitelisted sort column/direction.
+	 *
+	 * @return array{status:string,orderby:string,order:string}
+	 */
+	public static function list_state() {
+		$status = Forms::query_arg( 'status' );
+		$orderby = Forms::query_arg( 'orderby' );
+		$orderby = in_array( $orderby, array( 'name', 'status' ), true ) ? $orderby : '';
+		$order = '' === $orderby ? '' : ( 'desc' === strtolower( Forms::query_arg( 'order' ) ) ? 'desc' : 'asc' );
+		return array(
+			'status' => in_array( $status, Queries::EVENT_STATUSES, true ) ? $status : '',
+			'orderby' => $orderby,
+			'order' => $order,
+		);
+	}
+
+	/** Query arguments of the list state (links, bulk form, redirect after a bulk action). */
+	public static function list_args( array $state ) {
+		return array_filter( array( 'status' => $state['status'] ?? '', 'orderby' => $state['orderby'] ?? '', 'order' => $state['order'] ?? '' ) );
+	}
+
+	/** Columns of the list (without the checkbox column): key => label. */
+	public static function list_columns() {
+		return array(
+			'event'    => __( 'Event', 'pass-captain' ),
+			'next'     => __( 'Nächster Termin', 'pass-captain' ),
+			'location' => __( 'Ort', 'pass-captain' ),
+			'dates'    => __( 'Termine', 'pass-captain' ),
+			'sold'     => __( 'Verkauft / Kapazität', 'pass-captain' ),
+			'revenue'  => __( 'Umsatz', 'pass-captain' ),
+			'status'   => __( 'Status', 'pass-captain' ),
+			'actions'  => __( 'Aktion', 'pass-captain' ),
+		);
+	}
+
+	/** Accessible caption of the list. */
+	public static function list_caption() {
+		return __( 'Events mit nächstem Termin, Auslastung und Umsatz', 'pass-captain' );
+	}
+
+	/**
+	 * One page of the list in the user's event scope with the sold/revenue figures of its events.
+	 *
+	 * @return array{rows: object[], total: int, figures: array}
+	 */
+	public static function list_data( array $state, $page, $per_page ) {
+		$data = Queries::events_overview( Queries::event_ids_for( self::CAP ), max( 1, (int) $page ), ListTables::clamp_per_page( $per_page ), $state );
+		$data['figures'] = Queries::event_figures( array_map( static function ( $row ) { return (int) $row->event_id; }, $data['rows'] ) );
+		return $data;
+	}
+
+	/**
+	 * Status views above the list: key => [label, url, current], with the number of events (sort order
+	 * kept). States without events are left out unless they are the current view.
+	 *
+	 * @param array<string,int>|null $counts Queries::event_status_counts() of the scope (read when null).
+	 */
+	public static function list_views( array $state, $counts = null ) {
+		$counts = is_array( $counts ) ? $counts : Queries::event_status_counts( Queries::event_ids_for( self::CAP ) );
+		$keep = array_filter( array( 'orderby' => $state['orderby'] ?? '', 'order' => $state['order'] ?? '' ) );
+		$current = (string) ( $state['status'] ?? '' );
+		$views = array( 'all' => array( __( 'Alle', 'pass-captain' ), '' ) );
+		foreach ( Queries::EVENT_STATUSES as $status ) { $views[ $status ] = array( Forms::status_label( $status, 'event' ), $status ); }
+		$out = array();
+		foreach ( $views as $key => $view ) {
+			if ( 'all' !== $key && empty( $counts[ $key ] ) && $view[1] !== $current ) { continue; }
+			$out[ $key ] = array(
+				'label' => $view[0] . ' (' . number_format_i18n( (int) ( $counts[ $key ] ?? 0 ) ) . ')',
+				'url' => self::url( $keep + array_filter( array( 'status' => $view[1] ) ) ),
+				'current' => $view[1] === $current,
+			);
+		}
+		return $out;
+	}
+
+	/** Empty list: hint (with a link back to all events in a status view). */
+	public static function empty_state( array $state ) {
+		if ( '' === ( $state['status'] ?? '' ) ) { return esc_html__( 'Noch keine Events angelegt.', 'pass-captain' ); }
+		return esc_html__( 'Keine Events gefunden.', 'pass-captain' ) . ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Filter zurücksetzen', 'pass-captain' ) . '</a>';
+	}
+
+	/** HTML of one cell of the list (escaped). */
+	public static function list_cell( $column, $event, array $fig ) {
+		$next = $event->next_occurrence;
+		$shown = $next ? $next : $event->last_occurrence;
+		switch ( $column ) {
+			case 'event':
+				return '<strong><a href="' . esc_url( self::event_url( $event->event_id ) ) . '">' . esc_html( $event->name ) . '</a></strong>';
+			case 'next':
+				if ( $next ) { return esc_html( Forms::datetime( $next->starts_at, $next->timezone ) ); }
+				/* translators: %s: date */
+				return $shown ? esc_html( sprintf( __( 'Kein kommender Termin (zuletzt %s)', 'pass-captain' ), Forms::datetime( $shown->starts_at, $shown->timezone ) ) ) : '—';
+			case 'location':
+				return esc_html( $shown ? $shown->location : '' );
+			case 'dates':
+				return esc_html( (string) (int) $event->occurrence_count );
+			case 'sold':
+				return esc_html( self::figures_sold_label( $fig ) );
+			case 'revenue':
+				return esc_html( self::figures_revenue_label( $fig ) );
+			case 'status':
+				return esc_html( Forms::status_label( $event->status, 'event' ) );
+			case 'actions':
+				$html = '<a class="button" href="' . esc_url( self::event_url( $event->event_id ) ) . '">' . esc_html__( 'Bearbeiten', 'pass-captain' ) . '</a>';
+				if ( 'published' === $event->status ) {
+					$html .= ' <a class="button" href="' . esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ) . '">' . esc_html__( 'Event absagen …', 'pass-captain' ) . '</a>';
+				}
+				return $html;
+		}
+		return '';
+	}
+
+	/** Filter set_screen_option_{option}: stores the events per page (1–200). */
+	public static function save_per_page( $keep, $option, $value ) {
+		return self::PER_PAGE_OPTION === $option ? ListTables::clamp_per_page( $value ) : $keep;
+	}
+
+	/**
+	 * load-{hook} of the events page (list view only): screen option "Events pro Seite" and the bulk
+	 * action, handled before output and redirected back to the list with its view and sort order.
+	 */
+	public static function load_screen() {
+		if ( '' !== Forms::query_arg( 'view' ) ) { return; }
+		ListTables::add_per_page_option( __( 'Events pro Seite', 'pass-captain' ), self::PER_PAGE_OPTION, self::PER_PAGE_DEFAULT );
+		if ( self::BULK_DUPLICATE !== ListTables::posted_bulk_action() ) { return; }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		check_admin_referer( 'bulk-events' );
+		$result = self::bulk_duplicate( ListTables::posted_ids( 'event' ) );
+		foreach ( self::bulk_messages( $result ) as $message ) { Forms::flash( $message[0], $message[1] ); }
+		Forms::redirect( self::url( self::list_args( self::list_state() ) ) );
+	}
+
+	/**
+	 * Bulk action "Als Entwurf duplizieren" (A411): each selected event goes through the same
+	 * Duplicator::duplicate_event() as the single action with its default (upcoming dates included;
+	 * capability and event scope are checked there).
+	 *
+	 * @param int[] $ids Event ids (at most BULK_LIMIT are processed).
+	 * @return array{duplicated: array<int,int>, failed: array<int,string>, over_limit: int}
+	 */
+	public static function bulk_duplicate( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+		$out = array( 'duplicated' => array(), 'failed' => array(), 'over_limit' => max( 0, count( $ids ) - self::BULK_LIMIT ) );
+		foreach ( array_slice( $ids, 0, self::BULK_LIMIT ) as $id ) {
+			$result = Duplicator::duplicate_event( $id, true );
+			if ( is_wp_error( $result ) ) { $out['failed'][ $id ] = $result->get_error_message(); } else { $out['duplicated'][ $id ] = (int) $result['event_id']; }
+		}
+		return $out;
+	}
+
+	/** Notices of a bulk duplication: [type, message]. */
+	public static function bulk_messages( array $result ) {
+		$messages = array();
+		$done = count( $result['duplicated'] ?? array() );
+		/* translators: %d: number of events */
+		if ( $done ) { $messages[] = array( 'success', sprintf( _n( '%d Event als Entwurf dupliziert.', '%d Events als Entwurf dupliziert.', $done, 'pass-captain' ), $done ) ); }
+		foreach ( (array) ( $result['failed'] ?? array() ) as $id => $error ) {
+			/* translators: 1: event id, 2: error message */
+			$messages[] = array( 'error', sprintf( __( 'Event #%1$d: %2$s', 'pass-captain' ), (int) $id, (string) $error ) );
+		}
+		$over = (int) ( $result['over_limit'] ?? 0 );
+		/* translators: 1: maximum number of events, 2: number of events left out */
+		if ( $over ) { $messages[] = array( 'warning', sprintf( __( 'Höchstens %1$d Events je Sammelaktion; %2$d weitere wurden nicht dupliziert.', 'pass-captain' ), self::BULK_LIMIT, $over ) ); }
+		if ( ! $messages ) { $messages[] = array( 'warning', __( 'Kein Event ausgewählt.', 'pass-captain' ) ); }
+		return $messages;
+	}
+
 	private static function render_list() {
-		$scope = Queries::event_ids_for( self::CAP );
+		$state = self::list_state();
 		$page = Forms::current_page();
-		$data = Queries::events_overview( $scope, $page, 50 );
-		$figures = Queries::event_figures( array_map( static function ( $row ) { return (int) $row->event_id; }, $data['rows'] ) );
 		?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
 		<?php if ( 1 === $page ) { Dashboard::render_summary(); } ?>
 		<?php GettingStarted::render(); ?>
-		<table class="widefat striped wpcap-events-list">
-			<caption class="screen-reader-text"><?php esc_html_e( 'Events mit nächstem Termin, Auslastung und Umsatz', 'pass-captain' ); ?></caption>
-			<thead><tr>
-				<th scope="col"><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Nächster Termin', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Termine', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Verkauft / Kapazität', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Umsatz', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
-			</tr></thead>
-			<tbody>
-			<?php if ( ! $data['rows'] ) : ?>
-				<tr><td colspan="8"><?php esc_html_e( 'Noch keine Events angelegt.', 'pass-captain' ); ?></td></tr>
-			<?php endif; ?>
-			<?php foreach ( $data['rows'] as $event ) :
-				$next = $event->next_occurrence;
-				$shown = $next ? $next : $event->last_occurrence;
-				$fig = $figures[ (int) $event->event_id ] ?? array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() );
-				?>
-				<tr>
-					<th scope="row"><strong><a href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php echo esc_html( $event->name ); ?></a></strong></th>
-					<td>
-						<?php
-						if ( $next ) {
-							echo esc_html( Forms::datetime( $next->starts_at, $next->timezone ) );
-						} elseif ( $shown ) {
-							/* translators: %s: date */
-							echo esc_html( sprintf( __( 'Kein kommender Termin (zuletzt %s)', 'pass-captain' ), Forms::datetime( $shown->starts_at, $shown->timezone ) ) );
-						} else {
-							echo '—';
-						}
-						?>
-					</td>
-					<td><?php echo esc_html( $shown ? $shown->location : '' ); ?></td>
-					<td><?php echo esc_html( (string) (int) $event->occurrence_count ); ?></td>
-					<td><?php echo esc_html( self::figures_sold_label( $fig ) ); ?></td>
-					<td><?php echo esc_html( self::figures_revenue_label( $fig ) ); ?></td>
-					<td><?php echo esc_html( Forms::status_label( $event->status, 'event' ) ); ?></td>
-					<td>
-						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a>
-						<?php if ( 'published' === $event->status ) : ?>
-							<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ); ?>"><?php esc_html_e( 'Event absagen …', 'pass-captain' ); ?></a>
-						<?php endif; ?>
-					</td>
-				</tr>
-			<?php endforeach; ?>
-			</tbody>
-		</table>
-		<?php Forms::pagination( $data['total'], $page, 50, self::url() ); ?>
+		<?php
+		if ( ListTables::available() ) {
+			$table = new EventsListTable();
+			$table->prepare_items();
+			$table->views();
+			echo '<form method="post" action="' . esc_url( self::url( self::list_args( $state ) ) ) . '">';
+			$table->display();
+			echo '</form>';
+		} else {
+			// Without WP_List_Table (not loadable): plain table with the same cells.
+			self::render_plain_list( $state, $page );
+		}
+		?>
 
 		<h2 id="wpcap-create-event"><?php esc_html_e( 'Event anlegen', 'pass-captain' ); ?></h2>
 		<p><?php esc_html_e( 'Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben.', 'pass-captain' ); ?></p>
@@ -1547,6 +1689,37 @@ final class EventsPage {
 		</form>
 		<?php
 		OrganizerTools::render_import();
+	}
+
+	/** Event list without WP_List_Table: the former plain table with the same cells and views. */
+	private static function render_plain_list( array $state, $page ) {
+		$data = self::list_data( $state, $page, self::PER_PAGE_DEFAULT );
+		ListTables::render_views( self::list_views( $state ) );
+		?>
+		<table class="widefat striped wpcap-events-list">
+			<caption class="screen-reader-text"><?php echo esc_html( self::list_caption() ); ?></caption>
+			<thead><tr>
+				<?php foreach ( self::list_columns() as $label ) : ?><th scope="col"><?php echo esc_html( $label ); ?></th><?php endforeach; ?>
+			</tr></thead>
+			<tbody>
+			<?php if ( ! $data['rows'] ) : ?>
+				<tr><td colspan="<?php echo count( self::list_columns() ); ?>"><?php echo self::empty_state( $state ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in empty_state(). ?></td></tr>
+			<?php endif; ?>
+			<?php
+			foreach ( $data['rows'] as $event ) {
+				$fig = $data['figures'][ (int) $event->event_id ] ?? array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() );
+				echo '<tr>';
+				foreach ( array_keys( self::list_columns() ) as $column ) {
+					$cell = self::list_cell( $column, $event, $fig );
+					echo 'event' === $column ? '<th scope="row">' . $cell . '</th>' : '<td>' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in list_cell().
+				}
+				echo '</tr>';
+			}
+			?>
+			</tbody>
+		</table>
+		<?php
+		Forms::pagination( $data['total'], $page, self::PER_PAGE_DEFAULT, self::url( self::list_args( $state ) ) );
 	}
 
 	/** "Verkauft / Kapazität" cell of the event list: "12 / 100 (12 %)", "12 / ∞". */

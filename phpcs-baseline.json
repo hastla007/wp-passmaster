@@ -55,7 +55,7 @@
     },
     "src/Admin/Queries.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.includeFound": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 50,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 49,
         "WordPress.DB.PreparedSQL.NotPrepared": 12,
         "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 3
     },
