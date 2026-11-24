@@ -25,6 +25,18 @@
 - Bot-Schutz im Bestellformular (`checkout_bot_check`, `checkout_min_fill_seconds`).
 - Systemstatus → Betrieb: offene Überweisungsbestellungen gesammelt freigeben (wirkt wie Ablauf der Reservierung, auditiert).
 
+### Einlass offline
+- Offline-Scanner: „Rückgängig“ erscheint nur noch mit dem Recht `wpcap_undo_checkin`; eine Ablehnung des Servers wird lesbar angezeigt.
+- Offline-Scanner: Check-out (Auslass) auch offline – mit denselben Regeln wie online (Rolle, Bereich, drinnen), synchronisiert über den bestehenden Sammelupload; nicht offline entscheidbare Fälle entscheidet der Server beim Sync. `/app/me` meldet `permissions.check_out`; das Prüfpaket enthält `permissions`, `checkout` und `ticket_types[].own_policy` (abwärtskompatibel).
+
+### Admin-Listen
+- Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
+
+### Code, Build und Lieferkette
+- Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
+- CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
+- Checkout (`Orders::create`) und die Tabellen-Anweisungen des Installers in kleinere Methoden aufgeteilt, ohne Verhaltensänderung (A401).
+
 ### Gutscheine
 - Der Gutschein-Snapshot einer Bestellung wird nur noch mit Versionsprüfung geändert; eine späte Zahlung während der Freigabe belastet den Gutschein genau einmal.
 - Systemstatus → Betrieb: „Gutschein-Abgleich“ zeigt Abweichungskandidaten aus Pass-Captain-Sicht; optionaler Filter `wpcap_voucher_reconcile_states` für den Vergleich mit Voucher Captain.

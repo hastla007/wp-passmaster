@@ -231,7 +231,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - src/Mail/Templates.php:41 Standard 'format' => 'text'
 - [x] **A102** Mehrdeutige/fehlende Ortszeiten bei Zeitumstellung anzeigen — _OFFEN_ (TODO L417; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Forms.php:135 verschiebt Zeiten in DST-Lücke still
-- [ ] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L421; Architektur und Wartbarkeit (noch offen))
+- [x] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L421; Architektur und Wartbarkeit (noch offen)) *Erledigt 24.11.2026 (siehe TODO.md).*
   - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert
 - [x] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L422; Architektur und Wartbarkeit (noch offen))
   - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
@@ -892,7 +892,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
   - src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen): Alerts::raise() mit Empfänger-Filter, Mailer, dauerhaftem Admin-Hinweis
   - Erledigt: `src/Alerts.php` – alle 20 direkten `wp_mail( admin_email )`-Stellen plus Fiskal-, SMS-Budget- und Service-Personal-Empfänger laufen über `Alerts::raise()`/`recipients()`; Einstellung „Betriebsalarme an“ (`alert_email`), Filter `wpcap_alert_recipients`/`wpcap_alert_send`, Action `wpcap_alert`, Absender über `Mailer::send_plain`, die letzten 30 Alarme im Systemstatus; Test zz_a400 (inkl. Quellscan: kein `wp_mail( get_option( 'admin_email' ) …` mehr).
-- [ ] **A401** [OPTIMIERUNG] *Teilweise erledigt 23.11.: register_routes und install aufgeteilt; Orders::create offen.* Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
+- [x] **A401** [OPTIMIERUNG] *Teilweise erledigt 23.11.: register_routes und install aufgeteilt; Orders::create offen.* Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - src/Installer.php:17, Orders.php:23, Rest/Controller.php:20: Schema je Modul auslagern, Routen je Ressource, create() zerlegen
 - [ ] **A402** [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — _R2 Support_ (TODO L748; Audit Runde 4)
   - 206/224 Klassen: Fassade PassCaptain\Api mit @api/SemVer, Rest @internal
@@ -916,7 +916,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:169: „Kostenlos anmelden“, „kostenlos“
 - [x] **A410** [OPTIMIERUNG] Wartelisten-Anmeldung nennt keine Frist; max vom ersten Typ — _R2 UX_ (TODO L756; Audit Runde 4)
   - templates/event-card.php:177/190: offer_hours einsetzen, max per JS
-- [ ] **A411** [OPTIMIERUNG] *Teilweise erledigt 23.11.: Bestellliste als WP_List_Table erledigt; Tickets und Events offen.* Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4)
+- [x] **A411** [OPTIMIERUNG] *Teilweise erledigt 23.11.: Bestellliste als WP_List_Table erledigt; Tickets und Events offen.* Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732: WP_List_Table, Bulk „Zahlung bestätigen“, Leerzustand mit „Filter zurücksetzen“
 - [x] **A412** [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — _R2 UX_ (TODO L758; Audit Runde 4)
   - src/Exchange/AdminPage.php:138: Website-Zeitzone, Kanal übersetzen, order_reference
