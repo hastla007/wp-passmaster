@@ -189,7 +189,7 @@ $_GET = array();
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'FE-05: without any list right no date is exported and the handler refuses (403)', '' === $e5_none['level'] && array() === $e5_none['occurrences'] && $e5_denied );
 $e5_src = (string) file_get_contents( WPCAP_PATH . 'src/Printing/Page.php' );
-check( 'FE-05: the handler streams the event CSV with audit; the per-date export is unchanged', false !== strpos( $e5_src, 'AttendeeList::event_row_stream( $scope[\'occurrences\'], $scope[\'level\'] )' ) && false !== strpos( $e5_src, "Audit::record( 'attendee_list_csv', 'event', \$event_id" ) && false !== strpos( $e5_src, 'AttendeeList::row_stream( $occurrence_id, $level )' ) && 12 === count( AttendeeList::header( $e5_occ1, 'full' ) ) );
+check( 'FE-05: the handler streams the event CSV with audit; the per-date export is unchanged', false !== strpos( $e5_src, 'AttendeeList::event_row_stream( $scope[\'occurrences\'], $scope[\'level\'], $filter )' ) && false !== strpos( $e5_src, "Audit::record( 'attendee_list_csv', 'event', \$event_id" ) && false !== strpos( $e5_src, 'AttendeeList::row_stream( $occurrence_id, $level, $filter )' ) && 12 === count( AttendeeList::header( $e5_occ1, 'full' ) ) );
 
 /* ================================================================== 3. Wallet buttons in the order portal */
 echo "W14: wallet buttons per ticket in the order portal\n";

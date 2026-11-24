@@ -741,6 +741,7 @@ Wirkung im Plugin:
   dieser Matrix.
 
 Anpassbar über `wpcap_pii_matrix`, `wpcap_pii_can_view` und `wpcap_pii_mask` (siehe [HOOKS.md](HOOKS.md)).
+Je Teilnehmerfeld lässt sich das Recht mit `wpcap_pii_can_view_answer` einschränken (z. B. ein Gesundheitsfeld nur für bestimmte Rollen): Das Feld fehlt dann in der Teilnehmerliste, im Teilnehmer-CSV (je Termin und über alle Termine) und bei den Tickets in der Bestelldetailansicht. Die E-Mail-Spalten der vollständigen Teilnehmerliste folgen der Matrix je Feld. Ohne Filter bleibt alles wie bisher.
 
 ## Hilfscode für den Einlass
 

@@ -2251,7 +2251,22 @@ final class OrderAdapter {
 		}
 		echo '<p>' . esc_html__( 'Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet.', 'pass-captain' ) . '</p>';
 		self::render_ticket_table( $tickets );
+		if ( self::is_account_order_view() ) {
+			// PASS-FE-04: from the customer account to the self-service order portal (link by mail, A631 pending link).
+			$core = Orders::get( (int) reset( $core_ids ) );
+			echo \PassCaptain\OrderLinkRequest::account_form_html( $core ? (string) $core->customer_email : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in account_form_html().
+		}
 		echo '</section>';
+	}
+
+	/**
+	 * PASS-FE-04: whether the order details are shown in the customer account ("Mein Konto" > order view) of a
+	 * logged-in customer – not on the thank-you page, where the ticket mail has just been sent. Filter
+	 * wpcap_woo_account_order_view.
+	 */
+	public static function is_account_order_view() {
+		$view = function_exists( 'is_user_logged_in' ) && is_user_logged_in() && function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'view-order' );
+		return (bool) apply_filters( 'wpcap_woo_account_order_view', $view );
 	}
 
 	/** Adds the Pass Captain meta box to the order edit screen (HPOS and legacy). */

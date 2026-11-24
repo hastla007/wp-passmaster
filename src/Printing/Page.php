@@ -393,12 +393,15 @@ final class Page {
 		check_admin_referer( 'wpcap_attendee_list' );
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
 		$event_id = absint( $_GET['event_id'] ?? 0 );
+		// PASS-FE-05: optional filter by ticket type name and status (the CSV of the filtered ticket list).
+		$filter = AttendeeList::list_filter( array( 'type_name' => sanitize_text_field( wp_unslash( (string) ( $_GET['type_name'] ?? '' ) ) ), 'status' => sanitize_key( wp_unslash( (string) ( $_GET['status'] ?? '' ) ) ) ) );
+		$filter_audit = array_filter( array( 'filtered' => '' !== $filter['type_name'] || '' !== $filter['status'] ) );
 		if ( ! $occurrence_id && $event_id ) {
 			// PASS-FE-05: CSV over all dates of the event the user may export (same columns plus the date).
 			$scope = AttendeeList::event_scope( $event_id );
 			if ( '' === $scope['level'] ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-			Audit::record( 'attendee_list_csv', 'event', $event_id, array( 'level' => $scope['level'], 'occurrences' => count( $scope['occurrences'] ) ) );
-			Scope::stream_csv( self::with_header( AttendeeList::event_header( $scope['occurrences'], $scope['level'] ), AttendeeList::event_row_stream( $scope['occurrences'], $scope['level'] ) ), 'teilnehmer-event-' . $event_id . '.csv', AttendeeList::chunk_size() );
+			Audit::record( 'attendee_list_csv', 'event', $event_id, array( 'level' => $scope['level'], 'occurrences' => count( $scope['occurrences'] ) ) + $filter_audit );
+			Scope::stream_csv( self::with_header( AttendeeList::event_header( $scope['occurrences'], $scope['level'] ), AttendeeList::event_row_stream( $scope['occurrences'], $scope['level'], $filter ) ), 'teilnehmer-event-' . $event_id . '.csv', AttendeeList::chunk_size() );
 		}
 		$level = AttendeeList::access_level( $occurrence_id );
 		if ( '' === $level ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
@@ -414,9 +417,9 @@ final class Page {
 			\PassCaptain\Http::end();
 		}
 		$format = 'csv' === $format ? 'csv' : 'html';
-		Audit::record( 'attendee_list_' . $format, 'occurrence', $occurrence_id, array( 'level' => $level ) );
+		Audit::record( 'attendee_list_' . $format, 'occurrence', $occurrence_id, array( 'level' => $level ) + ( 'csv' === $format ? $filter_audit : array() ) );
 		if ( 'csv' === $format ) {
-			Scope::stream_csv( self::with_header( AttendeeList::header( $occurrence_id, $level ), AttendeeList::row_stream( $occurrence_id, $level ) ), 'teilnehmer-' . $occurrence_id . '.csv', AttendeeList::chunk_size() );
+			Scope::stream_csv( self::with_header( AttendeeList::header( $occurrence_id, $level ), AttendeeList::row_stream( $occurrence_id, $level, $filter ) ), 'teilnehmer-' . $occurrence_id . '.csv', AttendeeList::chunk_size() );
 		}
 		Scope::start_stream( '', 'text/html; charset=utf-8' );
 		AttendeeList::stream_html( $occurrence_id, $level );

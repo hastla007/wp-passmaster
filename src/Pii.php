@@ -11,7 +11,7 @@
  *             (the only personal data a service provider sees, A143);
  *  - reports: wpcap_view_reports – aggregated figures only, no personal data.
  * A user with several profiles sees the union. Filters: `wpcap_pii_matrix`, `wpcap_pii_can_view`,
- * `wpcap_pii_mask`.
+ * `wpcap_pii_mask`; per participant field `wpcap_pii_can_view_answer` (PASS-FE-05).
  *
  * @package PassCaptain
  */
@@ -91,6 +91,31 @@ final class Pii {
 		 * @param string[] $profiles Profiles of the user.
 		 */
 		return (bool) apply_filters( 'wpcap_pii_can_view', $allowed, (string) $field, $user_id, $profiles );
+	}
+
+	/**
+	 * PASS-FE-05: whether a user may see the answers of one participant field (by field key). $allowed is the
+	 * right the calling view already granted for answers as a whole (attendee list level "full", the data
+	 * policy of the order detail); null takes the matrix right for attendee_answers. Unchanged by default:
+	 * the filter `wpcap_pii_can_view_answer` narrows or widens it per field (e.g. a health or diet field only
+	 * for some roles).
+	 *
+	 * @param string    $field_key Key of the participant field.
+	 * @param bool|null $allowed   Right of the view for all answers (null: matrix).
+	 * @param int       $user_id   User (0: current).
+	 */
+	public static function can_view_answer( $field_key, $allowed = null, $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		$allowed = null === $allowed ? self::can_view( 'attendee_answers', $user_id ) : (bool) $allowed;
+		/**
+		 * Whether a user may see the answers of one participant field.
+		 *
+		 * @param bool     $allowed   Right of the view for all answers.
+		 * @param string   $field_key Key of the participant field.
+		 * @param int      $user_id   User.
+		 * @param string[] $profiles  Profiles of the user.
+		 */
+		return (bool) apply_filters( 'wpcap_pii_can_view_answer', $allowed, (string) $field_key, $user_id, self::profiles( $user_id ) );
 	}
 
 	/** Value for display: clear text when allowed, otherwise masked (see mask()). */
