@@ -153,7 +153,7 @@ final class Repository {
 			'fee_per_ticket_minor' => $fee,
 			'fee_tax_rate_bp' => $fee_tax,
 			'refund_policy' => in_array( $data['refund_policy'] ?? '', self::REFUND_POLICIES, true ) ? $data['refund_policy'] : 'reverse_all',
-			'settlement_start' => '' !== $start ? $start : ( $existing ? $existing->settlement_start : gmdate( 'Y-m-01' ) ),
+			'settlement_start' => '' !== $start ? $start : ( $existing ? $existing->settlement_start : gmdate( 'Y-m-01', \PassCaptain\Clock::now() ) ),
 			'status' => in_array( $data['status'] ?? '', self::STATUSES, true ) ? $data['status'] : 'active',
 			'notes' => \PassCaptain\Text::cut( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 5000 ),
 			'updated_at' => $now,

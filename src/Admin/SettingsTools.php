@@ -49,7 +49,7 @@ final class SettingsTools {
 		Forms::verify( self::EXPORT_ACTION );
 		\PassCaptain\Audit::record( 'settings_exported', 'settings', 0, array( 'keys' => count( SettingsManager::exportable_keys() ) ) );
 		$host = preg_replace( '/[^a-z0-9.-]/', '', strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) ) );
-		\PassCaptain\Reports\Scope::send_download( (string) wp_json_encode( SettingsManager::export(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ), 'pass-captain-settings-' . $host . '-' . gmdate( 'Ymd' ) . '.json', 'application/json; charset=utf-8' );
+		\PassCaptain\Reports\Scope::send_download( (string) wp_json_encode( SettingsManager::export(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ), 'pass-captain-settings-' . $host . '-' . gmdate( 'Ymd', \PassCaptain\Clock::now() ) . '.json', 'application/json; charset=utf-8' );
 	}
 
 	/** Step 1 (file upload) stores a preview; step 2 (confirm) imports the previewed file. */

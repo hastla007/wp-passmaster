@@ -88,7 +88,7 @@ final class Alerts {
 	private static function remember( $topic, $subject ) {
 		$list = get_option( self::OPTION, array() );
 		$list = is_array( $list ) ? $list : array();
-		array_unshift( $list, array( 'topic' => $topic, 'subject' => mb_substr( $subject, 0, 200 ), 'at' => gmdate( 'Y-m-d H:i:s' ) ) );
+		array_unshift( $list, array( 'topic' => $topic, 'subject' => mb_substr( $subject, 0, 200 ), 'at' => Clock::real_mysql() ) );
 		update_option( self::OPTION, array_slice( $list, 0, self::KEEP ), false );
 	}
 }

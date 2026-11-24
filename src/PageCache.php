@@ -468,7 +468,7 @@ final class PageCache {
 		$event_id = absint( $event_id );
 		if ( ! $event_id || ! function_exists( 'wp_schedule_single_event' ) ) { return array(); }
 		$p = $wpdb->prefix;
-		$now = gmdate( 'Y-m-d H:i:s' );
+		$now = Clock::real_mysql();
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.sales_start,tt.sales_end FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.status='scheduled' AND tt.status='active' AND (tt.sales_start>%s OR tt.sales_end>=%s)", $event_id, $now, $now ) );
 		$times = array();
 		foreach ( (array) $rows as $row ) {

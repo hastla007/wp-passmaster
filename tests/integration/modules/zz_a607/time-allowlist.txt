@@ -4,31 +4,41 @@
 # infrastructure that must keep real time while `wpcap_now` is injected belongs here: cron
 # scheduling, locks/leases, rate-limit and time-budget windows, signatures/timestamps exchanged with
 # providers or devices, certificate expiry, log/monitoring timestamps, cache lifetimes.
-# Raw time() / current_time( 'mysql', true ) is allowed in src/Clock.php only.
+# Raw time() / current_time( 'mysql', true ) is allowed in src/Clock.php only, and so is reading
+# "now" implicitly: gmdate()/date()/wp_date() need an explicit timestamp (Clock::now() or
+# Clock::real()), current_time() is not used at all.
+# Cap history: 43 -> 50 (implicit-now migration: 7 files send device/provider timestamps, keep
+# real-clock throttle buckets or alert logs; the reasons are on their lines).
 # Format: <path below src/>  # <reason>. Remove a line once the file no longer needs the real clock.
+Alerts.php  # alert history timestamp (operations notification log)
 Audit.php  # audit log timestamp (created_at) records when it really happened
 BoxOffice/Service.php  # card terminal payment timeout (device_started_at vs. elapsed seconds)
 BulkRuns.php  # run lease (locked_until) sized from the request time budget
 CapacityCounters.php  # cron scheduling, counter health state/verify interval, rebuild duration
+DeveloperKeys.php  # Retry-After seconds follow the real-clock rate-limit minute (RateLimit)
 Diagnostics.php  # report generation timestamp
+Fiscalization/Providers/EfstaEfrAdapter.php  # receipt moment fallback sent to the provider
 Fiscalization/Providers/FiskaltrustAdapter.php  # receipt moment fallback sent to the provider
 Fiscalization/Providers/FiskalyUnifiedAdapter.php  # provider access-token age
-Installer.php  # schema upgrade retries, retry back-off and cron scheduling
+Installer.php  # oldest-audit-entry fallback, schema upgrade retries, retry back-off and cron scheduling
 Integrations/Vouchers/Checkout.php  # provider operation claim TTL (lock)
 Jobs/TimeBudget.php  # cron scheduling of continuation runs
 Log.php  # log timestamps and debug-mode window
+Mobile/Api.php  # server_time sent to apps for the device clock-skew check (offline scanned_at)
 Modules/Fiscalization.php  # cron scheduling of fiscal retries
 Mollie/MollieGateway.php  # cron scheduling of the status refresh
 NetworkInstall.php  # multisite install progress and cron scheduling
 OccurrenceCancellation.php  # inline processing time budget
 OfflineScanner/Keys.php  # signing key rotation and validity (devices check with their own clock)
 OfflineScanner/Package.php  # offline package issue/expiry and refresh interval for devices
+OfflineScanner/Rest.php  # server_time sent to devices as clock floor / skew reference
 OfflineScanner/Sync.php  # device scan timestamps vs. maximum offline hours
 Operations/Monitor.php  # cron heartbeats and provider failure log timestamps
 Operations/SiteHealth.php  # monitoring windows over real-time logs, probes and cron state
 Ops/Heartbeat.php  # worker heartbeat timestamps
 Ops/Status.php  # cron health and stale-claim monitoring
-PageCache.php  # cache lifetimes
+PageCache.php  # cache lifetimes; cron purges at upcoming sales windows
+Partners/Api.php  # hourly PII-read audit throttle bucket (transient window)
 Payments/StripeGateway.php  # webhook signature timestamp tolerance
 Plugin.php  # cron scheduling
 Privacy.php  # cron scheduling of the delayed wallet registration purge
@@ -36,6 +46,7 @@ Privacy/Retention.php  # cron scheduling; check-in cursor never passes the real 
 RateLimit.php  # rate-limit windows
 Sales/CheckoutThrottle.php  # admin notice throttle (option timestamp)
 Security/AccessCookie.php  # cookie expiry sent to the browser
+Security/AuditTrail.php  # hourly audit-read budget bucket (transient window)
 Security/DataPolicy.php  # temporary unmask window (security session)
 Security/SignedQr.php  # QR signing key rotation and validity
 Sms/Service.php  # provider callback timestamp tolerance

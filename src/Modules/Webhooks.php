@@ -224,7 +224,7 @@ final class Webhooks {
 		$context = is_array( $context ) ? $context : array();
 		$checkin_id = absint( $context['checkin_id'] ?? 0 );
 		$checked_in = $t[0];
-		$checked_in['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$checked_in['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
 		$checked_in['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
 		// Multi-entry tickets can be checked in repeatedly: each check-in (row) is its own event; the same
 		// check-in reported twice is one event (A675).
@@ -295,7 +295,7 @@ final class Webhooks {
 		if ( ! $t ) { return 0; }
 		$context = is_array( $context ) ? $context : array();
 		$checkin_id = absint( $context['checkin_id'] ?? 0 );
-		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
 		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
 		return Dispatcher::emit( 'ticket.checked_out', 'checkout|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $t[0], $t[1] );
 	}

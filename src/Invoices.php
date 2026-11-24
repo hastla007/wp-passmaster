@@ -955,7 +955,7 @@ final class Invoices {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_export_accounting' );
 		// Defaults: current month up to today, both in the site timezone.
-		$today = Reports\Scope::local( gmdate( 'Y-m-d H:i:s' ), Reports\Scope::site_timezone(), 'Y-m-d' );
+		$today = Reports\Scope::local( Clock::mysql(), Reports\Scope::site_timezone(), 'Y-m-d' );
 		$from_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['from'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce checked by the export handler.
 		$to_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['to'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$from = Reports\Data::valid_date( $from_in ) ? $from_in : substr( $today, 0, 8 ) . '01';

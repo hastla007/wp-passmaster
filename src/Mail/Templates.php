@@ -82,7 +82,7 @@ final class Templates {
 	/** Stores an override (values must already be sanitised). */
 	public static function save( $type, $locale, array $template ) {
 		$all = self::all();
-		$all[ (string) $type ][ (string) $locale ] = self::normalize( $template ) + array( 'updated_at' => gmdate( 'Y-m-d H:i:s' ) );
+		$all[ (string) $type ][ (string) $locale ] = self::normalize( $template ) + array( 'updated_at' => \PassCaptain\Clock::mysql() );
 		update_option( self::OPTION, $all, false );
 	}
 

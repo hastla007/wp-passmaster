@@ -770,7 +770,7 @@ final class OrdersPage {
 		$filters = self::list_filters();
 		$rows = self::csv_rows( $filters );
 		Audit::record( 'orders_exported', 'order', 0, array( 'rows' => count( $rows ) - 1, 'filters' => array_filter( $filters ) ) );
-		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d' ) . '.csv' );
+		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d', \PassCaptain\Clock::now() ) . '.csv' );
 	}
 
 	/* ---------------------------------------------------------------------------------------------

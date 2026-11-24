@@ -1442,7 +1442,7 @@ final class Fiscalization {
 			}
 			echo '</tbody></table>';
 		}
-		$export_until = gmdate( 'Y-m-d' );
+		$export_until = gmdate( 'Y-m-d', \PassCaptain\Clock::now() );
 		$export_from = gmdate( 'Y-m-d', \PassCaptain\Clock::now() - 29 * DAY_IN_SECONDS );
 		echo '<hr><h2>' . esc_html__( 'Fiskaldaten exportieren', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente.', 'pass-captain' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_export' );

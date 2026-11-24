@@ -249,7 +249,7 @@ final class SettingsManager {
 			'format_version' => self::FORMAT_VERSION,
 			'plugin_version' => defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : '',
 			'db_version' => (string) get_option( 'wpcap_db_version', '' ),
-			'exported_at' => gmdate( 'c' ),
+			'exported_at' => gmdate( 'c', Clock::now() ),
 			'settings' => $settings,
 			'mail_templates' => Mail\Templates::all(),
 		);

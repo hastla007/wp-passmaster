@@ -257,7 +257,7 @@ final class Diagnostics {
 			$order_id = (int) $row->order_id;
 			$open = $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE job_type=%s AND status IN ('queued','running') AND payload=%s LIMIT 1", $wpdb->prefix . 'wpcap_jobs', Orders::ISSUE_JOB, wp_json_encode( array( 'order_id' => $order_id ) ) ) );
 			if ( $open ) { continue; }
-			if ( true === Jobs::enqueue( 'diagnostics-ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), Orders::ISSUE_JOB, array( 'order_id' => $order_id ) ) ) { ++$queued; }
+			if ( true === Jobs::enqueue( 'diagnostics-ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi', Clock::now() ), Orders::ISSUE_JOB, array( 'order_id' => $order_id ) ) ) { ++$queued; }
 		}
 		return $queued;
 	}

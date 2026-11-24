@@ -164,7 +164,7 @@ final class DeveloperKeys {
 		$result = self::check( $request, $scope, $event_id );
 		if ( ! is_wp_error( $result ) ) { return true; }
 		if ( ! self::$rate_limited ) { return false; }
-		$retry = max( 1, 60 - (int) gmdate( 's' ) );
+		$retry = max( 1, 60 - (int) gmdate( 's', Clock::real() ) );
 		self::$retry_after = $retry;
 		return new \WP_Error( 'wpcap_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute.', 'pass-captain' ), array( 'status' => 429, 'retry_after' => $retry ) );
 	}
@@ -229,7 +229,7 @@ final class DeveloperKeys {
 		// Retry-After in permission() relies on the clock minute.
 		if ( ! RateLimit::allow( 'developer_key|' . (int) $key->api_key_id, self::rate_limit( $key ), MINUTE_IN_SECONDS ) ) {
 			self::$rate_limited = true;
-			return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's' ) ) ) );
+			return $denied( 'wpcap_api_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte später erneut versuchen.', 'pass-captain' ), 429, array( 'retry_after' => max( 1, 60 - (int) gmdate( 's', Clock::real() ) ) ) );
 		}
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => Clock::mysql() ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return array( 'api_key_id' => (int) $key->api_key_id, 'user_id' => $user_id, 'event_id' => $event_id, 'scopes' => array_values( array_map( 'strval', $scopes ) ), 'scope' => (string) $scope );

@@ -358,7 +358,7 @@ final class Doctor {
 	}
 
 	private static function check_document_number_gaps( $limit ) {
-		$year = (int) gmdate( 'Y' );
+		$year = (int) gmdate( 'Y', \PassCaptain\Clock::now() );
 		$gaps = Invoices::document_gaps( ( $year - 1 ) . '-01-01', $year . '-12-31' );
 		$count = 0;
 		$items = array();

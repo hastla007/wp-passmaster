@@ -367,7 +367,7 @@ final class Profiles {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$country_col = self::ready() ? 'o.venue_country' : "''";
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.tax_class,$country_col AS venue_country,COUNT(*) AS types FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.tax_class<>'' AND tt.status='active' AND o.status='scheduled' AND o.starts_at>=%s GROUP BY tt.tax_class,$country_col", gmdate( 'Y-m-d H:i:s' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.tax_class,$country_col AS venue_country,COUNT(*) AS types FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.tax_class<>'' AND tt.status='active' AND o.status='scheduled' AND o.starts_at>=%s GROUP BY tt.tax_class,$country_col", \PassCaptain\Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$out = array();
 		$today = self::local_date();
 		foreach ( $rows as $row ) {

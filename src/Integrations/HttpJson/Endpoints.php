@@ -417,7 +417,7 @@ final class Endpoints {
 		return array(
 			'contract_version' => self::CONTRACT_VERSION,
 			'event' => (string) $event,
-			'occurred_at' => (string) ( $payload['occurred_at'] ?? gmdate( 'c' ) ),
+			'occurred_at' => (string) ( $payload['occurred_at'] ?? gmdate( 'c', \PassCaptain\Clock::now() ) ),
 			'idempotency_key' => (string) $idempotency_key,
 			'data' => self::map( $endpoint, $event, (array) ( $payload['data'] ?? array() ) ),
 		);
@@ -502,7 +502,7 @@ final class Endpoints {
 			if ( ! (int) $endpoint->include_pii && self::is_pii_source( $row['source'] ) ) { continue; }
 			$sample[ $row['source'] ] = $row['key'];
 		}
-		$body = array( 'contract_version' => self::CONTRACT_VERSION, 'event' => 'test', 'occurred_at' => gmdate( 'c' ), 'idempotency_key' => $key, 'data' => array( 'test' => true, 'mapping' => $sample ) );
+		$body = array( 'contract_version' => self::CONTRACT_VERSION, 'event' => 'test', 'occurred_at' => gmdate( 'c', \PassCaptain\Clock::now() ), 'idempotency_key' => $key, 'data' => array( 'test' => true, 'mapping' => $sample ) );
 		$result = self::send( $endpoint, 'test', $body, $key );
 		global $wpdb;
 		$now = \PassCaptain\Clock::mysql();
