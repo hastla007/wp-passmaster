@@ -204,6 +204,8 @@ final class SettingsTools {
 		if ( is_bool( $value ) ) { $value = (int) $value; }
 		if ( $entry && 'bool' === $entry['type'] ) { return empty( $value ) ? __( 'aus', 'pass-captain' ) : __( 'ein', 'pass-captain' ); }
 		if ( $entry && 'choice' === $entry['type'] && isset( $entry['options'][ (string) $value ] ) ) { return (string) $entry['options'][ (string) $value ]; }
+		// Amounts are stored in minor units: show them as money in the default currency.
+		if ( $entry && 'money' === $entry['type'] && is_numeric( $value ) ) { return Forms::money( (int) $value, \PassCaptain\Localization::default_currency() ); }
 		$value = wp_strip_all_tags( (string) $value );
 		return '' === $value ? '—' : \PassCaptain\Text::cut( $value, 80 );
 	}
@@ -294,10 +296,11 @@ final class SettingsTools {
 		if ( is_wp_error( $diff ) || ! $diff ) { echo '<p>' . esc_html__( 'Deine Einstellungen entsprechen bereits diesem Profil.', 'pass-captain' ) . '</p>'; return; }
 		Forms::open_form( self::PRESET_ACTION );
 		Forms::hidden( 'preset', $code );
+		echo '<p class="description">' . esc_html__( 'Werte mit „Rechtsprüfung“ sind nicht vorausgewählt: Wähle sie erst aus, wenn du sie geprüft hast.', 'pass-captain' ) . '</p>';
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Übernehmen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Einstellung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bisher', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Vorschlag', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $diff as $row ) {
 			$id = 'wpcap-preset-' . $row['key'];
-			echo '<tr><td><input type="checkbox" id="' . esc_attr( $id ) . '" name="keys[]" value="' . esc_attr( $row['key'] ) . '"' . ( '' === $row['error'] ? ' checked' : ' disabled' ) . '></td><td><label for="' . esc_attr( $id ) . '">' . esc_html( $row['label'] ) . '</label>' . ( $row['legal'] ? ' <span class="wpcap-badge">' . esc_html__( 'Rechtsprüfung', 'pass-captain' ) . '</span>' : '' ) . '</td><td>' . esc_html( self::value_text( $row['key'], $row['old'] ) ) . '</td><td>' . ( '' !== $row['error'] ? esc_html( $row['error'] ) : esc_html( self::value_text( $row['key'], $row['new'] ) ) ) . '</td></tr>';
+			echo '<tr><td><input type="checkbox" id="' . esc_attr( $id ) . '" name="keys[]" value="' . esc_attr( $row['key'] ) . '"' . ( '' !== $row['error'] ? ' disabled' : ( $row['legal'] ? '' : ' checked' ) ) . '></td><td><label for="' . esc_attr( $id ) . '">' . esc_html( $row['label'] ) . '</label>' . ( $row['legal'] ? ' <span class="wpcap-badge">' . esc_html__( 'Rechtsprüfung', 'pass-captain' ) . '</span>' : '' ) . '</td><td>' . esc_html( self::value_text( $row['key'], $row['old'] ) ) . '</td><td>' . ( '' !== $row['error'] ? esc_html( $row['error'] ) : esc_html( self::value_text( $row['key'], $row['new'] ) ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 		submit_button( __( 'Ausgewählte Werte übernehmen', 'pass-captain' ) );
@@ -375,6 +378,13 @@ final class SettingsTools {
 		echo '</form>';
 	}
 
+	/** Time of a history entry (UTC in the log) in the site's date and time format and time zone. */
+	public static function history_time( $created_at_utc ) {
+		$ts = strtotime( (string) $created_at_utc . ' UTC' );
+		if ( false === $ts ) { return (string) $created_at_utc; }
+		return (string) wp_date( \PassCaptain\Frontend\Format::datetime_format(), $ts );
+	}
+
 	private static function render_history( $key ) {
 		$entries = SettingsManager::history( array( 'key' => $key, 'limit' => 100 ) );
 		$labels = SettingsManager::source_labels();
@@ -390,7 +400,7 @@ final class SettingsTools {
 		foreach ( $entries as $entry ) {
 			foreach ( $entry['changes'] as $change ) {
 				$schema = SettingsSchema::get( (string) ( $change['key'] ?? '' ) );
-				echo '<tr><td>' . esc_html( get_date_from_gmt( $entry['created_at'], 'd.m.Y H:i' ) ) . '</td><td>' . esc_html( $entry['user_id'] ? Forms::user_label( $entry['user_id'] ) : '—' ) . '</td><td>' . esc_html( $labels[ $entry['source'] ] ?? $entry['source'] ) . '</td><td>' . esc_html( $schema && '' !== $schema['label'] ? $schema['label'] : (string) ( $change['key'] ?? '' ) ) . '</td><td>' . esc_html( SettingsManager::display_value( $change['old'] ?? null ) ) . '</td><td>' . esc_html( SettingsManager::display_value( $change['new'] ?? null ) ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( self::history_time( $entry['created_at'] ) ) . '</td><td>' . esc_html( $entry['user_id'] ? Forms::user_label( $entry['user_id'] ) : '—' ) . '</td><td>' . esc_html( $labels[ $entry['source'] ] ?? $entry['source'] ) . '</td><td>' . esc_html( $schema && '' !== $schema['label'] ? $schema['label'] : (string) ( $change['key'] ?? '' ) ) . '</td><td>' . esc_html( SettingsManager::display_value( $change['old'] ?? null, (string) ( $change['key'] ?? '' ) ) ) . '</td><td>' . esc_html( SettingsManager::display_value( $change['new'] ?? null, (string) ( $change['key'] ?? '' ) ) ) . '</td></tr>';
 			}
 		}
 		echo '</tbody></table>';

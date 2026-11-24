@@ -36,6 +36,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Package {
 	const FORMAT = 'wpcap-offline-package';
 	const VERSION = 1;
+	/**
+	 * Minor version of the offline contract (docs/CONTRACTS.md, Contracts::versions() "offline" =
+	 * VERSION.CONTRACT_MINOR). Counts additive fields without changing the package format `v`.
+	 * 1: ticket_types[].own_policy/max_entries/valid_days, day_cutoff_hour, permissions, checkout and the
+	 * offline check-out upload (/app/scan/sync with direction "out").
+	 */
+	const CONTRACT_MINOR = 1;
 	/** Newest supported format version (compact rows); clients ask for it with format=2. */
 	const VERSION_COMPACT = 2;
 	/** Hex digits of the ticket hash shipped in the compact format. */

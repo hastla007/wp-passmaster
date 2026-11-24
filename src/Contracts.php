@@ -38,11 +38,11 @@ final class Contracts {
 	 */
 	public static function versions() {
 		return array(
-			'public'           => '1.2', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560). 1.2: /events service fee fields (A425).
+			'public'           => '1.3', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560). 1.2: /events service fee fields (A425). 1.3: POST /orders/link-request, optional checkout param form_guard (400 wpcap_form_guard / wpcap_form_too_fast).
 			'partner'          => Partners\Api::VERSION . '.0',
 			'developer'        => '1.0',
 			'app'              => Mobile\Api::VERSION,
-			'offline'          => OfflineScanner\Package::VERSION . '.0',
+			'offline'          => OfflineScanner\Package::VERSION . '.' . OfflineScanner\Package::CONTRACT_MINOR, // Major = package format v1; minor counts additive fields.
 			'voucher_provider' => Integrations\Vouchers\Bridge::CONTRACT,
 			'ticket_service'   => Integrations\Vouchers\TicketService::VERSION . '.0',
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',

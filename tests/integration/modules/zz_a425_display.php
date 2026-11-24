@@ -64,7 +64,7 @@ foreach ( (array) $fd_rest as $fd_e ) {
 	foreach ( $fd_e['tickets'] as $fd_t ) { if ( $fd_type === $fd_t['ticket_type_id'] ) { $fd_ticket = $fd_t; } }
 }
 check( 'A425 display: REST /events adds service_fee_minor, display_price_minor and order_fee_minor', is_array( $fd_ticket ) && 2500 === $fd_ticket['price_minor'] && 150 === $fd_ticket['service_fee_minor'] && 2650 === $fd_ticket['display_price_minor'] && 200 === $fd_ticket['order_fee_minor'] );
-check( 'A425 display: the public contract is 1.2', '1.2' === PassCaptain\Contracts::version( 'public' ) );
+check( 'A425 display: the public contract is 1.2 or a later minor of 1 (1.2 added the service fee fields)', 1 === PassCaptain\Contracts::major( PassCaptain\Contracts::version( 'public' ) ) && version_compare( PassCaptain\Contracts::version( 'public' ), '1.2', '>=' ) );
 
 $fd_ld = PassCaptain\Frontend\EventPage::json_ld( $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_events WHERE event_id=%d", $fd_event ) ) );
 $fd_offer_prices = array();

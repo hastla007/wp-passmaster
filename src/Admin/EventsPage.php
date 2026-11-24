@@ -73,7 +73,9 @@ final class EventsPage {
 		if ( null === $price ) { return Forms::error( 'wpcap_event_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
 		if ( null === $tax_bp ) { return Forms::error( 'wpcap_event_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
-		$price = self::entry_to_gross( (int) $price, (int) $tax_bp ); // SET-PC-45: net entry is converted to the stored gross price.
+		// SET-PC-45: a net entry is converted to the stored gross price per occurrence below, with the rate
+		// checkout applies (net_rate_bp(): active tax profile for country, class and date, else the form rate).
+		$entered_price = (int) $price;
 		$status = Forms::choice( $in, 'status', array( 'draft', 'published' ), 'draft' );
 		$repeat = Forms::choice( $in, 'repeat_frequency', array( 'none', 'weekly' ), 'none' );
 		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, Forms::int( $in, 'repeat_count', 1 ) ) ) : 1;
@@ -116,6 +118,7 @@ final class EventsPage {
 				$wpdb->query( 'ROLLBACK' );
 				return Forms::error( 'wpcap_occurrence_save', __( 'Ein Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 			}
+			$price = self::entry_to_gross( $entered_price, self::net_rate_bp( (int) $tax_bp, Queries::occurrence( $occurrence_id ) ) );
 			$wpdb->insert( "{$p}wpcap_ticket_types", array(
 				'occurrence_id' => $occurrence_id,
 				'name' => $ticket_name,

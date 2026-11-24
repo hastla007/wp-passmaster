@@ -12,11 +12,11 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 
 | Schnittstelle | Vertrag | Version | Dokumentation |
 |---|---|---|---|
-| Öffentliche REST-API (`pass-captain/v1`: Events, Checkout, Bestellportal, …) | `public` | 1.2 (1.1: `/events` mit Zeiten in ISO 8601 mit Offset, Phase, Revision und Verkaufsstatus je Ticketart; Checkout-Positionen mit optionalem `occurrence_revision`/`expected_price_minor`, siehe [OPERATIONS.md](OPERATIONS.md#checkout-an-den-angezeigten-stand-gebunden-a560); 1.2: `/events` je Ticketart `service_fee_minor`, `display_price_minor` und `order_fee_minor`, siehe [OPERATIONS.md](OPERATIONS.md#vorverkaufs-servicegebühr-a425)) | [SECURITY.md](SECURITY.md) |
+| Öffentliche REST-API (`pass-captain/v1`: Events, Checkout, Bestellportal, …) | `public` | 1.3 (1.1: `/events` mit Zeiten in ISO 8601 mit Offset, Phase, Revision und Verkaufsstatus je Ticketart; Checkout-Positionen mit optionalem `occurrence_revision`/`expected_price_minor`, siehe [OPERATIONS.md](OPERATIONS.md#checkout-an-den-angezeigten-stand-gebunden-a560); 1.2: `/events` je Ticketart `service_fee_minor`, `display_price_minor` und `order_fee_minor`, siehe [OPERATIONS.md](OPERATIONS.md#vorverkaufs-servicegebühr-a425); 1.3: neuer Endpunkt `POST /orders/link-request` (Bestelllinks per E-Mail anfordern, gleiche Antwort für jede Adresse) und optionaler Checkout-Parameter `form_guard` (`{hp, ms}`, nur vom eigenen Formular gesendet; Ablehnung mit 400 `wpcap_form_guard` bzw. `wpcap_form_too_fast`), siehe [SECURITY.md](SECURITY.md#bestelllinks-anfordern-und-bot-prüfung-im-checkout)) | [SECURITY.md](SECURITY.md) |
 | Partner-API (`/partner/…`) | `partner` | 1.0 (Header `X-WPCAP-Partner-API: 1`) | [PARTNER-API.md](PARTNER-API.md) |
 | Entwickler-API (`X-WPCAP-Key`) | `developer` | 1.0 | [SECURITY.md](SECURITY.md) |
-| Mobile-App-API (`/app/…`) | `app` | 1.1 (`api_version` in `/app/me`) | [MOBILE-API.md](MOBILE-API.md) |
-| Offline-Scanner (`/app/offline/…`, Paketformat `v`) | `offline` | 1.0 | [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md) |
+| Mobile-App-API (`/app/…`) | `app` | 1.2 (`api_version` in `/app/info` und `/app/me`; 1.1: Check-out, Bereiche, erweiterte Statistik und Ergebnis-Codes; 1.2: `/app/info`, Sammelaktionen `/app/scan/batch`, Versions-Header, `permissions.check_out` in `/app/me`) | [MOBILE-API.md](MOBILE-API.md) |
+| Offline-Scanner (`/app/offline/…`, Paketformat `v`) | `offline` | 1.1 (Hauptversion = Paketformat `v` 1, die zweite Stelle zählt `PassCaptain\OfflineScanner\Package::CONTRACT_MINOR`; 1.1: im Paket `ticket_types[].own_policy`, `max_entries`, `valid_days`, `day_cutoff_hour`, `permissions` (`undo`, `check_out`) und `checkout` (`staff_area_ids`, `reentry_after_checkout`, `max_reentries`), dazu der Upload offline erfasster Check-outs über `/app/scan/sync` mit `direction` `out`; das Paketformat `v` bleibt 1 bzw. 2) | [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md) |
 | Gutschein-Anbieter (`wp_pass_captain_voucher_provider_v1`) | `voucher_provider` | 1.0 | [VOUCHERS.md](VOUCHERS.md) |
 | Ticketdienst und Check-in-Dienst für Voucher Captain (`wp_pass_captain_ticket_service_v1`, `wp_pass_captain_checkin_service_v1`) | `ticket_service`, `checkin_service` | 1.0 | [VOUCHERS.md](VOUCHERS.md) |
 | Affiliate Captain (`wpac_record_sale()`, `wpac_record_refund()`) | `affiliate` | 1.0.0 | [EXTENSIONS.md](EXTENSIONS.md) |
@@ -35,7 +35,7 @@ Ein Client kann die Version, gegen die er gebaut ist, im Header `X-WPCAP-Contrac
 - Andere Hauptversion oder kein gültiger Versionswert: Antwort `400` mit Code `wpcap_contract_version`, bevor Berechtigungsprüfung oder Handler laufen. `data` enthält `api`, `requested` und `supported`.
 - Ohne Header gilt die aktuelle Version.
 
-Jede Antwort im Namensraum `pass-captain/v1` trägt `X-WPCAP-Contract: <vertrag>/<version>`, z. B. `app/1.1`. Welche Schnittstelle gilt, ergibt sich aus der Route: `/partner/…` = `partner`, `/app/offline/…` = `offline`, `/app/…` = `app`, `/developer/events/…` sowie der Eventbericht mit `X-WPCAP-Key` = `developer`, alles andere = `public`.
+Jede Antwort im Namensraum `pass-captain/v1` trägt `X-WPCAP-Contract: <vertrag>/<version>`, z. B. `app/1.2`. Welche Schnittstelle gilt, ergibt sich aus der Route: `/partner/…` = `partner`, `/app/offline/…` = `offline`, `/app/…` = `app`, `/developer/events/…` sowie der Eventbericht mit `X-WPCAP-Key` = `developer`, alles andere = `public`.
 
 ## Voucher Captain: Gutschein-Anbieter
 
