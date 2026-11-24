@@ -214,10 +214,10 @@ if ( ! function_exists( 'wp_cache_get' ) ) {
 	function wp_cache_set( $key, $value, $group = '', $ttl = 0 ) { $GLOBALS['pf_cache'][ "$group:$key" ] = $value; $GLOBALS['pf_cache_ttl'][ "$group:$key" ] = $ttl; return true; }
 }
 $reset_request = static function () {
-	$memo = new ReflectionProperty( Orders::class, 'availability_memo' );
+	$memo = new ReflectionProperty( PassCaptain\Orders\Availability::class, 'availability_memo' );
 	$memo->setAccessible( true );
 	$memo->setValue( null, array() );
-	$wrote = new ReflectionProperty( Orders::class, 'wrote' );
+	$wrote = new ReflectionProperty( PassCaptain\Orders\Availability::class, 'wrote' );
 	$wrote->setAccessible( true );
 	$wrote->setValue( null, false );
 };

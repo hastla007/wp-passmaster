@@ -598,7 +598,7 @@ final class AdminPage {
 		$field( 'invoice_prefix', __( 'Präfix für Rechnungsnummern des Veranstalters', 'pass-captain' ), $v( 'invoice_prefix' ), 'text', 'maxlength="10" pattern="[A-Za-z0-9]{0,10}" style="width:8em"' );
 		echo '<tr><th scope="row">' . esc_html__( 'Kleinunternehmer', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="small_business" value="1"' . checked( '1' === $v( 'small_business', '0' ), true, false ) . '> ' . esc_html__( 'Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)', 'pass-captain' ) . '</label></td></tr>';
 		$field( 'small_business_note', __( 'Hinweistext Kleinunternehmer', 'pass-captain' ), $v( 'small_business_note' ), 'text', 'maxlength="255" placeholder="' . esc_attr( SalesModel::default_small_business_note() ) . '"' );
-		echo '</tbody></table><p class="description">' . esc_html__( 'Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis.', 'pass-captain' ) . '</p>';
+		echo '</tbody></table><p class="description">' . esc_html( sprintf( /* translators: %s: prefix pattern with the placeholder name in braces, e.g. V{ID} */ __( 'Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird %s verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis.', 'pass-captain' ), 'V{' . _x( 'ID', 'placeholder name for the numeric organizer ID in the invoice prefix', 'pass-captain' ) . '}' ) ) . '</p>';
 	}
 
 	private static function render_keys( $partner ) {
