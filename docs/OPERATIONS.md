@@ -1403,6 +1403,13 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
   mit Auszahlungsbeleg in die eigene offene Schicht (nur Kassierkräfte der Schicht, je Erstattung
   einmal, Audit `pos_payout_paid`). Freikarten- und Rechnungs-Erstattungen werden wie bisher in die
   nächste offene Schicht gebucht.
+- **Betriebsablauf für offene Kassen-Rückzahlungen** (24.11.2026): Solange eine solche Rückzahlung
+  wartet, zeigt jeder Reiter der Kasse einen Hinweis mit Anzahl und Summe je Währung und dem Zeitpunkt
+  der ältesten (`ShiftPage::render_open_payouts_notice()`, nur Bestellungen im eigenen Event-Bereich).
+  Wer keine offene Schicht hat, wird zum Öffnen einer Schicht geführt, wer eine hat, zur Liste auf dem
+  Reiter „Schicht“. Ablauf: Verwaltung erstattet (Tickets sofort widerrufen) → die Kundin oder der
+  Kunde kommt an die Kasse → eine Kassierkraft öffnet ihre Schicht und klickt „Auszahlen“; erst dann
+  ändert sich der Soll-Bestand dieser Schicht. Für die Erstattung selbst muss keine Schicht offen sein.
 - **Zählen/Abschließen während eines Verkaufs** (A489): Ein Verkauf prüft unter der Schichtsperre,
   dass die Schicht noch offen ist, bevor die Zahlung bestätigt und Tickets ausgestellt werden; sonst
   wird die Bestellung ohne Tickets storniert. Solange ein Verkauf der Schicht noch gebucht wird

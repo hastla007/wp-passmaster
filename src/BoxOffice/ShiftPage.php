@@ -78,6 +78,36 @@ final class ShiftPage {
 		return null === $minor ? '–' : Scope::money( (int) $minor, $currency );
 	}
 
+	/* ------------------------------------------------------------------ open payouts (every tab) */
+
+	/**
+	 * Notice on every tab of the box office while refunds of cash/card box office sales wait for
+	 * their payout (A488): a refund from the order screen, an approval or an event cancellation moves
+	 * no money until a cashier pays it out in an open shift. Without an open shift of their own the
+	 * user is pointed to opening one; with one, to the list on the "Schicht" tab.
+	 */
+	public static function render_open_payouts_notice() {
+		$summary = Shifts::open_payout_summary();
+		if ( ! $summary ) { return; }
+		$tz = Scope::site_timezone();
+		$parts = array();
+		$oldest = '';
+		foreach ( $summary as $cur => $row ) {
+			/* translators: 1: number of payouts, 2: amount */
+			$parts[] = sprintf( _n( '%1$d über %2$s', '%1$d über zusammen %2$s', $row['count'], 'pass-captain' ), $row['count'], Scope::money( $row['amount_minor'], $cur ) );
+			if ( '' === $oldest || strcmp( $row['oldest'], $oldest ) < 0 ) { $oldest = $row['oldest']; }
+		}
+		$shift = Shifts::current_for_user( get_current_user_id(), array( 'open' ) );
+		echo '<div class="notice notice-warning inline wpcap-pos-open-payouts"><p><strong>' . esc_html( sprintf( /* translators: %s: list of counts and amounts per currency */ __( 'Offene Kassen-Rückzahlungen: %s.', 'pass-captain' ), implode( '; ', $parts ) ) ) . '</strong> ';
+		echo esc_html( sprintf( /* translators: %s: date and time of the oldest open payout */ __( 'Erstattungen bar oder mit Karte bezahlter Kassenverkäufe aus der Verwaltung oder einer Eventabsage werden erst gebucht, wenn eine Kassierkraft sie in ihrer offenen Schicht auszahlt. Die älteste wartet seit %s.', 'pass-captain' ), Scope::local( $oldest, $tz ) ) ) . ' ';
+		if ( $shift ) {
+			echo '<a href="' . esc_url( self::url( 'shift' ) . '#wpcap-open-payouts' ) . '">' . esc_html__( 'Zur Auszahlung in deiner Schicht', 'pass-captain' ) . '</a>';
+		} else {
+			echo esc_html__( 'Du hast keine offene Schicht: Öffne eine Schicht, um sie auszuzahlen.', 'pass-captain' ) . ' <a href="' . esc_url( self::url( 'sale' ) ) . '">' . esc_html__( 'Schicht öffnen', 'pass-captain' ) . '</a>';
+		}
+		echo '</p></div>';
+	}
+
 	/* ------------------------------------------------------------------ open / handover */
 
 	/** Shown on the sale tab while the user has no shift: handovers to accept and the open form. */
@@ -209,7 +239,7 @@ final class ShiftPage {
 		// A488: refunds from the back office that wait for the payout at a till.
 		$payouts = Shifts::open_payouts( $cur );
 		if ( $payouts ) {
-			echo '<h3>' . esc_html__( 'Offene Kassen-Rückzahlungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht.', 'pass-captain' ) . '</p>';
+			echo '<h3 id="wpcap-open-payouts">' . esc_html__( 'Offene Kassen-Rückzahlungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht.', 'pass-captain' ) . '</p>';
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Beleg', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Betrag', 'pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet am', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $payouts as $payout ) {
 				echo '<tr><td>' . esc_html( (string) $payout->receipt_number ) . '</td><td>' . esc_html( Service::method_label( $payout->method ) ) . '</td><td>' . esc_html( Scope::money( (int) $payout->amount_minor, $payout->currency ) ) . '</td><td>' . esc_html( Scope::local( $payout->created_at, $tz ) ) . '</td><td>';

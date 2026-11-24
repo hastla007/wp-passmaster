@@ -67,6 +67,7 @@ final class Page {
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'pass-captain' ) . '</h1>';
 		self::render_fiscal_notice();
 		Forms::render_notices();
+		ShiftPage::render_open_payouts_notice();
 		self::enqueue_offline_guard();
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Kassenbereiche', 'pass-captain' ) . '">';
 		foreach ( $tabs as $key => $label ) {

@@ -804,6 +804,27 @@ final class Shifts {
 	}
 
 	/**
+	 * Open payouts the current user may see (scope of the order), summed per currency: count, amount
+	 * and the time of the oldest one. Shown on every tab of the box office, so a refund that waits for
+	 * an open shift is not overlooked while nobody has one.
+	 *
+	 * @return array<string,array{count:int,amount_minor:int,oldest:string}> Keyed by currency.
+	 */
+	public static function open_payout_summary() {
+		$out = array();
+		foreach ( self::open_payouts() as $payout ) {
+			if ( ! \PassCaptain\Reports\Scope::can_order( (int) $payout->order_id, Service::CAP ) ) { continue; }
+			$cur = (string) $payout->currency;
+			if ( ! isset( $out[ $cur ] ) ) { $out[ $cur ] = array( 'count' => 0, 'amount_minor' => 0, 'oldest' => (string) $payout->created_at ); }
+			++$out[ $cur ]['count'];
+			$out[ $cur ]['amount_minor'] += (int) $payout->amount_minor;
+			if ( strcmp( (string) $payout->created_at, $out[ $cur ]['oldest'] ) < 0 ) { $out[ $cur ]['oldest'] = (string) $payout->created_at; }
+		}
+		ksort( $out );
+		return $out;
+	}
+
+	/**
 	 * A cashier pays an open payout out at the till (A488): the refund is booked into the cashier's
 	 * open shift (negative movement with payout receipt) and the payout marked paid. The payout is
 	 * claimed first, so two cashiers cannot pay out the same refund.
