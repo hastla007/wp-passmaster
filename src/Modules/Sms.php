@@ -140,6 +140,7 @@ final class Sms {
 				'http_body_template' => HttpProvider::DEFAULT_TEMPLATE,
 				/* translators: Keep the placeholders {event}, {date}, {time} unchanged. */
 				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'pass-captain' ),
+				// phpcs:ignore Squiz.PHP.CommentedOutCode.Found -- translators note listing placeholders, not code.
 				/* translators: Keep the placeholders {event}, {date}, {time}, {timezone}, {old_date}, {refund_note} unchanged. */
 				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.{refund_note}', 'pass-captain' ),
 				'http_signature_header' => 'X-Signature',
