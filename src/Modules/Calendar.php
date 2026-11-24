@@ -402,7 +402,7 @@ final class Calendar {
 	 */
 	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
 		$tz = self::site_timezone();
-		$now = new \DateTime( 'now', $tz );
+		$now = ( new \DateTime( '@' . \PassCaptain\Clock::now() ) )->setTimezone( $tz );
 		$current = $now->format( 'Y-m' );
 		$today = $now->format( 'Y-m-d' );
 		if ( ! preg_match( '/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $month ) ) { $month = $current; }

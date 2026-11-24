@@ -43,7 +43,7 @@
 - Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
 - CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
 - Checkout (`Orders::create`) und die Tabellen-Anweisungen des Installers in kleinere Methoden aufgeteilt, ohne Verhaltensänderung (A401).
-- Geschäftsregeln lesen die Zeit durchgängig über `Clock` (Filter `wpcap_now`), Infrastruktur explizit über `Clock::real()`; die Ausnahmeliste des Zeit-Wächters schrumpft von 85 auf 43 Dateien.
+- Geschäftsregeln lesen die Zeit durchgängig über `Clock` (Filter `wpcap_now`), Infrastruktur explizit über `Clock::real()`; die Ausnahmeliste des Zeit-Wächters schrumpft von 85 auf 50 Dateien, jede mit Begründung; auch Datumsformatierungen lesen „jetzt“ nicht mehr implizit.
 
 ### Gutscheine
 - Der Gutschein-Snapshot einer Bestellung wird nur noch mit Versionsprüfung geändert; eine späte Zahlung während der Freigabe belastet den Gutschein genau einmal.
