@@ -20,6 +20,9 @@ use PassCaptain\StaffAssignments;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AssignmentsPage {
 	const SLUG = 'wpcap-assignments';
 	const CAP = 'wpcap_manage_events';

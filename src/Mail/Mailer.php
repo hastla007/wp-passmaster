@@ -26,6 +26,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Mailer {
 	/** Plain-text alternative for the mail currently being sent (consumed by phpmailer_init). */
 	private static $alt_body = null;

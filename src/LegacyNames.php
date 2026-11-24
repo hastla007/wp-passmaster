@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class LegacyNames {
 	const EVENTS_BLOCK   = 'pass-captain/events';
 	const CALENDAR_BLOCK = 'pass-captain/calendar';

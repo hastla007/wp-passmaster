@@ -10,6 +10,8 @@
 
 // phpcs:ignoreFile
 
+require_once WPCAP_PATH . 'src/functions.php'; // Public functions (loaded by earlier modules in a full run).
+
 echo "R16: extension contract version and documented extension points\n";
 
 $r16_root = dirname( __DIR__, 3 );

@@ -15,6 +15,9 @@ use PassCaptain\DeveloperKeys;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Controller {
 	/** Minimum length of a client-chosen checkout idempotency key (A639; the checkout form sends a UUID). */
 	const MIN_CHECKOUT_KEY_LENGTH = 16;

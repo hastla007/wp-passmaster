@@ -22,6 +22,8 @@ use PassCaptain\Security\Sessions;
 use PassCaptain\Security\StepUp;
 use PassCaptain\Security\SupportAccess;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 echo "W9 access protection: audit, scope, minimisation, MFA, support access, check-out, refunds, language, multisite\n";
 global $wpdb;
 $p = $wpdb->prefix;
@@ -38,46 +40,7 @@ if ( ! class_exists( 'W9_Request' ) ) {
 	}
 }
 
-/** Persona helper: capabilities the current user holds (everything else denied), user id, user_can callback. */
-function w9_as( $user_id, array $caps, $global_admin = false ) {
-	$all = array( 'manage_options', 'manage_network_options', 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_view_audit' );
-	if ( $global_admin ) { $caps = $all; }
-	$GLOBALS['wpcap_test_user_id'] = $user_id;
-	$GLOBALS['wpcap_test_denied_caps'] = array_values( array_diff( $all, $caps ) );
-	$GLOBALS['wpcap_test_user_can'] = static fn( $u, $c ) => (int) $u === (int) $user_id ? in_array( $c, $caps, true ) : false;
-	SupportAccess::flush_cache();
-}
-function w9_admin() {
-	$GLOBALS['wpcap_test_user_id'] = 1;
-	$GLOBALS['wpcap_test_denied_caps'] = array();
-	unset( $GLOBALS['wpcap_test_user_can'] );
-	SupportAccess::flush_cache();
-}
-function w9_audit_count( $action, $object_id = null ) {
-	global $wpdb;
-	$sql = $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE action=%s", $action );
-	if ( null !== $object_id ) { $sql .= ' AND object_id=' . (int) $object_id; }
-	return (int) $wpdb->get_var( $sql );
-}
-function w9_last_audit( $action ) {
-	global $wpdb;
-	return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_audit_logs WHERE action=%s ORDER BY audit_id DESC LIMIT 1", $action ) );
-}
-/** Free ticket type whose occurrence starts in one hour (inside the default entry window). */
-function w9_type( $price = 0, $capacity = 50 ) {
-	global $wpdb;
-	$type = make_type( $capacity, 10, $price );
-	$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=$type" );
-	$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_occurrences SET starts_at=%s, ends_at=%s WHERE occurrence_id=%d", gmdate( 'Y-m-d H:i:s', time() + 3600 ), gmdate( 'Y-m-d H:i:s', time() + 4 * 3600 ), $occ ) );
-	return array( 'type' => $type, 'occ' => $occ, 'event' => (int) $wpdb->get_var( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=$occ" ) );
-}
-function w9_order( $type, $qty, $email, $paid = false ) {
-	wpcap_test_reset_transients();
-	$r = Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'w9-' . uniqid( '', true ) ) );
-	if ( is_wp_error( $r ) ) { echo '    (order failed: ' . $r->get_error_message() . ")\n"; return 0; }
-	if ( $paid ) { Orders::confirm_manual_payment( $r['order_id'] ); }
-	return (int) $r['order_id'];
-}
+// w9_* helpers: lib/fixtures_shared.php.
 w9_admin();
 Settings::update( array( 'refund_approval_threshold' => 0, 'require_2fa_for_refunds' => 0 ) );
 

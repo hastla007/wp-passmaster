@@ -25,6 +25,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ManualHoldsRelease {
 	const ACTION = 'wpcap_release_manual_holds';
 	const CAP = 'manage_options';

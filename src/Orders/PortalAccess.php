@@ -18,6 +18,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PortalAccess {
 	/** Validity of an access link in days. */
 	const ACCESS_DAYS = 30;

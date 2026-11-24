@@ -10,6 +10,9 @@ use PassCaptain\Reports\Page;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Reports {
 	public static function admin_pages() {
 		return array( array( Page::SLUG, __( 'Berichte', 'pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );

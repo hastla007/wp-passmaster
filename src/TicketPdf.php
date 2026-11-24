@@ -21,6 +21,9 @@ use PassCaptain\Printing\Templates;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketPdf {
 	/** Tickets per mail attachment before the PDF is replaced by a note (filter wp_pass_captain_ticket_pdf_limits_v1). */
 	const MAIL_MAX_TICKETS = 50;

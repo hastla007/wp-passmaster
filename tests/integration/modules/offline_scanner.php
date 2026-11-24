@@ -16,6 +16,8 @@ use PassCaptain\OfflineScanner\Rest;
 use PassCaptain\OfflineScanner\Rules;
 use PassCaptain\Orders;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'wpw-test-salt-' . $scheme; } }
 PassCaptain\Modules\OfflineScanner::register();
 global $wpdb;
@@ -40,14 +42,6 @@ function off_sync( $token, array $scans ) {
 	$req->route = '/pass-captain/v1/app/scan/sync';
 	$res = Rest::after_callbacks( Api::sync( $req ), null, $req );
 	return $res->get_data();
-}
-function off_pair( $event_ids, $label ) {
-	$GLOBALS['wpcap_test_user_id'] = 7;
-	$pairing = Devices::create_pairing( $event_ids, $label, 12 );
-	$paired = Devices::pair( $pairing['code'], $label, 'pwa', '1.0' );
-	$GLOBALS['wpcap_test_user_id'] = 7;
-	$paired['row'] = $GLOBALS['wpdb']->get_row( "SELECT * FROM {$GLOBALS['wpdb']->prefix}wpcap_scanner_devices WHERE public_id='" . $paired['device_id'] . "'" );
-	return $paired;
 }
 function off_err( $r ) { return is_wp_error( $r ) ? $r->get_error_code() : ''; }
 function off_payload( $r ) { return is_array( $r ) ? json_decode( $r['payload'], true ) : null; }

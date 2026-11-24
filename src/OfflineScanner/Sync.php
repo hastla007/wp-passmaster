@@ -22,6 +22,9 @@ use PassCaptain\Checkin;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Sync {
 
 	public static function apply( array $results, array $scans, $device ) {

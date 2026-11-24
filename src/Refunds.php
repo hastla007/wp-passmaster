@@ -13,6 +13,9 @@ use PassCaptain\Payments\Registry;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Refunds {
 	const APPROVE_CAP = 'wpcap_approve_refunds';
 	const REFUND_CAP = 'wpcap_refund';

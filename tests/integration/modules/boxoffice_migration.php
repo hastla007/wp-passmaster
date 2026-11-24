@@ -14,6 +14,7 @@ use PassCaptain\BoxOffice\Page as PosPage;
 use PassCaptain\BoxOffice\Service as Pos;
 use PassCaptain\Modules\BoxOffice as BoxOfficeModule;
 
+wpb_cash_ready(); // Cash/card at the box office (left on by boxoffice.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

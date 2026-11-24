@@ -15,6 +15,9 @@ namespace PassCaptain;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Hooks {
 	/** Old name => new name. Callbacks on the old name keep running after the new hook. */
 	const RENAMED = array(

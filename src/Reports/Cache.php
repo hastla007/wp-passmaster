@@ -29,6 +29,9 @@ namespace PassCaptain\Reports;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Cache {
 	/** Default lifetime of a cached report (seconds; safety net only). */
 	const TTL = 300;

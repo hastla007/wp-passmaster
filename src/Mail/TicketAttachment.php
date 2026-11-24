@@ -24,6 +24,9 @@ use PassCaptain\TicketPdf;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketAttachment {
 	/** Default maximum number of tickets in one attached PDF. */
 	const MAX_TICKETS = 200;

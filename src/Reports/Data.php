@@ -22,6 +22,9 @@ namespace PassCaptain\Reports;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
 	const COMPARE = array( 'previous', 'last_year' );

@@ -18,6 +18,9 @@ namespace PassCaptain\Suite;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 abstract class Contract {
 	/** Keys that never appear anywhere in an envelope, whatever a filter or a future field list says. */
 	const FORBIDDEN = array( 'token', 'code', 'ticket_code', 'help_code', 'access_token', 'secret', 'email', 'customer_email', 'attendee_email', 'attendee_name', 'name', 'first_name', 'last_name', 'phone', 'address', 'billing', 'answers', 'ip', 'ip_hash' );

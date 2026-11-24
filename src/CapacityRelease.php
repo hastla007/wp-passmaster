@@ -25,6 +25,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CapacityRelease {
 
 	/** Whether wpcap_tickets.capacity_released exists (schema 3.10.10; not yet during a deferred upgrade). */

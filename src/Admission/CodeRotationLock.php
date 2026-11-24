@@ -24,6 +24,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CodeRotationLock {
 	/** Hours an offline package may be used at most (upper bound of the event setting max_offline_hours). */
 	const PACKAGE_HOURS = 72;

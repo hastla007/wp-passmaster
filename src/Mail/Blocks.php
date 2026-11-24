@@ -7,6 +7,9 @@ namespace PassCaptain\Mail;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Blocks {
 	/**
 	 * Ticket list of the issue mail: event, date, location, link and code per ticket.

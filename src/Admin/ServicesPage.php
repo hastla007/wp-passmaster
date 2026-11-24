@@ -18,6 +18,9 @@ use PassCaptain\ServiceWaitlist;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ServicesPage {
 	const SLUG = 'wpcap-services';
 	const ACTION = 'wpcap_service_action';

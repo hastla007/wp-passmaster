@@ -11,6 +11,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Capabilities {
 	/** Capabilities of the role packages (Installer::CAPABILITIES). */
 	const CORE = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings', self::UNDO_CHECKIN, self::REDEEM_PASSES );

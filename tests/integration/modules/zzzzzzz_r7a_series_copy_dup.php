@@ -10,6 +10,8 @@
 
 use PassCaptain\Admin\Duplicator as R7aDuplicator;
 
+// Run alone (WPCAP_TEST_ONLY): build the series fixture of zzzzzzz_r7a_series_copy.php first (its checks run too).
+if ( ! isset( $r7a_event, $r7a_tpl, $r7a_type ) ) { require __DIR__ . '/zzzzzzz_r7a_series_copy.php'; }
 global $wpdb;
 $p = $wpdb->prefix;
 

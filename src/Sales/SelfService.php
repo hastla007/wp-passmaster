@@ -23,6 +23,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SelfService {
 	public static function register() {
 		add_filter( 'wpcap_order_portal_sections', array( __CLASS__, 'portal_section' ), 20, 2 );

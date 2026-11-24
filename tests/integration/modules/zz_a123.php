@@ -7,6 +7,8 @@ use PassCaptain\Privacy\Retention;
 use PassCaptain\Settings;
 
 echo "A123: retention per data type and financial records\n";
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\BoxOffice::class ); // Box office retention step (boxoffice.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

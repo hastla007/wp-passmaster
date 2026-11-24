@@ -30,6 +30,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Handed-over event requests.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class EventRequests {
 	const TABLE         = 'wpcap_event_requests';
@@ -458,6 +460,8 @@ final class EventRequests {
 	/** Admin-post: reject. */
 	public static function handle_reject() {
 		$in = Forms::post();
+		// Capability before the nonce and the lookup: no hint whether a request id exists.
+		if ( ! current_user_can( EventsPage::CAP ) ) { Forms::finish( Forms::forbidden(), '', self::back_url( $in ) ); }
 		Forms::verify( self::ACTION_REJECT . '_' . Forms::int( $in, 'request_id' ) );
 		Forms::finish( self::reject( $in ), __( 'Anfrage abgelehnt.', 'pass-captain' ), self::back_url( $in ) );
 	}
@@ -465,6 +469,7 @@ final class EventRequests {
 	/** Admin-post: book. */
 	public static function handle_book() {
 		$in = Forms::post();
+		if ( ! current_user_can( self::ORDERS_CAP ) ) { Forms::finish( Forms::forbidden(), '', self::back_url( $in ) ); }
 		Forms::verify( self::ACTION_BOOK . '_' . Forms::int( $in, 'request_id' ) );
 		$result  = self::book( $in );
 		$message = ! is_wp_error( $result ) && 'pending' === $result['payment_status']

@@ -17,6 +17,9 @@ use PassCaptain\Admin\ChangeHistory;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Revisions {
 	/** Fields whose change increments the revision (SEQUENCE). */
 	const FIELDS = array( 'starts_at', 'ends_at', 'doors_open_at', 'location', 'venue_country', 'status' );

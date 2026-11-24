@@ -20,6 +20,7 @@ use PassCaptain\ServiceResources;
 use PassCaptain\ServiceWaitlist;
 use PassCaptain\Waitlists;
 
+svc_setup(); // Services module, service checkout, settings (zzzz_services_a_rules.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();

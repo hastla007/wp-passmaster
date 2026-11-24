@@ -36,6 +36,9 @@ use PassCaptain\StateMachine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Service {
 	const PENDING = 'pending_payment';
 	const COMPLETED = 'completed';

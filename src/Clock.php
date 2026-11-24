@@ -11,6 +11,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Clock {
 	/** Current Unix timestamp (UTC), filterable via `wpcap_now`. */
 	public static function now() {

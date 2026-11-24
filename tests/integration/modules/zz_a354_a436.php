@@ -13,6 +13,8 @@ use PassCaptain\Passes\Definitions;
 use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Passes::class ); // Pass hooks (registered by an earlier module in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

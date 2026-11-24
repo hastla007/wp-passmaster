@@ -33,6 +33,10 @@ use PassCaptain\Security\Redact;
 use PassCaptain\Security\Vault;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/wp_cron_stubs.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Fiscalization::class ); // Fiscal hooks (fiscalization.php in a full run).
+wpcap_test_ensure_registered( PassCaptain\Modules\BoxOffice::class ); // Box office hooks (boxoffice.php in a full run).
+wpb_cash_ready();
 global $wpdb;
 $p = $wpdb->prefix;
 

@@ -461,7 +461,10 @@ spl_autoload_register( static function ( $class ) {
 /** Creates the plugin schema using the real Installer statements. */
 function wpcap_test_install() {
 	if ( ! is_dir( ABSPATH . 'wp-admin/includes' ) ) { mkdir( ABSPATH . 'wp-admin/includes', 0777, true ); }
-	file_put_contents( ABSPATH . 'wp-admin/includes/upgrade.php', '<?php if ( ! function_exists( "dbDelta" ) ) { function dbDelta( $sql ) { global $wpdb; if ( preg_match( "/CREATE TABLE (\\S+)/", $sql, $m ) ) { $wpdb->query( "DROP TABLE IF EXISTS " . $m[1] ); } if ( false === $wpdb->query( $sql ) ) { fwrite( STDERR, $wpdb->last_error . "\n" ); } } }' );
+	// Written to a temp file and renamed, so parallel runs (run-each.sh -j) never include a half-written file.
+	$tmp = ABSPATH . 'wp-admin/includes/upgrade.php.' . getmypid();
+	file_put_contents( $tmp, '<?php if ( ! function_exists( "dbDelta" ) ) { function dbDelta( $sql ) { global $wpdb; if ( preg_match( "/CREATE TABLE (\\S+)/", $sql, $m ) ) { $wpdb->query( "DROP TABLE IF EXISTS " . $m[1] ); } if ( false === $wpdb->query( $sql ) ) { fwrite( STDERR, $wpdb->last_error . "\n" ); } } }' );
+	rename( $tmp, ABSPATH . 'wp-admin/includes/upgrade.php' );
 	PassCaptain\Installer::install();
 }
 

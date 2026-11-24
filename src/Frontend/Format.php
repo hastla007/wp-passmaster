@@ -4,6 +4,9 @@ namespace PassCaptain\Frontend;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Format {
 	/** Currency symbols for the common checkout currencies (others fall back to the ISO code). */
 	const SYMBOLS = array( 'EUR' => '€', 'USD' => '$', 'GBP' => '£', 'CHF' => 'CHF', 'CZK' => 'Kč', 'PLN' => 'zł', 'HUF' => 'Ft', 'SEK' => 'kr', 'DKK' => 'kr', 'NOK' => 'kr' );

@@ -17,6 +17,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SiteHealth {
 	/** Transient with the critical test labels for the admin notice. */
 	const NOTICE_TRANSIENT = 'wpcap_health_critical';

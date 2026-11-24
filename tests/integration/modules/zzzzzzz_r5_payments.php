@@ -16,6 +16,8 @@ use PassCaptain\Payments\StripeGateway;
 use PassCaptain\Payments\Webhooks;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie gateway (mollie.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 Settings::update( array( 'stripe_secret_key' => 'sk_test_r5', 'stripe_webhook_secret' => 'whsec_test', 'refund_approval_threshold' => 0, 'require_2fa_for_refunds' => 0 ) );

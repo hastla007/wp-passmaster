@@ -20,6 +20,9 @@ namespace PassCaptain\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ProHints {
 	/** User meta with the hidden hint ids. */
 	const META = 'wpcap_hidden_pro_hints';

@@ -9,6 +9,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ServiceBookingFlow {
 	/** Failed token checks per booking and hour before the booking is locked for REST calls. */
 	const TOKEN_ATTEMPTS = 10;

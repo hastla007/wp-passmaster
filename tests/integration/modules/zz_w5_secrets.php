@@ -16,6 +16,7 @@ use PassCaptain\Secrets;
 require_once __DIR__ . '/zz_r6_stubs.inc'; // esc_url(), esc_attr_e(), esc_textarea() … for the admin screens below.
 
 echo "W5 security: secrets vault\n";
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 global $wpdb;
 $p = $wpdb->prefix;
 $w5_raw_before = get_option( Settings::OPTION, array() );
@@ -245,7 +246,7 @@ $w5_pw = (string) Settings::secret( 'apple_pass_key_password' );
 unset( $w5_wallet_secrets['apple_pass_key_password'] );
 if ( '' !== $w5_pw ) { $w5_wallet_secrets['apple_pass_key_password'] = $w5_pw; }
 $pass = \PassCaptain\WalletPasses\AdminPage::test_pass();
-$pass_files = is_string( $pass ) && function_exists( 'wpw_unzip' ) ? wpw_unzip( $pass ) : array();
+$pass_files = is_string( $pass ) ? wpw_unzip( $pass ) : array();
 check( 'wallet pass archive contains no private key, key password or provider secret', is_string( $pass ) && $pass_files && array() === w5_leaks( $pass . implode( '', $pass_files ), $w5_wallet_secrets ) );
 
 /* ---- Restore ---- */

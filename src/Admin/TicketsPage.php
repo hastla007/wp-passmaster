@@ -14,6 +14,9 @@ use PassCaptain\Privacy\AccessLog;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketsPage {
 	const SLUG = 'wpcap-tickets';
 	const VIEW_CAPS = array( 'wpcap_manage_orders', 'wpcap_checkin' );

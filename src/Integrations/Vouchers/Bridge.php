@@ -13,6 +13,9 @@ use PassCaptain\Contracts;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Bridge {
 	const VERSION = 1;
 	/** Contract version (major.minor) Pass Captain implements; providers of another major are refused. */

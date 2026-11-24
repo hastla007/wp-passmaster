@@ -7,6 +7,9 @@ use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FiskaltrustAdapter implements AdapterInterface {
 	public function id() { return 'fiskaltrust_pos'; }
 	public function interface_version() { return AdapterInterface::VERSION; }

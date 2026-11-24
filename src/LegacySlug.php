@@ -26,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class LegacySlug {
 	const LEGACY_SLUG     = 'wp-pass-captain';
 	const LEGACY_BASENAME = 'wp-pass-captain/wp-pass-captain.php'; // legacy-slug

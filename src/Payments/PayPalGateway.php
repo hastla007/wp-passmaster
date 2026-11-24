@@ -14,6 +14,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PayPalGateway implements GatewayInterface, RefundLookupInterface, PaymentLookupInterface {
 	const SANDBOX = 'https://api-m.sandbox.paypal.com';
 	const LIVE = 'https://api-m.paypal.com';

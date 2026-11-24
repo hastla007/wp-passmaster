@@ -13,6 +13,9 @@ namespace PassCaptain\WalletPasses;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 class ApnsClient {
 	/** The only APNs hosts (production, sandbox); the Pass Type certificate is never presented to another host. */
 	const HOSTS = array( 'api.push.apple.com', 'api.sandbox.push.apple.com' );

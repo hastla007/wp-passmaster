@@ -19,6 +19,9 @@ namespace PassCaptain\OfflineScanner;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class I18n {
 	/** Format version of the table (lets the app ignore incompatible cached tables). */
 	const VERSION = 1;

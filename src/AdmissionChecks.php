@@ -12,6 +12,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdmissionChecks {
 	const MAX_AGE = 99;
 	const NOTE_LENGTH = 190;

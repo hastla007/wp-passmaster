@@ -21,6 +21,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AccessLog {
 	/** Staff opened a view showing personal data of one object (order, ticket, guest list, …). */
 	const ACTION_VIEW = 'pii_viewed';

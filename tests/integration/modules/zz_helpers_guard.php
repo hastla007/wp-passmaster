@@ -20,13 +20,7 @@ echo "Test helpers: no module depends on helpers of another module\n";
  * Known exceptions: module => called functions that are still defined in another module, with the reason.
  * Keep this list short; move a helper to lib/ instead of adding an entry.
  */
-$hg_allowed = array(
-	// w9_* live in zzzzz_w9_access.php, which the active development branch changes at the moment.
-	'zzzzz_x3_residuals.php' => array( 'w9_admin', 'w9_type', 'w9_order', 'w9_as', 'w9_last_audit' ),
-	// Called only behind function_exists( 'off_pair' ): the offline package check needs the module state
-	// of offline_scanner.php (registration, keys) and is skipped in a single run.
-	'zz_a543.php' => array( 'off_pair' ),
-);
+$hg_allowed = array();
 
 /** File-level function definitions and calls of one PHP file: [defined[], called[]]. */
 function hg_scan( $file ) {

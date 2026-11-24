@@ -18,6 +18,9 @@ if ( ! class_exists( '\WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketsListTable extends \WP_List_Table {
 	/** @var array List filters (TicketsPage::list_filters()). */
 	private $filters = array();

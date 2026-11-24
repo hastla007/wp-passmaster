@@ -8,6 +8,10 @@
 use PassCaptain\OfflineScanner\Keys;
 
 echo "A629: offline signing keys under concurrency\n";
+// Packages are only signed for events with offline mode on: one enabled event (12 h) gives a rotated key its
+// minimum grace (Rules::max_hours_enabled()). Earlier modules leave such events behind in a full run.
+global $wpdb;
+$wpdb->replace( $wpdb->prefix . 'wpcap_offline_events', array( 'event_id' => 962900, 'enabled' => 1, 'max_offline_hours' => 12, 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
 
 /** Option store whose next read of the key option runs $hook (another process) after taking its value. */
 final class X1_A629_Store {
@@ -55,3 +59,4 @@ $x1_outer = Keys::active_id();
 check( 'A629: parallel first use creates one key, not two that overwrite each other', $x1_inner === $x1_outer && 1 === count( $x1_store->data[ Keys::OPTION ]['keys'] ?? array() ) );
 
 if ( null === $x1_saved_store ) { unset( $GLOBALS['wpcap_test_option_store'] ); } else { $GLOBALS['wpcap_test_option_store'] = $x1_saved_store; }
+$wpdb->delete( $wpdb->prefix . 'wpcap_offline_events', array( 'event_id' => 962900 ) );

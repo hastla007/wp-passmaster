@@ -19,6 +19,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Contracts {
 	const HEADER = 'X-WPCAP-Contract';
 	const REST_NAMESPACE = 'pass-captain/v1';

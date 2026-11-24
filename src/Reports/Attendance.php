@@ -28,6 +28,9 @@ use PassCaptain\Privacy;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Attendance {
 	/** Whether pass links apply (module enabled, tables present). */
 	public static function passes_active() {

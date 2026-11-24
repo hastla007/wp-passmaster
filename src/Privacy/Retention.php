@@ -63,6 +63,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * follow-up run is queued right away (Jobs\TimeBudget::continue_later) and starts with the step that
  * did not finish (option wpcap_retention_next_step), so later steps never starve. Each run records
  * the heartbeat "retention" (system status). Only counts are written to the audit log.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class Retention {
 	const HOOK = 'wpcap_privacy_retention';

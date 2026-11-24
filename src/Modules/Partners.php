@@ -17,6 +17,9 @@ use PassCaptain\Partners\SalesModel;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Partners {
 	public static function register() {
 		add_action( 'rest_api_init', array( Api::class, 'register_routes' ) );

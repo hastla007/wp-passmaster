@@ -20,6 +20,9 @@ use PassCaptain\Ops\Status;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class StatusPage {
 	const SLUG = 'wpcap-status';
 	const CAP = 'manage_options';

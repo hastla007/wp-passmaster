@@ -11,6 +11,9 @@ use PassCaptain\Printing\Page;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PrintTemplates {
 	public static function register() {
 		add_filter( 'wpcap_ticket_mail', array( InvoicePdf::class, 'attach_to_ticket_mail' ), 20, 3 );

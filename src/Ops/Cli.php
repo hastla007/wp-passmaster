@@ -17,6 +17,9 @@ use PassCaptain\Diagnostics;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Cli {
 	public static function register() {
 		if ( ! class_exists( '\WP_CLI' ) ) { return; }

@@ -20,6 +20,9 @@ namespace PassCaptain\Series;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Pools {
 	public static function schema( $prefix, $charset ) {
 		return array(

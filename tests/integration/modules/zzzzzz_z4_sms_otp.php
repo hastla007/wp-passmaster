@@ -26,6 +26,8 @@ if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return
 if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' selected="selected"' : ''; if ( $echo ) { echo $r; } return $r; } }
 if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = (string) $a === (string) $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Sms::class ); // SMS checkout hooks (sms.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $z4s_sid = 'AC' . str_repeat( 'c3', 16 );

@@ -12,6 +12,9 @@ use PassCaptain\WalletPasses\WebService;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Wallet {
 	public static function register() {
 		Service::register();

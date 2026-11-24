@@ -29,6 +29,9 @@ use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
 require_once WPCAP_PATH . 'src/functions.php'; // wpcap_confirm_pos_payment() (public add-on API).
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie gateway (mollie.php in a full run).
+wpcap_test_ensure_registered( PassCaptain\Modules\BoxOffice::class ); // Box office hooks (boxoffice.php in a full run).
+wpb_cash_ready();
 global $wpdb;
 $p = $wpdb->prefix;
 if ( ! function_exists( 'wp_create_nonce' ) ) { function wp_create_nonce( $action = -1 ) { return 'n'; } }

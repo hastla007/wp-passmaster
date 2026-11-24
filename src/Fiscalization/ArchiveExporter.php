@@ -10,6 +10,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ArchiveExporter {
 	/** Download normalized fiscal document data for a bounded UTC date interval. */
 	public static function handle_admin_export() {

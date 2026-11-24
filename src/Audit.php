@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Audit {
 	/** Per-request cache: table prefix => whether the audit table exists (only checked for switched sites). */
 	private static $site_tables = array();

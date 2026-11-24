@@ -28,6 +28,9 @@ use PassCaptain\ServiceBookings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ServiceBooking {
 	const SHORTCODE = 'wpcap_service_booking';
 	const BLOCK = 'pass-captain/service-booking';

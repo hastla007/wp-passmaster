@@ -17,6 +17,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Reservations {
 	const PAYLOAD_KEY = 'seats';
 	/** Public checkouts hold at most this many seats per order (limits hold exhaustion). */

@@ -4,6 +4,9 @@ namespace PassCaptain\Seating;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Picker {
 	/** Pickers rendered per occurrence on this page (A504: unique ids). */
 	private static $rendered = array();

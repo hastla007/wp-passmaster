@@ -19,6 +19,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CodeHistory {
 	/** Reasons of code rotations as passed to wpcap_ticket_code_rotated. */
 	const ROTATION_REASONS = array( 'transfer', 'assign', 'resend', 'reissue', 'portal_pdf', 'print' );

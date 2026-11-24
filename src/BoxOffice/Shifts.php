@@ -29,6 +29,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Shifts {
 	/** Capability to storno checked-in tickets (with a reason). Administrators may always. */
 	const OVERRIDE_CAP = 'wpcap_boxoffice_override';

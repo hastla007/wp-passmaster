@@ -22,6 +22,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class NetworkInstall {
 	const HOOK = 'wpcap_network_install';
 	const OPTION = 'wpcap_network_install';

@@ -15,6 +15,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Health {
 	public static function register() {
 		add_filter( 'site_status_tests', array( __CLASS__, 'register_tests' ) );

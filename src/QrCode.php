@@ -16,6 +16,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class QrCode {
 	/** Quiet zone around the code in modules (ISO/IEC 18004 asks for 4). */
 	const QUIET_ZONE = 4;

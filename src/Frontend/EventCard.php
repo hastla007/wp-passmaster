@@ -15,6 +15,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class EventCard {
 	/** @var int[] Cards rendered per occurrence in this request (form_id()). */
 	private static $rendered = array();

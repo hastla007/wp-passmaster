@@ -24,6 +24,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class LegalNotice {
 	/**
 	 * Whether every ticket type belongs to an occurrence with a start (all positions are dated).

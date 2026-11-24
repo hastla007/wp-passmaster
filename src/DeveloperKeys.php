@@ -10,6 +10,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DeveloperKeys {
 	/** Scopes of the core (always available; add-ons add more with wp_pass_captain_api_scopes_v1). */
 	const SCOPES = array( 'events.read', 'reports.read', 'slots.read' );

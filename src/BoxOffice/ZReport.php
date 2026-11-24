@@ -16,6 +16,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ZReport {
 	/** Columns that make up the hash of a Z report (in this order). */
 	const HASHED = array( 'register_id', 'z_number', 'shift_id', 'source', 'currency', 'opened_at', 'closed_at', 'opened_by', 'closed_by', 'net_total_minor', 'grand_total_minor', 'counted_cash_minor', 'expected_cash_minor', 'cash_difference_minor', 'counted_card_minor', 'expected_card_minor', 'card_difference_minor', 'difference_reason', 'totals', 'prev_hash' );

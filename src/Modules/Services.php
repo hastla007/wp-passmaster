@@ -17,6 +17,9 @@ use PassCaptain\Waitlists;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Services {
 	/** Whether register() already ran in this request (tests call it explicitly). */
 	private static $registered = false;

@@ -8,6 +8,9 @@ use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FiskalyUnifiedAdapter implements AdapterInterface {
 	public function id() { return 'fiskaly_sign_unified'; }
 	public function interface_version() { return AdapterInterface::VERSION; }

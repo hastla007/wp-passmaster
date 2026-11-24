@@ -10,6 +10,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 class GoogleProvider implements WalletProvider {
 	const API = 'https://walletobjects.googleapis.com/walletobjects/v1/';
 	/** Hosts a service account token_uri may point to (OutboundHttp policy). */

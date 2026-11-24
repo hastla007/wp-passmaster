@@ -13,6 +13,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Display {
 	/** Local date (A384: Format::date_format()) of a UTC datetime. */
 	public static function date( $utc, $timezone ) {

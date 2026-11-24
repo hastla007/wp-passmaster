@@ -30,6 +30,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Service {
 	const MANAGE_CAP = 'wpcap_manage_events';
 	const APPROVE_CAP = 'wpcap_approve_comps';

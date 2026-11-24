@@ -18,6 +18,9 @@ namespace PassCaptain\Integrations\Vouchers;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ReconciliationReport {
 	/** Orders checked per run (newest first). */
 	const LIMIT = 500;

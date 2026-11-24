@@ -12,6 +12,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Portal {
 	/** Whether the portal script was printed on this page (it handles every exchange form by event delegation). */
 	private static $script_printed = false;

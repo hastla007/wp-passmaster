@@ -37,6 +37,9 @@ use PassCaptain\Security\OutboundHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CheckoutThrottle {
 	/** Option: last checkout that looked like an unconfigured proxy (array kind, time; not autoloaded). */
 	const SEEN_OPTION = 'wpcap_proxy_suspect_seen';

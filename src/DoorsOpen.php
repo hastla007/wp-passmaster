@@ -12,6 +12,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DoorsOpen {
 	/** Whether the column exists (a deferred upgrade may still be pending). */
 	public static function ready() {

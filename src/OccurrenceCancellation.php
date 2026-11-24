@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OccurrenceCancellation {
 	/** Legacy job types of the former batched follow-up work (still processed, see handle_job()). */
 	const JOB_HOOKS = 'occurrence_cancel_hooks';

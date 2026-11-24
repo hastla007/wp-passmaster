@@ -24,6 +24,9 @@ use PassCaptain\Sales\Consents;
 use PassCaptain\Sales\PriceRules;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+// Security policy settings (re-entry, waitlist offer window); registered by zzzzz_w9_access.php in a full run.
+if ( wpcap_test_ensure_registered( PassCaptain\Security\Policy::class ) ) { PassCaptain\Settings::flush(); }
 global $wpdb;
 $p = $wpdb->prefix;
 PassCaptain\Modules\SalesRules::register(); // Price rules and consents (idempotent; also registered by zz_sales_rules.php).

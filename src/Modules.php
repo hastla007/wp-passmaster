@@ -16,6 +16,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Modules {
 	/**
 	 * Bundled modules (class name in src/Modules/ => static methods it implements), PERF-14.

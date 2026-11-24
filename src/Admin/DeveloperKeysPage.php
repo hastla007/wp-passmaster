@@ -17,6 +17,9 @@ use PassCaptain\DeveloperKeys;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DeveloperKeysPage {
 	const SLUG = 'wpcap-developer-keys';
 	const CAP = 'manage_options';
