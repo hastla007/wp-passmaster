@@ -34,7 +34,7 @@ $sp33_event = (int) $wpdb->get_var( "SELECT event_id FROM {$sp33_p}wpcap_occurre
 $sp33_ticket = array( 'event' => 'Konzert', 'ticket' => 'Standard', 'when' => 'x', 'occurrence_id' => $sp33_occ, 'token' => 'T', 'starts_at' => '2027-05-01 18:00:00', 'timezone' => 'UTC' );
 $sp33_meta = array( 'footer' => TicketPdf::default_footer(), 'lang' => 'de_DE' );
 $sp33_def = Settings::defaults();
-check( 'SET-PC-33: defaults – no logo, built-in footer, legal links on', array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1 ) === $sp33_def['ticket_pdf'] );
+check( 'SET-PC-33: defaults – no logo, built-in footer, legal links on', array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1, 'design' => '' ) === $sp33_def['ticket_pdf'] );
 check( 'SET-PC-33: without settings the footer is the built-in text, as before', TicketPdf::default_footer() === TicketPdf::values( $sp33_ticket, $sp33_meta )['_footer'] );
 check( 'SET-PC-33: without settings the ticket layout gets no logo', TicketPdf::with_logo( "12|{event}", $sp33_event ) === "12|{event}" );
 

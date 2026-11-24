@@ -8,6 +8,7 @@ namespace PassCaptain\Modules;
 use PassCaptain\Printing\BatchJob;
 use PassCaptain\Printing\InvoicePdf;
 use PassCaptain\Printing\Page;
+use PassCaptain\Printing\Templates;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -76,7 +77,9 @@ final class PrintTemplates {
 			'print_attach_invoice_pdf' => 0,
 			// SET-PC-33: logo (media id, 0 = none) and footer of ticket PDFs ('' = built-in text), footer per
 			// language (locale => text), imprint/privacy links in the footer. Per event: EventOverrides.
-			'ticket_pdf' => array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1 ),
+			// PASS-FE-07: start design of the ticket PDF ('' = built-in layout, otherwise a ticket starter of
+			// Printing\Templates::starters()) for events without an own ticket template.
+			'ticket_pdf' => array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1, 'design' => '' ),
 		);
 	}
 
@@ -93,6 +96,7 @@ final class PrintTemplates {
 					'logo' => array( 'type' => 'int', 'min' => 0, 'max' => PHP_INT_MAX, 'label' => __( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) ),
 					'footer' => array( 'type' => 'textarea', 'label' => __( 'Fußzeile', 'pass-captain' ) ),
 					'legal_links' => array( 'type' => 'bool', 'label' => __( 'Impressum und Datenschutz in der Fußzeile verlinken', 'pass-captain' ) ),
+					'design' => array( 'type' => 'choice', 'options' => Templates::ticket_designs(), 'label' => __( 'Startdesign des Ticket-PDFs', 'pass-captain' ) ),
 				),
 			),
 		);

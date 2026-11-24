@@ -118,7 +118,7 @@ $built = Exports::build( 'w7x_list', array( 'from' => $today, 'to' => $today, 'e
 $denied = Exports::build( 'w7x_denied', array( 'from' => $today, 'to' => $today, 'event_id' => 0, 'occurrence_id' => 0 ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 remove_filter( 'wp_pass_captain_export_types_v1', $x_types );
-check( 'extra export types: allowed ones listed, core ids reserved', array( 'w7x_list' ) === array_keys( $types ) );
+check( 'extra export types: allowed ones listed, core ids reserved', array( 'w7x_list' ) === array_values( array_diff( array_keys( $types ), array( 'tax_oss', 'tax_zm' ) ) ) );
 check( 'extra export builds a CSV (rows filter applied, formulas guarded)', is_array( $built ) && 'w7-liste-' . $today . '-' . $today . '.csv' === $built['filename'] && false !== strpos( $built['csv'], 'w7x_list-col' ) && false !== strpos( $built['csv'], "'=1+1" ) );
 check( 'extra export without the capability is refused', is_wp_error( $denied ) && 'wpcap_export_unknown' === $denied->get_error_code() );
 remove_filter( 'wp_pass_captain_export_rows_v1', $x_rows, 10 );

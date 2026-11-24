@@ -248,7 +248,22 @@ final class Page {
 			self::send_preview( $kind, $body );
 		}
 		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), self::posted_body( $in ), Forms::int( $in, 'owner_event_id' ) );
-		Forms::finish( $result, __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+		Forms::finish( self::with_print_check( $result ), __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/**
+	 * PASS-FE-07: a saved template with findings of the print check (QR quiet zone and contrast, module size,
+	 * print margins) as a warning after the success message; saving is never refused for them.
+	 *
+	 * @param int|\WP_Error $result Result of save_template().
+	 * @return int|array|\WP_Error
+	 */
+	public static function with_print_check( $result ) {
+		if ( is_wp_error( $result ) || ! $result ) { return $result; }
+		$template = Templates::get_template( (int) $result );
+		$problems = $template ? PrintCheck::check( (string) $template->kind, (string) $template->body )['problems'] : array();
+		if ( ! $problems ) { return $result; }
+		return array( 'template_id' => (int) $result, 'warning' => __( 'Druckprüfung:', 'pass-captain' ) . ' ' . implode( ' ', $problems ) );
 	}
 
 	/** A686: link to the PDF preview of a stored template. */
@@ -466,6 +481,7 @@ final class Page {
 		$raw = array(
 			'logo' => is_scalar( $in['logo'] ?? null ) ? trim( (string) $in['logo'] ) : '',
 			'footer' => is_scalar( $in['footer'] ?? null ) ? (string) $in['footer'] : '',
+			'design' => is_scalar( $in['design'] ?? null ) ? (string) $in['design'] : '',
 		);
 		$checked = \PassCaptain\SettingsSchema::check_group( 'ticket_pdf', $raw );
 		$errors = is_wp_error( $checked ) ? (array) ( $checked->get_error_data()['messages'] ?? array( $checked->get_error_message() ) ) : array();
@@ -486,6 +502,8 @@ final class Page {
 			'logo' => (int) ( $checked['logo'] ?? 0 ),
 			'footer' => trim( (string) ( $checked['footer'] ?? '' ) ),
 			'translations' => $translations,
+			// PASS-FE-07: start design ('' = built-in layout; per event: the global design).
+			'design' => (string) ( $checked['design'] ?? '' ),
 		);
 		if ( $event_id ) {
 			$values = array_filter( $values );
@@ -534,6 +552,12 @@ final class Page {
 		echo '<tr><th scope="row"><label for="wpcap-tpdf-logo">' . esc_html__( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) . '</label></th><td><input type="number" min="0" step="1" class="small-text" id="wpcap-tpdf-logo" name="logo" value="' . esc_attr( $logo ? (string) $logo : '' ) . '"><p class="description">' . esc_html( $event_id ? __( 'Leer = Logo der Standardeinstellung. Ein Logo in der Druckvorlage des Events hat Vorrang.', 'pass-captain' ) : __( 'Oben links auf jedem Ticket-PDF; leer = kein Logo. Ein Logo in der Druckvorlage hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
 		$footer = $event_id ? (string) ( $own['footer'] ?? '' ) : ( '' !== (string) $global['footer'] ? (string) $global['footer'] : \PassCaptain\TicketPdf::default_footer() );
 		echo '<tr><th scope="row"><label for="wpcap-tpdf-footer">' . esc_html__( 'Fußzeile', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-tpdf-footer" name="footer" class="large-text" rows="2">' . esc_textarea( $footer ) . '</textarea><p class="description">' . esc_html( $event_id ? __( 'Leer = Fußzeile der Standardeinstellung.', 'pass-captain' ) : __( 'Unten auf jeder Ticketseite, höchstens drei Zeilen. Der Filter wpcap_ticket_pdf_footer hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
+		// PASS-FE-07: start design for events without an own ticket template (Druckvorlagen above).
+		$designs = Templates::ticket_designs();
+		if ( $event_id ) { $designs[''] = __( 'wie Standardeinstellung', 'pass-captain' ); }
+		echo '<tr><th scope="row"><label for="wpcap-tpdf-design">' . esc_html__( 'Startdesign', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'design', $designs, $event_id ? (string) ( $own['design'] ?? '' ) : (string) ( Settings::get( 'ticket_pdf', array() )['design'] ?? '' ), 'wpcap-tpdf-design' );
+		echo '<p class="description">' . esc_html__( 'Gilt für Events ohne eigene Ticket-Druckvorlage. Eine dem Event zugewiesene Vorlage hat Vorrang.', 'pass-captain' ) . '</p></td></tr>';
 		$translations = $event_id ? (array) ( $own['translations'] ?? array() ) : (array) $global['translations'];
 		foreach ( self::footer_locales() as $locale ) {
 			/* translators: %s: locale code, e.g. en_US */
