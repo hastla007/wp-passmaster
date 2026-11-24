@@ -226,13 +226,18 @@ async function focused(p) {
  * Keyboard only: presses Tab (at most `max` times) until `selector` has the focus. Throws when it is not
  * reachable – keyboard users could not get there either. WebKit follows the platform setting "Press Tab
  * to highlight each item" (off by default on Apple systems: Tab skips buttons and links), so there a
- * control Tab does not reach is focused directly; Chromium and Firefox must reach it with Tab.
+ * control Tab does not reach is focused directly; Chromium and Firefox must reach it with Tab (Shift+Tab
+ * when the target comes before the focused control).
  */
 async function tabTo(p, selector, max) {
 	const reached = () => p.evaluate((sel) => { const el = document.querySelector(sel); return !!el && (el === document.activeElement || el.contains(document.activeElement)); }, selector);
+	// A target before the focused control is reached backwards (Shift+Tab), as a keyboard user would:
+	// at the end of the page Firefox moves the focus into the browser UI instead of wrapping around.
+	const before = await p.evaluate((sel) => { const el = document.querySelector(sel); const a = document.activeElement; return !!el && !!a && a !== document.body && !el.contains(a) && !!(el.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING); }, selector);
+	const key = before ? 'Shift+Tab' : 'Tab';
 	for (let i = 0; i < (max || 60); i++) {
 		if (await reached()) return;
-		await p.keyboard.press('Tab');
+		await p.keyboard.press(key);
 	}
 	if (BROWSER === 'webkit' && await p.evaluate((sel) => { const el = document.querySelector(sel); return !!el && /^(BUTTON|A)$/.test(el.tagName); }, selector)) {
 		await p.focus(selector);
