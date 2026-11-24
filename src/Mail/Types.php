@@ -215,7 +215,7 @@ final class Types {
 	private static function service_types() {
 		$base = self::service_placeholders();
 		$sample = static function () { return self::service_sample(); };
-		$footer = static function () { return "\n\n" . __( 'Umbuchen oder stornieren kannst du über den Link zu deiner Bestellung (bzw. den Buchungslink) – stornieren bis {cancel_until}, umbuchen bis {rebook_until}.', 'pass-captain' ) . '{manage_link}'; };
+		$footer = static function () { return "\n\n" . /* translators: Keep the placeholders {cancel_until}, {rebook_until} unchanged. */ __( 'Umbuchen oder stornieren kannst du über den Link zu deiner Bestellung (bzw. den Buchungslink) – stornieren bis {cancel_until}, umbuchen bis {rebook_until}.', 'pass-captain' ) . '{manage_link}'; };
 		return array(
 			'service_booking_confirmed' => array(
 				'label' => __( 'Servicebuchung: Bestätigung', 'pass-captain' ),
@@ -640,6 +640,7 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'pass-captain' ); },
@@ -682,6 +683,7 @@ final class Types {
 					'quantity' => __( 'Gewünschte bzw. reservierte Anzahl', 'pass-captain' ),
 					'status_note' => __( 'Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event name placeholder */
@@ -721,6 +723,7 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event */
