@@ -56,7 +56,7 @@ jobs:
         run: |
           wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,vendor-prefixed,tests,build,.claude,node_modules --skip-audit --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: JavaScript lint (ESLint, all own scripts) and unit tests (node:test, tests/js)
@@ -265,7 +265,7 @@ jobs:
           php-version: '8.5'
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
           coverage: none
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Install Playwright ${{ env.PLAYWRIGHT_VERSION }} + ${{ matrix.browser }}
@@ -314,7 +314,7 @@ jobs:
         with:
           php-version: '8.5'
           coverage: none
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '22'
       - name: Install Playwright (Chromium)
