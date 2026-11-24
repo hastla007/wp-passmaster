@@ -15,6 +15,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SupportAccess {
 	/** Capabilities that may be granted temporarily (never manage_options or finance). */
 	const GRANTABLE = array( 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports' );

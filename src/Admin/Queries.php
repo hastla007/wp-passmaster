@@ -14,6 +14,9 @@ use PassCaptain\Access;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Queries {
 	/** Whether the current user sees all events. */
 	public static function is_global_admin() {

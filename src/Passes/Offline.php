@@ -16,6 +16,9 @@ use PassCaptain\Admission\Areas;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Offline {
 	/** Filter callback for `wpcap_offline_live_tickets`. */
 	public static function live_tickets( $live, $occurrence_id ) {

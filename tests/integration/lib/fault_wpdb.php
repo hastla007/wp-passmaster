@@ -164,3 +164,52 @@ if ( ! function_exists( 'wpcap_faults' ) ) {
 	/** Every injected kind of database failure, for fault matrices. */
 	function wpcap_fault_kinds() { return array( 'error', 'deadlock', 'lock_wait', 'gone' ); }
 }
+
+// Simpler proxy of the audit modules (zzz_audit_db_robustness.php, zzzz_w7_refund_state_delivery.php).
+if ( ! class_exists( 'Audit_Fault_WPDB' ) ) {
+	/**
+	 * $wpdb stand-in that forwards to the real test connection but lets a test fail selected statements.
+	 * Rules: pattern (regex on the SQL), skip (matches to let through first), times (failures), silent
+	 * (pretend success with 0 affected rows instead of returning false).
+	 */
+	final class Audit_Fault_WPDB {
+		public array $rules = array();
+		public function __construct( public object $inner ) {}
+		public function fail( $pattern, $skip = 0, $times = 1, $silent = false ) { $this->rules[] = compact( 'pattern', 'skip', 'times', 'silent' ); return $this; }
+		public function __get( $name ) { return $this->inner->$name ?? null; }
+		public function __set( $name, $value ) { $this->inner->$name = $value; }
+		public function __isset( $name ) { return isset( $this->inner->$name ); }
+		public function __call( $name, $args ) { return $this->inner->$name( ...$args ); }
+		/** null = run it, false = injected error, 0 = injected silent no-op. */
+		private function intercept( $sql ) {
+			foreach ( $this->rules as $i => $rule ) {
+				if ( $rule['times'] <= 0 || ! preg_match( $rule['pattern'], str_replace( '`', '', (string) $sql ) ) ) { continue; }
+				if ( $rule['skip'] > 0 ) { $this->rules[ $i ]['skip']--; return null; }
+				$this->rules[ $i ]['times']--;
+				if ( $rule['silent'] ) { $this->inner->last_error = ''; return 0; }
+				$this->inner->last_error = 'Injected fault';
+				return false;
+			}
+			return null;
+		}
+		public function prepare( $query, ...$args ) { return $this->inner->prepare( $query, ...$args ); }
+		public function query( $sql ) { $r = $this->intercept( $sql ); return null === $r ? $this->inner->query( $sql ) : $r; }
+		public function get_results( $sql, $output = OBJECT ) { return null === $this->intercept( $sql ) ? $this->inner->get_results( $sql, $output ) : array(); }
+		public function get_row( $sql, $output = OBJECT ) { return null === $this->intercept( $sql ) ? $this->inner->get_row( $sql, $output ) : null; }
+		public function get_col( $sql ) { return null === $this->intercept( $sql ) ? $this->inner->get_col( $sql ) : array(); }
+		public function get_var( $sql ) { return null === $this->intercept( $sql ) ? $this->inner->get_var( $sql ) : null; }
+		private static function pairs( array $data, $glue ) { $o = array(); foreach ( $data as $k => $v ) { $o[] = null === $v ? "$k=NULL" : "$k='$v'"; } return implode( $glue, $o ); }
+		public function insert( $table, $data, $format = null ) {
+			$r = $this->intercept( "INSERT INTO $table (" . implode( ',', array_keys( $data ) ) . ')' );
+			return null === $r ? $this->inner->insert( $table, $data, $format ) : $r;
+		}
+		public function update( $table, $data, $where, $format = null, $where_format = null ) {
+			$r = $this->intercept( "UPDATE $table SET " . self::pairs( $data, ',' ) . ' WHERE ' . self::pairs( $where, ' AND ' ) );
+			return null === $r ? $this->inner->update( $table, $data, $where, $format, $where_format ) : $r;
+		}
+		public function delete( $table, $where, $format = null ) {
+			$r = $this->intercept( "DELETE FROM $table WHERE " . self::pairs( $where, ' AND ' ) );
+			return null === $r ? $this->inner->delete( $table, $where, $format ) : $r;
+		}
+	}
+}

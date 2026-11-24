@@ -18,6 +18,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DbReplication {
 	/** Statements that need the primary for themselves and every following read of the request. */
 	const PATTERN = '/^\s*(?:START\s+TRANSACTION|BEGIN\b|SET\s+(?:SESSION\s+)?TRANSACTION|SELECT\b.*?(?:\bFOR\s+UPDATE\b|\bFOR\s+SHARE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b|\bGET_LOCK\s*\())/is';

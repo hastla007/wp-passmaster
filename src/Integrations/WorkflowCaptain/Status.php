@@ -10,6 +10,9 @@ namespace PassCaptain\Integrations\WorkflowCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Status {
 	/** Product id of Pass Captain in Workflow Captain. */
 	const PRODUCT = 'pass-captain';

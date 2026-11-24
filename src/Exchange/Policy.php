@@ -10,6 +10,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Policy {
 	/** Keys that an event may override. */
 	const EVENT_KEYS = array( 'enabled', 'portal_enabled', 'portal_hours', 'portal_max_per_ticket', 'refund_policy', 'fee_minor' );

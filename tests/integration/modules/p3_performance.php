@@ -18,6 +18,8 @@ use PassCaptain\PublicEvents;
 use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Exchange::class ); // Exchange hooks (p3_exchange.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

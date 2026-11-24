@@ -12,6 +12,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketAssignments {
 	/** Longest attendee name (ticket_assignments.attendee_name is varchar(190), as in the checkout). */
 	const NAME_MAX = 190;

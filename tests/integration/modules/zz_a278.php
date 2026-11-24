@@ -13,6 +13,8 @@ require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 
 use PassCaptain\DeveloperKeys;
 
+wpcap_test_ensure_registered( PassCaptain\UserAccess::class ); // Role/user hooks (zz_a277.php in a full run).
+
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_transients'] = array();
 

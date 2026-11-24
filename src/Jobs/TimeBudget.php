@@ -15,6 +15,9 @@ namespace PassCaptain\Jobs;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TimeBudget {
 	/** Default seconds of queue work per cron hook (filter: wpcap_cron_time_budget). */
 	const DEFAULT_SECONDS = 20;

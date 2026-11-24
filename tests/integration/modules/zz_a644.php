@@ -12,6 +12,8 @@ use PassCaptain\ServiceBookings;
 use PassCaptain\Settings;
 use PassCaptain\Waitlists;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Sms::class ); // SMS checkout hooks (sms.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 echo "A644: limiters count after validation\n";

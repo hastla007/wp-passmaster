@@ -39,6 +39,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrderAdapter {
 	const PRODUCT_META  = '_wpcap_ticket_type_id';
 	const ORDER_META    = '_wpcap_core_order_id';

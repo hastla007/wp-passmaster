@@ -54,6 +54,8 @@ if ( ! function_exists( 'check' ) ) {
 // Shared helpers (after the worker branch: they need the WooCommerce fakes of the bootstrap).
 require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 
+wpcap_test_ensure_registered( BoxOfficeModule::class ); // Refund hooks, POS gateways (boxoffice.php in a full run).
+wpb_cash_ready(); // Cash/card at the box office (left on by boxoffice.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 if ( ! function_exists( 'esc_js' ) ) { function esc_js( $s ) { return addslashes( (string) $s ); } }

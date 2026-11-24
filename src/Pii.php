@@ -19,6 +19,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Pii {
 	const FIELDS = array( 'buyer_name', 'buyer_email', 'buyer_phone', 'billing', 'attendee_name', 'attendee_email', 'attendee_answers' );
 	const PROFILES = array( 'full', 'finance', 'door', 'service', 'reports' );

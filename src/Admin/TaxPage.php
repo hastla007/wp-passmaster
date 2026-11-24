@@ -13,6 +13,9 @@ use PassCaptain\Tax\Profiles;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TaxPage {
 	const SLUG = 'wpcap-tax-profiles';
 	const CAP = Profiles::REVIEW_CAP;

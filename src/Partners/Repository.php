@@ -13,6 +13,9 @@ use PassCaptain\Security\Vault;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Repository {
 	/** Refund handling of platform fees: reverse commission and per-ticket fee, keep the fixed fee, keep both. */
 	const REFUND_POLICIES = array( 'reverse_all', 'keep_fixed_fee', 'keep_all' );

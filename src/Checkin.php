@@ -17,6 +17,9 @@ use PassCaptain\Admission\Policies;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Checkin {
 	/** Results of an offline scan that count as double admission (API flag `conflict`). */
 	const REJECTED_ADMISSION = array( 'already_checked_in', 'daily_limit_reached', 'entry_limit_reached', 'already_inside' );

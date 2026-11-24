@@ -15,6 +15,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DisplayBatch {
 	/** @var array|null Current batch: prefix, now, types (id => row), occurrences (id => row), memo. */
 	private static $batch = null;

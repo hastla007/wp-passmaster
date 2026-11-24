@@ -26,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Attendees {
 	const POST_KEY  = 'wpcap_attendees';
 	const EXT_NS    = 'wpcap';

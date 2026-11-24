@@ -29,6 +29,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Secrets {
 	const OPTION = 'wpcap_secrets';
 	/** Version of the plaintext-to-vault migration that has run on this site. */

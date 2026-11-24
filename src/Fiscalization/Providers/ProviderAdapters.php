@@ -4,6 +4,9 @@ namespace PassCaptain\Fiscalization\Providers;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ProviderAdapters {
 	public static function register( $adapters ) {
 		$adapters = is_array( $adapters ) ? $adapters : array();

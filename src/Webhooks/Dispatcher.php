@@ -13,6 +13,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Dispatcher {
 	const API_VERSION = '2026-11-01';
 	const EVENTS = array( 'order.paid', 'order.refunded', 'order.cancelled', 'ticket.issued', 'ticket.checked_in', 'ticket.revoked', 'ticket.exchanged', 'occurrence.rescheduled', 'occurrence.cancelled', 'ticket.transferred', 'ticket.checked_out', 'attendance.confirmed', 'occurrence.changed', 'event.cancelled', 'refund.reversed', 'consent.granted', 'consent.withdrawn' );

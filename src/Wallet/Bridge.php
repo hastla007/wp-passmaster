@@ -4,6 +4,9 @@ namespace PassCaptain\Wallet;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Bridge {
 	const VERSION = 1;
 

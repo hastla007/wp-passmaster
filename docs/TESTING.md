@@ -84,14 +84,35 @@ gesetzt ist); `WPCAP_TEST_SKIP='<Regex>'` lässt Module aus. Gemeinsame Stubs un
 `http_*`, Stripe/PayPal-Anfragen), `fixtures_admin.php` (Redirect/Die als Ausnahme, Testbenutzer,
 `admin_paid_order()`), `fixtures_mobile.php` (`WP_REST_Response`, `rest_url()`, `app_call()`,
 `ticket_code_for()`) jeweils an der Stelle ihrer Kerndatei, `fixtures_wp.php` (Template-Stubs wie `esc_url()`,
-`selected()`, `submit_button()`) und `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) vor der ersten
-Moduldatei. Hilfsfunktionen, die mehrere Module nutzen (`wpb_*`, `sp_*`, `woo_t_*` mit den
-WooCommerce-Testklassen, `q1_*`, `mollie_*` u. a.), liegen in `fixtures_shared.php`, der Test-Fiskaladapter
-in `fixtures_fiscal.php`; die Module laden sie mit `require_once`. Wer eine Hilfsfunktion in mehreren
-Modulen braucht, legt sie dort ab statt in einem Modul; `modules/zz_helpers_guard.php` schlägt fehl, wenn
-ein Modul eine Hilfsfunktion aufruft, die nur ein anderes Modul definiert. Ausnahme bleibt
-`zzzzz_x3_residuals.php` (`w9_*` aus `zzzzz_w9_access.php`); manche Module setzen außerdem Zustand anderer
-Module voraus (registrierte Module, Einstellungen).
+`selected()`, `submit_button()`), `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) und `wp_stubs.php`
+(WordPress-Stubs: `WP_REST_Server`, `register_rest_route()`, `check_ajax_referer()`, `wp_send_json_*()` mit
+`Wpmt_Json_Response`, `add_shortcode()`, `wp_enqueue_*()`, `wp_timezone_string()`, Nonces, User-Meta,
+`bloginfo()`) vor der ersten Moduldatei; jeder Stub ist die Definition, die das erste Modul des Gesamtlaufs
+hatte, und wird nur angelegt, wenn er fehlt. Stubs, auf deren Fehlen das Plugin mit `function_exists()`
+reagiert, werden nicht global geladen, sondern nur von den Modulen, die sie brauchen: `wp_cron_stubs.php`
+(`wp_next_scheduled()`, `wp_schedule_single_event()`) und `wc_orders_stub.php` (`wc_get_orders()`).
+Hilfsfunktionen, die mehrere Module nutzen (`wpb_*`, `sp_*`, `woo_t_*` mit den WooCommerce-Testklassen,
+`q1_*`, `mollie_*`, `off_pair()`, `w9_*`, `svc_setup()`, `svc_supp_gateway()` u. a.), liegen in
+`fixtures_shared.php`, der Test-Fiskaladapter in `fixtures_fiscal.php`; die Module laden sie mit
+`require_once`. Wer eine Hilfsfunktion in mehreren Modulen braucht, legt sie dort ab statt in einem Modul;
+`modules/zz_helpers_guard.php` schlägt fehl, wenn ein Modul eine Hilfsfunktion aufruft, die nur ein anderes
+Modul definiert (keine Ausnahmen mehr).
+
+Zustand, den ein Modul von früheren Modulen erbt, holt es selbst nach, ohne den Gesamtlauf zu verändern:
+`wpcap_test_ensure_registered( <Klasse> )` ruft `register()` eines Moduls nur auf, wenn kein früheres Modul es
+registriert hat (Mollie, SMS, Kasse, Fiskalisierung, Umtausch, Pässe, Services, Sicherheitsrichtlinie …),
+`wpb_cash_ready()` bestätigt die zertifizierte Kasse (Bar/Karte an der Kasse), `wpcap_test_ensure_row()` legt
+eine Platzhalterzeile an, wenn eine Prüfung „Funktion in Benutzung“ voraussetzt. Prüfung der Isolation:
+
+```bash
+WPCAP_TEST_PREFIX=wpx1_ tests/integration/run-each.sh -j 4          # jedes Modul einzeln (mit Kerndateien)
+WPCAP_TEST_PREFIX=wpx1_ tests/integration/run-each.sh 'zz_a1'       # nur passende Module
+```
+
+Jeder parallele Job nutzt ein eigenes Tabellenpräfix (`<Präfix>j<N>_`); am Ende stehen die einzeln
+fehlschlagenden Module mit ihrem Log (`WPCAP_EACH_LOGS`, sonst ein temporäres Verzeichnis). Dauer mit `-j 4`
+etwa 30–60 Minuten. Stand 24.11.2026: alle 522 Module laufen einzeln grün; einzige Ausnahme sind die vier
+INT-8-Prüfungen in `zzzzzz_y6_integrations.php`, die lokal unter PHP 8.3 auch im Gesamtlauf fehlschlagen.
 
 Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
 der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).

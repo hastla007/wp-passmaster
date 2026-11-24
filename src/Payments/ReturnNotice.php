@@ -25,6 +25,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ReturnNotice {
 	/** Query arguments of the return URLs; stripped from a page URL before it becomes a return base. */
 	const ARGS = array( 'wpcap_payment', 'order', 'wpcap_rk', 'wpcap_rt', 'wpcap_return_to', 'wpcap_paypal_return', 'wpcap_mollie_return', 'token', 'PayerID', 'session_id', 'wpcap_portal' );

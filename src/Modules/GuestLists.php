@@ -12,6 +12,9 @@ use PassCaptain\GuestLists\Service;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class GuestLists {
 	/** Version of the capability grant (option wpcap_guestlists_caps). */
 	const CAPS_VERSION = 1;

@@ -17,6 +17,8 @@ use PassCaptain\Sms\HttpProvider;
 use PassCaptain\Sms\Segments;
 use PassCaptain\Sms\Service;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Sms::class ); // SMS hooks (sms.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 
@@ -42,7 +44,7 @@ check( 'emoji count as two UTF-16 units: 35 emoji = 1 segment, 36 = 2', 70 === $
 check( 'surrogate pair is not split (66 a + 3 emoji = 72 units -> 2 parts)', 2 === $seg( str_repeat( 'a', 66 ) . str_repeat( '😀', 3 ) )['segments'] && 1 === $seg( str_repeat( 'a', 66 ) . '😀' )['segments'] );
 
 echo "A141: prices\n";
-$a141_sms = array_merge( Sms::settings_defaults()['sms'], (array) Settings::get( 'sms' ), array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49', 'allowed_prefixes' => '+43,+49,+41', 'currency' => 'EUR', 'prices' => "+49 0.075\n+43 0,10", 'price_default' => '0.2', 'budget_monthly' => '', 'budget_warn_percent' => 80, 'budget_hard_stop' => 1 ) );
+$a141_sms = array_merge( Sms::settings_defaults()['sms'], (array) Settings::get( 'sms' ), array( 'provider' => 'twilio', 'twilio_from' => '+4915100000000', 'default_country_code' => '+49', 'allowed_prefixes' => '+43,+49,+41', 'currency' => 'EUR', 'prices' => "+49 0.075\n+43 0,10", 'price_default' => '0.2', 'budget_monthly' => '', 'budget_warn_percent' => 80, 'budget_hard_stop' => 1, 'verify_phone' => 0 ) );
 Settings::update( array( 'twilio_account_sid' => 'AC' . str_repeat( 'a1', 16 ), 'twilio_auth_token' => 'twilio-auth-token-123', 'sms' => $a141_sms ) );
 check( 'price table parsed (comma decimals, longest prefix first)', array( '+49' => 0.075, '+43' => 0.1 ) == Costs::prices() );
 check( 'price per segment by destination, default price otherwise', 0.075 === Costs::price_per_segment( '+4915112345678' ) && 0.1 === Costs::price_per_segment( '+436641234567' ) && 0.2 === Costs::price_per_segment( '+41791234567' ) );

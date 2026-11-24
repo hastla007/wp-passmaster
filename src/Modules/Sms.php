@@ -20,6 +20,9 @@ use PassCaptain\Sms\Verification;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Sms {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-sms';

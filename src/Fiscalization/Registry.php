@@ -4,6 +4,9 @@ namespace PassCaptain\Fiscalization;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Registry {
 	/** @return AdapterInterface[] */
 	public static function all() {

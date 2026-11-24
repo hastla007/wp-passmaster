@@ -29,6 +29,9 @@ use PassCaptain\RateLimit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Availability {
 	/** Versioned action for purge adapters: ( int[] $ticket_type_ids, string $reason ). */
 	const CHANGED_HOOK = 'wp_pass_captain_availability_changed_v1';

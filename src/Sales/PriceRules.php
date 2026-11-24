@@ -28,6 +28,9 @@ use PassCaptain\Series\Pricing as Engine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PriceRules {
 	const CAP = 'wpcap_manage_events';
 

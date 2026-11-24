@@ -17,6 +17,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AuditTrail {
 	/** Seconds in which repeated reads of the same object by the same person are aggregated. */
 	const READ_WINDOW = 900;

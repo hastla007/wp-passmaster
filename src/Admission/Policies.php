@@ -18,6 +18,9 @@ namespace PassCaptain\Admission;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Policies {
 	const TYPES = array( 'single', 'daily', 'multi_day', 'multi_entry', 'reentry' );
 	const MAX_DATES = 366;

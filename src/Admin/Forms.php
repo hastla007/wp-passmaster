@@ -12,6 +12,9 @@ namespace PassCaptain\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Forms {
 	/** Most users listed by user_select() before it falls back to a user-ID field. */
 	const USER_SELECT_MAX = 300;

@@ -11,6 +11,9 @@
  * Legally relevant values are flagged per row (SettingsSchema::LEGAL). The values are starting points
  * from the plugin's own documentation, not legal advice.
  *
+ * DE, AT and CH also propose the regional formats (document date/time format, first weekday of the
+ * calendar); these are no legal values. EU and OTHER leave them unset (the WordPress settings apply).
+ *
  * Filter wp_pass_captain_country_presets_v1 (array code => preset) changes or adds presets; keys
  * outside Settings::defaults() are ignored.
  *
@@ -21,6 +24,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CountryPresets {
 	/** Preset codes in display order. */
 	const CODES = array( 'DE', 'AT', 'CH', 'EU', 'OTHER' );
@@ -48,6 +54,10 @@ final class CountryPresets {
 					'withdrawal_notice' => 1,
 					'withdrawal_notice_text' => __( 'Hinweis: Bei Tickets für Veranstaltungen mit festem Termin besteht in der Regel kein Widerrufsrecht (§ 312g Abs. 2 Nr. 9 BGB). Jede Buchung ist nach Zahlungseingang verbindlich.', 'pass-captain' ),
 					'sms' => array( 'default_country_code' => '+49' ),
+					// Regional formats (not legal values): dd.mm.yyyy, 24-hour clock, weeks start on Monday.
+					'document_date_format' => 'd.m.Y',
+					'document_time_format' => 'H:i',
+					'calendar' => array( 'first_weekday' => 1 ),
 				),
 			),
 			'AT' => array(
@@ -65,6 +75,10 @@ final class CountryPresets {
 					'withdrawal_notice' => 1,
 					'withdrawal_notice_text' => __( 'Hinweis: Bei Tickets für Freizeitveranstaltungen mit festem Termin besteht kein Rücktrittsrecht (§ 18 Abs. 1 Z 10 FAGG). Jede Buchung ist nach Zahlungseingang verbindlich.', 'pass-captain' ),
 					'sms' => array( 'default_country_code' => '+43' ),
+					// Regional formats (not legal values): dd.mm.yyyy, 24-hour clock, weeks start on Monday.
+					'document_date_format' => 'd.m.Y',
+					'document_time_format' => 'H:i',
+					'calendar' => array( 'first_weekday' => 1 ),
 				),
 			),
 			'CH' => array(
@@ -85,6 +99,10 @@ final class CountryPresets {
 					'withdrawal_notice' => 1,
 					'withdrawal_notice_text' => __( 'Hinweis: Gekaufte Tickets können nicht zurückgegeben werden, ausser die Veranstaltung wird abgesagt oder verschoben.', 'pass-captain' ),
 					'sms' => array( 'default_country_code' => '+41' ),
+					// Regional formats (not legal values): dd.mm.yyyy, 24-hour clock, weeks start on Monday.
+					'document_date_format' => 'd.m.Y',
+					'document_time_format' => 'H:i',
+					'calendar' => array( 'first_weekday' => 1 ),
 				),
 			),
 			'EU' => array(

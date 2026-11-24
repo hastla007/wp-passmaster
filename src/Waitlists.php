@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Waitlists {
 	/** Waitlist sign-ups with mail per address, event and hour (A644: only sign-ups that send a mail count). */
 	const EMAIL_HOURLY_LIMIT = 5;

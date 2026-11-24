@@ -16,6 +16,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Status {
 	/** A due item waiting longer than this (seconds) counts as overdue: the worker is not keeping up. */
 	const OVERDUE_AFTER = 30 * MINUTE_IN_SECONDS;

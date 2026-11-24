@@ -16,6 +16,7 @@ use PassCaptain\Series\Pricing;
 use PassCaptain\Integrations\WooCommerce\CartPricing;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 
+wpcap_test_ensure_registered( PassCaptain\Modules\Series::class ); // Series price tiers (series_pricing.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

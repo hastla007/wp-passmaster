@@ -33,6 +33,9 @@ use PassCaptain\Security\Vault;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Endpoints {
 	const KEY_PREFIX = 'http_json_';
 	const VAULT_CONTEXT = 'connector_http_secret';

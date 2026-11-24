@@ -17,6 +17,9 @@ use PassCaptain\Sales\Comps;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrganizerTools {
 	public static function register() {
 		add_action( 'wp_pass_captain_admin_occurrence_sections_v1', array( __CLASS__, 'render_occurrence_tools' ), 20, 2 );

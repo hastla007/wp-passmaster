@@ -21,6 +21,9 @@ use PassCaptain\Plugin as Y6Plugin;
 use PassCaptain\QrCode as Y6Qr;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+require_once dirname( __DIR__ ) . '/lib/wp_cron_stubs.php';
+require_once dirname( __DIR__ ) . '/lib/wc_orders_stub.php'; // wc_get_orders() (woocommerce_multiseller.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $y6_root = dirname( __DIR__, 3 ) . '/';

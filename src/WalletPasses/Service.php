@@ -14,6 +14,9 @@ use PassCaptain\Wallet\Bridge;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Service {
 	const JOB = 'wallet_sync';
 	/** Deferred pass creation (multi-ticket mails, batch print): passes are created after the commit. */

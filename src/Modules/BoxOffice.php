@@ -19,6 +19,9 @@ use PassCaptain\BoxOffice\ShiftPage;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class BoxOffice {
 	public static function register() {
 		add_filter( 'wpcap_payment_gateways', array( PosGateway::class, 'register_gateways' ) );

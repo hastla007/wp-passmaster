@@ -6,7 +6,9 @@
  * require_once; it only defines functions and classes (no hooks, no state), so the order of a full run
  * stays the same. tests/integration/modules/zz_helpers_guard.php fails when a module calls a function
  * that only another module defines.
- * - wpb_*: box office ticket types (boxoffice.php)
+ * - wpb_*: box office ticket types, wpb_cash_ready() (boxoffice.php)
+ * - wpcap_test_ensure_row(): placeholder row in an empty table (feature in use)
+ * - wpcap_test_ensure_registered(): registers a module class unless an earlier module did
  * - sp_*: series with occurrences, orders, price rules (series_pricing.php)
  * - Wpcap_Test_Woo_Order/_Refund, woo_t_*: WooCommerce orders and refunds (woocommerce.php)
  * - Wpcap_Ms_Cart, Wpcap_Ms_WC, Wpcap_Ms_Errors: WooCommerce cart, WC() object, notices (woocommerce_multiseller.php)
@@ -17,10 +19,13 @@
  * - bb_billing(): billing data (zz_billing.php)
  * - p1u_*: REST requests and access tokens (zz_phase1_ux.php)
  * - pa_event_of_type(), pa_order(): partner report fixtures (partners.php)
- * - svc_paid() … svc_ok(): service bookings, waitlist, worker processes (zzzz_services_b/c/e_*.php)
+ * - svc_setup(), svc_supp_gateway(), svc_paid() … svc_ok(): service bookings, waitlist, worker processes (zzzz_services_b/c/e_*.php)
  * - w6_matrix() … w6_recover(): fault matrix over every SQL statement of a flow (zzzz_w6_faults.php)
  * - seating_draft(): seat map draft with zones, rows and a standing area (seating.php)
  * - x2_uninstall_run(): runs uninstall.php in a child process (zz_a372.php)
+ * - off_pair(): pairs an offline scanner device (offline_scanner.php)
+ * - wpcap_test_route_exception(): WooCommerce Store API RouteException (woocommerce_multiseller.php)
+ * - w9_*: personas, audit rows, ticket types and orders of the access tests (zzzzz_w9_access.php)
  *
  * @package PassCaptain
  */
@@ -55,6 +60,70 @@ if ( ! function_exists( 'wpb_occurrence_of' ) ) {
 	}
 	function wpb_key() { return 'test-' . bin2hex( random_bytes( 10 ) ); }
 	function wpb_seq( $number ) { return (int) substr( (string) $number, -6 ); }
+}
+if ( ! function_exists( 'wpb_cash_ready' ) ) {
+	/**
+	 * Cash and card at the box office: the operator confirmation boxoffice.php leaves on (DE/AT fiscal
+	 * block, Pos::fiscal_block()). Changes nothing when it is already on (full run).
+	 */
+	function wpb_cash_ready() {
+		if ( ! PassCaptain\Settings::get( 'boxoffice_cash_confirmed' ) ) { PassCaptain\Settings::update( array( 'boxoffice_cash_confirmed' => 1 ) ); }
+	}
+}
+
+/* ---- rows earlier modules leave behind ---- */
+if ( ! function_exists( 'wpcap_test_ensure_row' ) ) {
+	/**
+	 * Inserts a placeholder row (column defaults, 0, '' or a 2015 date) into an empty plugin table, for
+	 * checks that depend on a feature being in use. Returns the new id (delete it afterwards) or 0 when
+	 * the table already has rows (full run: no change).
+	 */
+	function wpcap_test_ensure_row( $table ) {
+		global $wpdb;
+		$table = $wpdb->prefix . $table;
+		if ( $wpdb->get_var( "SELECT 1 FROM $table LIMIT 1" ) ) { return 0; }
+		$values = array();
+		foreach ( (array) $wpdb->get_results( "SHOW COLUMNS FROM $table" ) as $col ) {
+			if ( false !== strpos( (string) $col->Extra, 'auto_increment' ) || null !== $col->Default || 'YES' === $col->Null ) { continue; }
+			$values[ $col->Field ] = preg_match( '/int|decimal/', $col->Type ) ? 0 : ( preg_match( '/date/', $col->Type ) ? '2015-01-01 00:00:00' : '' );
+		}
+		$wpdb->insert( $table, $values );
+		return (int) $wpdb->insert_id;
+	}
+}
+
+/* ---- modules registered by an earlier module (e.g. Mollie::register() in mollie.php) ---- */
+if ( ! function_exists( 'wpcap_test_ensure_registered' ) ) {
+	/**
+	 * Calls $class::register() unless an earlier module did (full run: no change). register() runs on an
+	 * empty hook table first; when its first hook is already in the real table, the module was registered
+	 * and the new hooks are dropped (no double registration), otherwise they are merged in.
+	 */
+	function wpcap_test_ensure_registered( $class ) {
+		$saved = $GLOBALS['wpcap_test_hooks'] ?? array();
+		$GLOBALS['wpcap_test_hooks'] = array();
+		$class::register();
+		$added = $GLOBALS['wpcap_test_hooks'];
+		$GLOBALS['wpcap_test_hooks'] = $saved;
+		if ( ! $added ) { return false; } // register() guards itself (static flag): already registered.
+		foreach ( $added as $hook => $by_priority ) {
+			foreach ( $by_priority as $priority => $callbacks ) {
+				foreach ( $callbacks as $entry ) {
+					foreach ( $saved[ $hook ][ $priority ] ?? array() as $existing ) {
+						if ( $existing[0] === $entry[0] ) { return false; }
+					}
+					break 3; // Only the first hook decides.
+				}
+			}
+		}
+		foreach ( $added as $hook => $by_priority ) {
+			foreach ( $by_priority as $priority => $callbacks ) {
+				foreach ( $callbacks as $entry ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = $entry; }
+			}
+		}
+		if ( class_exists( 'PassCaptain\\Payments\\Registry' ) ) { PassCaptain\Payments\Registry::reset(); }
+		return true;
+	}
 }
 
 /* ---- series_pricing.php ---- */
@@ -319,6 +388,43 @@ function svc_paid( $slot_id, $type_id, $email, $qty = 1 ) {
 function svc_tickets_of( $booking_id ) { return array_map( 'intval', (array) json_decode( (string) ServiceBookings::get( $booking_id )->ticket_ids, true ) ); }
 function svc_ticket_status( $ticket_id ) { global $wpdb; return (string) $wpdb->get_var( "SELECT status FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=" . (int) $ticket_id ); }
 
+if ( ! function_exists( 'svc_setup' ) ) {
+	/**
+	 * State zzzz_services_a_rules.php leaves for the following service modules: Services module and
+	 * service checkout registered, no refund approval, no terms. Changes nothing that is already so.
+	 */
+	function svc_setup() {
+		wpcap_test_ensure_registered( PassCaptain\Modules\Services::class );
+		wpcap_test_ensure_registered( PassCaptain\ServiceBookingFlow::class );
+		$want = array_filter( array( 'refund_approval_threshold' => 0, 'require_terms' => 0 ), static fn( $v, $k ) => (int) PassCaptain\Settings::get( $k ) !== $v, ARRAY_FILTER_USE_BOTH );
+		if ( $want ) { PassCaptain\Settings::update( $want ); }
+	}
+}
+
+/* ---- zzzz_services_f_supplement.php ---- */
+if ( ! class_exists( 'Svc_Supp_Gateway' ) ) {
+	final class Svc_Supp_Gateway implements PassCaptain\Payments\GatewayInterface {
+		public static int $payments = 0;
+		public static int $refunds = 0;
+		public function id() { return 'svc_supp'; }
+		public function title() { return 'Svc Supplement'; }
+		public function is_available( $currency ) { return true; }
+		public function create_payment( array $order, array $items = array() ) { self::$payments++; return array( 'provider' => 'svc_supp', 'status' => 'pending', 'redirect_url' => 'https://pay.example.test/s/' . $order['public_id'], 'provider_reference' => 'supp_' . $order['public_id'] ); }
+		public function verify_webhook( \WP_REST_Request $request ) { return null; }
+		public function supports_refunds() { return true; }
+		public function refund( array $order, $amount_minor, $idempotency_key ) { self::$refunds++; return 'suppref_' . $idempotency_key; }
+	}
+}
+if ( ! function_exists( 'svc_supp_gateway' ) ) {
+	/** Registers the svc_supp test gateway once (payments and refunds counted on the class). */
+	function svc_supp_gateway() {
+		if ( ! empty( $GLOBALS['svc_supp_registered'] ) ) { return; }
+		$GLOBALS['svc_supp_registered'] = true;
+		add_filter( 'wpcap_payment_gateways', static function ( $list ) { $list[] = new Svc_Supp_Gateway(); return $list; } );
+		PassCaptain\Payments\Registry::reset();
+	}
+}
+
 /* ---- zzzz_services_c_waitlist.php ---- */
 /** Token of the last mail to $email whose body matches $param=<64 hex>. */
 function svc_token_from_mail( $email, $param ) {
@@ -441,3 +547,70 @@ function x2_uninstall_run( array $config ) {
 class Wpcap_Ms_Cart { public array $cart_contents = array(); public function get_cart() { return $this->cart_contents; } }
 class Wpcap_Ms_WC { public $cart; public $session; public bool $store_api = false; public function is_store_api_request() { return $this->store_api; } }
 class Wpcap_Ms_Errors { public array $errors = array(); public function add( $code, $message ) { $this->errors[ $code ] = $message; } }
+
+/* ---- offline_scanner.php ---- */
+if ( ! function_exists( 'off_pair' ) ) {
+	/** Pairs an offline scanner device for the events (user 7) and returns the pairing with its row. */
+	function off_pair( $event_ids, $label ) {
+		$GLOBALS['wpcap_test_user_id'] = 7;
+		$pairing = PassCaptain\Mobile\Devices::create_pairing( $event_ids, $label, 12 );
+		$paired = PassCaptain\Mobile\Devices::pair( $pairing['code'], $label, 'pwa', '1.0' );
+		$GLOBALS['wpcap_test_user_id'] = 7;
+		$paired['row'] = $GLOBALS['wpdb']->get_row( "SELECT * FROM {$GLOBALS['wpdb']->prefix}wpcap_scanner_devices WHERE public_id='" . $paired['device_id'] . "'" );
+		return $paired;
+	}
+}
+
+/* ---- zzzzz_w9_access.php ---- */
+if ( ! function_exists( 'w9_as' ) ) {
+	/** Persona helper: capabilities the current user holds (everything else denied), user id, user_can callback. */
+	function w9_as( $user_id, array $caps, $global_admin = false ) {
+		$all = array( 'manage_options', 'manage_network_options', 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_view_audit' );
+		if ( $global_admin ) { $caps = $all; }
+		$GLOBALS['wpcap_test_user_id'] = $user_id;
+		$GLOBALS['wpcap_test_denied_caps'] = array_values( array_diff( $all, $caps ) );
+		$GLOBALS['wpcap_test_user_can'] = static fn( $u, $c ) => (int) $u === (int) $user_id ? in_array( $c, $caps, true ) : false;
+		PassCaptain\Security\SupportAccess::flush_cache();
+	}
+	function w9_admin() {
+		$GLOBALS['wpcap_test_user_id'] = 1;
+		$GLOBALS['wpcap_test_denied_caps'] = array();
+		unset( $GLOBALS['wpcap_test_user_can'] );
+		PassCaptain\Security\SupportAccess::flush_cache();
+	}
+	function w9_audit_count( $action, $object_id = null ) {
+		global $wpdb;
+		$sql = $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE action=%s", $action );
+		if ( null !== $object_id ) { $sql .= ' AND object_id=' . (int) $object_id; }
+		return (int) $wpdb->get_var( $sql );
+	}
+	function w9_last_audit( $action ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_audit_logs WHERE action=%s ORDER BY audit_id DESC LIMIT 1", $action ) );
+	}
+	/** Free ticket type whose occurrence starts in one hour (inside the default entry window). */
+	function w9_type( $price = 0, $capacity = 50 ) {
+		global $wpdb;
+		$type = make_type( $capacity, 10, $price );
+		$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=$type" );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_occurrences SET starts_at=%s, ends_at=%s WHERE occurrence_id=%d", gmdate( 'Y-m-d H:i:s', time() + 3600 ), gmdate( 'Y-m-d H:i:s', time() + 4 * 3600 ), $occ ) );
+		return array( 'type' => $type, 'occ' => $occ, 'event' => (int) $wpdb->get_var( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=$occ" ) );
+	}
+	function w9_order( $type, $qty, $email, $paid = false ) {
+		wpcap_test_reset_transients();
+		$r = PassCaptain\Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'w9-' . uniqid( '', true ) ) );
+		if ( is_wp_error( $r ) ) { echo '    (order failed: ' . $r->get_error_message() . ")\n"; return 0; }
+		if ( $paid ) { PassCaptain\Orders::confirm_manual_payment( $r['order_id'] ); }
+		return (int) $r['order_id'];
+	}
+}
+
+/* ---- woocommerce_multiseller.php ---- */
+if ( ! function_exists( 'wpcap_test_route_exception' ) ) {
+	/** Declares WooCommerce's Store API RouteException (error_code, status) unless it exists. */
+	function wpcap_test_route_exception() {
+		if ( ! class_exists( '\\Automattic\\WooCommerce\\StoreApi\\Exceptions\\RouteException' ) ) {
+			eval( 'namespace Automattic\\WooCommerce\\StoreApi\\Exceptions; class RouteException extends \\Exception { public $error_code; public $status; public function __construct( $error_code, $message, $status = 400 ) { parent::__construct( $message ); $this->error_code = $error_code; $this->status = $status; } }' );
+		}
+	}
+}

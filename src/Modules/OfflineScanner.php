@@ -21,6 +21,9 @@ use PassCaptain\OfflineScanner\Rest;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OfflineScanner {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );

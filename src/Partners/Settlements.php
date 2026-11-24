@@ -49,6 +49,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Settlements {
 	const STATUSES = array( 'draft', 'finalized', 'paid' );
 	const SERIES = 'partner';

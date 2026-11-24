@@ -23,6 +23,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Brand {
 	const DEFAULT_NAME = 'Pass Captain';
 	const DEFAULT_MENU_ICON = 'dashicons-tickets-alt';

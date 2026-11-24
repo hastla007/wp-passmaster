@@ -16,7 +16,7 @@ use PassCaptain\Modules\MailTemplates;
 use PassCaptain\Orders;
 use PassCaptain\Settings;
 
-final class Wpmt_Json_Response extends Exception { public $payload; public $success; public function __construct( $success, $payload ) { parent::__construct( 'json' ); $this->success = $success; $this->payload = $payload; } }
+// Wpmt_Json_Response (thrown by the wp_send_json_* stubs) lives in lib/wp_stubs.php.
 final class Wpmt_Fake_Mailer { public $AltBody = ''; }
 if ( ! function_exists( 'switch_to_locale' ) ) {
 	function switch_to_locale( $locale ) { $GLOBALS['wpmt_locale_calls'][] = 'switch:' . $locale; $GLOBALS['wpmt_locale_stack'][] = $locale; return true; }

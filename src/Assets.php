@@ -16,6 +16,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Assets {
 	/**
 	 * Adds inline JavaScript to a handle (registered empty in the footer when it does not exist yet)

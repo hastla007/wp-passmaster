@@ -15,6 +15,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Billing {
 	/** Stored fields (all strings). */
 	const FIELDS = array( 'company', 'first_name', 'last_name', 'street', 'postcode', 'city', 'region', 'country', 'vat_id', 'po_number' );

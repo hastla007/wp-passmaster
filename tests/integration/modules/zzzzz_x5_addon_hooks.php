@@ -12,6 +12,7 @@
 // phpcs:ignoreFile
 
 require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_route_exception(); // Store API exception (declared by woocommerce_multiseller.php in a full run).
 if ( ! function_exists( 'WC' ) ) { function WC() { return $GLOBALS['wpcap_test_wc']; } }
 // WordPress template stubs for the order portal in a single run (a full run defines them earlier, zz_phase1_ux.php).
 if ( ! function_exists( 'bloginfo' ) ) { function bloginfo( $k = '' ) { echo 'UTF-8'; } }

@@ -12,6 +12,9 @@ use PassCaptain\Webhooks\RefundObject;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Webhooks {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-webhooks';

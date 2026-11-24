@@ -17,6 +17,9 @@ namespace PassCaptain\Operations;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Monitor {
 	const HEARTBEAT_OPTION = 'wpcap_ops_heartbeat';
 	const MAIL_OPTION = 'wpcap_ops_mail_failures';

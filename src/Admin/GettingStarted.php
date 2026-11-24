@@ -15,6 +15,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class GettingStarted {
 	/** User meta: 1 = checklist hidden by this user. */
 	const META = 'wpcap_getting_started_hidden';

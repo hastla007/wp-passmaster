@@ -12,6 +12,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PayoutAccount {
 	/** Payment providers whose refunds are paid out by bank transfer. */
 	const PROVIDERS = array( 'manual', 'pos_invoice' );

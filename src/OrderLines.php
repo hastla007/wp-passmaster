@@ -17,6 +17,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrderLines {
 	/** Per-request cache of ready(), for the site (table prefix) in $prefix. */
 	private static $ready = null;

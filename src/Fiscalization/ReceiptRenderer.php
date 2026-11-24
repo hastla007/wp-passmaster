@@ -10,6 +10,9 @@ use PassCaptain\TicketPdf;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ReceiptRenderer {
 	/** Completed fiscal receipts for a Pass Captain order, one block per legal seller. */
 	public static function render( $order_id ) {

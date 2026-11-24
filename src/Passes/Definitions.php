@@ -29,6 +29,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Definitions {
 	const CAP = 'wpcap_manage_events';
 	const MODES = array( 'once', 'reentry' );

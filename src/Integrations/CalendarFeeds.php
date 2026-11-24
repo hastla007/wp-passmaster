@@ -19,6 +19,9 @@ use PassCaptain\Calendar\Ics;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CalendarFeeds {
 	const SCOPES = array( 'all', 'event', 'partner' );
 	const MAX_ENTRIES = 1000;

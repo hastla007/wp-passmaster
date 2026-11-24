@@ -30,6 +30,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Context purpose registration, reference checks and event page output.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class Adapter {
 	const PURPOSE        = 'pass.event_registration';

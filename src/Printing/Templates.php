@@ -30,6 +30,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Templates {
 	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband', 'label_3x8', 'label_2x7', 'badge_4up' );
 

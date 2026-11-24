@@ -26,6 +26,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class UserAccess {
 	/** Capability the staff assignment grants as a user capability. */
 	const CHECKIN_CAP = 'wpcap_checkin';

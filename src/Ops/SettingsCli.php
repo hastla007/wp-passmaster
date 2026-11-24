@@ -25,6 +25,9 @@ use PassCaptain\SettingsSchema;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SettingsCli {
 	/** Words that confirm switching on data deletion at uninstall. */
 	const DELETE_WORDS = array( 'LÖSCHEN', 'LOESCHEN', 'DELETE' );

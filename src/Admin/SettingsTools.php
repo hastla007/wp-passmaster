@@ -16,6 +16,9 @@ use PassCaptain\SettingsSchema;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SettingsTools {
 	const TAB = 'tools';
 	const EXPORT_ACTION = 'wpcap_settings_export';

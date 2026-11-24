@@ -11,6 +11,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PolicyText {
 	/** Admin screens that show the policy suggestions (guide, privacy settings, editing the policy page). */
 	const SCREENS = array( 'options-privacy.php', 'privacy-policy-guide.php', 'post.php' );

@@ -32,6 +32,9 @@ namespace PassCaptain\Passes;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Capacity {
 	/** Lock-phase state of the order currently inside `wpcap_reserve_capacity`. */
 	private static $pending = null;

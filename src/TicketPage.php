@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketPage {
 	/** @var bool Registered in this request (the old copy's bootstrap calls register() again, see LegacyCopy). */
 	private static $registered = false;

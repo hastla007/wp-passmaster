@@ -18,6 +18,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class StepUp {
 	/** admin-post/admin-ajax action => categories. */
 	const ADMIN_ACTIONS = array(

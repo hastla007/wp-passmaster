@@ -17,6 +17,9 @@ if ( ! class_exists( '\WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class EventsListTable extends \WP_List_Table {
 	/** @var array List state (EventsPage::list_state()). */
 	private $state = array();

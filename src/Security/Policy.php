@@ -17,6 +17,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Policy {
 	/** Sensitive action categories that can require two-factor authentication (setting mfa_<category>). */
 	const MFA_CATEGORIES = array( 'settings', 'secrets', 'exports', 'roles', 'bulk', 'api_keys' );

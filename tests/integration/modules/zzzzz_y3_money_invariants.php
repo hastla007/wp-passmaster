@@ -30,6 +30,9 @@ use PassCaptain\Partners\Settlements as Y3Settlements;
 use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
+wpcap_test_ensure_registered( PassCaptain\Modules\Exchange::class ); // Exchange hooks (p3_exchange.php in a full run).
+svc_setup(); // Services module and settings (zzzz_services_a_rules.php in a full run).
+svc_supp_gateway(); // Test gateway (zzzz_services_f_supplement.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();

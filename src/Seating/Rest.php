@@ -6,6 +6,9 @@ use PassCaptain\RateLimit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Rest {
 	const NS = 'pass-captain/v1';
 

@@ -19,6 +19,9 @@ use PassCaptain\Webhooks\Dispatcher;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Queues {
 	/** Most items one retry/discard request changes. */
 	const MAX_BULK = 500;

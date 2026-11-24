@@ -21,6 +21,7 @@ use PassCaptain\ServiceResources;
 use PassCaptain\Services\Api as SvcApi;
 use PassCaptain\Services\Portal as SvcPortal;
 
+svc_setup(); // Services module, service checkout, settings (zzzz_services_a_rules.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();

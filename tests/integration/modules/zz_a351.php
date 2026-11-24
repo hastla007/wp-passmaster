@@ -18,6 +18,7 @@ use PassCaptain\Settings;
 
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r; } }
 
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie gateway (registered by mollie.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

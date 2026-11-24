@@ -27,6 +27,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketService {
 	const FILTER = 'wp_pass_captain_ticket_service_v1';
 	const VERSION = 1;

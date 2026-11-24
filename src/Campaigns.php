@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Campaigns {
 	/**
 	 * Whether a code entered in the single checkout code field is a discount campaign (any status, so an expired

@@ -30,6 +30,9 @@ use PassCaptain\TicketPdf;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PdfWriter {
 	const MM = 2.834645669;
 

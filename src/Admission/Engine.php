@@ -13,6 +13,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Engine {
 	/** Block codes returned by evaluate_in(). */
 	const CODES = array( 'outside_entry_window', 'not_valid_today', 'daily_limit_reached', 'entry_limit_reached', 'already_inside' );

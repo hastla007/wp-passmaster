@@ -25,6 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Event ⇄ form assignment.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class EventForms {
 	const TABLE  = 'wpcap_event_forms';
@@ -217,22 +219,20 @@ final class EventForms {
 
 	/** Admin-post wrapper: nonce, save, redirect back to the event. */
 	public static function handle_save() {
-		$in = Forms::post();
-		Forms::verify( self::ACTION );
+		$in       = Forms::post();
 		$event_id = Forms::int( $in, 'event_id' );
-		$result   = self::save( $in );
-		$message  = ! is_wp_error( $result ) && empty( $result['form_id'] ) ? __( 'Formularzuordnung entfernt.', 'pass-captain' ) : __( 'Formular zugeordnet.', 'pass-captain' );
-		Forms::finish(
-			$result,
-			$message,
-			Forms::page_url(
-				EventsPage::SLUG,
-				array(
-					'view'     => 'event',
-					'event_id' => $event_id,
-				)
+		$back     = Forms::page_url(
+			EventsPage::SLUG,
+			array(
+				'view'     => 'event',
+				'event_id' => $event_id,
 			)
 		);
+		if ( ! current_user_can( EventsPage::CAP ) ) { Forms::finish( Forms::forbidden(), '', $back ); }
+		Forms::verify( self::ACTION );
+		$result   = self::save( $in );
+		$message  = ! is_wp_error( $result ) && empty( $result['form_id'] ) ? __( 'Formularzuordnung entfernt.', 'pass-captain' ) : __( 'Formular zugeordnet.', 'pass-captain' );
+		Forms::finish( $result, $message, $back );
 	}
 
 	/**

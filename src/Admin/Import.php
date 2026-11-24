@@ -23,6 +23,9 @@ use PassCaptain\Localization;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Import {
 	const MAX_ROWS = 2000;
 	const COLUMNS = array( 'event', 'description', 'starts_at', 'ends_at', 'timezone', 'location', 'occurrence_capacity', 'ticket', 'price', 'currency', 'tax_rate', 'ticket_capacity', 'max_per_order' );

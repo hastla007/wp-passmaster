@@ -24,6 +24,10 @@ use PassCaptain\Modules\BoxOffice as X5dModule;
 use PassCaptain\Orders;
 use PassCaptain\Settings;
 
+wpcap_test_ensure_registered( PassCaptain\Modules\BoxOffice::class ); // Box office hooks (boxoffice.php in a full run).
+wpb_cash_ready();
+require_once dirname( __DIR__ ) . '/lib/wp_cron_stubs.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Fiscalization::class ); // Fiscal hooks (fiscalization.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 require_once WPCAP_PATH . 'src/functions.php';

@@ -7,6 +7,9 @@ namespace PassCaptain\Integrations\Vouchers;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class IntegrationStatus {
 	public static function voucher_captain_active() {
 		return function_exists( 'vcap' ) && defined( 'VCAP_VERSION' );
