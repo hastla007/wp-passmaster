@@ -1178,7 +1178,17 @@ final class Service {
 		return $sale && '' !== (string) $sale->receipt_number && in_array( $sale->status, self::BOOKED_STATES, true );
 	}
 
-	/** Receipt data of a booked sale (also used for the storno receipt); null for unbooked sales. */
+	/**
+	 * Receipt data of a booked sale (also used for the storno receipt); null for unbooked sales.
+	 *
+	 * Lines as paid (OrderLines::paid_columns(): a later partial refund does not change the reprint).
+	 * VAT per rate is computed from the gross after the order discount, allocated to the lines like
+	 * the invoice (Invoices::create(): stored line discounts, else the price snapshot split, else
+	 * OrderLines::after_discount()), so net + VAT per rate add up to the receipt total (TODO L914).
+	 * In the agent model (Vermittler) the organizer issues the receipt: seller block and notes
+	 * ("Vermittelt durch …", small business note) come from Partners\SalesModel::order_context(),
+	 * as on the invoice (TODO L902).
+	 */
 	public static function receipt( $sale_id ) {
 		$sale = self::sale( $sale_id );
 		if ( ! self::is_booked( $sale ) ) { return null; }
@@ -1186,18 +1196,22 @@ final class Service {
 		$tz = Scope::site_timezone();
 		$items = array();
 		$vat = array();
-		foreach ( Orders::items_for_order( $sale->order_id ) as $item ) {
+		$discount = $order ? (int) $order->discount_minor : 0;
+		$lines = array_values( (array) self::receipt_lines( (int) $sale->order_id ) );
+		$after = $order ? self::lines_after_discount( $order, $lines ) : array();
+		foreach ( $lines as $index => $item ) {
 			$gross = (int) $item->line_total_minor;
 			$tax = (int) $item->tax_minor;
 			$rate = (int) $item->tax_rate_bp;
+			$paid = (int) ( $after[ $index ] ?? $gross );
 			$items[] = array( 'name' => $item->name, 'event' => $item->event_name, 'quantity' => (int) $item->quantity, 'unit_minor' => (int) $item->unit_price_minor, 'total_minor' => $gross, 'tax_rate_bp' => $rate );
 			if ( ! isset( $vat[ $rate ] ) ) { $vat[ $rate ] = array( 'gross' => 0, 'tax' => 0, 'net' => 0 ); }
-			$vat[ $rate ]['gross'] += $gross;
+			$vat[ $rate ]['gross'] += $paid;
 			$vat[ $rate ]['tax'] += $tax;
-			$vat[ $rate ]['net'] += $gross - $tax;
+			$vat[ $rate ]['net'] += $paid - $tax;
 		}
 		ksort( $vat );
-		$discount = $order ? (int) $order->discount_minor : 0;
+		$issuer = self::receipt_issuer( (int) $sale->order_id );
 		return array(
 			'order_id' => (int) $sale->order_id,
 			'sale_id' => (int) $sale->sale_id,
@@ -1206,7 +1220,9 @@ final class Service {
 			'status' => $sale->status,
 			'date' => \PassCaptain\Frontend\Format::local( $sale->created_at, $tz ),
 			'voided_date' => $sale->voided_at ? \PassCaptain\Frontend\Format::local( $sale->voided_at, $tz ) : '',
-			'seller' => array( 'name' => (string) Settings::get( 'seller_name' ), 'address' => (string) Settings::get( 'seller_address' ), 'vat_id' => (string) Settings::get( 'seller_vat_id' ) ),
+			'seller' => $issuer['seller'],
+			'sales_model' => $issuer['model'],
+			'seller_notes' => $issuer['notes'],
 			'items' => $items,
 			'discount_minor' => $discount,
 			'vat' => $vat,
@@ -1222,6 +1238,60 @@ final class Service {
 			'register' => self::register_label( $sale->session_id ),
 			'order' => $order ? $order->public_id : '',
 			'footer' => (string) Settings::get( 'boxoffice_receipt_footer' ),
+		);
+	}
+
+	/** Order lines of a receipt, with the values as paid (OrderLines::paid_columns()). */
+	private static function receipt_lines( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,' . \PassCaptain\OrderLines::paid_columns() . ',tt.name,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
+	}
+
+	/**
+	 * Gross per line after the order discount, with the same allocation as the invoice: stored line
+	 * discounts (OrderLines::after_discount()), or the split of the price snapshot for orders that
+	 * only carry it there (Orders::snapshot_line_discounts()).
+	 *
+	 * @param object   $order Order row.
+	 * @param object[] $lines receipt_lines() rows (list).
+	 * @return int[] Line index => gross after discount.
+	 */
+	public static function lines_after_discount( $order, array $lines ) {
+		$lines = array_values( $lines );
+		if ( ! $lines ) { return array(); }
+		$discount = (int) $order->discount_minor;
+		$after = \PassCaptain\OrderLines::after_discount( $lines, $discount );
+		$stored = Orders::snapshot_line_discounts( $order );
+		$line_discount_sum = array_sum( array_map( static function ( $line ) { return (int) ( $line->discount_minor ?? 0 ); }, $lines ) );
+		if ( null !== $stored && 0 === $line_discount_sum && $discount > 0 ) {
+			foreach ( $lines as $index => $line ) {
+				if ( isset( $stored[ (int) $line->ticket_type_id ] ) ) { $after[ $index ] = max( 0, (int) $line->line_total_minor - min( (int) $line->line_total_minor, (int) $stored[ (int) $line->ticket_type_id ] ) ); }
+			}
+		}
+		return $after;
+	}
+
+	/**
+	 * Who issues the receipt: the platform (settings "Rechnungssteller") or, in the agent model, the
+	 * organizer (Partners\SalesModel::order_context()). Notes as on the invoice (Invoices::seller_notes():
+	 * small business note of the issuer, "Vermittelt durch …" in the agent model).
+	 *
+	 * @return array{model:string,seller:array,notes:string[]}
+	 */
+	public static function receipt_issuer( $order_id ) {
+		$platform = array( 'name' => (string) Settings::get( 'seller_name' ), 'address' => (string) Settings::get( 'seller_address' ), 'vat_id' => (string) Settings::get( 'seller_vat_id' ) );
+		$context = \PassCaptain\Partners\SalesModel::order_context( $order_id );
+		if ( is_wp_error( $context ) || \PassCaptain\Partners\SalesModel::AGENT !== ( $context['model'] ?? '' ) ) {
+			$note = (string) ( Invoices::seller()['small_business_note'] ?? '' );
+			return array( 'model' => \PassCaptain\Partners\SalesModel::OWN_NAME, 'seller' => $platform, 'notes' => '' !== $note ? array( $note ) : array() );
+		}
+		$seller = (array) $context['seller'];
+		$snapshot = array( 'seller' => $seller, 'agent' => $context['agent'] );
+		return array(
+			'model' => \PassCaptain\Partners\SalesModel::AGENT,
+			'seller' => array( 'name' => (string) ( $seller['name'] ?? '' ), 'address' => (string) ( $seller['address'] ?? '' ), 'vat_id' => (string) ( $seller['vat_id'] ?? '' ), 'tax_number' => (string) ( $seller['tax_number'] ?? '' ) ),
+			'notes' => array_values( array_map( 'strval', Invoices::seller_notes( $snapshot ) ) ),
 		);
 	}
 
@@ -1250,7 +1320,7 @@ final class Service {
 		$m = static function ( $minor ) use ( $r ) { return \PassCaptain\Money::format( $minor, $r['currency'] ); };
 		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><title>' . esc_html( $storno ? $r['storno_number'] : $r['number'] ) . '</title>'
 			. '<style>@page{size:80mm auto;margin:0}*{box-sizing:border-box}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td{padding:.4mm 0;vertical-align:top}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body data-wpcap-autoprint>';
-		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : '' ) . '</p>';
+		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : ( ! empty( $r['seller']['tax_number'] ) ? '<br>' . esc_html( __( 'Steuernummer:', 'pass-captain' ) . ' ' . $r['seller']['tax_number'] ) : '' ) ) . '</p>';
 		$h .= '<h1>' . esc_html( $storno ? __( 'STORNOBELEG', 'pass-captain' ) : __( 'Beleg', 'pass-captain' ) ) . '</h1>';
 		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'pass-captain' ) . ' ' . ( $storno ? $r['storno_number'] : $r['number'] ) ) . '<br>';
 		if ( $storno ) { $h .= esc_html( __( 'Storno zu Beleg', 'pass-captain' ) . ' ' . $r['number'] ) . '<br>'; }
@@ -1263,7 +1333,9 @@ final class Service {
 		foreach ( $r['vat'] as $rate => $v ) {
 			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: VAT rate in percent, 2: net amount */ __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
 		}
-		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
+		$h .= '</table>';
+		foreach ( (array) ( $r['seller_notes'] ?? array() ) as $note ) { $h .= '<p class="small">' . esc_html( (string) $note ) . '</p>'; }
+		$h .= '<div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
 		if ( ! $storno && null !== $r['tendered_minor'] ) {
 			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
 		}
