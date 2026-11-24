@@ -82,6 +82,7 @@ final class Controller {
 				// A421: lines with whole ticket type ids and quantities ≥ 1 (Orders::create() checks the same).
 				'items' => self::arg( 'items', array( 'required' => true ) ),
 				'accept_terms' => self::arg( 'bool' ),
+				'confirm_age' => self::arg( 'bool' ), // SET-PC-18
 			),
 		) );
 	}
@@ -558,7 +559,7 @@ final class Controller {
 				$params['voucher_code'] = $single_code;
 			}
 		}
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices', 'attribution', 'buyer_name' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'confirm_age', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices', 'attribution', 'buyer_name' ) ) ) );
 		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
@@ -776,6 +777,7 @@ final class Controller {
 			'wpcap_invalid_checkout' => 'email',
 			'wpcap_terms_required' => 'accept_terms',
 			'wpcap_terms_changed' => 'accept_terms',
+			'wpcap_age_confirmation_required' => 'confirm_age', // SET-PC-18
 			'wpcap_attendees_invalid' => 'attendees',
 			'wpcap_attendee_field_required' => 'attendees',
 			'wpcap_attendee_field_invalid' => 'attendees',

@@ -400,7 +400,7 @@ final class PageCache {
 
 	/** Settings::update(): legal texts or their requirement changed → every listing page. */
 	public static function settings_changed( array $old, array $new ) {
-		foreach ( array( 'terms_text', 'consumer_info_text', 'require_terms', 'legal_texts' ) as $key ) {
+		foreach ( array( 'terms_text', 'consumer_info_text', 'require_terms', 'legal_texts', 'min_age_checkbox', 'min_age_notice_text' ) as $key ) { // SET-PC-18: the age confirmation is part of the event card.
 			if ( array_key_exists( $key, $new ) && ( $old[ $key ] ?? null ) != $new[ $key ] ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- 0 vs '0' after form input.
 				self::all_changed( 'legal' );
 				return;

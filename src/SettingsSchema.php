@@ -40,6 +40,13 @@ final class SettingsSchema {
 		'service_fee_tax', 'service_fee_tax_class', 'service_fee_tax_rate', 'service_fee_refund', 'voucher_default_purpose',
 		'datev_chart', 'datev_contra_account', 'fiscal_allow_local_service', 'reschedule_refund_request',
 		'boxoffice_receipt_prefix', 'boxoffice_receipt_footer', 'partners', 'sms',
+		// SET-PC-15/-18/-37/-03: service date fallback, minimum age rule, DATEV accounts, number patterns.
+		'invoice_service_date_fallback', 'default_min_age', 'min_age_checkbox', 'min_age_notice_text', 'datev_accounts',
+		'invoice_number_pattern', 'invoice_number_digits', 'invoice_number_start', 'invoice_number_yearly',
+		'credit_number_pattern', 'credit_number_digits', 'credit_number_start', 'credit_number_yearly',
+		'receipt_number_pattern', 'receipt_number_digits', 'receipt_number_start', 'receipt_number_yearly',
+		'settlement_number_pattern', 'settlement_number_digits', 'settlement_number_start', 'settlement_number_yearly',
+		'self_billing_number_pattern', 'self_billing_number_digits', 'self_billing_number_start', 'self_billing_number_yearly',
 	);
 
 	/** Settings a country preset (DE, AT, CH, EU, OTHER; SET-PC-02) proposes a value for. */

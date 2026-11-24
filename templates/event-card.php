@@ -207,6 +207,18 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 				<label for="<?php echo esc_attr( $wpcap_form_id . '-terms' ); ?>"><?php echo esc_html( $wpcap_has_consumer_info ? __( 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.', 'pass-captain' ) : __( 'Ich akzeptiere die Bedingungen.', 'pass-captain' ) ); ?></label>
 			</div>
 		<?php endif; ?>
+		<?php
+		// SET-PC-18: age confirmation when a ticket type of the card has a minimum age (setting min_age_checkbox);
+		// required in the form only when every type has one – the server checks the lines actually ordered.
+		$wpcap_min_age = \PassCaptain\AdmissionChecks::confirmation_age( array_map( static function ( $t ) { return (int) $t->ticket_type_id; }, $types ) );
+		if ( $wpcap_min_age > 0 ) :
+			$wpcap_age_all = ! array_filter( $types, static function ( $t ) { return (int) ( $t->min_age ?? 0 ) < 1; } );
+			?>
+			<div class="wpcap-field wpcap-age-confirm">
+				<input id="<?php echo esc_attr( $wpcap_form_id . '-age' ); ?>" type="checkbox" name="confirm_age" value="1"<?php echo $wpcap_age_all ? ' required' : ''; ?>>
+				<label for="<?php echo esc_attr( $wpcap_form_id . '-age' ); ?>"><?php echo esc_html( \PassCaptain\Settings::min_age_notice( $wpcap_min_age, ! empty( $legal['locale'] ) ? (string) $legal['locale'] : null ) ); ?></label>
+			</div>
+		<?php endif; ?>
 		<?php /* A450: enabled by checkout.js once its handlers are attached; without JavaScript nothing is sent. A409: "Kostenlos anmelden" while only free tickets are offered (or selected); checkout.js switches with the selection and live prices. */ ?>
 		<?php $wpcap_label_paid = __( 'Zahlungspflichtig bestellen', 'pass-captain' ); $wpcap_label_free = __( 'Kostenlos anmelden', 'pass-captain' ); ?>
 		<?php /* A602: total next to the button, sticky at the bottom on narrow screens (the live estimate above stays for screen readers). */ ?>

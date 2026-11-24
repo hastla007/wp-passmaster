@@ -45,6 +45,90 @@ final class SettingsPage {
 		return array_combine( $classes, $classes );
 	}
 
+	/** SET-PC-03: fields of the number patterns, four per document kind (DocumentNumbers::KINDS). */
+	public static function number_fields() {
+		$fields = array();
+		foreach ( \PassCaptain\DocumentNumbers::labels() as $kind => $label ) {
+			/* translators: %s: document kind, e.g. Rechnungen */
+			$fields[ $kind . '_number_pattern' ] = array( 'type' => 'text', 'label' => sprintf( __( '%s: Nummernmuster', 'pass-captain' ), $label ), 'description' => __( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DocumentNumbers::class, 'sanitize_pattern' ) );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_digits' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Stellen der laufenden Nummer', 'pass-captain' ), $label ), 'min' => 1, 'max' => \PassCaptain\DocumentNumbers::MAX_DIGITS, 'description' => __( 'Mit Nullen aufgefüllt, z. B. 6 = 000123. Standard: 6.', 'pass-captain' ) );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_start' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Startnummer', 'pass-captain' ), $label ), 'min' => 0, 'max' => 999999999, 'description' => __( 'Erste Nummer eines neuen Nummernkreises (bei jährlichem Neubeginn in jedem Jahr). 0 = ab 1. Nur nach oben: Sie muss größer sein als die zuletzt vergebene Nummer.', 'pass-captain' ), 'sanitize' => static function ( $value, $current = null ) use ( $kind ) { return \PassCaptain\DocumentNumbers::sanitize_start( $kind, $value, $current ); } );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_yearly' ] = array( 'type' => 'bool', 'label' => sprintf( __( '%s: jedes Jahr neu beginnen', 'pass-captain' ), $label ), 'description' => __( 'Nur wenn das Muster {year} oder {yy} enthält; sonst läuft die Nummer über die Jahre weiter.', 'pass-captain' ) );
+		}
+		return $fields;
+	}
+
+	/**
+	 * SET-PC-03: the number pattern fields as one table (row per document kind) with the next number. The
+	 * inputs keep the ids wpcap-set-{key}, so error links and labels work as for the other fields.
+	 *
+	 * @param array $def    Section definition.
+	 * @param array $values Current settings.
+	 */
+	public static function render_number_table( array $def, array $values ) {
+		echo '<table class="widefat striped wpcap-number-table"><thead><tr><th scope="col">' . esc_html__( 'Belegart', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Muster', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Stellen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Startnummer', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Jedes Jahr neu', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Nächste Nummer', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( \PassCaptain\DocumentNumbers::labels() as $kind => $label ) {
+			$keys = array( 'pattern' => $kind . '_number_pattern', 'digits' => $kind . '_number_digits', 'start' => $kind . '_number_start', 'yearly' => $kind . '_number_yearly' );
+			echo '<tr><th scope="row">' . esc_html( $label ) . '</th>';
+			echo '<td><input type="text" id="' . esc_attr( 'wpcap-set-' . $keys['pattern'] ) . '" name="' . esc_attr( $keys['pattern'] ) . '" size="24" maxlength="60" value="' . esc_attr( (string) ( $values[ $keys['pattern'] ] ?? '' ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['pattern'] ]['label'] ) . '"></td>';
+			echo '<td><input type="number" id="' . esc_attr( 'wpcap-set-' . $keys['digits'] ) . '" name="' . esc_attr( $keys['digits'] ) . '" min="1" max="' . esc_attr( (string) \PassCaptain\DocumentNumbers::MAX_DIGITS ) . '" class="small-text" value="' . esc_attr( (string) (int) ( $values[ $keys['digits'] ] ?? 6 ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['digits'] ]['label'] ) . '"></td>';
+			echo '<td><input type="number" id="' . esc_attr( 'wpcap-set-' . $keys['start'] ) . '" name="' . esc_attr( $keys['start'] ) . '" min="0" max="999999999" class="small-text" value="' . esc_attr( (string) (int) ( $values[ $keys['start'] ] ?? 0 ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['start'] ]['label'] ) . '"></td>';
+			echo '<td><input type="checkbox" id="' . esc_attr( 'wpcap-set-' . $keys['yearly'] ) . '" name="' . esc_attr( $keys['yearly'] ) . '" value="1"' . checked( ! empty( $values[ $keys['yearly'] ] ), true, false ) . ' aria-label="' . esc_attr( (string) $def['fields'][ $keys['yearly'] ]['label'] ) . '"></td>';
+			echo '<td><code>' . esc_html( \PassCaptain\DocumentNumbers::preview( $kind ) ) . '</code></td></tr>';
+			foreach ( $keys as $key ) {
+				if ( isset( self::$field_errors[ $key ] ) ) { echo '<tr><td></td><td colspan="5" class="wpcap-field-error"><strong>' . esc_html( self::$field_errors[ $key ] ) . '</strong></td></tr>'; }
+			}
+		}
+		echo '</tbody></table>';
+		echo '<p class="description">' . esc_html__( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ) . ' ' . esc_html__( 'Die Präfixe stehen bei den Rechnungsdaten, an der Kasse und bei den Partnern. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat.', 'pass-captain' ) . '</p>';
+	}
+
+	/**
+	 * SET-PC-37: DATEV accounts as one table – chart, revenue account and BU key per VAT rate, revenue
+	 * account of all other rates, money account (datev_contra_account) and money account per payment method
+	 * (datev_accounts). Empty cells show the account of the chart as placeholder.
+	 *
+	 * @param array $def    Section definition.
+	 * @param array $values Current settings.
+	 */
+	public static function render_datev_table( array $def, array $values ) {
+		$chart = (string) ( $values['datev_chart'] ?? 'skr03' );
+		$base = \PassCaptain\DatevAccounts::chart_defaults( $chart );
+		$stored = \PassCaptain\DatevAccounts::normalize( is_array( $values['datev_accounts'] ?? null ) ? $values['datev_accounts'] : array() );
+		$account = static function ( $name, $value, $placeholder, $label, $id = '' ) {
+			return '<input type="text" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" size="9"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" placeholder="' . esc_attr( (string) $placeholder ) . '" aria-label="' . esc_attr( $label ) . '">';
+		};
+		echo '<p><label for="wpcap-set-datev_chart">' . esc_html( (string) $def['fields']['datev_chart']['label'] ) . '</label> ';
+		Forms::select( 'datev_chart', $def['fields']['datev_chart']['options'], $chart, 'wpcap-set-datev_chart' );
+		echo '</p>';
+		echo '<table class="widefat striped wpcap-datev-table"><thead><tr><th scope="col">' . esc_html__( 'Buchung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Steuersatz (%)', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konto', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'BU-Schlüssel', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		$rates = array_values( array_unique( array_merge( array_keys( $base['revenue'] ), array( 0 ), array_keys( $stored['revenue'] ), array_keys( $stored['bu_keys'] ) ) ) );
+		$rows = array_merge( $rates, array( null, null ) ); // Two empty rows for further rates.
+		foreach ( $rows as $i => $rate_bp ) {
+			$rate_label = null === $rate_bp ? __( 'weiterer Steuersatz', 'pass-captain' ) : Forms::percent_input( (int) $rate_bp ) . ' %';
+			echo '<tr><th scope="row">' . esc_html__( 'Erlöse', 'pass-captain' ) . '</th><td>';
+			echo '<input type="text" inputmode="decimal" size="6" name="' . esc_attr( 'datev_accounts[rates][' . $i . '][rate]' ) . '" value="' . esc_attr( null === $rate_bp ? '' : Forms::percent_input( (int) $rate_bp ) ) . '" aria-label="' . esc_attr__( 'Steuersatz (%)', 'pass-captain' ) . '">';
+			echo '</td><td>' . $account( 'datev_accounts[rates][' . $i . '][account]', null === $rate_bp ? '' : ( $stored['revenue'][ $rate_bp ] ?? '' ), null === $rate_bp ? $base['revenue_default'] : ( $base['revenue'][ $rate_bp ] ?? $base['revenue_default'] ), sprintf( /* translators: %s: VAT rate */ __( 'Erlöskonto %s', 'pass-captain' ), $rate_label ) ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+			echo '<td><input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" size="5" name="' . esc_attr( 'datev_accounts[rates][' . $i . '][bu]' ) . '" value="' . esc_attr( null === $rate_bp ? '' : ( $stored['bu_keys'][ $rate_bp ] ?? '' ) ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: VAT rate */ __( 'BU-Schlüssel %s', 'pass-captain' ), $rate_label ) ) . '"></td></tr>';
+		}
+		echo '<tr><th scope="row">' . esc_html__( 'Erlöse', 'pass-captain' ) . '</th><td>' . esc_html__( 'alle übrigen Sätze', 'pass-captain' ) . '</td><td>' . $account( 'datev_accounts[revenue_default]', $stored['revenue_default'], $base['revenue_default'], __( 'Erlöskonto für alle übrigen Sätze', 'pass-captain' ) ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo '<tr><th scope="row">' . esc_html__( 'Geldkonto', 'pass-captain' ) . '</th><td>' . esc_html__( 'alle Zahlungsarten', 'pass-captain' ) . '</td><td>' . $account( 'datev_contra_account', (string) ( $values['datev_contra_account'] ?? '' ), $base['contra'], (string) $def['fields']['datev_contra_account']['label'], 'wpcap-set-datev_contra_account' ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		$providers = array();
+		foreach ( Registry::all() as $provider_id => $gateway ) { $providers[ (string) $provider_id ] = $gateway->title(); }
+		foreach ( array_keys( $stored['contra_by_provider'] ) as $provider_id ) { $providers += array( (string) $provider_id => (string) $provider_id ); }
+		foreach ( $providers as $provider_id => $title ) {
+			echo '<tr><th scope="row">' . esc_html__( 'Geldkonto', 'pass-captain' ) . '</th><td>' . esc_html( $title ) . ' <code>' . esc_html( $provider_id ) . '</code></td><td>' . $account( 'datev_accounts[contra_by_provider][' . $provider_id . ']', $stored['contra_by_provider'][ $provider_id ] ?? '', preg_match( '/^\d{4,8}$/', (string) ( $values['datev_contra_account'] ?? '' ) ) ? (string) $values['datev_contra_account'] : $base['contra'], sprintf( /* translators: %s: payment method */ __( 'Geldkonto %s', 'pass-captain' ), $title ) ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		}
+		echo '</tbody></table>';
+		foreach ( array( 'datev_chart', 'datev_contra_account', 'datev_accounts' ) as $key ) {
+			if ( isset( self::$field_errors[ $key ] ) ) { echo '<p class="wpcap-field-error" id="' . esc_attr( 'wpcap-set-' . $key . '-error' ) . '"><strong>' . esc_html( self::$field_errors[ $key ] ) . '</strong></p>'; }
+		}
+		echo '<p class="description" id="wpcap-set-datev_accounts">' . esc_html( (string) $def['fields']['datev_accounts']['description'] ) . '</p>';
+	}
+
 	/** Service fee tax rate fallback: '' or a percent ("19", "7,7"); invalid input is refused. */
 	public static function sanitize_fee_tax_rate( $value ) {
 		$value = trim( (string) $value );
@@ -260,6 +344,16 @@ final class SettingsPage {
 					'withdrawal_right_text' => array( 'type' => 'html', 'label' => __( 'Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)', 'pass-captain' ), 'description' => __( 'Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen.', 'pass-captain' ) ),
 				),
 			),
+			// SET-PC-18: minimum age as a rule (ticket types keep their own min_age, A614).
+			'min_age' => array(
+				'title' => __( 'Mindestalter', 'pass-captain' ),
+				'tab' => 'legal',
+				'fields' => array(
+					'default_min_age' => array( 'type' => 'int', 'label' => __( 'Mindestalter für neue Ticketarten', 'pass-captain' ), 'min' => 0, 'max' => 99, 'description' => __( '0 = keines. Wird beim Anlegen einer Ticketart vorausgefüllt und kann dort geändert werden; bestehende Ticketarten bleiben unverändert.', 'pass-captain' ) ),
+					'min_age_checkbox' => array( 'type' => 'bool', 'label' => __( 'Alter im Checkout bestätigen lassen', 'pass-captain' ), 'description' => __( 'Hat eine bestellte Ticketart ein Mindestalter, müssen Käufer im eigenen Checkout bestätigen, dass alle Ticketinhaber alt genug sind; der Server prüft die Bestätigung. Ob und wie das Alter zu prüfen ist, hängt vom Land ab (Jugendschutz) – rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'min_age_notice_text' => array( 'type' => 'text', 'label' => __( 'Text der Altersbestätigung', 'pass-captain' ), 'description' => __( 'Leer = eingebauter Text in der Sprache der Käufer. Platzhalter {min_age} = höchstes Mindestalter der Bestellung. Übersetzungen unter „Rechtstexte je Sprache“.', 'pass-captain' ) ),
+				),
+			),
 			'refunds' => array(
 				'title' => __( 'Erstattungen', 'pass-captain' ),
 				'tab' => 'general',
@@ -400,8 +494,38 @@ final class SettingsPage {
 					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €, CH: 400 CHF)', 'pass-captain' ), 'description' => __( 'Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die Nummer von Storno- und Korrekturbelegen.', 'pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ), 'description' => __( 'Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab.', 'pass-captain' ) ),
-					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts.', 'pass-captain' ) ),
-					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ) ),
+					// SET-PC-15: lines with an occurrence always carry its date.
+					'invoice_service_date_fallback' => array(
+						'type' => 'choice',
+						'label' => __( 'Leistungsdatum für Positionen ohne Termin', 'pass-captain' ),
+						'options' => array(
+							'none' => __( 'kein Leistungsdatum (bisheriges Verhalten)', 'pass-captain' ),
+							'payment' => __( 'Zahlungsdatum', 'pass-captain' ),
+							'valid_from' => __( 'Gültigkeitsbeginn', 'pass-captain' ),
+							'period' => __( 'Gültigkeitszeitraum', 'pass-captain' ),
+						),
+						'description' => __( 'Gilt für neue Rechnungen mit Positionen ohne Veranstaltungstermin (z. B. Pässe, Gutscheine, Gebühren). Gültigkeitsbeginn und -zeitraum kommen von der Position; fehlen sie, gilt das Zahlungsdatum. Rechtlich prüfen lassen, welches Datum in deinem Land als Leistungsdatum gilt.', 'pass-captain' ),
+					),
+				),
+			),
+			// SET-PC-03: number patterns of the document sequences (table, see render_number_table()).
+			'numbers' => array(
+				'title' => __( 'Nummernkreise', 'pass-captain' ),
+				'tab' => 'invoices',
+				'description' => __( 'Muster mit den Platzhaltern {prefix}, {year}, {yy} und {number}. Nummern bleiben fortlaufend und lückenlos; eine Änderung gilt ab der nächsten Nummer, vergebene Nummern werden nie wiederverwendet. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden. Rechtlich prüfen lassen, bevor du ein Muster im laufenden Jahr änderst.', 'pass-captain' ),
+				'render' => array( __CLASS__, 'render_number_table' ),
+				'fields' => self::number_fields(),
+			),
+			// SET-PC-37: DATEV accounts as one table (see render_datev_table()).
+			'datev' => array(
+				'title' => __( 'DATEV-Buchungsstapel', 'pass-captain' ),
+				'tab' => 'invoices',
+				'description' => __( 'Leere Felder übernehmen das Konto des Kontenrahmens. Kontonummern mit 4 bis 8 Ziffern, BU-Schlüssel mit 1 bis 4 Ziffern. Die Konten bitte mit der Steuerberatung abstimmen. Der Filter wpcap_datev_accounts hat weiterhin das letzte Wort.', 'pass-captain' ),
+				'render' => array( __CLASS__, 'render_datev_table' ),
+				'fields' => array(
+					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Bestimmt die Standardkonten; leere Felder der Tabelle übernehmen sie.', 'pass-captain' ) ),
+					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DatevAccounts::class, 'sanitize_contra' ) ),
+					'datev_accounts' => array( 'type' => 'group', 'label' => __( 'DATEV-Konten je Steuersatz und Zahlungsart', 'pass-captain' ), 'description' => __( 'Erlöskonto und BU-Schlüssel je Steuersatz, Erlöskonto für alle übrigen Sätze und Geldkonto je Zahlungsart. Leer = Konten des Kontenrahmens.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DatevAccounts::class, 'sanitize' ) ),
 				),
 			),
 			'security' => array(
@@ -721,6 +845,11 @@ final class SettingsPage {
 					case 'modules':
 						$values[ $key ] = array_map( 'strval', is_array( $raw ) ? array_filter( $raw, 'is_scalar' ) : array() );
 						break;
+					case 'group':
+						// SET-PC-37: a table of sub-values; checked by the field's sanitize callback below.
+						if ( ! is_array( $raw ) ) { break; } // Not in the form: keep the stored value.
+						$values[ $key ] = $raw;
+						break;
 					case 'textarea':
 						$values[ $key ] = Forms::textarea( $in, $key, 5000 );
 						break;
@@ -818,14 +947,16 @@ final class SettingsPage {
 		foreach ( is_array( $raw ) ? $raw : array() as $locale => $texts ) {
 			$locale = Mailer::normalize_locale( (string) $locale );
 			if ( '' === $locale || $locale === $default || ! is_array( $texts ) ) { continue; }
-			foreach ( Settings::LEGAL_KEYS as $key ) {
-				$text = isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) ? trim( wp_kses_post( (string) $texts[ $key ] ) ) : '';
+			foreach ( Settings::TEXT_KEYS as $key ) {
+				$raw_text = isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) ? (string) $texts[ $key ] : '';
+				// Legal texts keep their formatting; short checkout texts (SET-PC-18) are plain text.
+				$text = in_array( $key, Settings::LEGAL_KEYS, true ) ? trim( wp_kses_post( $raw_text ) ) : \PassCaptain\Text::cut( trim( sanitize_text_field( $raw_text ) ), 500 );
 				if ( '' !== $text ) { $out[ $locale ][ $key ] = $text; }
 			}
 		}
 		$new_locale = Mailer::normalize_locale( is_scalar( $new_locale ) ? trim( (string) $new_locale ) : '' );
 		if ( '' !== $new_locale && $new_locale !== $default && ! isset( $out[ $new_locale ] ) ) {
-			$out[ $new_locale ] = array_fill_keys( Settings::LEGAL_KEYS, '' );
+			$out[ $new_locale ] = array_fill_keys( Settings::TEXT_KEYS, '' );
 		}
 		ksort( $out );
 		return $out;
@@ -953,6 +1084,9 @@ final class SettingsPage {
 			<?php if ( 'legal' === $id ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: locale code */ __( 'Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung.', 'pass-captain' ), Settings::legal_default_locale() ) ); ?></p>
 			<?php endif; ?>
+			<?php if ( isset( $def['render'] ) && is_callable( $def['render'] ) ) : // SET-PC-03/-37: sections shown as one table. ?>
+				<?php call_user_func( $def['render'], $def, $values ); ?>
+			<?php else : ?>
 			<table class="form-table"><tbody>
 			<?php foreach ( $def['fields'] as $key => $field ) : ?>
 				<tr>
@@ -961,8 +1095,9 @@ final class SettingsPage {
 				</tr>
 			<?php endforeach; ?>
 			</tbody></table>
-			<?php if ( 'legal' === $id ) { self::render_legal_translations(); } ?>
+			<?php endif; ?>
 		<?php endforeach; ?>
+		<?php if ( isset( $sections['legal'] ) ) { self::render_legal_translations(); } // After every section of the tab: it also holds the age confirmation text (SET-PC-18). ?>
 		<?php submit_button( __( 'Einstellungen speichern', 'pass-captain' ) ); ?>
 		</form>
 		<?php if ( 'privacy' === $tab ) { self::render_retention_overview(); } ?>
@@ -1147,6 +1282,12 @@ final class SettingsPage {
 				}
 				echo '</td></tr>';
 			}
+			// SET-PC-18: label of the age confirmation in this language (plain text, not part of the contract version).
+			$field_id = 'wpcap-legal-' . $locale . '-min_age_notice_text';
+			echo '<tr><th scope="row"><label for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Text der Altersbestätigung', 'pass-captain' ) . '</label></th><td>';
+			echo '<input type="text" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( 'legal_texts[' . $locale . '][min_age_notice_text]' ) . '" class="large-text" maxlength="500" value="' . esc_attr( isset( $texts['min_age_notice_text'] ) && is_scalar( $texts['min_age_notice_text'] ) ? (string) $texts['min_age_notice_text'] : '' ) . '">';
+			echo '<p class="description">' . esc_html__( 'Leer: es gilt der Text der Standardsprache bzw. der eingebaute Text. Platzhalter {min_age} = Mindestalter.', 'pass-captain' ) . '</p>';
+			echo '</td></tr>';
 			echo '</tbody></table>';
 			if ( '' !== Settings::terms_version( $locale ) ) {
 				/* translators: 1: locale code, 2: version hash */

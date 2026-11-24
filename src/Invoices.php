@@ -85,7 +85,8 @@ final class Invoices {
 		$tax_notes = Sales\TaxProfiles::invoice_notes( $items );
 		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
 		// PASS-INV-15: service date (start/end, local date of the occurrence) per invoice line, in line order.
-		$snapshot['service_dates'] = array_map( array( __CLASS__, 'service_dates_of' ), array_values( $items ) );
+		// SET-PC-15: lines without an occurrence follow the setting invoice_service_date_fallback (default: no date).
+		$snapshot['service_dates'] = array_map( static function ( $item ) use ( $order ) { return self::line_service_dates( $item, $order ); }, array_values( $items ) );
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => Clock::mysql(), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -743,6 +744,44 @@ final class Invoices {
 		return array( 'start' => $start, 'end' => '' !== $end && $end >= $start ? $end : $start );
 	}
 
+	/**
+	 * Service date of an invoice line with the fallback for lines without an occurrence (SET-PC-15, setting
+	 * invoice_service_date_fallback): 'none' keeps the empty date (former behaviour), 'payment' takes the
+	 * payment date of the order, 'valid_from' the start of validity of the line and 'period' its validity
+	 * period (valid_from/valid_until of the item, e.g. set by an add-on through wpcap_invoice_items: UTC
+	 * datetime or local date Y-m-d). Without validity data both fall back to the payment date.
+	 *
+	 * @param object|array $item  Invoice item (starts_at, ends_at, timezone, optional valid_from, valid_until).
+	 * @param object|null  $order Order row (paid_at).
+	 * @return array{start:string,end:string}
+	 */
+	public static function line_service_dates( $item, $order = null ) {
+		$dates = self::service_dates_of( $item );
+		if ( '' !== $dates['start'] ) { return $dates; }
+		$mode = (string) Settings::get( 'invoice_service_date_fallback', 'none' );
+		if ( ! in_array( $mode, array( 'payment', 'valid_from', 'period' ), true ) ) { return $dates; }
+		$item = (object) $item;
+		$tz = (string) ( $item->timezone ?? '' );
+		$day = static function ( $value, $zone ) {
+			$value = trim( (string) $value );
+			if ( '' === $value || 0 === strpos( $value, '0000-00-00' ) ) { return ''; }
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) { return $value; }
+			$time = strtotime( $value . ' UTC' );
+			return false === $time ? '' : wp_date( 'Y-m-d', $time, $zone );
+		};
+		try {
+			$zone = '' !== $tz ? new \DateTimeZone( $tz ) : Frontend\Format::site_timezone();
+		} catch ( \Exception $e ) {
+			$zone = Frontend\Format::site_timezone();
+		}
+		$paid_at = is_object( $order ) && '' !== (string) ( $order->paid_at ?? '' ) ? (string) $order->paid_at : Clock::mysql();
+		$paid = $day( $paid_at, Frontend\Format::site_timezone() ); // Payment date in the site timezone.
+		$from = $day( $item->valid_from ?? '', $zone );
+		if ( 'payment' === $mode || '' === $from ) { return array( 'start' => $paid, 'end' => $paid ); }
+		$until = 'period' === $mode ? $day( $item->valid_until ?? '', $zone ) : '';
+		return array( 'start' => $from, 'end' => '' !== $until && $until >= $from ? $until : $from );
+	}
+
 	private static function local_ymd( $utc, $timezone ) {
 		try {
 			$zone = new \DateTimeZone( '' !== $timezone ? $timezone : wp_timezone_string() );
@@ -788,17 +827,17 @@ final class Invoices {
 		global $wpdb;
 		// Year of the invoice date in the site timezone (an invoice issued on 1 January 00:30 local time belongs to the new year).
 		$year = $year ? absint( $year ) : self::local_year();
-		$table = $wpdb->prefix . 'wpcap_invoice_sequences';
 		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (year,next_number) VALUES (%d,1)', $table, $year ) );
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE year=%d FOR UPDATE', $table, $year ) );
-		if ( ! $row ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
-		$number = (int) $row->next_number;
-		$updated = $wpdb->update( $table, array( 'next_number' => $number + 1 ), array( 'year' => $year ), array( '%d' ), array( '%d' ) );
-		if ( false === $updated ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
+		// SET-PC-03: counter (yearly or continuous), start number and pattern from the settings; defaults = former format.
+		$number = DocumentNumbers::reserve( $wpdb->prefix . 'wpcap_invoice_sequences', null, $year, DocumentNumbers::config( 'invoice' ) );
+		if ( false === $number ) {
+			if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); }
+			return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) );
+		}
 		if ( ! $in_transaction ) { $wpdb->query( 'COMMIT' ); }
-		$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) Settings::get( 'invoice_prefix' ) ) ?: 'WPC';
-		return sprintf( '%s-%d-%06d', $prefix, $year, $number );
+		$formatted = DocumentNumbers::format( 'invoice', DocumentNumbers::prefix_of( 'invoice' ), $year, $number );
+		DocumentNumbers::record_pending_skip( 'invoice', $formatted );
+		return $formatted;
 	}
 
 	/** Current year in the site timezone. */
@@ -838,13 +877,14 @@ final class Invoices {
 			return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		};
 		if ( ! $in_transaction && false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
-		if ( false === $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (series,year,next_number) VALUES (%s,%d,1)', $table, $series, $year ) ) ) { return $failed(); }
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE series=%s AND year=%d FOR UPDATE', $table, $series, $year ) );
-		if ( ! $row ) { return $failed(); }
-		$number = (int) $row->next_number;
-		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d', $table, $number + 1, $series, $year, $number ) ) ) { return $failed(); }
+		// SET-PC-03: pattern, padding, start number and yearly restart per kind (organizer ranges: fixed format).
+		$kind = DocumentNumbers::kind_of_series( $series );
+		$number = DocumentNumbers::reserve( $table, $series, $year, DocumentNumbers::config( $kind ) );
+		if ( false === $number ) { return $failed(); }
 		if ( ! $in_transaction && false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
-		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
+		$formatted = DocumentNumbers::format( $kind, preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number, $series );
+		DocumentNumbers::record_pending_skip( $kind, $formatted );
+		return $formatted;
 	}
 
 	/**
@@ -1392,15 +1432,8 @@ final class Invoices {
 	 * @return array{revenue: array<int,string>, revenue_default: string, bu_keys: array<int,string>, contra: string, contra_by_provider: array<string,string>}
 	 */
 	public static function datev_accounts() {
-		$skr04 = 'skr04' === (string) Settings::get( 'datev_chart', 'skr03' );
-		$contra = preg_replace( '/\D/', '', (string) Settings::get( 'datev_contra_account', '' ) );
-		$defaults = array(
-			'revenue' => $skr04 ? array( 1900 => '4400', 700 => '4300' ) : array( 1900 => '8400', 700 => '8300' ),
-			'revenue_default' => $skr04 ? '4200' : '8200',
-			'bu_keys' => array(),
-			'contra' => strlen( $contra ) >= 4 && strlen( $contra ) <= 8 ? $contra : ( $skr04 ? '1460' : '1360' ),
-			'contra_by_provider' => array(),
-		);
+		// SET-PC-37: chart, money account and the own accounts of the settings table (empty = the chart).
+		$defaults = DatevAccounts::effective();
 		/**
 		 * Accounts of the DATEV-style booking batch (docs/OPERATIONS.md "Buchungsstapel").
 		 *
@@ -1488,25 +1521,30 @@ final class Invoices {
 
 	/**
 	 * Missing numbers per number range (prefix and year) in a list of document numbers
-	 * ("PREFIX-YYYY-000123"); a range is checked from its lowest to its highest number.
+	 * ("PREFIX-YYYY-000123", or a number pattern that issued numbers, SET-PC-03); a range is checked from
+	 * its lowest to its highest number. Numbers skipped on purpose (start number raised) are left out.
 	 *
 	 * @param string[] $numbers Document numbers.
-	 * @return array<string,string[]> "PREFIX-YYYY" => missing numbers (formatted like the documents).
+	 * @return array<string,string[]> "PREFIX-YYYY" (or the pattern with "#" for the number) => missing numbers
+	 *                                (formatted like the documents).
 	 */
 	public static function number_gaps( array $numbers ) {
 		$ranges = array();
+		$templates = array();
 		foreach ( $numbers as $number ) {
-			if ( preg_match( '/^(.+)-(\d{4})-(\d{6,})$/', (string) $number, $m ) ) {
-				$ranges[ $m[1] . '-' . $m[2] ][] = (int) $m[3];
-			}
+			$parsed = DocumentNumbers::parse( (string) $number );
+			if ( null === $parsed ) { continue; }
+			$ranges[ $parsed['range'] ][] = $parsed['number'];
+			$templates[ $parsed['range'] ] = array( $parsed['template'], $parsed['digits'] );
 		}
 		ksort( $ranges );
 		$out = array();
 		foreach ( $ranges as $range => $seq ) {
 			$present = array_flip( $seq );
 			$missing = array();
+			list( $template, $digits ) = $templates[ $range ];
 			for ( $n = min( $seq ), $max = max( $seq ); $n <= $max && count( $missing ) < 1000; $n++ ) {
-				if ( ! isset( $present[ $n ] ) ) { $missing[] = sprintf( '%s-%06d', $range, $n ); }
+				if ( ! isset( $present[ $n ] ) && ! DocumentNumbers::skipped( $range, $n ) ) { $missing[] = sprintf( $template, str_pad( (string) $n, $digits, '0', STR_PAD_LEFT ) ); }
 			}
 			if ( $missing ) { $out[ $range ] = $missing; }
 		}
@@ -1534,7 +1572,9 @@ final class Invoices {
 		$numbers = array_filter(
 			$numbers,
 			static function ( $n ) use ( $first, $last ) {
-				return preg_match( '/-(\d{4})-\d{6,}$/', (string) $n, $m ) && (int) $m[1] >= $first && (int) $m[1] <= $last;
+				// Numbers of a pattern without year (continuous counter) are kept; the issue dates already bound them.
+				$parsed = DocumentNumbers::parse( (string) $n );
+				return null !== $parsed && ( 0 === $parsed['year'] || ( $parsed['year'] >= $first && $parsed['year'] <= $last ) );
 			}
 		);
 		return self::number_gaps( $numbers );

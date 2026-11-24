@@ -1478,6 +1478,16 @@ innerhalb der Belegtransaktion vergeben; ein abgebrochener Beleg gibt seine Numm
 Die Berichtsseite prüft die Nummernkreise der Jahre des Zeitraums und warnt bei Lücken
 (`Invoices::document_gaps()`, z. B. nach manuellem Löschen in der Datenbank).
 
+**Nummernmuster (SET-PC-03)**: Einstellungen → Rechnungen → „Nummernkreise“ legt je Belegart (Rechnungen,
+Rechnungskorrekturen, Kassenbons, Partner-Abrechnungen, Gutschriften) das Muster mit `{prefix}`, `{year}`, `{yy}`
+und `{number}`, die Stellenzahl, eine Startnummer und den jährlichen Neubeginn fest. Standard ist das bisherige
+Format `PRÄFIX-JJJJ-000123` mit Neubeginn je Jahr. Eine Änderung gilt ab der nächsten Nummer; der Zähler wird nie
+zurückgesetzt, vergebene Nummern werden nicht wiederverwendet. Ohne `{year}`/`{yy}` läuft der Zähler über die Jahre
+weiter. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden; die übersprungenen Nummern
+werden protokolliert (Audit `document_numbers_skipped`) und von der Lückenprüfung nicht gemeldet. Die Lückenprüfung
+liest auch Nummern früherer Muster. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat.
+Filter: `wp_pass_captain_invoice_number_v1`. Musterwechsel im laufenden Jahr bitte vorher rechtlich prüfen lassen.
+
 **Abstimmung mit dem Umsatzbericht**: Die Summe `Brutto` (bzw. `USt`) aller Zeilen eines Zeitraums entspricht
 „Umsatz nach Erstattungen“ (bzw. „davon USt“) des Berichts für denselben Zeitraum, sofern Rechnungen am Tag
 der Bestellung und Rechnungskorrekturen am Tag der Erstattung ausgestellt wurden (automatische Rechnungen) –
@@ -1500,9 +1510,10 @@ stimmt daher immer mit ihm überein.
   `Soll/Haben-Kennzeichen` (`S` = Verkauf, `H` = Rechnungskorrektur/Erstattung), `WKZ Umsatz`, `Konto`
   (Geldkonto), `Gegenkonto (ohne BU-Schlüssel)` (Erlöskonto), `BU-Schlüssel`, `Belegdatum` (`TTMM`),
   `Belegfeld 1` (Beleg- bzw. Bestellnummer), `Belegfeld 2` (korrigierte Rechnung), `Buchungstext`.
-- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit;
-  darüber hinaus anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
-  je Satz).
+- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit.
+  Die Tabelle „DATEV-Buchungsstapel“ (SET-PC-37) nimmt je Steuersatz ein eigenes Erlöskonto und einen BU-Schlüssel, ein
+  Erlöskonto für alle übrigen Sätze und ein Geldkonto je Zahlungsart auf (Einstellung `datev_accounts`; leere Felder =
+  Konten des Kontenrahmens). Der Filter `wpcap_datev_accounts` hat weiterhin das letzte Wort.
 - Belege im Vermittlermodell sind Umsatz des Veranstalters und werden nicht gebucht (Provision über die
   Partnerabrechnung).
 - Kodierung Windows-1252 ohne BOM, Semikolon. Der Stapel enthält **keinen** EXTF-Vorlaufsatz; er ist für den

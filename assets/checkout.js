@@ -952,6 +952,8 @@
 			campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
 			provider: provider ? provider.value : 'manual',
 			accept_terms: terms ? terms.checked : false,
+			// SET-PC-18: age confirmation (only on cards with a minimum age; the server checks the ordered lines).
+			confirm_age: !!(form.querySelector('[name="confirm_age"]') && form.querySelector('[name="confirm_age"]').checked),
 			terms_version: termsVersion ? termsVersion.value : '',
 			locale: formLocale ? formLocale.value : '',
 			buyer_locale: buyerLocale ? buyerLocale.value : '',

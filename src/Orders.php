@@ -82,6 +82,7 @@ final class Orders {
 		// Checks before the transaction: the first one that has a result (error or reused order) ends the attempt.
 		$early = self::checkout_existing_order( $s )
 			?? self::checkout_clean_lines( $s )
+			?? self::checkout_age_confirmation( $s )
 			?? self::checkout_buyer_checks( $s )
 			?? self::checkout_prepare_transaction( $s );
 		if ( null !== $early ) { return $early; }
@@ -239,6 +240,19 @@ final class Orders {
 	}
 
 	/** A401: create_attempt() part: checkout gate, attendees, consents, billing data and add-on vetoes. WP_Error, or null to go on. */
+	/**
+	 * SET-PC-18: with the setting min_age_checkbox the buyer of the own online checkout confirms the minimum
+	 * age when a line has one (payload confirm_age). Channels with their own namespace (box office, waitlist
+	 * offers), trusted adapters and guest lists are not asked. WP_Error, or null to go on.
+	 */
+	private static function checkout_age_confirmation( Orders\CheckoutState $s ) {
+		if ( $s->external || $s->comp || '' !== $s->namespace ) { return null; }
+		$min_age = AdmissionChecks::confirmation_age( array_keys( $s->clean_lines ) );
+		if ( $min_age < 1 || Http::accepted( $s->payload['confirm_age'] ?? null ) ) { return null; }
+		/* translators: %d: minimum age in years */
+		return new \WP_Error( 'wpcap_age_confirmation_required', sprintf( __( 'Bitte bestätige, dass alle Ticketinhaber mindestens %d Jahre alt sind.', 'pass-captain' ), $min_age ), array( 'status' => 400, 'min_age' => $min_age ) );
+	}
+
 	private static function checkout_buyer_checks( Orders\CheckoutState $s ) {
 		// Add-on gate (e.g. virtual waiting room) for public checkouts only: not for channels with their own
 		// namespace (box office, waitlist offers) or trusted adapters (WooCommerce, vouchers). Sales\CheckoutGate.
