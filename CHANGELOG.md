@@ -25,6 +25,13 @@
 - Bot-Schutz im Bestellformular (`checkout_bot_check`, `checkout_min_fill_seconds`).
 - Systemstatus → Betrieb: offene Überweisungsbestellungen gesammelt freigeben (wirkt wie Ablauf der Reservierung, auditiert).
 
+### Verträge und Länderprofile (Prüfrunde P3/P5/P6)
+- Öffentliche Schnittstelle 1.3: `POST /orders/link-request` und optionaler Checkout-Parameter `form_guard`; Offline-Vertrag 1.1 (eigene Minor-Version); App-Vertrag in Doku und Fixture auf 1.2.
+- Länderprofile schlagen Währungen vor (CH: CHF, EUR weiter angeboten, Rechnungsadresse ab 400 CHF); rechtlich relevante Werte sind in der Vorschau nicht vorausgewählt.
+- Zahlungsart-Regeln: neue Bedingung `currency=`; Länderbedingungen greifen nur mit bekanntem Rechnungsland.
+- Nettopreise werden auch beim Anlegen eines Events und beim CSV-Import mit dem Steuerprofil umgerechnet; Beträge in Einstellungswerkzeugen und Gutschein-Abgleich formatiert.
+- Barrierefreiheit der Seite „Bestelllink anfordern“, Pluralformen bei der Freigabe offener Überweisungen, Datumsformat der Website im Einstellungsverlauf.
+
 ### Einlass offline
 - Offline-Scanner: „Rückgängig“ erscheint nur noch mit dem Recht `wpcap_undo_checkin`; eine Ablehnung des Servers wird lesbar angezeigt.
 - Offline-Scanner: Check-out (Auslass) auch offline – mit denselben Regeln wie online (Rolle, Bereich, drinnen), synchronisiert über den bestehenden Sammelupload; nicht offline entscheidbare Fälle entscheidet der Server beim Sync. `/app/me` meldet `permissions.check_out`; das Prüfpaket enthält `permissions`, `checkout` und `ticket_types[].own_policy` (abwärtskompatibel).
