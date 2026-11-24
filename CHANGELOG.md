@@ -43,9 +43,11 @@
 ### Einstellungen: Nummernkreise, Leistungsdatum, Mindestalter, DATEV
 - Nummernkreise je Belegart (Rechnung, Korrektur, Kassenbon, Partner-Abrechnung, Gutschrift): Muster, Stellen, Startnummer (nur nach oben, Sprünge protokolliert), Neubeginn je Jahr; Filter `wp_pass_captain_invoice_number_v1`. Nummern bleiben lückenlos und werden nie doppelt vergeben, auch beim Wechsel zwischen fortlaufendem und jährlichem Zähler.
 - Leistungsdatum für Positionen ohne Termin wählbar; Mindestalter als Regel mit Altersbestätigung im eigenen Checkout und Text je Sprache; DATEV-Konten als Tabelle je Steuersatz und Zahlungsart. Standardwerte = bisheriges Verhalten.
+- Wechsel vom fortlaufenden zurück zum jährlichen Zähler vergibt keine Rechnungsnummer doppelt: eine fortlaufende Nummer hebt auch den Jahreszähler ihres Jahres an.
 
 ### Zusatzprodukte (Schema 3.18.5)
 - Ticketart-Art „Zusatzprodukt“ (Parken, Merch …): nur zusammen mit einem Ticket desselben Termins, optional höchstens n je Ticket, ohne Ticket/QR, ohne Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt; `GET /events` liefert `kind` und `addon_max_per_ticket`.
+- Die Eventliste bleibt bei fester Abfragezahl: Veranstalter für den Vertragspartner-Hinweis und Plätze ohne Zusatzprodukte kommen aus gemeinsamen Abfragen statt je Karte.
 
 ### Kasse
 - Hinweis „keine Registrierkasse“ verschwindet bei eingerichteter Fiskalisierung (A257).

@@ -57,7 +57,8 @@ function sm_snapshot( $invoice_id ) {
 }
 function sm_seq( $series ) {
 	global $wpdb;
-	return (int) $wpdb->get_var( $wpdb->prepare( "SELECT next_number FROM {$wpdb->prefix}wpcap_document_sequences WHERE series=%s AND year=%d", $series, Invoices::local_year() ) );
+	// Yearly or continuous counter (year 0), whichever the stored settings use (SET-PC-03).
+	return (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(next_number) FROM {$wpdb->prefix}wpcap_document_sequences WHERE series=%s AND year IN (0,%d)", $series, Invoices::local_year() ) );
 }
 
 echo "Sales models: organizer settings\n";

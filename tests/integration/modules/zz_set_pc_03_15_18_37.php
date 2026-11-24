@@ -50,12 +50,17 @@ check( 'SET-PC-03/-37: number patterns and DATEV table are sections of the invoi
 /* ------------------------------------------------------------------ SET-PC-03: number patterns */
 
 $spx_year = 2091; // A far year: its counter rows belong to this module only.
-$spx_clean_rows = static function () use ( $wpdb, $p, $spx_year ) {
+// Continuous counters of other modules (e.g. box office receipts) stay: removing them would hand out their numbers again.
+$spx_keep_series = array_map( 'strval', (array) $wpdb->get_col( "SELECT series FROM {$p}wpcap_document_sequences WHERE year=0" ) );
+$spx_clean_rows = static function () use ( $wpdb, $p, $spx_year, $spx_keep_series ) {
 	$wpdb->query( "DELETE FROM {$p}wpcap_invoice_sequences WHERE year IN (0," . $spx_year . ',' . ( $spx_year + 1 ) . ',' . ( $spx_year + 2 ) . ')' );
-	$wpdb->query( "DELETE FROM {$p}wpcap_document_sequences WHERE year=0" );
+	$keep = $spx_keep_series ? ' AND series NOT IN (' . implode( ',', array_map( static function ( $series ) use ( $wpdb ) { return $wpdb->prepare( '%s', $series ); }, $spx_keep_series ) ) . ')' : '';
+	$wpdb->query( "DELETE FROM {$p}wpcap_document_sequences WHERE year=0" . $keep ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared list.
 };
 $spx_clean_rows();
 $spx_set = static function ( array $values ) { Settings::update( $values ); Settings::flush(); };
+// Default settings: earlier modules may have saved the settings screen without these checkboxes (= 0).
+$spx_set( array_fill_keys( array( 'invoice_number_yearly', 'credit_number_yearly', 'receipt_number_yearly', 'settlement_number_yearly', 'self_billing_number_yearly' ), 1 ) );
 
 // Default settings: the next number is exactly the former format (old formula next to the new code).
 $spx_old_invoice = static function ( $year ) use ( $wpdb, $p ) {
@@ -63,7 +68,8 @@ $spx_old_invoice = static function ( $year ) use ( $wpdb, $p ) {
 	return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) Settings::get( 'invoice_prefix' ) ) ?: 'WPC', $year, max( 1, $next ) );
 };
 $spx_old_document = static function ( $series, $prefix ) use ( $wpdb, $p ) {
-	$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT next_number FROM {$p}wpcap_document_sequences WHERE series=%s AND year=%d", $series, Invoices::local_year() ) );
+	// A continuous counter of an earlier module is continued above (DocumentNumbers::reserve()).
+	$next = (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(next_number) FROM {$p}wpcap_document_sequences WHERE series=%s AND year IN (0,%d)", $series, Invoices::local_year() ) );
 	return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', Invoices::local_year(), max( 1, $next ) );
 };
 $spx_expected = array( 'invoice' => $spx_old_invoice( Invoices::local_year() ) );
