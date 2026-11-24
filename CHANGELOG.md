@@ -3,10 +3,32 @@
 ## 1.7.0 – 2026-11-23
 
 ### Wichtige Verhaltensänderungen beim Update
+- **Rechte für Einlass, Einlösen und Rücknahme getrennt:** Check-in zurücknehmen (`wpcap_undo_checkin`) und Pässe einlösen (`wpcap_redeem_passes`) sind eigene Capabilities. Beim Update erhalten alle Rollen mit `wpcap_checkin` beide Rechte einmalig; danach bleibt ein Entzug bestehen.
+- **Bot-Schutz im Bestellformular** ist standardmäßig an (Fangfeld, Mindest-Ausfüllzeit 3 Sekunden). Er gilt nur für das eigene Formular der Eventseiten; REST-Integrationen, Partner-API, WooCommerce und Kasse sind nicht betroffen.
+- **Überweisung** wird im Formular nicht mehr angeboten, sobald der bestehende Anteil offener Überweisungen eines Termins (A634, Standard 50 %) erreicht ist; bisher lehnte erst der Checkout ab.
+- **Kundentexte in der Du-Form:** auch der Vorschlag für die Datenschutzerklärung; das Rechnungslabel heißt neutral „Bestell-/Referenznummer des Leistungsempfängers“.
+
 - **Datenbankschema 3.18.4:** Erstattungen speichern erstattete und einbehaltene Servicegebühr mit USt (`fee_minor`, `fee_tax_minor`, `fee_kept_minor`, `fee_kept_tax_minor`).
 - **PC-7:** Kein eigener Workflow-Vertrag mehr im Kern (Entscheidung vom 23.11.2026, Suite-Entscheidungen D13/D10): Filter `wp_pass_captain_workflow_provider_v1`, Workflow-Outbox, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain entfallen; Pass Captain versendet alle Mails selbst. Workflow Captain nutzt die `wpcap_*`-Actions, die Lesefassade `wpcap_get_*_state()` und die neuen Aktionsfunktionen. Die Outbox (`Suite\Outbox`) dient nur noch dem Review-Vertrag; ihre Hooks heißen `wpcap_outbox_*` statt `wpcap_workflow_*`. Ein Wächtertest verhindert die Rückkehr. Der Vertrag wurde nie genutzt und war nur in 1.6.0 veröffentlicht; deshalb bleibt `WPCAP_CONTRACT_VERSION` bei 1.4.0 (Ausnahme von der Regel „Entfernen = neue erste Stelle“, dokumentiert in docs/EXTENSIONS.md).
 - **PC-9:** `wpcap_event_cancelled` feuert jetzt einmal je Absage, nachdem alle Termine abgesagt und alle Tickets widerrufen sind (Argumente `int $event_id, array $context`); bisher direkt nach dem Commit, bevor die Tickets widerrufen waren.
 - **SET-PC-01:** Gespeicherte Einstellungen außerhalb der erlaubten Grenzen oder mit unbekanntem Auswahlwert werden nicht mehr stillschweigend gekappt bzw. ersetzt: Die Einstellungsseite meldet den Fehler und behält den bisherigen Wert.
+
+### Bestellportal und Selbstbedienung
+- Admin: Käufer-E-Mail einer Bestellung ändern (Grund Pflicht, protokolliert, alle bisherigen Bestelllinks werden ungültig, Tickets unter der alten Adresse gehen mit); „Bestelllink erneut senden“ auch für offene und erstattete Bestellungen. Hook `wpcap_order_email_changed`.
+- Öffentliches Formular „Tickets/Bestelllink anfordern“ (`/?wpcap_order_link=1`, REST `POST /orders/link-request`): gleiche Antwort für jede Adresse, Limits je Besucher und Adresse, neue Mailvorlage `order_links`. Abgelaufene oder ungültige Bestelllinks zeigen eine Hilfeseite mit diesem Formular.
+- Bestellportal: Termine der Bestellung als .ics-Datei. Datumsangaben für Käufer im Datums-/Zeitformat der Website.
+
+### Einlass
+- Doppelscan zeigt Zeitpunkt, Eingang und Personal des Ersteinlasses und – mit der Einstellung „Teilnehmernamen anzeigen“ – den Namen. `/app/me` meldet die Rechte der Person (`permissions`).
+
+### Überweisung und Schutz vor Inventar-Blockade
+- Optionale Obergrenze offener Überweisungs-Reservierungen je Veranstaltung (`manual_hold_max_event_tickets`, Standard aus).
+- Bot-Schutz im Bestellformular (`checkout_bot_check`, `checkout_min_fill_seconds`).
+- Systemstatus → Betrieb: offene Überweisungsbestellungen gesammelt freigeben (wirkt wie Ablauf der Reservierung, auditiert).
+
+### Gutscheine
+- Der Gutschein-Snapshot einer Bestellung wird nur noch mit Versionsprüfung geändert; eine späte Zahlung während der Freigabe belastet den Gutschein genau einmal.
+- Systemstatus → Betrieb: „Gutschein-Abgleich“ zeigt Abweichungskandidaten aus Pass-Captain-Sicht; optionaler Filter `wpcap_voucher_reconcile_states` für den Vergleich mit Voucher Captain.
 
 ### Einstellungs-Register (SET-PC-01)
 - Neue Klasse `PassCaptain\SettingsSchema`: beschreibt jeden Wert aus `Settings::defaults()` (Typ, Standard, Grenzen, Seite, Beschriftung, Hilfetext, Rechtsprüfung, geheim, landabhängig) und prüft Werte mit `validate()`. Module liefern ihre Beschreibung über `settings_schema()`; Add-ons über den Filter `wp_pass_captain_settings_schema_v1` (nur neue Schlüssel).
