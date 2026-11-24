@@ -343,7 +343,8 @@ final class PortalSelfService {
 		$p = $wpdb->prefix;
 		// Without $all: dates whose end (or start) is not over; with $all the cut-off lies far in the past.
 		$since = $all ? '1970-01-01 00:00:00' : \PassCaptain\Clock::mysql();
-		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.occurrence_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') AND t.refunded=0 AND COALESCE(o.ends_at,o.starts_at)>=%s ORDER BY o.starts_at LIMIT 100", (int) $order->order_id, $since ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from $wpdb->prefix.
+		// GROUP BY instead of DISTINCT: MySQL refuses ORDER BY on a column outside a DISTINCT select list.
+		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT tt.occurrence_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') AND t.refunded=0 AND COALESCE(o.ends_at,o.starts_at)>=%s GROUP BY tt.occurrence_id ORDER BY MIN(o.starts_at) LIMIT 100", (int) $order->order_id, $since ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from $wpdb->prefix.
 		$rows = array();
 		foreach ( $ids as $occurrence_id ) {
 			$row = Calendar\Ics::published_occurrence( (int) $occurrence_id );
