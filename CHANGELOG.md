@@ -49,6 +49,9 @@
 - Ticketart-Art „Zusatzprodukt“ (Parken, Merch …): nur zusammen mit einem Ticket desselben Termins, optional höchstens n je Ticket, ohne Ticket/QR, ohne Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt; `GET /events` liefert `kind` und `addon_max_per_ticket`.
 - Die Eventliste bleibt bei fester Abfragezahl: Veranstalter für den Vertragspartner-Hinweis und Plätze ohne Zusatzprodukte kommen aus gemeinsamen Abfragen statt je Karte.
 
+### Einwilligungen
+- Eine gemeinsame Karte in der Bestellübersicht; protokollierte Einwilligungsfelder (Typ „Einwilligung“) erscheinen im Bestelldetail mit „Widerruf erfassen“ und im Einwilligungs-CSV des Events; die Ticketseite zeigt sie nicht mehr als Textfeld.
+
 ### Kasse
 - Hinweis „keine Registrierkasse“ verschwindet bei eingerichteter Fiskalisierung (A257).
 - Ohne Netz: Hinweis und gesperrte Verkaufs-, Storno- und Auszahlungsknöpfe, keine Offline-Verkäufe (A527, E-13).
