@@ -176,8 +176,8 @@ final class Page {
 		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
 		<?php
 		$field_keys = Templates::field_keys();
-		/* translators: %s: list of placeholders for participant fields */
-		echo esc_html( ' ' . sprintf( __( 'Teilnehmerfelder: {field:Schlüssel}, z. B. %s.', 'pass-captain' ), $field_keys ? implode( ', ', array_map( static function ( $key, $label ) { return '{field:' . $key . '} (' . $label . ')'; }, array_keys( $field_keys ), $field_keys ) ) : '{field:firma}' ) );
+		/* translators: 1: placeholder pattern for participant fields, e.g. {field:Schlüssel}, 2: list of placeholders for participant fields */
+		echo esc_html( ' ' . sprintf( __( 'Teilnehmerfelder: %1$s, z. B. %2$s.', 'pass-captain' ), '{field:' . _x( 'Schlüssel', 'placeholder name for the key of a participant field', 'pass-captain' ) . '}', $field_keys ? implode( ', ', array_map( static function ( $key, $label ) { return '{field:' . $key . '} (' . $label . ')'; }, array_keys( $field_keys ), $field_keys ) ) : '{field:firma}' ) );
 		?>
 		</p>
 		<fieldset><legend><?php esc_html_e( 'Gestaltung', 'pass-captain' ); ?></legend>
@@ -225,7 +225,10 @@ final class Page {
 		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<?php Forms::open_form( 'wpcap_print_settings' ); ?>
 		<p><label><input type="checkbox" name="print_attach_invoice_pdf" value="1" <?php checked( (bool) Settings::get( 'print_attach_invoice_pdf' ) ); ?>> <?php esc_html_e( 'Rechnung als PDF an die Ticket-E-Mail anhängen (wenn eine Rechnung existiert oder automatische Rechnungen aktiv sind)', 'pass-captain' ); ?></label></p>
-		<p class="description"><?php esc_html_e( 'Download im Backend: admin-post.php?action=wpcap_invoice_pdf&order_id=…; für Käufer über den persönlichen Bestelllink mit ?wpcap_invoice_pdf=<Bestell-ID>&wpcap_access=<Token>.', 'pass-captain' ); ?></p>
+		<p class="description"><?php
+		/* translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token> */
+		echo esc_html( sprintf( __( 'Download im Backend: admin-post.php?action=wpcap_invoice_pdf&order_id=…; für Käufer über den persönlichen Bestelllink mit ?wpcap_invoice_pdf=%1$s&wpcap_access=%2$s.', 'pass-captain' ), '<' . _x( 'Bestell-ID', 'placeholder name for the order ID in a URL', 'pass-captain' ) . '>', '<' . _x( 'Token', 'placeholder name for the access token in a URL', 'pass-captain' ) . '>' ) );
+		?></p>
 		<p><button class="button"><?php esc_html_e( 'Speichern', 'pass-captain' ); ?></button></p></form>
 		<?php endif; ?>
 		</div>
