@@ -736,7 +736,8 @@ final class Queries {
 		if ( ! $tickets ) { return array(); }
 		$ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets );
 		$answers = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', array_merge( array( $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields' ), $ids ) ) ) as $answer ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.field_key,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', array_merge( array( $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields' ), $ids ) ) ) as $answer ) {
+			if ( ! \PassCaptain\Pii::can_view_answer( (string) $answer->field_key, true ) ) { continue; } // PASS-FE-05: rights per field (the data policy decides on all answers).
 			$value = 'checkbox' === $answer->field_type ? ( '1' === (string) $answer->answer ? __( 'Ja', 'pass-captain' ) : __( 'Nein', 'pass-captain' ) ) : $answer->answer;
 			$answers[ (int) $answer->ticket_id ][ $answer->label ] = $value;
 		}
@@ -796,6 +797,8 @@ final class Queries {
 		// A684: date and ticket type filters, sort order of the attendee management.
 		if ( ! empty( $filters['occurrence_id'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $filters['occurrence_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['ticket_type_id'] ) ) { $where .= ' AND t.ticket_type_id=%d'; $args[] = absint( $filters['ticket_type_id'] ); }
+		// PASS-FE-05: one ticket type by name over all dates (the types of each date are their own rows).
+		if ( empty( $filters['ticket_type_id'] ) && isset( $filters['type_name'] ) && '' !== (string) $filters['type_name'] ) { $where .= ' AND tt.name=%s'; $args[] = (string) $filters['type_name']; $needs_occ = true; }
 		$orderby = self::ticket_order( (string) ( $filters['orderby'] ?? '' ), (string) ( $filters['order'] ?? '' ) );
 		if ( false !== strpos( $orderby, 'o.' ) || false !== strpos( $orderby, 'tt.' ) ) { $needs_occ = true; }
 		$name_join = false !== strpos( $orderby, 'ta.' ) ? " LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id" : '';
@@ -830,6 +833,7 @@ final class Queries {
 			'date' => __( 'Nach Termin', 'pass-captain' ),
 			'type' => __( 'Nach Ticketart', 'pass-captain' ),
 			'name' => __( 'Nach Name', 'pass-captain' ),
+			'status' => __( 'Nach Status', 'pass-captain' ), // PASS-FE-05.
 		);
 	}
 
@@ -843,6 +847,8 @@ final class Queries {
 			'date' => 'desc' === $order ? 'o.starts_at DESC, t.ticket_id DESC' : 'o.starts_at ASC, t.ticket_id ASC',
 			'type' => 'tt.name ASC, t.ticket_id ASC',
 			'name' => "COALESCE(NULLIF(ta.attendee_name,''),'~') ASC, t.ticket_id ASC",
+			// PASS-FE-05: status, within a status by date (several dates of an event) and ticket.
+			'status' => "FIELD(t.status,'valid','checked_in','revoked') ASC, t.status ASC, o.starts_at ASC, t.ticket_id ASC",
 		);
 		return $map[ $key ] ?? 't.ticket_id DESC';
 	}

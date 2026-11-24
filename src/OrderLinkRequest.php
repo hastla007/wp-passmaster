@@ -188,6 +188,22 @@ final class OrderLinkRequest {
 	}
 
 	/**
+	 * PASS-FE-04: short form for a customer account (WooCommerce "Mein Konto", order view): requests the order
+	 * portal link for the order's own address with one button. Same request as the public form – the links go
+	 * by mail to the order address only, the account page itself grants no portal access.
+	 *
+	 * @param string $email Order address (customer_email of the core order).
+	 */
+	public static function account_form_html( $email ) {
+		$email = strtolower( trim( sanitize_email( (string) $email ) ) );
+		if ( '' === $email || ! is_email( $email ) || Mail\Mailer::is_placeholder( $email ) ) { return ''; }
+		return '<form method="post" action="' . esc_url( self::url() ) . '" class="wpcap-order-link-request wpcap-account-portal-link"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( 'wpcap_order_link_request' ) ) . '">'
+			. '<input type="hidden" name="wpcap_order_link_email" value="' . esc_attr( $email ) . '"><input type="hidden" name="website" value="">'
+			. '<p>' . esc_html__( 'Teilnehmerangaben ändern, Tickets erneut senden oder übertragen kannst du in der Bestellverwaltung. Den Link dorthin senden wir dir per E-Mail an die Adresse der Bestellung.', 'pass-captain' ) . '</p>'
+			. '<p><button type="submit" class="button">' . esc_html__( 'Link zur Bestellverwaltung per E-Mail anfordern', 'pass-captain' ) . '</button></p></form>';
+	}
+
+	/**
 	 * Request page (form and result).
 	 *
 	 * @param array $post Unslashed POST data.

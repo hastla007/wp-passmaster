@@ -298,8 +298,11 @@ final class TicketsPage {
 	 * dates/types only together with their event, unknown values dropped. A411: "order" (asc/desc) of a
 	 * sorted column header.
 	 *
-	 * @param array $q Raw values (s, event_id, occurrence_id, ticket_type_id, status, orderby, order).
-	 * @return array{search:string,event_id:int,occurrence_id:int,ticket_type_id:int,status:string,orderby:string,order:string}
+	 * PASS-FE-05: "type_name" filters by the name of a ticket type over all dates of the event (only together
+	 * with an event and without a single ticket type).
+	 *
+	 * @param array $q Raw values (s, event_id, occurrence_id, ticket_type_id, type_name, status, orderby, order).
+	 * @return array{search:string,event_id:int,occurrence_id:int,ticket_type_id:int,type_name:string,status:string,orderby:string,order:string}
 	 */
 	public static function filters( array $q ) {
 		$event = absint( $q['event_id'] ?? 0 );
@@ -309,11 +312,13 @@ final class TicketsPage {
 		// A411: the sortable ticket column links orderby=ticket with a direction (newest/oldest).
 		if ( 'ticket' === $orderby ) { $orderby = 'asc' === $order ? 'oldest' : 'newest'; }
 		$orderby = array_key_exists( $orderby, Queries::ticket_orders() ) ? $orderby : 'newest';
+		$type_id = $event ? absint( $q['ticket_type_id'] ?? 0 ) : 0;
 		return array(
 			'search' => trim( sanitize_text_field( (string) ( $q['s'] ?? '' ) ) ),
 			'event_id' => $event,
 			'occurrence_id' => $event ? absint( $q['occurrence_id'] ?? 0 ) : 0,
-			'ticket_type_id' => $event ? absint( $q['ticket_type_id'] ?? 0 ) : 0,
+			'ticket_type_id' => $type_id,
+			'type_name' => $event && ! $type_id ? mb_substr( trim( sanitize_text_field( (string) ( $q['type_name'] ?? '' ) ) ), 0, 190 ) : '',
 			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
 			'orderby' => $orderby,
 			// Only the date order has a second direction (sortable date column); "" = the order's default.
@@ -344,6 +349,41 @@ final class TicketsPage {
 		return $out;
 	}
 
+	/**
+	 * PASS-FE-05: ticket type names of an event over all its dates (name => label), for the filter across dates.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function type_name_options( $event_id ) {
+		global $wpdb;
+		$out = array();
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT tt.name FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d ORDER BY tt.name LIMIT 300', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) ) as $name ) {
+			/* translators: %s: ticket type name */
+			$out[ (string) $name ] = sprintf( __( '%s (alle Termine)', 'pass-captain' ), (string) $name );
+		}
+		return $out;
+	}
+
+	/**
+	 * PASS-FE-05: ticket type and status of the list as filter of the attendee CSV (type_name, status). A chosen
+	 * ticket type of one date is passed by its name; the attendee list holds valid and checked-in tickets only,
+	 * other statuses are not passed.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function csv_filter_args( array $filters ) {
+		global $wpdb;
+		$name = (string) ( $filters['type_name'] ?? '' );
+		if ( ! empty( $filters['ticket_type_id'] ) ) {
+			$name = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT name FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', absint( $filters['ticket_type_id'] ) ) );
+		}
+		$status = (string) ( $filters['status'] ?? '' );
+		return array_filter( array(
+			'type_name' => $name,
+			'status' => in_array( $status, array( 'valid', 'checked_in' ), true ) ? $status : '',
+		) );
+	}
+
 	/** A414: back to the list with search, event, status and page of the action's origin. */
 	private static function back_url( array $in ) {
 		$status = Forms::text( $in, 'return_status', 32 );
@@ -353,6 +393,7 @@ final class TicketsPage {
 			'event_id' => Forms::int( $in, 'return_event' ),
 			'occurrence_id' => Forms::int( $in, 'return_occurrence' ),
 			'ticket_type_id' => Forms::int( $in, 'return_type' ),
+			'type_name' => Forms::text( $in, 'return_type_name', 190 ),
 			'status' => in_array( $status, self::STATUSES, true ) ? $status : '',
 			'orderby' => array_key_exists( $orderby, Queries::ticket_orders() ) && 'newest' !== $orderby ? $orderby : '',
 			'order' => 'date' === $orderby && 'desc' === Forms::text( $in, 'return_order', 4 ) ? 'desc' : '',
@@ -369,6 +410,7 @@ final class TicketsPage {
 		Forms::hidden( 'return_status', (string) $filters['status'] );
 		Forms::hidden( 'return_occurrence', (int) ( $filters['occurrence_id'] ?? 0 ) );
 		Forms::hidden( 'return_type', (int) ( $filters['ticket_type_id'] ?? 0 ) );
+		Forms::hidden( 'return_type_name', (string) ( $filters['type_name'] ?? '' ) );
 		Forms::hidden( 'return_orderby', (string) ( $filters['orderby'] ?? '' ) );
 		Forms::hidden( 'return_order', (string) ( $filters['order'] ?? '' ) );
 		Forms::hidden( 'return_paged', max( 1, (int) $page ) );
@@ -638,6 +680,7 @@ final class TicketsPage {
 			'status' => Forms::query_arg( 'status' ),
 			'occurrence_id' => Forms::query_arg( 'occurrence_id', 0 ),
 			'ticket_type_id' => Forms::query_arg( 'ticket_type_id', 0 ),
+			'type_name' => Forms::query_arg( 'type_name' ),
 			'orderby' => Forms::query_arg( 'orderby' ),
 			'order' => Forms::query_arg( 'order' ),
 		) );
@@ -650,6 +693,7 @@ final class TicketsPage {
 			'event_id' => (int) ( $filters['event_id'] ?? 0 ),
 			'occurrence_id' => (int) ( $filters['occurrence_id'] ?? 0 ),
 			'ticket_type_id' => (int) ( $filters['ticket_type_id'] ?? 0 ),
+			'type_name' => (string) ( $filters['type_name'] ?? '' ),
 			'status' => (string) ( $filters['status'] ?? '' ),
 			'orderby' => 'newest' !== ( $filters['orderby'] ?? 'newest' ) ? (string) $filters['orderby'] : '',
 			'order' => (string) ( $filters['order'] ?? '' ),
@@ -890,16 +934,17 @@ final class TicketsPage {
 			<?php if ( $filters['event_id'] ) : // A684: date and ticket type of the chosen event. ?>
 				<?php Forms::select( 'occurrence_id', array( 0 => __( 'Alle Termine', 'pass-captain' ) ) + self::occurrence_options( (int) $filters['event_id'] ), $filters['occurrence_id'], '', Forms::aria_label( __( 'Termin', 'pass-captain' ) ) ); ?>
 				<?php Forms::select( 'ticket_type_id', array( 0 => __( 'Alle Ticketarten', 'pass-captain' ) ) + self::type_options( (int) $filters['event_id'], (int) $filters['occurrence_id'] ), $filters['ticket_type_id'], '', Forms::aria_label( __( 'Ticketart', 'pass-captain' ) ) ); ?>
+				<?php if ( ! $filters['occurrence_id'] ) { Forms::select( 'type_name', array( '' => __( 'Ticketart über alle Termine', 'pass-captain' ) ) + self::type_name_options( (int) $filters['event_id'] ), $filters['type_name'], '', Forms::aria_label( __( 'Ticketart über alle Termine', 'pass-captain' ) ) ); } // PASS-FE-05. ?>
 			<?php endif; ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<?php Forms::select( 'orderby', Queries::ticket_orders(), $filters['orderby'], '', Forms::aria_label( __( 'Sortierung', 'pass-captain' ) ) ); ?>
 			<?php if ( '' !== $filters['order'] ) { Forms::hidden( 'order', $filters['order'] ); } // A411: direction of the sorted column. ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 			<?php if ( $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::access_level( (int) $filters['occurrence_id'] ) ) : ?>
-				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'occurrence_id' => (int) $filters['occurrence_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV', 'pass-captain' ); ?></a>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'occurrence_id' => (int) $filters['occurrence_id'], 'format' => 'csv' ) + self::csv_filter_args( $filters ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV', 'pass-captain' ); ?></a>
 			<?php endif; ?>
 			<?php if ( $filters['event_id'] && ! $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::event_scope( (int) $filters['event_id'] )['level'] ) : // PASS-FE-05. ?>
-				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'event_id' => (int) $filters['event_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV (alle Termine des Events)', 'pass-captain' ); ?></a>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'event_id' => (int) $filters['event_id'], 'format' => 'csv' ) + self::csv_filter_args( $filters ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV (alle Termine des Events)', 'pass-captain' ); ?></a>
 			<?php endif; ?>
 		</form>
 		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>

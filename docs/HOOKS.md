@@ -648,6 +648,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_revoke_access_on_role_change` | `bool $revoke` (true), `int $user_id, string[] $removed_roles` | Ob beim Entzug einer Rolle Event-Teams, Scanner-Geräte, Kopplungscodes, Einlassbereiche und Entwickler-API-Keys der Person zurückgenommen werden (`UserAccess`, A277/A278); `false` z. B. für Rollenverwaltungen, die Rollen in zwei Schritten tauschen. Beim Löschen eines Benutzers gilt der Filter nicht. |
 | `wpcap_pii_matrix` | `array $matrix` | PII-Matrix Profil (`full`, `finance`, `door`, `service`, `reports`) → Feld (`buyer_name`, `buyer_email`, `buyer_phone`, `billing`, `attendee_name`, `attendee_email`, `attendee_answers`) → `true`, `false` oder `'scanner_show_attendee'` (siehe [SECURITY.md](SECURITY.md#pii-je-rolle)). |
 | `wpcap_pii_can_view` | `bool $allowed, string $field, int $user_id, string[] $profiles` | Ob eine Person ein personenbezogenes Feld im Klartext sieht (`Pii::can_view()`). |
+| `wpcap_pii_can_view_answer` | `bool $allowed, string $field_key, int $user_id, string[] $profiles` | Ob eine Person die Antworten eines einzelnen Teilnehmerfelds sieht (`Pii::can_view_answer()`; Teilnehmerliste, Teilnehmer-CSV, Tickets der Bestelldetailansicht). Standard: das Recht der Ansicht für alle Antworten. |
+| `wpcap_woo_account_order_view` | `bool $view` | Ob die WooCommerce-Bestellansicht als Kundenkonto gilt (angemeldet, Endpunkt `view-order`); dort steht unter den Tickets „Link zur Bestellverwaltung per E-Mail anfordern“. |
 | `wpcap_pii_mask` | `string $masked, string $field, string $value` | Maskierte Darstellung eines Felds (Standard: E-Mail `a***@e***.de`, Namen als Initialen, sonst leer). |
 
 ### Kontingente und Käuferlimits

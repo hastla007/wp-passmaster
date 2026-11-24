@@ -47,8 +47,17 @@ final class AttendeeList {
 		return $header;
 	}
 
-	/** Active participant fields of the occurrence's ticket types in list order (A611: no removed fields). */
+	/**
+	 * Active participant fields of the occurrence's ticket types in list order (A611: no removed fields).
+	 * PASS-FE-05: fields whose answers the user may not see (Pii::can_view_answer(), filter
+	 * wpcap_pii_can_view_answer) are left out – column and answers.
+	 */
 	private static function fields( $occurrence_id ) {
+		return array_values( array_filter( self::all_fields( $occurrence_id ), static function ( $f ) { return \PassCaptain\Pii::can_view_answer( (string) $f->field_key, true ); } ) );
+	}
+
+	/** Active participant fields of the occurrence without the per-field rights. */
+	private static function all_fields( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT f.field_id,f.field_key,f.label FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d AND f.status='active' ORDER BY f.position,f.field_id", absint( $occurrence_id ) ) );
@@ -95,10 +104,11 @@ final class AttendeeList {
 	 * Data rows (without header), block by block (A477): at most chunk_size() tickets and their
 	 * answers are in memory at a time, however large the event is.
 	 *
-	 * @param string $level 'full' or 'basic'.
+	 * @param string $level  'full' or 'basic'.
+	 * @param array  $filter PASS-FE-05, optional: type_name (ticket type name), status ('valid' or 'checked_in').
 	 * @return \Generator<int, array>
 	 */
-	public static function row_stream( $occurrence_id, $level ) {
+	public static function row_stream( $occurrence_id, $level, array $filter = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$status_labels = array( 'valid' => __( 'Gültig', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ) );
@@ -110,6 +120,8 @@ final class AttendeeList {
 			// repeatable policies, whose ticket status stays valid).
 			$admitted = \PassCaptain\Reports\Attendance::admitted_ids( $occurrence_id, $tickets );
 			foreach ( $tickets as $t ) { $t->status = isset( $admitted[ (int) $t->ticket_id ] ) ? 'checked_in' : 'valid'; }
+			$tickets = self::filter_tickets( $tickets, $filter );
+			if ( ! $tickets ) { continue; }
 			if ( 'full' !== $level ) {
 				foreach ( $tickets as $t ) { yield array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name, $status_labels[ $t->status ] ?? $t->status ); }
 				continue;
@@ -126,11 +138,43 @@ final class AttendeeList {
 				$buyer = false !== strpos( (string) $t->customer_email, '@invalid.example' ) ? '' : $t->customer_email;
 				$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $t->ticket_id, (array) $t );
 				$entry = 'checked_in' === $t->status ? ( $entries[ (int) $t->ticket_id ] ?? array( 'at' => '', 'area' => '' ) ) : array( 'at' => '', 'area' => '' );
-				$row = array( substr( $t->public_id, 0, 12 ), $t->attendee_name, $t->ticket_name, $status_labels[ $t->status ] ?? $t->status, $t->attendee_email, $buyer, $t->order_public_id, $when, $seat, $entry['at'], $entry['area'] );
+				// PASS-FE-05: e-mail columns follow the PII matrix per field (unchanged for the default matrix).
+				$row = array( substr( $t->public_id, 0, 12 ), \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name, $status_labels[ $t->status ] ?? $t->status, \PassCaptain\Pii::show( 'attendee_email', $t->attendee_email ), \PassCaptain\Pii::show( 'buyer_email', $buyer ), $t->order_public_id, $when, $seat, $entry['at'], $entry['area'] );
 				foreach ( $fields as $f ) { $row[] = $answers[ (int) $t->ticket_id ][ (int) $f->field_id ] ?? ''; }
 				yield $row;
 			}
 		}
+	}
+
+	/**
+	 * PASS-FE-05: tickets of one block matching the list filter (ticket type name, admission status).
+	 *
+	 * @param object[] $tickets Tickets with their list status.
+	 * @param array    $filter  type_name, status.
+	 * @return object[]
+	 */
+	private static function filter_tickets( array $tickets, array $filter ) {
+		$name = (string) ( $filter['type_name'] ?? '' );
+		$status = (string) ( $filter['status'] ?? '' );
+		if ( '' === $name && '' === $status ) { return $tickets; }
+		return array_values( array_filter( $tickets, static function ( $t ) use ( $name, $status ) {
+			return ( '' === $name || (string) $t->ticket_name === $name ) && ( '' === $status || (string) $t->status === $status );
+		} ) );
+	}
+
+	/**
+	 * List filter from request values (PASS-FE-05): ticket type name and status of the attendee list
+	 * ('valid' or 'checked_in'; other values are dropped).
+	 *
+	 * @param array $q Raw values (type_name, status).
+	 * @return array{type_name:string,status:string}
+	 */
+	public static function list_filter( array $q ) {
+		$status = (string) ( $q['status'] ?? '' );
+		return array(
+			'type_name' => mb_substr( trim( sanitize_text_field( (string) ( $q['type_name'] ?? '' ) ) ), 0, 190 ),
+			'status' => in_array( $status, array( 'valid', 'checked_in' ), true ) ? $status : '',
+		);
 	}
 
 	/**
@@ -208,22 +252,23 @@ final class AttendeeList {
 	 *
 	 * @param int[]  $occurrence_ids Dates (event_scope()).
 	 * @param string $level          'full' or 'basic'.
+	 * @param array  $filter         PASS-FE-05, optional: type_name, status (list_filter()).
 	 * @return \Generator<int, array>
 	 */
-	public static function event_row_stream( array $occurrence_ids, $level ) {
+	public static function event_row_stream( array $occurrence_ids, $level, array $filter = array() ) {
 		global $wpdb;
 		$keys = 'full' === $level ? array_flip( array_keys( self::event_fields( $occurrence_ids ) ) ) : array();
 		foreach ( $occurrence_ids as $occurrence_id ) {
 			if ( 'full' !== $level ) {
 				$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT starts_at,timezone FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 				$when = $occ ? Scope::local( (string) $occ->starts_at, (string) $occ->timezone ) : '';
-				foreach ( self::row_stream( $occurrence_id, 'basic' ) as $row ) { yield array_merge( array( $when ), $row ); }
+				foreach ( self::row_stream( $occurrence_id, 'basic', $filter ) as $row ) { yield array_merge( array( $when ), $row ); }
 				continue;
 			}
 			// Column of each field of this date in the merged header.
 			$map = array();
 			foreach ( array_values( self::fields( $occurrence_id ) ) as $i => $f ) { $map[ $i ] = $keys[ (string) $f->field_key ]; }
-			foreach ( self::row_stream( $occurrence_id, 'full' ) as $row ) {
+			foreach ( self::row_stream( $occurrence_id, 'full', $filter ) as $row ) {
 				$out = array_slice( $row, 0, self::FULL_BASE_COLUMNS );
 				$answers = array_fill( 0, count( $keys ), '' );
 				foreach ( array_slice( $row, self::FULL_BASE_COLUMNS ) as $i => $answer ) {
