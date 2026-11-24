@@ -27,6 +27,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DocumentNumbers {
 	/** Former fixed format (and default of every kind). */
 	const DEFAULT_PATTERN = '{prefix}-{year}-{number}';

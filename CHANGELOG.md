@@ -26,6 +26,7 @@
 - Systemstatus → Betrieb: offene Überweisungsbestellungen gesammelt freigeben (wirkt wie Ablauf der Reservierung, auditiert).
 
 ### Verträge und Länderprofile (Prüfrunde P3/P5/P6)
+- Länderprofile DE/AT/CH schlagen zusätzlich Datums-/Zeitformat und Montag als ersten Wochentag vor.
 - Öffentliche Schnittstelle 1.3: `POST /orders/link-request` und optionaler Checkout-Parameter `form_guard`; Offline-Vertrag 1.1 (eigene Minor-Version); App-Vertrag in Doku und Fixture auf 1.2.
 - Länderprofile schlagen Währungen vor (CH: CHF, EUR weiter angeboten, Rechnungsadresse ab 400 CHF); rechtlich relevante Werte sind in der Vorschau nicht vorausgewählt.
 - Zahlungsart-Regeln: neue Bedingung `currency=`; Länderbedingungen greifen nur mit bekanntem Rechnungsland.
@@ -69,6 +70,8 @@
 - Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
 - CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
 - Checkout (`Orders::create`) und die Tabellen-Anweisungen des Installers in kleinere Methoden aufgeteilt, ohne Verhaltensänderung (A401).
+- Klassen außerhalb der öffentlichen API sind als `@internal` markiert (A402); jedes Testmodul läuft auch einzeln (`tests/integration/run-each.sh`).
+- Form-Captain-Aktionen prüfen die Berechtigung vor Nonce und Suche.
 - Geschäftsregeln lesen die Zeit durchgängig über `Clock` (Filter `wpcap_now`), Infrastruktur explizit über `Clock::real()`; die Ausnahmeliste des Zeit-Wächters schrumpft von 85 auf 50 Dateien, jede mit Begründung; auch Datumsformatierungen lesen „jetzt“ nicht mehr implizit.
 
 ### Gutscheine

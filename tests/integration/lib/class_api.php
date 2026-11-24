@@ -49,6 +49,7 @@ if ( ! defined( 'WPCAP_PUBLIC_CLASSES' ) ) {
 			'PassCaptain\\Integrations\\ConnectorInterface',
 			'PassCaptain\\BoxOffice\\DeviceGatewayInterface',
 			'PassCaptain\\Fiscalization\\AdapterInterface',
+			'PassCaptain\\Fiscalization\\ClosingAdapterInterface',
 		)
 	);
 	/**
