@@ -161,7 +161,7 @@ msgstr "Il limite di frequenza deve essere compreso tra 1 e %d richieste al minu
 #: src/Partners/AdminPage.php:166
 #: src/Sales/AdminSections.php:75
 #: src/Sales/TaxProfilesPage.php:45
-#: src/ServiceBookingFlow.php:423
+#: src/ServiceBookingFlow.php:489
 #: src/Services/Portal.php:126
 #: src/Waitlists/AdminPage.php:77
 msgid "Unbekannte Aktion."
@@ -5928,14 +5928,14 @@ msgstr "Prenotazione confermata."
 
 #: src/Admin/MyServicesPage.php:50
 #: src/Admin/ServiceSlotsPage.php:173
-#: src/ServiceBookingFlow.php:450
+#: src/ServiceBookingFlow.php:516
 msgid "Reserviert"
 msgstr "Prenotato"
 
 #: src/Admin/MyServicesPage.php:51
 #: src/Admin/ServiceSlotsPage.php:174
 #: src/Frontend/ServiceBooking.php:143
-#: src/ServiceBookingFlow.php:450
+#: src/ServiceBookingFlow.php:516
 #: src/Services/Portal.php:264
 #: src/Waitlists.php:427
 msgid "Bestätigt"
@@ -5963,7 +5963,7 @@ msgstr "Annullato"
 #: src/Admin/OrdersPage.php:849
 #: src/Admin/ServiceSlotsPage.php:177
 #: src/Frontend/ServiceBooking.php:142
-#: src/ServiceBookingFlow.php:450
+#: src/ServiceBookingFlow.php:516
 msgid "Zahlung offen"
 msgstr "Pagamento in sospeso"
 
@@ -6011,7 +6011,7 @@ msgstr "Servizi assegnati"
 #: src/Admin/ServiceSlotsPage.php:480
 #: src/Admin/ServicesPage.php:264
 #: src/Admin/ServicesPage.php:403
-#: src/Frontend/ServiceBooking.php:426
+#: src/Frontend/ServiceBooking.php:434
 msgid "Zeitfenster"
 msgstr "Fasce orarie"
 
@@ -6533,7 +6533,7 @@ msgid "Bestellung %s auswählen"
 msgstr "Seleziona ordine %s"
 
 #: src/Admin/OrdersPage.php:41
-#: src/Orders.php:1845
+#: src/Orders/Payment.php:153
 #: src/ParticipantFields.php:351
 #: src/Partners/Sales.php:450
 #: src/Payments/PayPalGateway.php:221
@@ -6565,11 +6565,11 @@ msgid "Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung fr
 msgstr "Il buono (%2$s, %1$s) è stato liberato con la scadenza o l'annullamento dell'ordine. L'importo in sospeso mostrato include ancora la detrazione del buono; senza buono ammonta a %3$s. Un pagamento tardivo emette i biglietti solo se il buono ha potuto essere prenotato di nuovo, altrimenti l'ordine viene contrassegnato per la verifica."
 
 #: src/Admin/OrdersPage.php:92
-#: src/Orders.php:1857
-#: src/Orders.php:2157
-#: src/Orders.php:2312
-#: src/Orders.php:2409
-#: src/Orders.php:2959
+#: src/Orders.php:1670
+#: src/Orders/Cancellation.php:89
+#: src/Orders/Cancellation.php:152
+#: src/Orders/Payment.php:165
+#: src/Orders/Payment.php:445
 #: src/Partners/Sales.php:697
 #: src/Partners/Sales.php:746
 #: src/Payments/ReturnNotice.php:444
@@ -6685,7 +6685,7 @@ msgid "Keine Berechtigung für Erstattungen."
 msgstr "Non hai l'autorizzazione per effettuare rimborsi."
 
 #: src/Admin/OrdersPage.php:267
-#: src/Orders.php:2160
+#: src/Orders.php:1673
 #: src/Refunds.php:68
 #: src/Refunds.php:240
 #: src/Services/Refunder.php:63
@@ -7160,7 +7160,7 @@ msgid "Text dieser Fassung anzeigen (aktuell gültige Fassung, noch nicht archiv
 msgstr "Mostra il testo di questa versione (versione attualmente valida, non ancora archiviata)"
 
 #: src/Admin/OrdersPage.php:1170
-#: src/Frontend/ServiceBooking.php:554
+#: src/Frontend/ServiceBooking.php:562
 #: src/LegalVersions.php:125
 #: src/LegalVersions.php:140
 #: src/Mail/Blocks.php:115
@@ -7171,7 +7171,7 @@ msgstr "Condizioni"
 
 #: src/Admin/OrdersPage.php:1170
 #: src/Diagnostics.php:213
-#: src/Frontend/ServiceBooking.php:556
+#: src/Frontend/ServiceBooking.php:564
 #: src/LegalVersions.php:126
 #: src/Mail/Blocks.php:115
 #: src/Waitlists.php:1817
@@ -7931,7 +7931,7 @@ msgstr "Fornitori di servizi della risorsa salvati."
 #: src/Admin/ServiceSlotsPage.php:121
 #: src/Admin/ServicesPage.php:62
 #: src/ServiceBookingFlow.php:295
-#: src/ServiceBookingFlow.php:412
+#: src/ServiceBookingFlow.php:478
 #: src/ServiceBookings.php:1303
 #: src/ServiceBookings.php:1959
 msgid "Buchung nicht gefunden."
@@ -8115,7 +8115,7 @@ msgstr "Genera serie"
 #: src/Admin/TicketsPage.php:847
 #: src/Exchange/AdminPage.php:229
 #: src/Frontend/ServiceBooking.php:148
-#: src/ServiceBookingFlow.php:467
+#: src/ServiceBookingFlow.php:533
 #: src/Services/Portal.php:172
 msgid "Umbuchen"
 msgstr "Modifica prenotazione"
@@ -10422,8 +10422,8 @@ msgstr "Crea bozza"
 #: src/Exchange/Service.php:187
 #: src/Exchange/Service.php:1274
 #: src/Mobile/Api.php:415
-#: src/Orders.php:2723
-#: src/Orders.php:4128
+#: src/Orders.php:2103
+#: src/Orders.php:3414
 #: src/PortalSelfService.php:221
 #: src/PortalSelfService.php:562
 #: src/PortalSelfService.php:779
@@ -10444,8 +10444,8 @@ msgstr "Al momento non è stato possibile revocare il biglietto. Riprova."
 
 #: src/Admin/TicketsPage.php:66
 #: src/Exchange/Service.php:606
-#: src/Orders.php:2660
-#: src/Orders.php:2741
+#: src/Orders.php:2040
+#: src/Orders.php:2121
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr "Per questo biglietto è in corso un rimborso oppure è in attesa di approvazione. Fino alla decisione non può essere trasferito, cambiato o revocato."
 
@@ -12043,8 +12043,8 @@ msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift bra
 msgstr "Compila solo se l’acquirente ha bisogno di una fattura con nome e indirizzo. Se un campo è compilato, nome, cognome, via, CAP, città e paese sono obbligatori."
 
 #: src/Billing.php:288
-#: src/Frontend/ServiceBooking.php:540
 #: src/Frontend/ServiceBooking.php:548
+#: src/Frontend/ServiceBooking.php:556
 #: src/Integrations/WooCommerce/Attendees.php:480
 #: src/OrderPortal.php:262
 #: templates/event-card.php:138
@@ -14277,7 +14277,7 @@ msgid "Diese Einwilligung ist nicht erteilt und kann daher nicht widerrufen werd
 msgstr "Questo consenso non è stato prestato e quindi non può essere revocato."
 
 #: src/Consents.php:446
-#: src/ServiceBookingFlow.php:407
+#: src/ServiceBookingFlow.php:473
 #: src/Waitlists.php:1474
 msgid "Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La sessione è scaduta. Ricarica la pagina e riprova."
@@ -14658,9 +14658,9 @@ msgstr "Ingresso dalle %s"
 
 #: src/Errors.php:21
 #: src/Exchange/Service.php:608
-#: src/Orders.php:322
-#: src/Orders.php:1247
-#: src/Orders.php:1639
+#: src/Orders.php:324
+#: src/Orders.php:1249
+#: src/Orders.php:1504
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Al momento c'è molta richiesta. Riprova tra un momento."
 
@@ -14962,7 +14962,7 @@ msgid "Event-Regeln speichern"
 msgstr "Salva regole dell'evento"
 
 #: src/Exchange/Portal.php:57
-#: src/Orders.php:2639
+#: src/Orders.php:2019
 #: src/PortalSelfService.php:73
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L'accesso all'ordine non è valido."
@@ -15109,7 +15109,7 @@ msgid "Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht
 msgstr "Questo biglietto è stato trasferito e può essere cambiato solo dall'organizzatore."
 
 #: src/Exchange/Service.php:231
-#: src/Orders.php:1249
+#: src/Orders.php:1251
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr "La vendita per questo tipo di biglietto è chiusa."
 
@@ -15458,7 +15458,7 @@ msgstr "da %s"
 
 #. translators: %s: price per place
 #: src/Frontend/Format.php:25
-#: src/Frontend/ServiceBooking.php:260
+#: src/Frontend/ServiceBooking.php:268
 #: src/PublicEvents.php:282
 msgid "kostenlos"
 msgstr "gratuito"
@@ -15527,7 +15527,7 @@ msgid "Die Zeitfenster konnten nicht geladen werden. Bitte versuche es erneut."
 msgstr "Impossibile caricare le fasce orarie. Riprova."
 
 #: src/Frontend/ServiceBooking.php:79
-#: src/Frontend/ServiceBooking.php:477
+#: src/Frontend/ServiceBooking.php:485
 msgid "In dieser Woche sind keine Zeitfenster frei. Wähle eine andere Woche."
 msgstr "In questa settimana non ci sono fasce orarie libere. Scegli un'altra settimana."
 
@@ -15537,7 +15537,7 @@ msgstr "Per questa offerta al momento non ci sono fasce orarie libere."
 
 #. translators: 1: first day of the week, 2: last day of the week
 #: src/Frontend/ServiceBooking.php:82
-#: src/Frontend/ServiceBooking.php:464
+#: src/Frontend/ServiceBooking.php:472
 #, php-format
 msgid "Woche vom %1$s bis %2$s"
 msgstr "Settimana dal %1$s al %2$s"
@@ -15566,7 +15566,7 @@ msgstr "%d posti liberi"
 
 #. translators: 1: start time, 2: end time
 #: src/Frontend/ServiceBooking.php:91
-#: src/Frontend/ServiceBooking.php:498
+#: src/Frontend/ServiceBooking.php:506
 #, php-format
 msgid "%1$s–%2$s"
 msgstr "%1$s–%2$s"
@@ -15746,7 +15746,7 @@ msgid "Reserviert, noch nicht bestätigt"
 msgstr "Riservato, non ancora confermato"
 
 #: src/Frontend/ServiceBooking.php:147
-#: src/ServiceBookingFlow.php:463
+#: src/ServiceBookingFlow.php:529
 msgid "Umbuchen auf"
 msgstr "Sposta a"
 
@@ -15755,177 +15755,177 @@ msgid "Derzeit gibt es kein anderes freies Zeitfenster zum Umbuchen."
 msgstr "Al momento non c'è un'altra fascia oraria libera per la modifica."
 
 #: src/Frontend/ServiceBooking.php:150
-#: src/ServiceBookingFlow.php:442
+#: src/ServiceBookingFlow.php:508
 msgid "Der Termin ist umgebucht. Du erhältst eine Bestätigung per E-Mail."
 msgstr "L'appuntamento è stato spostato. Riceverai una conferma via e-mail."
 
 #. translators: %s: deadline, e.g. "24 Stunden"
 #. translators: %s: deadline, e.g. "1 Tag"
-#: src/Frontend/ServiceBooking.php:152
-#: src/ServiceBookingFlow.php:470
+#: src/Frontend/ServiceBooking.php:160
+#: src/ServiceBookingFlow.php:536
 #, php-format
 msgid "Umbuchen ist bis %s vor Beginn möglich."
 msgstr "La modifica è possibile fino a %s prima dell'inizio."
 
 #. translators: %s: deadline, e.g. "24 Stunden"
 #. translators: %s: deadline, e.g. "2 Tage"
-#: src/Frontend/ServiceBooking.php:154
-#: src/ServiceBookingFlow.php:475
+#: src/Frontend/ServiceBooking.php:162
+#: src/ServiceBookingFlow.php:541
 #, php-format
 msgid "Kostenlos stornieren mit voller Erstattung bis %s vor Beginn."
 msgstr "Annullamento gratuito con rimborso completo fino a %s prima dell'inizio."
 
-#: src/Frontend/ServiceBooking.php:155
-#: src/ServiceBookingFlow.php:473
+#: src/Frontend/ServiceBooking.php:163
+#: src/ServiceBookingFlow.php:539
 msgid "Termin stornieren"
 msgstr "Annulla appuntamento"
 
-#: src/Frontend/ServiceBooking.php:156
+#: src/Frontend/ServiceBooking.php:164
 msgid "Ja, Termin verbindlich stornieren"
 msgstr "Sì, annulla definitivamente l'appuntamento"
 
-#: src/Frontend/ServiceBooking.php:157
+#: src/Frontend/ServiceBooking.php:165
 msgid "Möchtest du diesen Termin wirklich stornieren? Das kann nicht rückgängig gemacht werden."
 msgstr "Vuoi davvero annullare questo appuntamento? L'operazione non può essere annullata."
 
-#: src/Frontend/ServiceBooking.php:158
+#: src/Frontend/ServiceBooking.php:166
 msgid "Nein, Termin behalten"
 msgstr "No, mantieni l'appuntamento"
 
-#: src/Frontend/ServiceBooking.php:159
-#: src/ServiceBookingFlow.php:441
+#: src/Frontend/ServiceBooking.php:167
+#: src/ServiceBookingFlow.php:507
 msgid "Der Termin ist storniert. Bezahlte Termine werden automatisch erstattet."
 msgstr "L'appuntamento è stato annullato. Gli appuntamenti pagati vengono rimborsati automaticamente."
 
-#: src/Frontend/ServiceBooking.php:160
+#: src/Frontend/ServiceBooking.php:168
 msgid "Einen Moment bitte …"
 msgstr "Un momento, per favore …"
 
-#: src/Frontend/ServiceBooking.php:161
+#: src/Frontend/ServiceBooking.php:169
 msgid "1 Stunde"
 msgstr "1 ora"
 
 #. translators: %d: hours (2 or more)
-#: src/Frontend/ServiceBooking.php:163
+#: src/Frontend/ServiceBooking.php:171
 #, php-format
 msgid "%d Stunden"
 msgstr "%d ore"
 
-#: src/Frontend/ServiceBooking.php:164
+#: src/Frontend/ServiceBooking.php:172
 msgid "1 Tag"
 msgstr "1 giorno"
 
 #. translators: %d: days (2 or more)
-#: src/Frontend/ServiceBooking.php:166
+#: src/Frontend/ServiceBooking.php:174
 #, php-format
 msgid "%d Tage"
 msgstr "%d giorni"
 
 #. translators: %s: deadline, e.g. "24 Stunden"
-#: src/Frontend/ServiceBooking.php:246
+#: src/Frontend/ServiceBooking.php:254
 #, php-format
 msgid "Kostenlos stornierbar bis %s vor Beginn."
 msgstr "Annullabile gratuitamente fino a %s prima dell'inizio."
 
 #. translators: %s: lead time, e.g. "24 Stunden"
-#: src/Frontend/ServiceBooking.php:250
+#: src/Frontend/ServiceBooking.php:258
 #, php-format
 msgid "Buchbar bis %s vor Beginn."
 msgstr "Prenotabile fino a %s prima dell'inizio."
 
 #. translators: %s: price per place
-#: src/Frontend/ServiceBooking.php:260
+#: src/Frontend/ServiceBooking.php:268
 #, php-format
 msgid "%s pro Platz"
 msgstr "%s per posto"
 
-#: src/Frontend/ServiceBooking.php:365
+#: src/Frontend/ServiceBooking.php:373
 msgid "Dieses Angebot ist derzeit nicht buchbar."
 msgstr "Questa offerta al momento non è prenotabile."
 
-#: src/Frontend/ServiceBooking.php:371
 #: src/Frontend/ServiceBooking.php:379
+#: src/Frontend/ServiceBooking.php:387
 msgid "Derzeit sind keine Termine buchbar."
 msgstr "Al momento non ci sono appuntamenti prenotabili."
 
-#: src/Frontend/ServiceBooking.php:379
+#: src/Frontend/ServiceBooking.php:387
 msgid "Alle Termine sind derzeit ausgebucht. Schau später noch einmal vorbei."
 msgstr "Al momento tutti gli appuntamenti sono al completo. Ricontrolla più tardi."
 
-#: src/Frontend/ServiceBooking.php:408
+#: src/Frontend/ServiceBooking.php:416
 msgid "1. Termin wählen"
 msgstr "1. Scegli l'appuntamento"
 
-#: src/Frontend/ServiceBooking.php:410
+#: src/Frontend/ServiceBooking.php:418
 msgid "Angebot"
 msgstr "Offerta"
 
-#: src/Frontend/ServiceBooking.php:416
+#: src/Frontend/ServiceBooking.php:424
 msgid "derzeit ausgebucht"
 msgstr "al momento al completo"
 
-#: src/Frontend/ServiceBooking.php:428
+#: src/Frontend/ServiceBooking.php:436
 msgid "Vorherige Woche"
 msgstr "Settimana precedente"
 
-#: src/Frontend/ServiceBooking.php:430
+#: src/Frontend/ServiceBooking.php:438
 msgid "Nächste Woche"
 msgstr "Settimana successiva"
 
-#: src/Frontend/ServiceBooking.php:434
+#: src/Frontend/ServiceBooking.php:442
 #: src/Mail/Types.php:203
 msgid "Anzahl Plätze"
 msgstr "Numero di posti"
 
-#: src/Frontend/ServiceBooking.php:437
+#: src/Frontend/ServiceBooking.php:445
 msgid "Weiter zu deinen Angaben"
 msgstr "Procedi con i tuoi dati"
 
-#: src/Frontend/ServiceBooking.php:442
+#: src/Frontend/ServiceBooking.php:450
 msgid "2. Deine Angaben"
 msgstr "2. I tuoi dati"
 
-#: src/Frontend/ServiceBooking.php:444
+#: src/Frontend/ServiceBooking.php:452
 #: src/Sales/AdminSections.php:205
 #: src/TicketRecovery.php:169
 #: templates/event-card.php:276
 msgid "E-Mail-Adresse"
 msgstr "Indirizzo e-mail"
 
-#: src/Frontend/ServiceBooking.php:446
+#: src/Frontend/ServiceBooking.php:454
 msgid "An diese Adresse senden wir die Bestätigung."
 msgstr "A questo indirizzo inviamo la conferma."
 
-#: src/Frontend/ServiceBooking.php:449
+#: src/Frontend/ServiceBooking.php:457
 msgid "Zurück"
 msgstr "Indietro"
 
-#: src/Frontend/ServiceBooking.php:450
+#: src/Frontend/ServiceBooking.php:458
 msgid "Termin verbindlich buchen"
 msgstr "Prenota l'appuntamento in modo vincolante"
 
-#: src/Frontend/ServiceBooking.php:450
+#: src/Frontend/ServiceBooking.php:458
 msgid "Zahlungspflichtig buchen"
 msgstr "Prenota con obbligo di pagamento"
 
-#: src/Frontend/ServiceBooking.php:453
+#: src/Frontend/ServiceBooking.php:461
 msgid "Zum Buchen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser."
 msgstr "Per prenotare è necessario JavaScript. Attiva JavaScript nel tuo browser."
 
 #. translators: PHP date format of a day heading in the slot list, e.g. "Montag, 16. November"
-#: src/Frontend/ServiceBooking.php:481
+#: src/Frontend/ServiceBooking.php:489
 msgid "l, j. F"
 msgstr "l j F"
 
 #. translators: %d: number of free places
-#: src/Frontend/ServiceBooking.php:496
+#: src/Frontend/ServiceBooking.php:504
 #, php-format
 msgid "%d Platz frei"
 msgid_plural "%d Plätze frei"
 msgstr[0] "%d posto libero"
 msgstr[1] "%d posti liberi"
 
-#: src/Frontend/ServiceBooking.php:517
+#: src/Frontend/ServiceBooking.php:525
 #: src/PublicEvents.php:160
 #: src/Reports/Settlement.php:279
 #: src/Reports/Settlement.php:353
@@ -15934,25 +15934,25 @@ msgstr[1] "%d posti liberi"
 msgid "Zahlungsart"
 msgstr "Metodo di pagamento"
 
-#: src/Frontend/ServiceBooking.php:531
+#: src/Frontend/ServiceBooking.php:539
 #: templates/event-card.php:160
 msgid "Rechnung mit Firmen-/Adressdaten"
 msgstr "Fattura con dati di azienda/indirizzo"
 
 #. translators: %s: amount
-#: src/Frontend/ServiceBooking.php:535
+#: src/Frontend/ServiceBooking.php:543
 #: templates/event-card.php:166
 #, php-format
 msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift."
 msgstr "Per ordini di importo superiore a %s ci servono nome e indirizzo per la fattura."
 
-#: src/Frontend/ServiceBooking.php:557
+#: src/Frontend/ServiceBooking.php:565
 #: src/Waitlists.php:1818
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr "Accetto le condizioni e ho letto le informazioni per i consumatori."
 
-#: src/Frontend/ServiceBooking.php:557
+#: src/Frontend/ServiceBooking.php:565
 #: src/Waitlists.php:1818
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen."
@@ -23352,26 +23352,26 @@ msgstr "Fino all’emissione della fattura puoi indicare o correggere qui aziend
 msgid "Rechnungsdaten speichern"
 msgstr "Salva dati di fatturazione"
 
-#: src/Orders.php:129
+#: src/Orders.php:131
 msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr "Inserisci un indirizzo e-mail valido e seleziona i biglietti."
 
-#: src/Orders.php:161
+#: src/Orders.php:163
 #: src/Waitlists.php:939
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Conferma le condizioni e le informazioni per i consumatori."
 
-#: src/Orders.php:215
+#: src/Orders.php:217
 #: src/Waitlists.php:943
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr "Nel frattempo le condizioni sono state modificate. Ricarica la pagina e conferma la versione attuale."
 
-#: src/Orders.php:234
-#: src/Orders.php:238
+#: src/Orders.php:236
+#: src/Orders.php:240
 msgid "Eine Ticketposition ist ungültig."
 msgstr "Una voce di biglietto non è valida."
 
-#: src/Orders.php:511
+#: src/Orders.php:513
 #: src/Rest/Controller.php:577
 #: src/Rest/Controller.php:591
 #: src/ServiceBookings.php:746
@@ -23382,7 +23382,7 @@ msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Questo metodo di pagamento non è disponibile."
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1011
+#: src/Orders.php:1013
 #, php-format
 msgid "Die E-Mail-Adresse ist zu lang (höchstens %d Zeichen)."
 msgstr "L’indirizzo e-mail è troppo lungo (al massimo %d caratteri)."
@@ -23420,248 +23420,248 @@ msgid "E-Mail der Teilnehmer:in"
 msgstr "E-mail del partecipante"
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1120
+#: src/Orders.php:1122
 #, php-format
 msgid "Diese E-Mail-Adresse ist zu lang. Bitte verwende eine Adresse mit höchstens %d Zeichen."
 msgstr "Questo indirizzo e-mail è troppo lungo. Usa un indirizzo di al massimo %d caratteri."
 
-#: src/Orders.php:1154
+#: src/Orders.php:1156
 msgid "Dieser Bestellversuch gehört zu einem anderen Warenkorb. Bitte lade die Seite neu und bestelle erneut."
 msgstr "Questo tentativo di ordine appartiene a un altro carrello. Ricarica la pagina e ordina di nuovo."
 
 #. translators: 1: ticket type, 2: new price
-#: src/Orders.php:1168
+#: src/Orders.php:1170
 #, php-format
 msgid "„%1$s“ jetzt %2$s"
 msgstr "«%1$s» ora %2$s"
 
 #. translators: %s: list of ticket types with their new price
-#: src/Orders.php:1172
+#: src/Orders.php:1174
 #, php-format
 msgid "Der Preis hat sich seit dem Laden der Seite geändert (%s). Bitte prüfe die Summe und bestelle erneut."
 msgstr "Il prezzo è cambiato dal caricamento della pagina (%s). Controlla il totale e ordina di nuovo."
 
 #. translators: %s: new date and time (and location) of the occurrence
-#: src/Orders.php:1192
+#: src/Orders.php:1194
 #, php-format
 msgid "Der Termin wurde inzwischen geändert – jetzt: %s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "La data è stata modificata nel frattempo: ora %s. Controlla i dati e invia di nuovo l'ordine."
 
 #. translators: 1: ticket type name, 2: new price
-#: src/Orders.php:1199
+#: src/Orders.php:1201
 #, php-format
 msgid "Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "Il prezzo di «%1$s» è cambiato nel frattempo: ora %2$s. Controlla i dati e invia di nuovo l'ordine."
 
-#: src/Orders.php:1245
+#: src/Orders.php:1247
 #: src/Waitlists.php:162
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr "Questo tipo di biglietto non è disponibile."
 
-#: src/Orders.php:1246
+#: src/Orders.php:1248
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
 msgstr "Per questo tipo di biglietto non è possibile acquistare così tanti biglietti per ordine."
 
-#: src/Orders.php:1248
+#: src/Orders.php:1250
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr "Questa data non è più disponibile."
 
-#: src/Orders.php:1250
+#: src/Orders.php:1252
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "I biglietti con valute diverse non possono essere ordinati insieme."
 
-#: src/Orders.php:1251
-#: src/Orders.php:1640
+#: src/Orders.php:1253
+#: src/Orders.php:1505
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Non sono più disponibili biglietti sufficienti per questo tipo di biglietto."
 
-#: src/Orders.php:1252
-#: src/Orders.php:1641
+#: src/Orders.php:1254
+#: src/Orders.php:1506
 #: src/Passes/Capacity.php:183
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Per questa data non sono più disponibili posti sufficienti."
 
-#: src/Orders.php:1253
+#: src/Orders.php:1255
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr "Un codice campagna non è valido o non è compatibile con l'ordine."
 
-#: src/Orders.php:1254
+#: src/Orders.php:1256
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr "Non è stato possibile applicare lo sconto all'ordine in modo sicuro."
 
-#: src/Orders.php:1255
+#: src/Orders.php:1257
 msgid "Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Con il bonifico al momento non è possibile riservare altri biglietti per questa data. Scegli un altro metodo di pagamento o una quantità minore."
 
-#: src/Orders.php:1284
+#: src/Orders.php:1286
 msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben."
 msgstr "Un dato è troppo lungo o contiene caratteri non validi. Controlla i tuoi inserimenti."
 
-#: src/Orders.php:1288
+#: src/Orders.php:1290
 #: src/Waitlists.php:956
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Per questo importo d’ordine ci servono il tuo nome e il tuo indirizzo per la fattura. Attiva «Ho bisogno di una fattura intestata a un’azienda/indirizzo» e compila i campi."
 
-#: src/Orders.php:1292
+#: src/Orders.php:1294
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "Impossibile creare l'ordine."
 
 #. translators: 1: error message, 2: error reference for support
-#: src/Orders.php:1316
+#: src/Orders.php:1318
 #, php-format
 msgid "%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s."
 msgstr "%1$s Riprova. Se non funziona di nuovo, comunicaci l'ID errore %2$s."
 
-#: src/Orders.php:1379
+#: src/Orders/Payment.php:42
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile registrare il pagamento. Riprova."
 
-#: src/Orders.php:2016
+#: src/Orders/Payment.php:324
 msgid "Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden."
 msgstr "La prenotazione era scaduta e i biglietti non possono più essere emessi. L'ordine deve essere verificato manualmente."
 
-#: src/Orders.php:2044
+#: src/Orders/Payment.php:352
 msgid "Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf."
 msgstr "La data o l'evento nel frattempo è stato annullato o non è più in vendita."
 
-#: src/Orders.php:2046
+#: src/Orders/Payment.php:354
 msgid "Der Termin ist bereits vorbei."
 msgstr "La data è già passata."
 
-#: src/Orders.php:2048
+#: src/Orders/Payment.php:356
 msgid "Die Ticketart ist nicht mehr vorhanden."
 msgstr "Il tipo di biglietto non esiste più."
 
-#: src/Orders.php:2050
+#: src/Orders/Payment.php:358
 msgid "Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft."
 msgstr "Il limite di utilizzo del codice sconto nel frattempo è esaurito."
 
-#: src/Orders.php:2053
+#: src/Orders/Payment.php:361
 msgid "Die maximale Anzahl an Tickets pro Person wäre überschritten."
 msgstr "Il numero massimo di biglietti per persona verrebbe superato."
 
-#: src/Orders.php:2055
+#: src/Orders/Payment.php:363
 msgid "Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf."
 msgstr "La data nel frattempo è stata annullata o è passata, oppure il tipo di biglietto non è più in vendita."
 
-#: src/Orders.php:2057
+#: src/Orders/Payment.php:365
 msgid "Die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei."
 msgstr "I posti a sedere nel frattempo sono stati assegnati e non ci sono più posti adatti liberi."
 
-#: src/Orders.php:2059
+#: src/Orders/Payment.php:367
 msgid "Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug."
 msgstr "Il buono dell'ordine è stato liberato alla scadenza della prenotazione e non è stato possibile prenotarlo di nuovo; il pagamento copre solo l'importo al netto della detrazione del buono."
 
-#: src/Orders.php:2061
+#: src/Orders/Payment.php:369
 msgid "Es ist kein Kontingent mehr frei."
 msgstr "Non c'è più contingente disponibile."
 
 #. translators: 1: order number, 2: payment reference, 3: reason
-#: src/Orders.php:2074
+#: src/Orders/Payment.php:382
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s"
 msgstr "Il pagamento per l'ordine %1$s (riferimento %2$s) è arrivato dopo la scadenza della prenotazione. Non sono stati emessi biglietti: %3$s"
 
-#: src/Orders.php:2080
+#: src/Orders/Payment.php:388
 msgid "Die Zahlung wird automatisch erstattet."
 msgstr "Il pagamento verrà rimborsato automaticamente."
 
-#: src/Orders.php:2081
+#: src/Orders/Payment.php:389
 msgid "Bitte manuell klären (Zuteilung erneut versuchen oder erstatten)."
 msgstr "Verifica manualmente (riprova l'assegnazione o rimborsa)."
 
-#: src/Orders.php:2084
+#: src/Orders/Payment.php:392
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr "Pass Captain: ordine pagato senza biglietti"
 
-#: src/Orders.php:2166
+#: src/Orders.php:1679
 msgid "Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden."
 msgstr "Questo metodo di pagamento non può rimborsare automaticamente. Restituisci il pagamento al di fuori del plugin e usa «Rimborsato esternamente – chiudi»."
 
-#: src/Orders.php:2175
+#: src/Orders.php:1688
 msgid "Unbekannte Art der Erstattung."
 msgstr "Tipo di rimborso sconosciuto."
 
-#: src/Orders.php:2294
+#: src/Orders/Cancellation.php:71
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile annullare l'ordine. Riprova."
 
-#: src/Orders.php:2399
+#: src/Orders/Cancellation.php:142
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "Al momento non è stato possibile contrassegnare l'ordine come rimborsato; l'operazione verrà ripetuta automaticamente."
 
-#: src/Orders.php:2635
+#: src/Orders.php:2015
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "I dati di trasferimento non sono validi."
 
-#: src/Orders.php:2642
+#: src/Orders.php:2022
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "I biglietti possono essere trasferiti solo dopo la conferma del pagamento."
 
-#: src/Orders.php:2655
+#: src/Orders.php:2035
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Questo biglietto non può più essere trasferito."
 
-#: src/Orders.php:2665
+#: src/Orders.php:2045
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "Il titolare di questo biglietto è già stato modificato; un ulteriore trasferimento non è possibile."
 
-#: src/Orders.php:2783
+#: src/Orders.php:2163
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il trasferimento del biglietto."
 
-#: src/Orders.php:2676
+#: src/Orders.php:2056
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Il trasferimento del biglietto è stato salvato, ma non è stato possibile consegnare l'e-mail. Contatta l'organizzatore per un nuovo invio."
 
-#: src/Orders.php:2846
-#: src/Orders.php:2856
+#: src/Orders/Cancellation.php:189
+#: src/Orders/Cancellation.php:199
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Questo evento non può essere annullato."
 
-#: src/Orders.php:2890
+#: src/Orders/Cancellation.php:233
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Questo evento non è annullato."
 
-#: src/Orders.php:3408
+#: src/Orders.php:2694
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Non è stato possibile emettere i biglietti in questo momento. Riprova."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:3656
+#: src/Orders.php:2942
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "Il passaggio non è riuscito senza indicazione di errore. %s"
 
-#: src/Orders.php:3810
+#: src/Orders.php:3096
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile rinnovare i biglietti. Riprova."
 
-#: src/Orders.php:3814
+#: src/Orders.php:3100
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "I biglietti possono essere inviati di nuovo solo dopo la conferma del pagamento."
 
-#: src/Orders.php:3832
+#: src/Orders.php:3118
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Questo modulo è già stato inviato; i biglietti sono già stati inviati di nuovo. Per un ulteriore invio ricarica la pagina."
 
-#: src/Orders.php:3893
-#: src/Orders.php:3972
-#: src/Orders.php:4143
+#: src/Orders.php:3179
+#: src/Orders.php:3258
+#: src/Orders.php:3429
 #: src/PortalSelfService.php:254
 #: src/PortalSelfService.php:267
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Impossibile rinnovare il codice del biglietto."
 
-#: src/Orders.php:3920
+#: src/Orders.php:3206
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Nessun biglietto valido trovato per il nuovo invio."
 
-#: src/Orders.php:3996
+#: src/Orders.php:3282
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Non è stato possibile recapitare almeno un'e-mail. I codici dei biglietti precedenti restano validi; l'invio verrà ripetuto automaticamente."
 
-#: src/Orders.php:4132
+#: src/Orders.php:3418
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Possono essere riemessi solo i biglietti validi e non ancora registrati di ordini pagati."
 
@@ -31239,7 +31239,7 @@ msgstr "Pagamento ricevuto, appuntamento non più disponibile: %s"
 #. translators: %d: number of places
 #. translators: %d: places
 #: src/ServiceBookingFlow.php:176
-#: src/ServiceBookingFlow.php:457
+#: src/ServiceBookingFlow.php:523
 #: src/Services/Portal.php:160
 #, php-format
 msgid "%d Platz"
@@ -31298,31 +31298,31 @@ msgstr "Troppi tentativi; attendi un momento."
 msgid "Der Buchungszugang ist ungültig."
 msgstr "L'accesso alla prenotazione non è valido."
 
-#: src/ServiceBookingFlow.php:350
+#: src/ServiceBookingFlow.php:359
 msgid "Storniert durch Kund:in"
 msgstr "Annullato dal cliente"
 
-#: src/ServiceBookingFlow.php:416
+#: src/ServiceBookingFlow.php:482
 msgid "Storniert im Bestellportal"
 msgstr "Annullato nel portale ordini"
 
-#: src/ServiceBookingFlow.php:439
+#: src/ServiceBookingFlow.php:505
 msgid "Deine Termine"
 msgstr "I tuoi appuntamenti"
 
-#: src/ServiceBookingFlow.php:443
+#: src/ServiceBookingFlow.php:509
 msgid "Die Frist für diese Änderung ist abgelaufen."
 msgstr "Il termine per questa modifica è scaduto."
 
-#: src/ServiceBookingFlow.php:444
+#: src/ServiceBookingFlow.php:510
 msgid "Das gewählte Zeitfenster ist nicht mehr verfügbar. Bitte wähle ein anderes."
 msgstr "La fascia oraria scelta non è più disponibile. Scegline un'altra."
 
-#: src/ServiceBookingFlow.php:445
+#: src/ServiceBookingFlow.php:511
 msgid "Das hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
 msgstr "Non ha funzionato. Ricarica la pagina e riprova."
 
-#: src/ServiceBookingFlow.php:477
+#: src/ServiceBookingFlow.php:543
 msgid "Die Stornofrist ist abgelaufen."
 msgstr "Il termine per l'annullamento è scaduto."
 
@@ -31769,6 +31769,7 @@ msgid "Status:"
 msgstr "Stato:"
 
 #. translators: %s: formatted amount
+#: src/Frontend/ServiceBooking.php:152
 #: src/Services/Portal.php:168
 #, php-format
 msgid "Zuzahlung %s"
@@ -31781,11 +31782,13 @@ msgid "Umbuchen bis %s möglich."
 msgstr "Modifica possibile fino a %s."
 
 #. translators: 1: amount, 2: new slot (resource and date), 3: deadline
+#: src/Frontend/ServiceBooking.php:156
 #: src/Services/Portal.php:180
 #, php-format
 msgid "Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen."
 msgstr "Modifica in sospeso: supplemento di %1$s per %2$s da pagare entro %3$s. Fino ad allora resta valida la tua prenotazione attuale."
 
+#: src/Frontend/ServiceBooking.php:157
 #: src/Services/Portal.php:181
 #: src/Services/Portal.php:244
 msgid "Zuzahlung jetzt bezahlen"
@@ -35604,7 +35607,7 @@ msgstr "Bonifico: riservare al massimo questi biglietti non pagati per evento"
 msgid "Gilt je Veranstaltung über alle Termine, auch ohne Kapazität. Halten offene, unbezahlte Überweisungsbestellungen zusammen so viele Tickets, wird Überweisung im Checkout nicht mehr angeboten (andere Zahlungsarten bleiben) und neue Überweisungsbestellungen werden mit einem Hinweis abgelehnt, bis Bestellungen bezahlt werden oder ablaufen. 0 = keine Obergrenze. Offene Überweisungen kannst du unter „Systemstatus → Betrieb“ gesammelt freigeben."
 msgstr "Vale per evento su tutte le date, anche senza capacità. Se gli ordini con bonifico aperti e non pagati trattengono insieme questi biglietti, il bonifico non viene più offerto al checkout (gli altri metodi di pagamento restano) e i nuovi ordini con bonifico vengono rifiutati con un avviso finché gli ordini non vengono pagati o scadono. 0 = nessun limite. Puoi rilasciare i bonifici aperti in blocco in «Stato del sistema → Operatività»."
 
-#: src/Orders.php:1257
+#: src/Orders.php:1259
 msgid "Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Al momento non è possibile riservare altri biglietti con bonifico per questo evento perché molti bonifici sono già aperti. Scegli un altro metodo di pagamento o una quantità minore."
 
@@ -36003,7 +36006,7 @@ msgstr "Apri eventi"
 msgid "Pass Captain: Ticketarten mit Umsatzsteuer bei Kleinunternehmern"
 msgstr "Pass Captain: tipi di biglietto con IVA per piccole imprese"
 
-#: src/Orders.php:1256
+#: src/Orders.php:1258
 msgid "Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter."
 msgstr "Questi biglietti non possono essere venduti al momento perché i dati fiscali del tipo di biglietto devono ancora essere verificati. Riprova più tardi o contatta l’organizzatore."
 
@@ -36078,23 +36081,23 @@ msgstr "Solo per errori di battitura della stessa persona; il codice resta valid
 msgid "Teilnehmerliste als CSV (alle Termine des Events)"
 msgstr "Elenco partecipanti in CSV (tutte le date dell’evento)"
 
-#: src/Orders.php:2704
+#: src/Orders.php:2084
 msgid "Bitte einen Grund für den Inhaberwechsel angeben."
 msgstr "Indica un motivo per il cambio di titolare."
 
-#: src/Orders.php:2710
+#: src/Orders.php:2090
 msgid "Bitte Name und eine gültige E-Mail-Adresse der neuen Person angeben."
 msgstr "Inserisci il nome e un indirizzo e-mail valido della nuova persona."
 
-#: src/Orders.php:2728
+#: src/Orders.php:2108
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können an eine andere Person gehen."
 msgstr "Solo i biglietti validi e non registrati di ordini pagati possono passare a un’altra persona."
 
-#: src/Orders.php:2733
+#: src/Orders.php:2113
 msgid "Das ist bereits die Adresse der Inhaber:in. Für Tippfehler derselben Person „Teilnehmerdaten korrigieren“ verwenden."
 msgstr "Questo è già l’indirizzo del titolare. Per errori di battitura della stessa persona usa «Correggi dati partecipante»."
 
-#: src/Orders.php:2740
+#: src/Orders.php:2120
 msgid "Der Inhaber konnte gerade nicht geändert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile modificare il titolare. Riprova."
 
@@ -36206,11 +36209,11 @@ msgstr "Al massimo per biglietto"
 msgid "Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem Ticket desselben Termins in derselben Bestellung. Es erzeugt kein Ticket und keinen QR-Code, belegt keine Plätze des Termins und steht als eigene Position mit eigenem Steuersatz in Bestellübersicht und Rechnung. „Höchstens je Ticket“ gilt nur für Zusatzprodukte (0 = ohne Grenze). Nach den ersten Bestellungen lässt sich die Art nicht mehr ändern."
 msgstr "Un prodotto aggiuntivo è disponibile solo insieme ad almeno un biglietto della stessa data nello stesso ordine. Non genera biglietto né codice QR, non occupa posti della data e compare come riga propria con la propria aliquota nel riepilogo e nella fattura. «Al massimo per biglietto» vale solo per i prodotti aggiuntivi (0 = senza limite). Dopo i primi ordini il genere non può più essere modificato."
 
-#: src/Orders.php:1258
+#: src/Orders.php:1260
 msgid "Zusatzprodukte kannst du nur zusammen mit mindestens einem Ticket für denselben Termin bestellen."
 msgstr "Puoi ordinare prodotti aggiuntivi solo insieme ad almeno un biglietto per la stessa data."
 
-#: src/Orders.php:1259
+#: src/Orders.php:1261
 msgid "Für dieses Zusatzprodukt sind pro Ticket nicht so viele Stück möglich."
 msgstr "Non sono possibili così tanti pezzi di questo prodotto aggiuntivo per biglietto."
 
@@ -36509,7 +36512,7 @@ msgid "Gutschriften (Partner)"
 msgstr "Note di credito (partner)"
 
 #. translators: %d: minimum age in years
-#: src/Orders.php:261
+#: src/Orders.php:263
 #, php-format
 msgid "Bitte bestätige, dass alle Ticketinhaber mindestens %d Jahre alt sind."
 msgstr "Conferma che tutti i titolari hanno almeno %d anni."
@@ -36740,3 +36743,15 @@ msgstr "Crea i pass per i biglietti esistenti"
 #: src/WalletPasses/Service.php:708
 msgid "Weder Apple Wallet noch Google Wallet ist eingerichtet."
 msgstr "Né Apple Wallet né Google Wallet sono configurati."
+
+#: src/Frontend/ServiceBooking.php:153
+msgid "Teurere Zeitfenster kannst du gegen Zuzahlung der Differenz wählen. Bis die Zuzahlung eingegangen ist, bleibt deine bisherige Buchung bestehen."
+msgstr "Puoi scegliere una fascia oraria più cara pagando la differenza. Finché il supplemento non è stato ricevuto, la tua prenotazione attuale resta valida."
+
+#: src/Frontend/ServiceBooking.php:154
+msgid "Zahlungsart für die Zuzahlung"
+msgstr "Metodo di pagamento per il supplemento"
+
+#: src/Frontend/ServiceBooking.php:158
+msgid "Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung; danach wird deine Buchung automatisch umgebucht."
+msgstr "La nuova fascia oraria è più cara. Paga il supplemento; dopo la tua prenotazione verrà spostata automaticamente."
