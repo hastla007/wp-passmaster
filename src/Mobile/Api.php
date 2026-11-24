@@ -111,7 +111,7 @@ final class Api {
 	 * so an app can check compatibility before pairing. Contains no data of the site's events.
 	 */
 	public static function info( \WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- REST callback signature.
-		return rest_ensure_response( array( 'api_version' => self::VERSION, 'core_version' => self::core_version(), 'min_app_version' => self::min_app_version(), 'features' => self::features(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::now() ) ) );
+		return rest_ensure_response( array( 'api_version' => self::VERSION, 'core_version' => self::core_version(), 'min_app_version' => self::min_app_version(), 'features' => self::features(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 	}
 
 	/**
@@ -163,7 +163,7 @@ final class Api {
 			// What this device's user may do (capabilities: admission, pass redemption, undo are separate;
 			// check_out: the role rule checkout_roles).
 			'permissions' => array( 'check_in' => current_user_can( 'wpcap_checkin' ), 'redeem_passes' => current_user_can( \PassCaptain\Capabilities::REDEEM_PASSES ), 'undo' => current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ), 'check_out' => Checkin::checkout_allowed() ),
-			'server_time' => gmdate( 'c' ),
+			'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ),
 		) );
 	}
 

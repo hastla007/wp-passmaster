@@ -684,7 +684,7 @@ final class Refunds {
 			sprintf( 'order %d could not be marked refunded (%s): %s; retry queued', $order_id, (string) $reason, (string) $error ),
 			array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'reason' => sanitize_text_field( (string) $reason ), 'error' => \PassCaptain\Text::cut( (string) $error, 190 ) ) )
 		);
-		Jobs::enqueue( 'order-mark-refunded-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ORDER_STATE_JOB, array( 'order_id' => $order_id, 'reason' => sanitize_text_field( (string) $reason ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + MINUTE_IN_SECONDS ) );
+		Jobs::enqueue( 'order-mark-refunded-' . $order_id . '-' . gmdate( 'YmdHi', Clock::now() ), self::ORDER_STATE_JOB, array( 'order_id' => $order_id, 'reason' => sanitize_text_field( (string) $reason ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + MINUTE_IN_SECONDS ) );
 	}
 
 	/**

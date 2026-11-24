@@ -250,7 +250,7 @@ final class Network {
 		}
 		$overview = self::overview();
 		Audit::record( 'network_report_exported', 'network', 0, array( 'sites' => count( $overview ) ) );
-		return array( 'filename' => 'pass-captain-netzwerk-' . gmdate( 'Ymd' ) . '.csv', 'csv' => Scope::csv( self::csv_rows( $overview ) ) );
+		return array( 'filename' => 'pass-captain-netzwerk-' . gmdate( 'Ymd', \PassCaptain\Clock::now() ) . '.csv', 'csv' => Scope::csv( self::csv_rows( $overview ) ) );
 	}
 
 	public static function handle_report() {

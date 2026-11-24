@@ -1059,7 +1059,7 @@ final class PublicEvents {
 		return array(
 			'occurrences' => (object) $out,
 			'legal' => array( 'require_terms' => (bool) $legal['require_terms'], 'terms_version' => (string) $legal['terms_version'], 'locale' => (string) $legal['locale'] ),
-			'server_time' => gmdate( 'c' ),
+			'server_time' => gmdate( 'c', Clock::now() ),
 		);
 	}
 

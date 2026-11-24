@@ -126,7 +126,7 @@ final class Availability {
 		foreach ( self::snapshot( self::parse_ids( $request->get_param( 'types' ) ) ) as $id => $state ) {
 			$types[ (string) $id ] = $state;
 		}
-		return new \WP_REST_Response( array( 'now' => gmdate( 'c' ), 'types' => (object) $types ), 200 );
+		return new \WP_REST_Response( array( 'now' => gmdate( 'c', \PassCaptain\Clock::now() ), 'types' => (object) $types ), 200 );
 	}
 
 	/** Cache-Control of the availability answer (filter wpcap_availability_cache_control, e.g. "no-store"). */

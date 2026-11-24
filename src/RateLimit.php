@@ -135,7 +135,7 @@ final class RateLimit {
 		}
 		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
-			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), Clock::real_mysql() ) );
 			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
 			if ( false !== $ok ) { return; }
 		}
@@ -155,7 +155,7 @@ final class RateLimit {
 		}
 		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
-			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), Clock::real_mysql() ) );
 			$failed = '' !== (string) $wpdb->last_error;
 			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
 			if ( ! $failed ) { return (int) $hits; }

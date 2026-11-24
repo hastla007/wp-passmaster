@@ -1619,7 +1619,7 @@ final class Installer {
 		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.22', '>=' ) || ! TicketCodes::holder_ready() ) { return false; }
 		$p = $wpdb->prefix;
 		$oldest = (string) $wpdb->get_var( "SELECT MIN(created_at) FROM {$p}wpcap_audit_logs" );
-		$oldest = '' !== $oldest ? $oldest : gmdate( 'Y-m-d H:i:s' );
+		$oldest = '' !== $oldest ? $oldest : Clock::real_mysql();
 		return false !== $wpdb->query( $wpdb->prepare(
 			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id SET t.code_with_attendee=1
 			WHERE t.code_with_attendee=0 AND t.attendee_email<>'' AND LOWER(t.attendee_email)<>LOWER(ord.customer_email) AND (

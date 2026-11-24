@@ -28,7 +28,7 @@ final class Dashboard {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = \PassCaptain\Clock::mysql();
-		$today = gmdate( 'Y-m-d 00:00:00' );
+		$today = gmdate( 'Y-m-d 00:00:00', \PassCaptain\Clock::now() );
 		$week_ago = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 7 * DAY_IN_SECONDS );
 		$week_ahead = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 7 * DAY_IN_SECONDS );
 		$in_scope = null === $scope ? '' : " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items si INNER JOIN {$p}wpcap_ticket_types st ON st.ticket_type_id=si.ticket_type_id INNER JOIN {$p}wpcap_occurrences so ON so.occurrence_id=st.occurrence_id WHERE si.order_id=ord.order_id" . Queries::scope_sql( $scope, 'so.event_id' ) . ')';

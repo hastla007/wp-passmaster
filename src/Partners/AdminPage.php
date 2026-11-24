@@ -342,7 +342,7 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-pa-refund">' . esc_html__( 'Bei Erstattungen', 'pass-captain' ) . '</label></th><td>';
 		Forms::select( 'refund_policy', Repository::refund_policy_labels(), $v( 'refund_policy', 'reverse_all' ), 'wpcap-pa-refund' );
 		echo '</td></tr>';
-		$field( 'settlement_start', __( 'Abrechnung ab (Bestelldatum)', 'pass-captain' ), $partner && $partner->settlement_start ? substr( $partner->settlement_start, 0, 10 ) : gmdate( 'Y-m-01' ), 'date' );
+		$field( 'settlement_start', __( 'Abrechnung ab (Bestelldatum)', 'pass-captain' ), $partner && $partner->settlement_start ? substr( $partner->settlement_start, 0, 10 ) : gmdate( 'Y-m-01', \PassCaptain\Clock::now() ), 'date' );
 		$area( 'notes', __( 'Interne Notizen', 'pass-captain' ), $v( 'notes' ) );
 		echo '</tbody></table>';
 		self::render_sales_fields( $partner, $field );
@@ -543,8 +543,8 @@ final class AdminPage {
 		submit_button( __( 'Speichern', 'pass-captain' ), 'secondary', 'submit', false );
 		echo '</p></form>';
 
-		$period = (string) Forms::query_arg( 'statement_period', gmdate( 'Y-m', strtotime( 'first day of last month' ) ) );
-		if ( ! Settlements::valid_period( $period ) ) { $period = gmdate( 'Y-m' ); }
+		$period = (string) Forms::query_arg( 'statement_period', gmdate( 'Y-m', strtotime( 'first day of last month', \PassCaptain\Clock::now() ) ) );
+		if ( ! Settlements::valid_period( $period ) ) { $period = gmdate( 'Y-m', \PassCaptain\Clock::now() ); }
 		$t = Statement::compute( $partner, $period )['totals'];
 		echo '<h2>' . esc_html__( 'Wiederverkäufer-Abrechnung (API-Verkäufe)', 'pass-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><input type="hidden" name="partner_id" value="' . (int) $pid . '"><label>' . esc_html__( 'Monat', 'pass-captain' ) . ' <input type="month" name="statement_period" value="' . esc_attr( $period ) . '"></label> ';
@@ -670,7 +670,7 @@ final class AdminPage {
 				Forms::hidden( 'do', 'create_settlement' );
 				echo '<p><label for="wpcap-st-partner">' . esc_html__( 'Veranstalter', 'pass-captain' ) . '</label> ';
 				Forms::select( 'partner_id', $partners, 0, 'wpcap-st-partner' );
-				echo ' <label for="wpcap-st-period">' . esc_html__( 'Monat', 'pass-captain' ) . '</label> <input type="month" id="wpcap-st-period" name="period" required value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of last month' ) ) ) . '"> ';
+				echo ' <label for="wpcap-st-period">' . esc_html__( 'Monat', 'pass-captain' ) . '</label> <input type="month" id="wpcap-st-period" name="period" required value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of last month', \PassCaptain\Clock::now() ) ) ) . '"> ';
 				submit_button( __( 'Entwurf erstellen', 'pass-captain' ), 'secondary', 'submit', false );
 				echo '</p></form>';
 				echo '<p class="description">' . esc_html__( 'Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnungen sind unveränderlich; spätere Erstattungen oder Nachzahlungen erscheinen in der nächsten Periode als Korrektur.', 'pass-captain' ) . '</p>';

@@ -180,7 +180,7 @@ final class ScannerDesk {
 		if ( null === $counts ) {
 			return new \WP_Error( 'wpcap_stats_retry', __( 'Der Zähler konnte gerade nicht gelesen werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
-		return rest_ensure_response( $counts + array( 'server_time' => gmdate( 'c' ) ) );
+		return rest_ensure_response( $counts + array( 'server_time' => gmdate( 'c', Clock::now() ) ) );
 	}
 
 	/** Search results per request (one more is read to tell "more results"). */

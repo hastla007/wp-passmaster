@@ -168,7 +168,7 @@ final class AuditLogPage {
 		if ( is_wp_error( $check ) ) { return $check; }
 		$total = (int) self::query( $filters, 1, 1 )['total'];
 		Audit::record( 'audit_log_exported', 'audit', 0, array_merge( array_filter( $filters ), array( 'rows' => $total ) ) );
-		$filename = 'pass-captain-audit-' . gmdate( 'Ymd-His' ) . '.csv';
+		$filename = 'pass-captain-audit-' . gmdate( 'Ymd-His', \PassCaptain\Clock::now() ) . '.csv';
 		// $stream: rows as a generator for Scope::send_csv() (the admin download); else the CSV string.
 		return $stream ? array( 'filename' => $filename, 'rows' => self::csv_row_stream( $filters ) ) : array( 'filename' => $filename, 'csv' => Scope::csv( self::csv_rows( $filters ) ) );
 	}

@@ -145,7 +145,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
 		$payment_group = sanitize_text_field( (string) ( $payments[ $payment_method ] ?? '' ) );
 		if ( '' === $payment_group ) { return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Für die Zahlungsart fehlt die efsta-Zahlungsgruppen-Zuordnung.', 'pass-captain' ) ); }
-		$now = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c' ) ) );
+		$now = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 		$register = sanitize_text_field( (string) ( $configuration['terminal_id'] ?? '1' ) );
 		$tax_id = sanitize_text_field( (string) ( $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
 		$esr = array(
