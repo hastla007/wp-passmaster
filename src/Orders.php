@@ -1,5 +1,12 @@
 <?php
-/** Order, inventory hold and ticket issuance services. */
+/**
+ * Order, inventory hold and ticket issuance services.
+ *
+ * Facade with stable static signatures (add-on contract). Cohesive parts live in @internal classes under
+ * src/Orders/ and are reached only through thin delegators here: PortalAccess (order portal link),
+ * CheckoutState (phases of create_attempt()), Availability (availability memo/cache/computation),
+ * Attendees (attendee validation and storage), Capacity (capacity check under row locks).
+ */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -916,25 +923,7 @@ final class Orders {
 
 	/** Stores attendee name/e-mail and custom field answers for one ticket. */
 	private static function store_attendee( $ticket_id, $order, array $attendee ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		// Stored attendee data of orders from before the entrance checks (A492/A493) may hold values that do
-		// not fit the columns: they are dropped/shortened instead of blocking the issuance for good.
-		$name = mb_substr( sanitize_text_field( Http::str( $attendee['name'] ?? '' ) ), 0, 190 );
-		$email = Http::email( $attendee['email'] ?? '' );
-		$email = Http::valid_email( $email ) ? $email : '';
-		if ( $name || '' !== $email ) {
-			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, $email, $name, $now ) ) ) { return false; }
-			if ( '' !== $email && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
-				return false;
-			}
-		}
-		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
-			if ( ! ParticipantFields::save_answer( $ticket_id, $field_id, (string) $value, $now ) ) { return false; }
-		}
-		Consents::record_checkout( $ticket_id, $order, $attendee );
-		return '' === $wpdb->last_error;
+		return Orders\Attendees::store( $ticket_id, $order, $attendee );
 	}
 
 	/** Tickets per bulk revoke statement (IN list size). */
@@ -1091,160 +1080,12 @@ final class Orders {
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
 	public static function validate_attendees( array $lines, $attendees, $options = array(), $skip_required = false ) {
-		global $wpdb;
-		if ( ! is_array( $options ) ) {
-			$options = array( 'allow_missing' => (bool) $options, 'skip_required' => (bool) $skip_required );
-		}
-		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
-		$out = array();
-		$skip_consent = ! empty( $options['skip_consent'] ) && Consents::ready();
-		$defer_required = ! empty( $options['defer_required'] );
-		$allow_missing = ! empty( $options['allow_missing'] );
-		$skip_required_fields = $defer_required || ! empty( $options['skip_required'] );
-		// A681: strict channels (WooCommerce) refuse what they cannot store instead of dropping it silently.
-		$strict = ! empty( $options['strict'] );
-		$buyer = is_array( $options['buyer'] ?? null ) ? $options['buyer'] : array();
-		$name_modes = self::schema_at_least( '3.17.5' ); // attendee_name column of ticket types (DB 3.17.5).
-		$known_types = array_map( 'intval', array_keys( $lines ) );
-		if ( $strict ) {
-			foreach ( $attendees as $index => $entry ) {
-				if ( ! is_array( $entry ) || ! in_array( absint( $entry['ticket_type_id'] ?? 0 ), $known_types, true ) ) {
-					return new \WP_Error( 'wpcap_attendees_invalid', __( 'Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets.', 'pass-captain' ), array( 'status' => 400, 'index' => (int) $index, 'reason' => 'unknown_ticket_type' ) );
-				}
-			}
-		}
-		// Add-on products (Sales\Addons) get no tickets, so no attendee data is asked or kept for them.
-		$addon_types = Sales\Addons::addon_ids( $known_types );
-		foreach ( $lines as $type_id => $quantity ) {
-			if ( in_array( (int) $type_id, $addon_types, true ) ) { continue; }
-			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . ",status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d" . ( $strict ? '' : " AND status='active'" ) . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
-			// Inactive fields are only read to tell "no longer offered" from "unknown" (A681).
-			$inactive = array();
-			// A683: fields locked for self-service are neither validated nor returned (stored value stays).
-			$locked = array_map( 'strval', (array) ( $options['locked'] ?? array() ) );
-			foreach ( $fields as $k => $field ) {
-				if ( 'active' !== $field->status ) { $inactive[] = (string) $field->field_key; unset( $fields[ $k ] ); }
-				elseif ( in_array( (string) $field->field_key, $locked, true ) ) { unset( $fields[ $k ] ); }
-			}
-			$fields = array_values( $fields );
-			// Name per ticket: off (not asked, not stored), optional (default) or required (ticket type option).
-			$name_mode = $name_modes ? self::attendee_name_mode( $wpdb->get_var( $wpdb->prepare( 'SELECT attendee_name FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $type_id ) ) ) : 'optional';
-			// Corrections of answers alone (ticket page, assignment) leave the name as it is: skip_name.
-			$name_required = ! $defer_required && empty( $options['skip_name'] ) && ( 'required' === $name_mode || ParticipantFields::name_required( $type_id ) );
-			$given = array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } );
-			// Position of each entry in the submitted list: error data names the attendee (A551).
-			$given_index = array_keys( $given );
-			$given = array_values( $given );
-			$where = static function ( $i, $field = null ) use ( $type_id, $given_index ) {
-				$data = array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'position' => (int) $i );
-				if ( isset( $given_index[ $i ] ) ) { $data['index'] = (int) $given_index[ $i ]; }
-				if ( $field ) { $data['field_key'] = is_object( $field ) ? (string) $field->field_key : (string) $field; }
-				return $data;
-			};
-			if ( count( $given ) > $quantity ) {
-				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), $where( (int) $quantity ) );
-			}
-			if ( $strict ) {
-				$keys = array_map( static function ( $f ) { return (string) $f->field_key; }, $fields );
-				foreach ( $given as $i => $entry ) {
-					$sent = is_array( $entry['answers'] ?? null ) ? array_keys( $entry['answers'] ) : array();
-					foreach ( array_diff( array_map( 'strval', $sent ), $keys ) as $unknown ) {
-						$closed = in_array( $unknown, $inactive, true );
-						return new \WP_Error(
-							'wpcap_attendee_field_unknown',
-							$closed ? __( 'Ein Teilnehmerfeld wird nicht mehr abgefragt. Bitte lade die Seite neu und prüfe die Angaben.', 'pass-captain' ) : __( 'Die Angaben zu Teilnehmenden enthalten ein unbekanntes Feld. Bitte lade die Seite neu.', 'pass-captain' ),
-							$where( $i, sanitize_key( $unknown ) ) + array( 'reason' => $closed ? 'field_inactive' : 'field_unknown' )
-						);
-					}
-				}
-			}
-			// A680: order-level fields are asked once per order and ticket type (first entry of the type).
-			$order_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' === ParticipantFields::scope( $f ); } ) );
-			$ticket_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' !== ParticipantFields::scope( $f ); } ) );
-			$order_clean = array();
-			$first = is_array( $given[0]['answers'] ?? null ) ? $given[0]['answers'] : array();
-			foreach ( $order_fields as $field ) {
-				list( $value, $error ) = self::normalize_answer( $field, $first[ $field->field_key ] ?? '' );
-				if ( $error ) { return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( 0, $field ) ); }
-				if ( (int) $field->required && '' === $value && ! $skip_required_fields && ( $given || ! $allow_missing ) ) {
-					/* translators: %s: field label */
-					return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für die Bestellung ausfüllen.', 'pass-captain' ), $field->label ), $where( 0, $field ) );
-				}
-				if ( '' !== $value ) { $order_clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
-			}
-			$needs_all = ! $defer_required && ! $allow_missing && ( $name_required || (bool) array_filter( $ticket_fields, static function ( $f ) { return (int) $f->required; } ) );
-			for ( $i = 0; $i < $quantity; $i++ ) {
-				$entry = $given[ $i ] ?? null;
-				if ( ! $entry && ! $needs_all && ! $order_clean ) { continue; }
-				$present = (bool) $entry;
-				$entry = is_array( $entry ) ? $entry : array();
-				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
-				$clean = array();
-				foreach ( $ticket_fields as $field ) {
-					// A498: sanitize_email() turns "kein-mail" into "" – an entered but invalid value must not pass as empty.
-					list( $value, $error ) = self::normalize_answer( $field, $answers[ $field->field_key ] ?? '' );
-					if ( $error ) {
-						return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( $i, $field ) );
-					}
-					if ( (int) $field->required && '' === $value && ! $skip_required_fields && ( $present || ! $allow_missing ) ) {
-						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
-					}
-					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
-				}
-				// A552: "same as buyer" takes the buyer's address (and billing name) for this ticket.
-				$same = ! empty( $entry['same_as_buyer'] ) && $buyer;
-				$name = 'off' === $name_mode ? '' : mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 );
-				$raw_email = $entry['email'] ?? '';
-				if ( $same ) {
-					if ( '' === $name && 'off' !== $name_mode ) { $name = mb_substr( sanitize_text_field( Http::str( $buyer['name'] ?? '' ) ), 0, 190 ); }
-					if ( '' === trim( Http::str( $raw_email ) ) ) { $raw_email = $buyer['email'] ?? ''; }
-				}
-				if ( $name_required && '' === $name && ( $present || ! $allow_missing ) ) {
-					return new \WP_Error( 'wpcap_attendee_field_required', __( 'Bitte den Namen für jedes Ticket angeben.', 'pass-captain' ), $where( $i, '__name' ) );
-				}
-				$email = Http::email( $raw_email );
-				if ( Http::email_too_long( $email ) ) {
-					// A493: a valid but overlong address would fail at the tickets/assignments column at issuance.
-					return new \WP_Error( 'wpcap_attendees_invalid', self::email_too_long_message(), $where( $i ) + array( 'reason' => 'email_too_long' ) );
-				}
-				// A599: an entered but invalid address is refused (it was dropped silently, so the ticket
-				// went to the buyer instead of the attendee). field_key "__email" names the field of the block.
-				if ( false === Http::optional_email( $entry['email'] ?? '' ) ) {
-					$label = __( 'E-Mail der Teilnehmer:in', 'pass-captain' );
-					/* translators: %s: field label */
-					$message = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $label );
-					return new \WP_Error( 'wpcap_attendee_field_invalid', $message, $where( $i, (object) array( 'field_key' => '__email' ) ) + array( 'reason' => 'email_invalid' ) );
-				}
-				$out[] = array(
-					'ticket_type_id' => (int) $type_id,
-					'name' => $name,
-					'email' => is_email( $email ) ? $email : '',
-					'answers' => $clean + $order_clean,
-				);
-			}
-		}
-		return $out;
-	}
-
-	/**
-	 * One answer normalised for its field ([value, error], see ParticipantFields::normalize()). Field types
-	 * that only the newline-option variant knows ("radio", "consent"; choices one per line in `options`)
-	 * are validated by clean_answer(), everything else by ParticipantFields.
-	 */
-	private static function normalize_answer( $field, $value ) {
-		$type = (string) ( $field->field_type ?? '' );
-		$json_options = in_array( $type, array( 'select', 'multiselect' ), true ) && is_array( json_decode( (string) ( $field->options ?? '' ), true ) );
-		if ( in_array( $type, array( 'radio', 'consent' ), true ) || ( 'select' === $type && ! $json_options && '' !== (string) ( $field->options ?? '' ) ) ) {
-			$clean = self::clean_answer( $field, $value );
-			return null === $clean ? array( '', 'invalid' ) : array( $clean, '' );
-		}
-		return ParticipantFields::normalize( $field, $value );
+		return Orders\Attendees::validate( $lines, $attendees, $options, $skip_required );
 	}
 
 	/** Normalised attendee-name mode of a ticket type: off, optional (default) or required. */
 	public static function attendee_name_mode( $value ) {
-		return in_array( (string) $value, array( 'off', 'optional', 'required' ), true ) ? (string) $value : 'optional';
+		return Orders\Attendees::name_mode( $value );
 	}
 
 	/**
@@ -1253,11 +1094,7 @@ final class Orders {
 	 * @return string[]
 	 */
 	public static function field_options( $field ) {
-		$raw = is_object( $field ) ? ( $field->options ?? '' ) : ( $field['options'] ?? '' );
-		// Two stored formats: a JSON list (ParticipantFields, A680) or one choice per line.
-		$list = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
-		$choices = is_array( $list ) ? array_map( 'strval', $list ) : (array) preg_split( '/\R/', (string) $raw );
-		return array_values( array_unique( array_filter( array_map( 'trim', $choices ), static function ( $choice ) { return '' !== $choice; } ) ) );
+		return Orders\Attendees::field_options( $field );
 	}
 
 	/**
@@ -1265,30 +1102,7 @@ final class Orders {
 	 * (e-mail, choice outside the options, impossible date, phone number with other characters).
 	 */
 	public static function clean_answer( $field, $value ) {
-		$value = is_scalar( $value ) ? trim( (string) $value ) : '';
-		switch ( (string) $field->field_type ) {
-			case 'email':
-				$value = sanitize_email( $value );
-				return '' === $value || is_email( $value ) ? $value : null;
-			case 'textarea':
-				return sanitize_textarea_field( $value );
-			case 'checkbox':
-			case 'consent':
-				return $value && '0' !== $value ? '1' : '';
-			case 'select':
-			case 'radio':
-				$value = sanitize_text_field( $value );
-				return '' === $value || in_array( $value, self::field_options( $field ), true ) ? $value : null;
-			case 'date':
-				if ( '' === $value ) { return ''; }
-				$date = \DateTime::createFromFormat( '!Y-m-d', $value );
-				return $date && $date->format( 'Y-m-d' ) === $value ? $value : null;
-			case 'tel':
-				if ( '' === $value ) { return ''; }
-				return preg_match( '/^\+?[0-9 ()\/.\-]{3,40}$/', $value ) && preg_match_all( '/[0-9]/', $value ) >= 3 ? $value : null;
-			default:
-				return sanitize_text_field( $value );
-		}
+		return Orders\Attendees::clean_answer( $field, $value );
 	}
 
 	/**
@@ -1700,92 +1514,7 @@ final class Orders {
 	 * reservation history); without them the paid lines and holds are summed (upgrade fallback).
 	 */
 	private static function capacity_error( $type, $occurrence, $quantity, $exclude_order_id = 0, $occurrence_quantity = null ) {
-		$occurrence_quantity = null === $occurrence_quantity ? $quantity : (int) $occurrence_quantity;
-		if ( CapacityCounters::enabled() && isset( $occurrence->sold_qty, $occurrence->held_qty ) && ( (int) $type->capacity <= 0 || isset( $type->sold_qty, $type->held_qty ) ) ) {
-			return self::capacity_error_counted( $type, $occurrence, (int) $quantity, absint( $exclude_order_id ), $occurrence_quantity );
-		}
-		return self::capacity_error_summed( $type, $occurrence, (int) $quantity, absint( $exclude_order_id ), $occurrence_quantity );
-	}
-
-	/** capacity_error() from the locked counters. */
-	private static function capacity_error_counted( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		if ( (int) $type->capacity > 0 ) {
-			// Holds that no longer hold (lapsed while still "active", or already expired/released/
-			// converted but not yet synced) still count in held_qty until the counters catch up.
-			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $type->ticket_type_id, $now ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$own = 0;
-			if ( $exclude_order_id ) {
-				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", $exclude_order_id, $type->ticket_type_id ) )
-					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE order_id=%d AND ticket_type_id=%d AND status='active' AND expires_at > %s", $exclude_order_id, $type->ticket_type_id, $now ) );
-				if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			}
-			if ( (int) $type->sold_qty + (int) $type->held_qty - $lapsed - $own + $quantity > (int) $type->capacity ) {
-				return 'sold_out';
-			}
-		}
-		if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) {
-			// The occurrence's types first, then one range per type on counted_type (ticket_type_id,
-			// counted_qty): a join would read every historical hold of each type (A429).
-			// Add-on products (Sales\Addons) use no seats: the occurrence counters hold the units of every
-			// type, so the add-on types' own counters are taken off again (and their holds are not "lapsed").
-			$occ_rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,sold_qty,held_qty' . Sales\Addons::column_sql( '' ) . " FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal column list.
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$occ_types = array();
-			$addon_units = 0;
-			foreach ( $occ_rows as $occ_row ) {
-				if ( Sales\Addons::is_addon( $occ_row ) ) { $addon_units += (int) $occ_row->sold_qty + (int) $occ_row->held_qty; } else { $occ_types[] = (int) $occ_row->ticket_type_id; }
-			}
-			$lapsed = $occ_types ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $occ_types ) . ") AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $now ) ) : 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$own = 0;
-			if ( $exclude_order_id ) {
-				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.counted_qty),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d AND tt.occurrence_id=%d" . Sales\Addons::not_addon_sql( 'tt' ), $exclude_order_id, $occurrence->occurrence_id ) ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
-					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE r.order_id=%d AND tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s" . Sales\Addons::not_addon_sql( 'tt' ), $exclude_order_id, $occurrence->occurrence_id, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
-				if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			}
-			if ( (int) $occurrence->sold_qty + (int) $occurrence->held_qty - $addon_units - $lapsed - $own + $occurrence_quantity > (int) $occurrence->capacity ) {
-				return 'occurrence_sold_out';
-			}
-		}
-		return '';
-	}
-
-	/** capacity_error() by summing paid lines and active holds (used until the counters are verified). */
-	private static function capacity_error_summed( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		$exclude_order_id = absint( $exclude_order_id );
-		// Sold and held units in ONE statement each: two statements could straddle a payment that moves
-		// units from held to sold (under READ COMMITTED they would be missing from both sums).
-		if ( (int) $type->capacity > 0 ) {
-			$used = $wpdb->get_var( $wpdb->prepare(
-				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s AND order_id <> %d)",
-				$p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id, $exclude_order_id,
-				$p . 'wpcap_reservations', $type->ticket_type_id, $now, $exclude_order_id
-			) );
-			if ( '' !== $wpdb->last_error || null === $used ) { return 'db_busy'; }
-			if ( (int) $used + $quantity > (int) $type->capacity ) {
-				return 'sold_out';
-			}
-		}
-		if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) {
-			$no_addon = Sales\Addons::not_addon_sql( 'tt' ); // Add-on products use no seats.
-			$occ_used = $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
-				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d$no_addon) + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d$no_addon)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal add-on fragment (Sales\Addons::not_addon_sql()).
-				$p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $exclude_order_id,
-				$p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now, $exclude_order_id
-			) );
-			if ( '' !== $wpdb->last_error || null === $occ_used ) { return 'db_busy'; }
-			if ( (int) $occ_used + $occurrence_quantity > (int) $occurrence->capacity ) {
-				return 'occurrence_sold_out';
-			}
-		}
-		return '';
+		return Orders\Capacity::error( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity );
 	}
 
 	/**
@@ -1936,23 +1665,12 @@ final class Orders {
 		do_action( 'wpcap_capacity_released', (int) $order_id, (string) $reason, $details );
 	}
 
-	/** Per-request availability memo: ticket_type_id => remaining (int|null), of the site $memo_prefix. */
-	private static $availability_memo = array();
-	/** Table prefix the memo belongs to (multisite: switch_to_blog() changes it within a request). */
-	private static $memo_prefix = null;
-	/** Whether this request wrote to plugin tables (then the object cache is not read any more). */
-	private static $wrote = false;
-	private static $query_hooked = false;
-
 	/**
 	 * Forgets memoised availability. Runs on every write to a plugin table of this request (filter
 	 * `query`), when capacity counters change and on demand (e.g. after module data changed).
 	 */
 	public static function flush_availability_cache() {
-		self::$availability_memo = array();
-		self::$wrote = true;
-		/** Request caches of modules (holds, passes, seat links, limits) are stale after a write. */
-		do_action( 'wpcap_availability_flushed' );
+		Orders\Availability::flush();
 	}
 
 	/**
@@ -1961,18 +1679,12 @@ final class Orders {
 	 * its keys contain the prefix).
 	 */
 	public static function site_switched() {
-		global $wpdb;
-		self::$availability_memo = array();
-		self::$memo_prefix = (string) $wpdb->prefix;
-		do_action( 'wpcap_availability_flushed' );
+		Orders\Availability::site_switched();
 	}
 
 	/** Filter `query`: a write to a plugin table (or a rollback) invalidates the availability memo. */
 	public static function note_query( $query ) {
-		if ( is_string( $query ) && preg_match( '/^\s*(?:(?:INSERT|UPDATE|DELETE|REPLACE)\b[^;]*wpcap_|ROLLBACK)/is', $query ) ) {
-			self::flush_availability_cache();
-		}
-		return $query;
+		return Orders\Availability::note_query( $query );
 	}
 
 	/**
@@ -1986,9 +1698,7 @@ final class Orders {
 	 * @return int|null Null when neither the type nor the occurrence is limited.
 	 */
 	public static function availability( $ticket_type_id ) {
-		$ticket_type_id = absint( $ticket_type_id );
-		$result = self::availability_many( array( $ticket_type_id ) );
-		return array_key_exists( $ticket_type_id, $result ) ? $result[ $ticket_type_id ] : 0;
+		return Orders\Availability::of( $ticket_type_id );
 	}
 
 	/**
@@ -1999,140 +1709,7 @@ final class Orders {
 	 * @return array ticket_type_id => int|null (0 for unknown types).
 	 */
 	public static function availability_many( array $ticket_type_ids, array $rows = array() ) {
-		global $wpdb;
-		if ( ! self::$query_hooked && function_exists( 'add_filter' ) ) {
-			add_filter( 'query', array( __CLASS__, 'note_query' ) );
-			self::$query_hooked = true;
-		}
-		if ( self::$memo_prefix !== (string) $wpdb->prefix ) { self::site_switched(); }
-		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_type_ids ) ) ) );
-		$out = array();
-		$missing = array();
-		foreach ( $ids as $id ) {
-			if ( array_key_exists( $id, self::$availability_memo ) ) { $out[ $id ] = self::$availability_memo[ $id ]; } else { $missing[] = $id; }
-		}
-		if ( ! $missing ) {
-			return $out;
-		}
-		$ttl = max( 0, min( 60, (int) apply_filters( 'wpcap_availability_cache_ttl', 10 ) ) );
-		$use_cache = $ttl > 0 && function_exists( 'wp_cache_get' );
-		$cache_key = static function ( $id ) use ( $wpdb ) { return 'availability:' . $wpdb->prefix . $id; };
-		if ( $use_cache && ! self::$wrote ) {
-			foreach ( $missing as $i => $id ) {
-				$found = false;
-				$cached = wp_cache_get( $cache_key( $id ), 'wpcap', false, $found );
-				if ( $found && is_array( $cached ) && array_key_exists( 'v', $cached ) ) {
-					$out[ $id ] = self::$availability_memo[ $id ] = $cached['v'];
-					unset( $missing[ $i ] );
-				}
-			}
-		}
-		if ( ! $missing ) {
-			return $out;
-		}
-		foreach ( self::compute_availability( array_values( $missing ), $rows ) as $id => $value ) {
-			$out[ $id ] = self::$availability_memo[ $id ] = $value;
-			if ( $use_cache ) { wp_cache_set( $cache_key( $id ), array( 'v' => $value ), 'wpcap', $ttl ); }
-		}
-		return $out;
-	}
-
-	/** Uncached availability of ticket types (see availability_many()). */
-	private static function compute_availability( array $ids, array $rows ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		$types = array();
-		$need = array();
-		foreach ( $ids as $id ) {
-			// Preloaded rows, else the display batch (event page, GET /events), else one grouped query.
-			$batched = isset( $rows['types'][ $id ] ) ? null : DisplayBatch::type( $id );
-			if ( isset( $rows['types'][ $id ] ) && is_object( $rows['types'][ $id ] ) && isset( $rows['types'][ $id ]->status ) ) { $types[ $id ] = $rows['types'][ $id ]; } elseif ( $batched && isset( $batched->status ) ) { $types[ $id ] = $batched; } else { $need[] = $id; }
-		}
-		if ( $need ) {
-			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN (" . implode( ',', $need ) . ')' ) as $row ) { $types[ (int) $row->ticket_type_id ] = $row; }
-		}
-		$occurrences = array();
-		$need = array();
-		foreach ( $types as $type ) {
-			$occ_id = (int) $type->occurrence_id;
-			$batched = isset( $rows['occurrences'][ $occ_id ] ) ? null : DisplayBatch::occurrence( $occ_id );
-			if ( isset( $rows['occurrences'][ $occ_id ] ) && is_object( $rows['occurrences'][ $occ_id ] ) && isset( $rows['occurrences'][ $occ_id ]->status ) ) { $occurrences[ $occ_id ] = $rows['occurrences'][ $occ_id ]; } elseif ( $batched && isset( $batched->status ) ) { $occurrences[ $occ_id ] = $batched; } else { $need[ $occ_id ] = $occ_id; }
-		}
-		if ( $need ) {
-			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id IN (" . implode( ',', array_map( 'intval', $need ) ) . ')' ) as $row ) { $occurrences[ (int) $row->occurrence_id ] = $row; }
-		}
-		$limited_types = array();
-		$limited_occ = array();
-		foreach ( $types as $id => $type ) {
-			if ( (int) $type->capacity > 0 ) { $limited_types[] = (int) $id; }
-			$occ = $occurrences[ (int) $type->occurrence_id ] ?? null;
-			if ( $occ && (int) $occ->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) { $limited_occ[ (int) $occ->occurrence_id ] = (int) $occ->occurrence_id; }
-		}
-		$type_used = array();
-		$occ_used = array();
-		$grouped = static function ( $sql ) use ( $wpdb ) {
-			$map = array();
-			foreach ( (array) $wpdb->get_results( $sql ) as $row ) {
-				$row = array_values( (array) $row );
-				$map[ (int) $row[0] ] = (int) $row[1];
-			}
-			return $map;
-		};
-		$counted = CapacityCounters::enabled() && ( ! $types || isset( reset( $types )->sold_qty ) );
-		if ( $limited_types ) {
-			$in = implode( ',', $limited_types );
-			if ( $counted ) {
-				// Counters minus holds that are still marked active but already lapsed.
-				$lapsed = $grouped( $wpdb->prepare( "SELECT ticket_type_id,SUM(counted_qty) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at <= %s GROUP BY ticket_type_id", $now ) );
-				foreach ( $limited_types as $id ) { $type_used[ $id ] = (int) $types[ $id ]->sold_qty + (int) $types[ $id ]->held_qty - ( $lapsed[ $id ] ?? 0 ); }
-			} else {
-				$sold = $grouped( "SELECT oi.ticket_type_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id" );
-				$held = $grouped( $wpdb->prepare( "SELECT ticket_type_id,SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s GROUP BY ticket_type_id", $now ) );
-				foreach ( $limited_types as $id ) { $type_used[ $id ] = ( $sold[ $id ] ?? 0 ) + ( $held[ $id ] ?? 0 ); }
-			}
-		}
-		if ( $limited_occ ) {
-			$in = implode( ',', $limited_occ );
-			// Add-on products (Sales\Addons) use no seats of the occurrence.
-			$no_addon = Sales\Addons::not_addon_sql( 'tt' );
-			if ( $counted ) {
-				$lapsed = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.counted_qty) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id IN ($in)$no_addon GROUP BY tt.occurrence_id", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
-				// Rows of a listing already carry the add-on units (Sales\Addons::annotate_occurrences()).
-				$addon_units = array();
-				$addon_missing = array();
-				foreach ( $limited_occ as $occ_id ) {
-					if ( isset( $occurrences[ $occ_id ]->addon_qty ) ) { $addon_units[ $occ_id ] = (int) $occurrences[ $occ_id ]->addon_qty; } else { $addon_missing[] = (int) $occ_id; }
-				}
-				if ( $addon_missing && Sales\Addons::ready() ) {
-					$addon_units += $grouped( "SELECT occurrence_id,SUM(sold_qty+held_qty) FROM {$p}wpcap_ticket_types WHERE occurrence_id IN (" . implode( ',', $addon_missing ) . ") AND kind='" . Sales\Addons::ADDON . "' GROUP BY occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and class constant.
-				}
-				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = (int) $occurrences[ $occ_id ]->sold_qty + (int) $occurrences[ $occ_id ]->held_qty - ( $addon_units[ $occ_id ] ?? 0 ) - ( $lapsed[ $occ_id ] ?? 0 ); }
-			} else {
-				$sold = $grouped( "SELECT tt.occurrence_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded'$no_addon GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
-				$held = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.quantity) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN ($in) AND r.status='active' AND r.expires_at > %s$no_addon GROUP BY tt.occurrence_id", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
-				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = ( $sold[ $occ_id ] ?? 0 ) + ( $held[ $occ_id ] ?? 0 ); }
-			}
-		}
-		$out = array();
-		foreach ( $ids as $id ) {
-			$type = $types[ $id ] ?? null;
-			$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
-			if ( ! $type || ! $occurrence ) { $out[ $id ] = 0; continue; }
-			$limits = array();
-			if ( (int) $type->capacity > 0 ) { $limits[] = (int) $type->capacity - $type_used[ $id ]; }
-			if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) { $limits[] = (int) $occurrence->capacity - $occ_used[ (int) $occurrence->occurrence_id ]; }
-			$remaining = $limits ? max( 0, min( $limits ) ) : null;
-			/**
-			 * Remaining units after module limits (e.g. series quota pools). Return null for unlimited
-			 * or a smaller non-negative int; never more than the core value.
-			 */
-			$filtered = apply_filters( 'wpcap_ticket_availability', $remaining, $type, $occurrence );
-			if ( null === $filtered || ! is_numeric( $filtered ) ) { $out[ $id ] = $remaining; continue; }
-			$filtered = max( 0, (int) $filtered );
-			$out[ $id ] = null === $remaining ? $filtered : min( $remaining, $filtered );
-		}
-		return $out;
+		return Orders\Availability::many( $ticket_type_ids, $rows );
 	}
 
 	/** Occurrence row (SELECT *), from the display batch when preloaded. */
