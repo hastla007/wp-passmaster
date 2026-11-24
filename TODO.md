@@ -1889,6 +1889,7 @@ Bericht mit allen 12 Expertenurteilen, Messwerten und „geprüft OK“: `docs/a
   - *Lösung:* version_compare; bei neuerem gespeicherten Stand nicht installieren, Admin-Hinweis „Restore erforderlich“, Option wpcap_schema_newer.
 - [ ] **[PRIO: NIEDRIG]** | **[Experte #1]** | **[Kategorie: Feature]** – Gott-Klasse Orders und statische Kopplung verhindern isolierte Tests
   - *24.11.2026:* `Orders\Availability`, `Orders\Attendees`, `Orders\Capacity` ausgelagert (`@internal`, Fassade mit gleichen Signaturen, Test `zz_orders_split`); offen: Stornierung, Holds/manuelle Holds, Ausstellung/Zustellung, Zahlungsbestätigung.
+  - *24.11.2026 (p5):* `Orders\Holds` ausgelagert (Überweisungs-Holds und Haltefristen: `manual_hold_*`, `manual_held_for_event`, `manual_holds_exhausted`, `extend_hold*`, `hold_end`; `@internal`, Fassade mit gleichen Signaturen, Baselines für PHPCS und Plugin Check mitverschoben, Test `zz_p5_orders_holds`); offen: Stornierung, Ablauf/Freigabe der Holds (`expire_holds`), Ausstellung/Zustellung, Zahlungsbestätigung.
   - *Problem:* Orders.php 2058 Zeilen/70 Methoden/22 Abhängigkeiten, Modules/Fiscalization.php 1622/59, ServiceBookings 48; global $wpdb überall, Fault-Injection nur über manipulierten $wpdb.
   - *Lösung:* Schrittweise Orders\Holds, Orders\Issuance, Orders\Delivery, Orders\PortalAccess; Orders bleibt Fassade mit gleichen statischen Signaturen (Add-on-Verträge stabil).
   - *Stand:* Teilweise (R8): Bestellportal-Zugang nach `Orders\PortalAccess` ausgelagert (Fassade unverändert); weitere Zerlegung von `Orders` offen.
