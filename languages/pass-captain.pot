@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-24T06:18:57+00:00\n"
+"POT-Creation-Date: 2026-11-24T06:52:11+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
@@ -301,7 +301,6 @@ msgstr ""
 #: src/Suite/Outbox.php:293
 #: src/Waitlists/AdminPage.php:115
 #: src/WalletPasses/AdminPage.php:160
-#: src/Workflow/MailHandoff.php:53
 msgid "Keine Berechtigung."
 msgstr ""
 
@@ -6690,7 +6689,7 @@ msgid "Bestellung %s auswählen"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:38
-#: src/Orders.php:2131
+#: src/Orders.php:2227
 #: src/ParticipantFields.php:348
 #: src/Partners/Sales.php:447
 #: src/Payments/PayPalGateway.php:218
@@ -6722,11 +6721,11 @@ msgid "Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung fr
 msgstr ""
 
 #: src/Admin/OrdersPage.php:89
-#: src/Orders.php:2143
-#: src/Orders.php:2443
-#: src/Orders.php:2717
-#: src/Orders.php:2814
-#: src/Orders.php:3252
+#: src/Orders.php:2239
+#: src/Orders.php:2539
+#: src/Orders.php:2813
+#: src/Orders.php:2910
+#: src/Orders.php:3348
 #: src/Partners/Sales.php:694
 #: src/Partners/Sales.php:743
 #: src/Payments/ReturnNotice.php:441
@@ -6837,7 +6836,7 @@ msgid "Keine Berechtigung für Erstattungen."
 msgstr ""
 
 #: src/Admin/OrdersPage.php:264
-#: src/Orders.php:2446
+#: src/Orders.php:2542
 #: src/Refunds.php:65
 #: src/Refunds.php:237
 #: src/Services/Refunder.php:60
@@ -11452,12 +11451,12 @@ msgstr ""
 #: src/Checkin.php:188
 #: src/Checkin.php:309
 #: src/Checkin.php:532
-#: src/Checkin.php:855
+#: src/Checkin.php:865
 #: src/Exchange/Portal.php:59
 #: src/Exchange/Service.php:184
 #: src/Exchange/Service.php:1270
-#: src/Mobile/Api.php:411
-#: src/Orders.php:4529
+#: src/Mobile/Api.php:412
+#: src/Orders.php:4625
 #: src/PortalSelfService.php:218
 #: src/PortalSelfService.php:558
 #: src/PortalSelfService.php:775
@@ -11478,7 +11477,7 @@ msgstr ""
 
 #: src/Admin/TicketsPage.php:63
 #: src/Exchange/Service.php:602
-#: src/Orders.php:3065
+#: src/Orders.php:3161
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr ""
 
@@ -11489,8 +11488,8 @@ msgstr ""
 #: src/Admin/TicketsPage.php:110
 #: src/Admin/TicketsPage.php:142
 #: src/Api/Actions.php:372
-#: src/Checkin.php:884
-#: src/Mobile/Api.php:197
+#: src/Checkin.php:894
+#: src/Mobile/Api.php:198
 #: src/ScannerDesk.php:107
 #: src/ScannerDesk.php:177
 msgid "Für dieses Event ist kein Einlasszugriff zugewiesen."
@@ -11508,7 +11507,7 @@ msgstr ""
 
 #: src/Admin/TicketsPage.php:172
 #: src/Admission/Engine.php:300
-#: src/Checkin.php:925
+#: src/Checkin.php:935
 #: src/ScannerDesk.php:139
 msgid "Das Ticket ist nicht eingecheckt."
 msgstr ""
@@ -11566,9 +11565,9 @@ msgstr ""
 
 #: src/Admin/TicketsPage.php:378
 #: src/Admission/Rest.php:76
-#: src/Mobile/Api.php:254
-#: src/Mobile/Api.php:281
-#: src/Mobile/Api.php:300
+#: src/Mobile/Api.php:255
+#: src/Mobile/Api.php:282
+#: src/Mobile/Api.php:301
 msgid "idempotency_key ist erforderlich."
 msgstr ""
 
@@ -11930,7 +11929,7 @@ msgid "Für diesen Einlassbereich bist du nicht eingeteilt."
 msgstr ""
 
 #: src/Admission/BulkCheckin.php:56
-#: src/Mobile/Api.php:400
+#: src/Mobile/Api.php:401
 msgid "Für den Sammellauf fehlt ein gültiger Schlüssel (8–64 Zeichen)."
 msgstr ""
 
@@ -11997,6 +11996,7 @@ msgstr ""
 
 #: src/Admission/ConflictsPage.php:37
 #: src/Admission/Rest.php:131
+#: src/OfflineScanner/I18n.php:269
 msgid "Ausgecheckt"
 msgstr ""
 
@@ -12197,12 +12197,14 @@ msgid "Kein Bereich"
 msgstr ""
 
 #: src/Admission/Rest.php:129
+#: src/OfflineScanner/I18n.php:266
 #: src/PublicEvents.php:62
 msgctxt "scanner direction: entry (opposite of exit)"
 msgid "Einlass"
 msgstr ""
 
 #: src/Admission/Rest.php:130
+#: src/OfflineScanner/I18n.php:267
 msgid "Auslass (Check-out)"
 msgstr ""
 
@@ -15153,12 +15155,12 @@ msgstr ""
 msgid "Code ersetzt: Das Ticket wurde %1$s (%2$s). Dieser Code gilt nicht mehr – bitte den aktuellen Code aus der neuesten Ticketmail zeigen lassen."
 msgstr ""
 
-#: src/Checkin.php:612
+#: src/Checkin.php:622
 msgid "Check-out ist für deine Rolle nicht freigegeben."
 msgstr ""
 
 #. translators: %d: minutes
-#: src/Checkin.php:641
+#: src/Checkin.php:651
 #, php-format
 msgid "Nur eigene Scans der letzten %d Minute können zurückgenommen werden. Bitte die Einlassleitung fragen."
 msgid_plural "Nur eigene Scans der letzten %d Minuten können zurückgenommen werden. Bitte die Einlassleitung fragen."
@@ -15166,90 +15168,91 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: minutes
-#: src/Checkin.php:642
+#: src/Checkin.php:652
 msgid "Check-ins können nur von der Einlassleitung zurückgenommen werden."
 msgstr ""
 
-#: src/Checkin.php:654
+#: src/Checkin.php:664
+#: src/OfflineScanner/I18n.php:263
 msgid "Du darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen."
 msgstr ""
 
-#: src/Checkin.php:749
-#: src/Mobile/Api.php:344
+#: src/Checkin.php:759
+#: src/Mobile/Api.php:345
 msgid "Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen."
 msgstr ""
 
-#: src/Checkin.php:857
+#: src/Checkin.php:867
 msgid "Das Ticket ist erstattet bzw. die Bestellung storniert. Der Einlass kann nicht zurückgenommen werden, sonst wäre das Ticket wieder gültig."
 msgstr ""
 
-#: src/Checkin.php:866
+#: src/Checkin.php:876
 msgid "Dieser Einlass erfolgte in einem anderen Einlassbereich; zurücknehmen kann ihn nur das dort eingeteilte Personal bzw. Gerät."
 msgstr ""
 
-#: src/Checkin.php:889
+#: src/Checkin.php:899
 #: src/ScannerDesk.php:104
 msgid "Dieses Gerät ist für ein anderes Event freigegeben."
 msgstr ""
 
-#: src/Checkin.php:900
+#: src/Checkin.php:910
 msgid "Das Ticket gilt für einen anderen Termin."
 msgstr ""
 
-#: src/Checkin.php:903
+#: src/Checkin.php:913
 msgid "Das Ticket gilt nicht für diesen Einlassbereich (oder du bist hier nicht eingeteilt)."
 msgstr ""
 
 #. translators: 1: refusal reason, 2: date and time of the ticket's occurrence
-#: src/Checkin.php:912
+#: src/Checkin.php:922
 #, php-format
 msgid "%1$s Das Ticket gilt für %2$s."
 msgstr ""
 
-#: src/Checkin.php:918
+#: src/Checkin.php:928
 msgid "Ticket wurde bereits verwendet."
 msgstr ""
 
-#: src/Checkin.php:919
+#: src/Checkin.php:929
 msgid "Ticket ist widerrufen."
 msgstr ""
 
-#: src/Checkin.php:920
+#: src/Checkin.php:930
 msgid "Ticket ist heute nicht gültig."
 msgstr ""
 
-#: src/Checkin.php:921
+#: src/Checkin.php:931
 msgid "Das Tageskontingent für dieses Ticket ist erreicht."
 msgstr ""
 
-#: src/Checkin.php:922
+#: src/Checkin.php:932
 msgid "Die maximale Anzahl an Einlässen für dieses Ticket ist erreicht."
 msgstr ""
 
-#: src/Checkin.php:923
+#: src/Checkin.php:933
 msgid "Einlass mit diesem Ticket ist zu dieser Uhrzeit nicht möglich."
 msgstr ""
 
-#: src/Checkin.php:924
+#: src/Checkin.php:934
 msgid "Ticket ist bereits eingecheckt; für einen Wiedereinlass zuerst auschecken."
 msgstr ""
 
-#: src/Checkin.php:926
+#: src/Checkin.php:936
 msgid "Der Einlassbereich ist voll. Einlass erst, wenn Personen den Bereich verlassen haben (Auslass scannen)."
 msgstr ""
 
-#: src/Checkin.php:937
+#: src/Checkin.php:947
 msgid "Ticket wurde bereits verwendet oder ist widerrufen."
 msgstr ""
 
 #. translators: 1: reason of the revocation (e.g. "umgetauscht – es gibt ein neues Ticket"), 2: date and time
-#: src/Checkin.php:942
+#: src/Checkin.php:952
 #, php-format
 msgid "Ticket ist widerrufen: %1$s (%2$s)."
 msgstr ""
 
 #. translators: %d: device number
-#: src/Checkin.php:1019
+#: src/Checkin.php:1029
 #, php-format
 msgid "Gerät %d"
 msgstr ""
@@ -15770,9 +15773,9 @@ msgstr ""
 
 #: src/Errors.php:18
 #: src/Exchange/Service.php:604
-#: src/Orders.php:256
-#: src/Orders.php:1306
-#: src/Orders.php:1772
+#: src/Orders.php:300
+#: src/Orders.php:1402
+#: src/Orders.php:1868
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr ""
 
@@ -16078,7 +16081,7 @@ msgid "Event-Regeln speichern"
 msgstr ""
 
 #: src/Exchange/Portal.php:54
-#: src/Orders.php:3044
+#: src/Orders.php:3140
 #: src/PortalSelfService.php:70
 msgid "Der Bestellzugriff ist ungültig."
 msgstr ""
@@ -16225,7 +16228,7 @@ msgid "Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht
 msgstr ""
 
 #: src/Exchange/Service.php:227
-#: src/Orders.php:1308
+#: src/Orders.php:1404
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr ""
 
@@ -17536,51 +17539,51 @@ msgid "Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den 
 msgstr ""
 
 #. translators: 1: schema version in the database, 2: schema version of the installed plugin
-#: src/Installer.php:1317
+#: src/Installer.php:1429
 #, php-format
 msgid "Pass Captain: Die Datenbank stammt von einer neueren Plugin-Version (Schema %1$s, dieses Plugin kennt %2$s). Es wurde nichts verändert. Bitte die neuere Plugin-Version wieder installieren oder eine Datensicherung von vor dem Update wiederherstellen (Restore erforderlich) – mit älterem Code können neuere Daten (z. B. verschlüsselte Zugangsdaten) unlesbar sein."
 msgstr ""
 
-#: src/Installer.php:1725
+#: src/Installer.php:1837
 msgid "Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird automatisch in zunehmenden Abständen wiederholt und kann unter „Pass Captain → Systemstatus“ sofort erneut gestartet werden. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt."
 msgstr ""
 
-#: src/Installer.php:2022
+#: src/Installer.php:2134
 msgctxt "User role"
 msgid "Pass Captain Ticket-Administration"
 msgstr ""
 
-#: src/Installer.php:2023
+#: src/Installer.php:2135
 msgctxt "User role"
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr ""
 
-#: src/Installer.php:2024
+#: src/Installer.php:2136
 msgctxt "User role"
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr ""
 
-#: src/Installer.php:2025
+#: src/Installer.php:2137
 msgctxt "User role"
 msgid "Pass Captain Einlasspersonal"
 msgstr ""
 
-#: src/Installer.php:2026
+#: src/Installer.php:2138
 msgctxt "User role"
 msgid "Pass Captain Veranstalter"
 msgstr ""
 
-#: src/Installer.php:2027
+#: src/Installer.php:2139
 msgctxt "User role"
 msgid "Pass Captain Leistungserbringer"
 msgstr ""
 
-#: src/Installer.php:2028
+#: src/Installer.php:2140
 msgctxt "User role"
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr ""
 
-#: src/Installer.php:2029
+#: src/Installer.php:2141
 msgctxt "User role"
 msgid "Pass Captain Support"
 msgstr ""
@@ -18531,7 +18534,7 @@ msgid "Teilnehmerangaben (Pass Captain, noch keinen Tickets zugeordnet)"
 msgstr ""
 
 #: src/Integrations/WooCommerce/Attendees.php:230
-#: src/Orders.php:1019
+#: src/Orders.php:1115
 msgid "Es wurden mehr Teilnehmende angegeben als Tickets bestellt."
 msgstr ""
 
@@ -20931,11 +20934,11 @@ msgstr ""
 msgid "Zu viele Kopplungsversuche. Bitte später erneut versuchen."
 msgstr ""
 
-#: src/Mobile/Api.php:316
+#: src/Mobile/Api.php:317
 msgid "Es müssen 1 bis 200 Scans übertragen werden."
 msgstr ""
 
-#: src/Mobile/Api.php:385
+#: src/Mobile/Api.php:386
 msgid "tickets muss eine Liste von Ticket-IDs (public id) sein."
 msgstr ""
 
@@ -23626,6 +23629,48 @@ msgstr ""
 msgid "zurückgenommen"
 msgstr ""
 
+#: src/OfflineScanner/I18n.php:265
+msgid "Scan-Richtung"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:268
+msgid "Bereit (Auslass)"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:270
+msgid "Ausgecheckt (offline)"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:271
+msgid "Nicht eingecheckt"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:272
+msgid "Check-out nicht erlaubt"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:273
+msgid "Check-out vorgemerkt"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:274
+msgid "Prüfung beim Sync"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:275
+msgid "Auf diesem Gerät bereits ausgecheckt"
+msgstr ""
+
+#: src/OfflineScanner/I18n.php:276
+msgid "Wiedereinlass nach Check-out – Prüfung beim Sync"
+msgstr ""
+
+#. translators: %s: reason the server gave for refusing an offline check-out (e.g. "Nicht eingecheckt")
+#: src/OfflineScanner/I18n.php:278
+#, php-format
+msgid "Check-out abgelehnt: %s"
+msgstr ""
+
 #: src/OfflineScanner/Rest.php:117
 msgid "Offline-Scannen ist für dieses Event nicht freigegeben."
 msgstr ""
@@ -25080,26 +25125,26 @@ msgstr ""
 msgid "Rechnungsdaten speichern"
 msgstr ""
 
-#: src/Orders.php:88
+#: src/Orders.php:120
 msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr ""
 
-#: src/Orders.php:120
+#: src/Orders.php:152
 #: src/Waitlists.php:934
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr ""
 
-#: src/Orders.php:168
+#: src/Orders.php:206
 #: src/Waitlists.php:938
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr ""
 
-#: src/Orders.php:183
-#: src/Orders.php:187
+#: src/Orders.php:225
+#: src/Orders.php:229
 msgid "Eine Ticketposition ist ungültig."
 msgstr ""
 
-#: src/Orders.php:424
+#: src/Orders.php:486
 #: src/Rest/Controller.php:569
 #: src/Rest/Controller.php:583
 #: src/ServiceBookings.php:743
@@ -25110,45 +25155,45 @@ msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr ""
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:898
+#: src/Orders.php:994
 #, php-format
 msgid "Die E-Mail-Adresse ist zu lang (höchstens %d Zeichen)."
 msgstr ""
 
-#: src/Orders.php:989
+#: src/Orders.php:1085
 msgid "Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets."
 msgstr ""
 
-#: src/Orders.php:1029
+#: src/Orders.php:1125
 msgid "Ein Teilnehmerfeld wird nicht mehr abgefragt. Bitte lade die Seite neu und prüfe die Angaben."
 msgstr ""
 
-#: src/Orders.php:1029
+#: src/Orders.php:1125
 msgid "Die Angaben zu Teilnehmenden enthalten ein unbekanntes Feld. Bitte lade die Seite neu."
 msgstr ""
 
 #. translators: %s: field label
-#: src/Orders.php:1045
+#: src/Orders.php:1141
 #, php-format
 msgid "Bitte „%s“ für die Bestellung ausfüllen."
 msgstr ""
 
 #. translators: %s: field label
-#: src/Orders.php:1065
+#: src/Orders.php:1161
 #, php-format
 msgid "Bitte „%s“ für jedes Ticket ausfüllen."
 msgstr ""
 
-#: src/Orders.php:1078
+#: src/Orders.php:1174
 msgid "Bitte den Namen für jedes Ticket angeben."
 msgstr ""
 
-#: src/Orders.php:1088
+#: src/Orders.php:1184
 msgid "E-Mail der Teilnehmer:in"
 msgstr ""
 
 #. translators: %s: field label
-#: src/Orders.php:1090
+#: src/Orders.php:1186
 #: src/ParticipantFields.php:170
 #: src/SettingsSchema.php:266
 #, php-format
@@ -25156,251 +25201,251 @@ msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr ""
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1179
+#: src/Orders.php:1275
 #, php-format
 msgid "Diese E-Mail-Adresse ist zu lang. Bitte verwende eine Adresse mit höchstens %d Zeichen."
 msgstr ""
 
-#: src/Orders.php:1213
+#: src/Orders.php:1309
 msgid "Dieser Bestellversuch gehört zu einem anderen Warenkorb. Bitte lade die Seite neu und bestelle erneut."
 msgstr ""
 
 #. translators: 1: ticket type, 2: new price
-#: src/Orders.php:1227
+#: src/Orders.php:1323
 #, php-format
 msgid "„%1$s“ jetzt %2$s"
 msgstr ""
 
 #. translators: %s: list of ticket types with their new price
-#: src/Orders.php:1231
+#: src/Orders.php:1327
 #, php-format
 msgid "Der Preis hat sich seit dem Laden der Seite geändert (%s). Bitte prüfe die Summe und bestelle erneut."
 msgstr ""
 
 #. translators: %s: new date and time (and location) of the occurrence
-#: src/Orders.php:1251
+#: src/Orders.php:1347
 #, php-format
 msgid "Der Termin wurde inzwischen geändert – jetzt: %s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr ""
 
 #. translators: 1: ticket type name, 2: new price
-#: src/Orders.php:1258
+#: src/Orders.php:1354
 #, php-format
 msgid "Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr ""
 
-#: src/Orders.php:1304
+#: src/Orders.php:1400
 #: src/Waitlists.php:159
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr ""
 
-#: src/Orders.php:1305
+#: src/Orders.php:1401
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
 msgstr ""
 
-#: src/Orders.php:1307
+#: src/Orders.php:1403
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr ""
 
-#: src/Orders.php:1309
+#: src/Orders.php:1405
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr ""
 
-#: src/Orders.php:1310
-#: src/Orders.php:1773
+#: src/Orders.php:1406
+#: src/Orders.php:1869
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr ""
 
-#: src/Orders.php:1311
-#: src/Orders.php:1774
+#: src/Orders.php:1407
+#: src/Orders.php:1870
 #: src/Passes/Capacity.php:180
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr ""
 
-#: src/Orders.php:1312
+#: src/Orders.php:1408
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr ""
 
-#: src/Orders.php:1313
+#: src/Orders.php:1409
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr ""
 
-#: src/Orders.php:1314
+#: src/Orders.php:1410
 msgid "Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr ""
 
-#: src/Orders.php:1315
+#: src/Orders.php:1411
 msgid "Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr ""
 
-#: src/Orders.php:1340
+#: src/Orders.php:1436
 msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben."
 msgstr ""
 
-#: src/Orders.php:1344
+#: src/Orders.php:1440
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr ""
 
-#: src/Orders.php:1348
+#: src/Orders.php:1444
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr ""
 
 #. translators: 1: error message, 2: error reference for support
-#: src/Orders.php:1372
+#: src/Orders.php:1468
 #, php-format
 msgid "%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s."
 msgstr ""
 
-#: src/Orders.php:1435
+#: src/Orders.php:1531
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:2302
+#: src/Orders.php:2398
 msgid "Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden."
 msgstr ""
 
-#: src/Orders.php:2330
+#: src/Orders.php:2426
 msgid "Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf."
 msgstr ""
 
-#: src/Orders.php:2332
+#: src/Orders.php:2428
 msgid "Der Termin ist bereits vorbei."
 msgstr ""
 
-#: src/Orders.php:2334
+#: src/Orders.php:2430
 msgid "Die Ticketart ist nicht mehr vorhanden."
 msgstr ""
 
-#: src/Orders.php:2336
+#: src/Orders.php:2432
 msgid "Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft."
 msgstr ""
 
-#: src/Orders.php:2339
+#: src/Orders.php:2435
 msgid "Die maximale Anzahl an Tickets pro Person wäre überschritten."
 msgstr ""
 
-#: src/Orders.php:2341
+#: src/Orders.php:2437
 msgid "Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf."
 msgstr ""
 
-#: src/Orders.php:2343
+#: src/Orders.php:2439
 msgid "Die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei."
 msgstr ""
 
-#: src/Orders.php:2345
+#: src/Orders.php:2441
 msgid "Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug."
 msgstr ""
 
-#: src/Orders.php:2347
+#: src/Orders.php:2443
 msgid "Es ist kein Kontingent mehr frei."
 msgstr ""
 
 #. translators: 1: order number, 2: payment reference, 3: reason
-#: src/Orders.php:2360
+#: src/Orders.php:2456
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s"
 msgstr ""
 
-#: src/Orders.php:2366
+#: src/Orders.php:2462
 msgid "Die Zahlung wird automatisch erstattet."
 msgstr ""
 
-#: src/Orders.php:2367
+#: src/Orders.php:2463
 msgid "Bitte manuell klären (Zuteilung erneut versuchen oder erstatten)."
 msgstr ""
 
-#: src/Orders.php:2370
+#: src/Orders.php:2466
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr ""
 
-#: src/Orders.php:2452
+#: src/Orders.php:2548
 msgid "Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden."
 msgstr ""
 
-#: src/Orders.php:2461
+#: src/Orders.php:2557
 msgid "Unbekannte Art der Erstattung."
 msgstr ""
 
-#: src/Orders.php:2699
+#: src/Orders.php:2795
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:2804
+#: src/Orders.php:2900
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr ""
 
-#: src/Orders.php:3040
+#: src/Orders.php:3136
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr ""
 
-#: src/Orders.php:3047
+#: src/Orders.php:3143
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr ""
 
-#: src/Orders.php:3060
+#: src/Orders.php:3156
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr ""
 
-#: src/Orders.php:3070
+#: src/Orders.php:3166
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr ""
 
-#: src/Orders.php:3089
+#: src/Orders.php:3185
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr ""
 
-#: src/Orders.php:3114
+#: src/Orders.php:3210
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr ""
 
-#: src/Orders.php:3139
-#: src/Orders.php:3149
+#: src/Orders.php:3235
+#: src/Orders.php:3245
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr ""
 
-#: src/Orders.php:3183
+#: src/Orders.php:3279
 msgid "Dieses Event ist nicht abgesagt."
 msgstr ""
 
-#: src/Orders.php:3699
+#: src/Orders.php:3795
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr ""
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:3947
+#: src/Orders.php:4043
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr ""
 
-#: src/Orders.php:4211
+#: src/Orders.php:4307
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:4215
+#: src/Orders.php:4311
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr ""
 
-#: src/Orders.php:4233
+#: src/Orders.php:4329
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr ""
 
-#: src/Orders.php:4294
-#: src/Orders.php:4373
-#: src/Orders.php:4544
+#: src/Orders.php:4390
+#: src/Orders.php:4469
+#: src/Orders.php:4640
 #: src/PortalSelfService.php:251
 #: src/PortalSelfService.php:264
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr ""
 
-#: src/Orders.php:4321
+#: src/Orders.php:4417
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr ""
 
-#: src/Orders.php:4397
+#: src/Orders.php:4493
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr ""
 
-#: src/Orders.php:4533
+#: src/Orders.php:4629
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr ""
 
@@ -35394,10 +35439,6 @@ msgstr ""
 
 #: src/Webhooks/Dispatcher.php:345
 msgid "Der Inhalt dieser Zustellung ist nicht mehr vorhanden."
-msgstr ""
-
-#: src/Workflow/MailHandoff.php:35
-msgid "Terminerinnerung (Modul Erinnerungen)"
 msgstr ""
 
 #: templates/event-card.php:61
