@@ -141,7 +141,7 @@ Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jede
 
 ## Nicht enthalten / offen
 
-- Bestellportal: Das Portal (`OrderPortal`, Template) bietet keinen Hook für zusätzliche Links je Ticket; Wallet-Buttons dort benötigen eine Kernerweiterung (z. B. Filter je Ticketzeile). Der Code ist dort ohnehin nicht im Klartext verfügbar – das Portal könnte aber `Service::download_url()` für vorhandene Apple-Pässe anzeigen.
+- Bestellportal: Zusätzliche Abschnitte lassen sich über den Filter `wpcap_order_portal_sections` (`src/OrderPortal.php`) einhängen; Wallet-Buttons je Ticket im Portal sind darüber möglich.
 - Tickets, die vor Aktivierung des Moduls ausgestellt wurden, erhalten erst nach einer Code-Erneuerung (z. B. „Tickets erneut senden“) einen Pass.
 - Check-in ändert den Pass nicht.
 - Google-Speichern-Links: siehe oben (A583) – der vollständige JWT („fat JWT“) wird nur noch als Rückfall für ein einzelnes Ticket erzeugt, wenn die Wallet-API beim Klick nicht erreichbar ist.
