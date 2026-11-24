@@ -14,6 +14,8 @@ use PassCaptain\Mobile\Devices;
 use PassCaptain\OfflineScanner\Package;
 use PassCaptain\Orders;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\OfflineScanner::class ); // Offline package (offline_scanner.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
@@ -106,7 +108,7 @@ check( 'A543: an exchanged ticket says it was exchanged (new ticket exists)', 'r
 check( 'A543: reason categories of revocations', 'refunded' === CodeHistory::revoke_category( 'refund_12' ) && 'cancelled' === CodeHistory::revoke_category( 'occurrence_cancelled' ) && 'order_cancelled' === CodeHistory::revoke_category( 'order_cancelled' ) && 'admin' === CodeHistory::revoke_category( 'irgendwas' ) );
 
 echo "A543: offline package marks replaced hashes\n";
-if ( class_exists( Package::class ) && function_exists( 'off_pair' ) ) {
+if ( class_exists( Package::class ) ) {
 	PassCaptain\OfflineScanner\Rules::save( $s['event'], array( 'enabled' => 1, 'max_offline_hours' => 12, 'duplicate_policy' => 'review', 'attendee_names' => 0 ) );
 	$pk_dev = off_pair( array( $s['event'] ), 'A543 Offline' );
 	$occ_row = $wpdb->get_row( "SELECT o.*,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_occurrences o JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=" . (int) $s['occ'] );

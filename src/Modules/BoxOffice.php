@@ -19,6 +19,9 @@ use PassCaptain\BoxOffice\ShiftPage;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class BoxOffice {
 	public static function register() {
 		add_filter( 'wpcap_payment_gateways', array( PosGateway::class, 'register_gateways' ) );
@@ -47,7 +50,7 @@ final class BoxOffice {
 	 */
 	public static function retention_step( $counts, $now = null, $deadline = null ) {
 		$counts = (array) $counts;
-		$cutoff = \PassCaptain\Privacy\Retention::financial_cutoff( null === $now ? time() : (int) $now );
+		$cutoff = \PassCaptain\Privacy\Retention::financial_cutoff( null === $now ? \PassCaptain\Clock::now() : (int) $now );
 		if ( '' === $cutoff || ! \PassCaptain\Privacy::has_table( 'wpcap_boxoffice_sessions' ) ) { return $counts; }
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -143,7 +146,7 @@ final class BoxOffice {
 			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$table}` ADD COLUMN {$name} {$definition}" ) ) { return false; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- own table, constant column names/definitions from the array above.
 		}
 
-		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 30 * 60 ) ) );
 		if ( ! Registers::migrate_legacy_sessions() ) { return false; }
 		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
 		return true;
@@ -407,6 +410,32 @@ final class BoxOffice {
 			// Cash/card without a certified fiscal solution (DE KassenSichV/TSE, AT RKSV) only after this explicit
 			// confirmation (e.g. the sales are recorded in a separate certified cash register).
 			'boxoffice_cash_confirmed' => 0,
+			// SET-PC-39 shift rules: differences up to this amount (minor units) need no reason (0 = every
+			// difference); 'amount' or 'denominations' count; receipt language ('' = language of the screen);
+			// blind count preselected for new registers.
+			'boxoffice_difference_tolerance_minor' => 0,
+			'boxoffice_count_mode' => 'amount',
+			'boxoffice_receipt_locale' => '',
+			'boxoffice_blind_default' => 1,
+			// With the fiscalization module: closing a shift also closes it at the fiscal provider (adapters with
+			// ClosingAdapterInterface only). Off by default: no provider call that was not configured.
+			'boxoffice_fiscal_closing' => 0,
+		);
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'boxoffice_receipt_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix der Kassenbon-Nummern', 'pass-captain' ), 'help' => __( 'Vorangestellt vor die fortlaufende Bonnummer der Kasse.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_footer' => array( 'type' => 'textarea', 'label' => __( 'Fußzeile des Kassenbons', 'pass-captain' ), 'help' => __( 'Text unter jedem Kassenbon, z. B. Steuer- oder Rückgabehinweise.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_terminals' => array( 'type' => 'textarea', 'label' => __( 'Kassenterminals', 'pass-captain' ), 'help' => __( 'Kartenterminals der Kasse, eines je Zeile.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_cashier' => array( 'type' => 'choice', 'options' => array( 'id' => __( 'Bedienernummer', 'pass-captain' ), 'initials' => __( 'Initialen', 'pass-captain' ), 'name' => __( 'Vollständiger Name', 'pass-captain' ) ), 'label' => __( 'Kassierer auf dem Bon', 'pass-captain' ), 'help' => __( 'Ob und wie die Person an der Kasse auf dem Bon erscheint.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_cash_confirmed' => array( 'type' => 'bool', 'label' => __( 'Barzahlung ohne Fiskalisierung bestätigt', 'pass-captain' ), 'help' => __( 'Bestätigung, dass die Kasse ohne angeschlossene Fiskalisierung bar kassieren darf.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_difference_tolerance_minor' => array( 'type' => 'money', 'label' => __( 'Kassendifferenz ohne Begründung bis', 'pass-captain' ), 'help' => __( 'Beim Schichtabschluss und bei der Übergabe brauchen Differenzen bis zu diesem Betrag (in Kassenwährung, z. B. 0,50) keinen Grund; sie stehen trotzdem im Z-Bericht. 0 = jede Differenz braucht einen Grund.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_count_mode' => array( 'type' => 'choice', 'options' => array( 'amount' => __( 'Betrag oder Stückelung', 'pass-captain' ), 'denominations' => __( 'Stückelung Pflicht', 'pass-captain' ) ), 'label' => __( 'Zählpflicht', 'pass-captain' ), 'help' => __( '„Stückelung Pflicht“: Anfangsbestand, Abschlusszählung und Übergabe müssen nach Scheinen und Münzen gezählt werden (außer bei leerer Kasse).', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_receipt_locale' => array( 'type' => 'text', 'label' => __( 'Sprache der Kassenbons', 'pass-captain' ), 'help' => __( 'Sprachcode wie de_DE oder en_US. Leer = Sprache der Kassenoberfläche.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_blind_default' => array( 'type' => 'bool', 'label' => __( 'Blindzählung als Standard für neue Kassen', 'pass-captain' ), 'help' => __( 'Neue Kassen werden mit Blindzählung vorgeschlagen; je Kasse änderbar.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_fiscal_closing' => array( 'type' => 'bool', 'label' => __( 'Schichtabschluss an den Fiskal-Anbieter melden', 'pass-captain' ), 'help' => __( 'Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 		);
 	}
 

@@ -13,6 +13,9 @@ use PassCaptain\Reports\Data;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Api {
 	const NS = 'pass-captain/v1';
 	const VERSION = '1';
@@ -96,7 +99,7 @@ final class Api {
 	private static function audit_pii_read( $route, $rows, $page ) {
 		$key_id = (int) ( self::$context['key']->key_id ?? 0 );
 		$partner_id = (int) ( self::$context['partner']->partner_id ?? 0 );
-		$marker = 'wpcap_pk_read_' . substr( hash( 'sha256', $key_id . '|' . $route . '|' . (int) $page . '|' . gmdate( 'YmdH' ) ), 0, 32 );
+		$marker = 'wpcap_pk_read_' . substr( hash( 'sha256', $key_id . '|' . $route . '|' . (int) $page . '|' . gmdate( 'YmdH', \PassCaptain\Clock::real() ) ), 0, 32 );
 		if ( get_transient( $marker ) ) { return false; }
 		set_transient( $marker, 1, HOUR_IN_SECONDS );
 		\PassCaptain\Audit::record( 'partner_api_pii_read', 'partner', $partner_id, array( 'key_id' => $key_id, 'route' => sanitize_key( $route ), 'page' => (int) $page, 'rows' => (int) $rows ) );

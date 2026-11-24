@@ -36,6 +36,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Reconcile {
 	const VOID_JOB = 'payment_void';
 
@@ -87,7 +90,7 @@ final class Reconcile {
 	public static function poll_pending() {
 		global $wpdb;
 		$minutes = max( 5, (int) Settings::get( 'payment_poll_after_minutes' ) );
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id,payment_provider FROM %i WHERE payment_status='pending' AND provider_reference<>'' AND payment_provider IN ('stripe','mollie','paypal') AND created_at<%s AND created_at>%s ORDER BY order_id LIMIT %d", $wpdb->prefix . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', time() - $minutes * MINUTE_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ), self::POLL_LIMIT ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id,payment_provider FROM %i WHERE payment_status='pending' AND provider_reference<>'' AND payment_provider IN ('stripe','mollie','paypal') AND created_at<%s AND created_at>%s ORDER BY order_id LIMIT %d", $wpdb->prefix . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - $minutes * MINUTE_IN_SECONDS ), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 2 * DAY_IN_SECONDS ), self::POLL_LIMIT ) );
 		$polled = 0;
 		$lookup = self::gateways(); // Covered by run() (find_payment()).
 		foreach ( $rows as $row ) {

@@ -17,6 +17,9 @@ use PassCaptain\Partners\SalesModel;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Partners {
 	public static function register() {
 		add_action( 'rest_api_init', array( Api::class, 'register_routes' ) );
@@ -104,6 +107,14 @@ final class Partners {
 		// partner_negative_balance: negative statement balance (self-collected API sales, fees) is carried
 		// to the next statement ('carry', default) or due from the organizer at once ('invoice').
 		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120, 'write_rate_limit' => 30 ), 'partner_negative_balance' => 'carry' );
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'partners' => array( 'type' => 'group', 'label' => __( 'Partner und Wiederverkauf', 'pass-captain' ), 'help' => __( 'Nummernkreise für Partnerabrechnungen und Gutschriften sowie Anfragegrenzen der Partner-Schnittstelle.', 'pass-captain' ), 'page' => 'wpcap-partners', 'fields' => array( 'rate_limit' => array( 'type' => 'int', 'min' => 1, 'max' => 100000, 'label' => __( 'Standard-Ratenlimit (Anfragen pro Minute und Key)', 'pass-captain' ) ), 'write_rate_limit' => array( 'type' => 'int', 'min' => 1, 'max' => 100000, 'label' => __( 'Standard-Ratenlimit für Verkäufe (schreibende Anfragen pro Minute und Key)', 'pass-captain' ) ) ) ),
+			'partner_negative_balance' => array( 'type' => 'choice', 'options' => array( 'carry' => __( 'in die nächste Abrechnung vortragen (Standard)', 'pass-captain' ), 'invoice' => __( 'sofort als Forderung an den Veranstalter ausweisen', 'pass-captain' ) ), 'label' => __( 'Negatives Partnersaldo', 'pass-captain' ), 'help' => __( 'Was geschieht, wenn eine Abrechnung für einen Partner negativ ausfällt.', 'pass-captain' ), 'page' => 'wpcap-partners' ),
+		);
 	}
 
 	public static function schema( $prefix, $charset ) {

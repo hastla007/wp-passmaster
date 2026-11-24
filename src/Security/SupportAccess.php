@@ -15,6 +15,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SupportAccess {
 	/** Capabilities that may be granted temporarily (never manage_options or finance). */
 	const GRANTABLE = array( 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports' );
@@ -67,8 +70,8 @@ final class SupportAccess {
 			return new \WP_Error( 'wpcap_support_reason', __( 'Bitte einen Grund (z. B. Ticketnummer) angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		global $wpdb;
-		$now = current_time( 'mysql', true );
-		$expires = gmdate( 'Y-m-d H:i:s', time() + $hours * HOUR_IN_SECONDS );
+		$now = \PassCaptain\Clock::mysql();
+		$expires = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + $hours * HOUR_IN_SECONDS );
 		$ok = $wpdb->insert( self::table(), array( 'user_id' => $user_id, 'granted_by' => get_current_user_id(), 'reason' => \PassCaptain\Text::cut( $reason, 255 ), 'capabilities' => implode( ',', $caps ), 'status' => 'active', 'expires_at' => $expires, 'created_at' => $now ), array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
 		if ( ! $ok ) {
 			return new \WP_Error( 'wpcap_support_save', __( 'Der Supportzugriff konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
@@ -93,7 +96,7 @@ final class SupportAccess {
 		if ( is_wp_error( $check ) ) { return $check; }
 		global $wpdb;
 		$grant = self::get( $grant_id );
-		$updated = $grant ? $wpdb->update( self::table(), array( 'status' => 'revoked', 'revoked_by' => get_current_user_id(), 'ended_at' => current_time( 'mysql', true ) ), array( 'grant_id' => absint( $grant_id ), 'status' => 'active' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) ) : 0;
+		$updated = $grant ? $wpdb->update( self::table(), array( 'status' => 'revoked', 'revoked_by' => get_current_user_id(), 'ended_at' => \PassCaptain\Clock::mysql() ), array( 'grant_id' => absint( $grant_id ), 'status' => 'active' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) ) : 0;
 		if ( ! $updated ) {
 			return new \WP_Error( 'wpcap_support_not_active', __( 'Dieser Supportzugriff ist nicht mehr aktiv.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -105,7 +108,7 @@ final class SupportAccess {
 	/** Marks expired grants (cron) and audits each expiry. @return int Number of expired grants. */
 	public static function expire_due() {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$due = $wpdb->get_results( $wpdb->prepare( "SELECT grant_id,user_id FROM %i WHERE status='active' AND expires_at <= %s LIMIT 200", self::table(), $now ) );
 		$count = 0;
 		foreach ( (array) $due as $row ) {
@@ -124,7 +127,7 @@ final class SupportAccess {
 		if ( ! $user_id ) { return array(); }
 		if ( ! isset( self::$cache[ $user_id ] ) ) {
 			global $wpdb;
-			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT capabilities FROM %i WHERE user_id=%d AND status='active' AND expires_at > %s", self::table(), $user_id, current_time( 'mysql', true ) ) );
+			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT capabilities FROM %i WHERE user_id=%d AND status='active' AND expires_at > %s", self::table(), $user_id, \PassCaptain\Clock::mysql() ) );
 			$caps = array();
 			foreach ( (array) $rows as $list ) { $caps = array_merge( $caps, explode( ',', (string) $list ) ); }
 			self::$cache[ $user_id ] = array_values( array_intersect( self::GRANTABLE, array_unique( $caps ) ) );

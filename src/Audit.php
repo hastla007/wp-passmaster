@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Audit {
 	/** Per-request cache: table prefix => whether the audit table exists (only checked for switched sites). */
 	private static $site_tables = array();
@@ -27,7 +30,7 @@ final class Audit {
 				'object_id' => absint( $object_id ),
 				// Both redactors: A194 (card numbers, IBANs, secret-named keys) and Security\Redact (provider secrets, tokens, contact data).
 				'details' => wp_json_encode( Security\Redact::data( Redact::value( $details, false ) ) ),
-				'created_at' => current_time( 'mysql', true ),
+				'created_at' => Clock::real_mysql(),
 			),
 			array( '%d', '%s', '%s', '%d', '%s', '%s' )
 		);

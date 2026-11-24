@@ -14,30 +14,21 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
 use PassCaptain\ServiceBookings;
 use PassCaptain\ServiceResources;
 use PassCaptain\Services\Portal as SvcPortal;
 
+svc_setup(); // Services module, service checkout, settings (zzzz_services_a_rules.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 
-final class Svc_Supp_Gateway implements PassCaptain\Payments\GatewayInterface {
-	public static int $payments = 0;
-	public static int $refunds = 0;
-	public function id() { return 'svc_supp'; }
-	public function title() { return 'Svc Supplement'; }
-	public function is_available( $currency ) { return true; }
-	public function create_payment( array $order, array $items = array() ) { self::$payments++; return array( 'provider' => 'svc_supp', 'status' => 'pending', 'redirect_url' => 'https://pay.example.test/s/' . $order['public_id'], 'provider_reference' => 'supp_' . $order['public_id'] ); }
-	public function verify_webhook( \WP_REST_Request $request ) { return null; }
-	public function supports_refunds() { return true; }
-	public function refund( array $order, $amount_minor, $idempotency_key ) { self::$refunds++; return 'suppref_' . $idempotency_key; }
-}
-add_filter( 'wpcap_payment_gateways', static function ( $list ) { $list[] = new Svc_Supp_Gateway(); return $list; } );
-PassCaptain\Payments\Registry::reset();
+svc_supp_gateway(); // Test gateway with refunds (lib/fixtures_shared.php).
 $sp_providers_before = PassCaptain\Settings::get( 'enabled_providers' );
 PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual', 'svc_supp' ) ) );
 

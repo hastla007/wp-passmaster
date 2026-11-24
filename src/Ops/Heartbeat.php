@@ -13,6 +13,9 @@ namespace PassCaptain\Ops;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Heartbeat {
 	const OPTION_PREFIX = 'wpcap_heartbeat_';
 
@@ -51,7 +54,7 @@ final class Heartbeat {
 	public static function beat( $worker, $processed = 0 ) {
 		$worker = sanitize_key( $worker );
 		if ( '' === $worker || ! function_exists( 'update_option' ) ) { return; }
-		update_option( self::OPTION_PREFIX . $worker, array( 'time' => time(), 'processed' => (int) $processed ), false );
+		update_option( self::OPTION_PREFIX . $worker, array( 'time' => \PassCaptain\Clock::real(), 'processed' => (int) $processed ), false );
 	}
 
 	/**
@@ -70,6 +73,6 @@ final class Heartbeat {
 		$workers = self::workers();
 		$interval = isset( $workers[ $worker ] ) ? (int) $workers[ $worker ][2] : 5 * MINUTE_IN_SECONDS;
 		$last = self::last( $worker );
-		return ! $last || $last['time'] < ( $now ?? time() ) - self::STALE_FACTOR * $interval;
+		return ! $last || $last['time'] < ( $now ?? \PassCaptain\Clock::real() ) - self::STALE_FACTOR * $interval;
 	}
 }

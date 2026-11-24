@@ -16,6 +16,9 @@ namespace PassCaptain\Allocations;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Capacity {
 	/** Units of one ticket type that count against its capacity. */
 	public static function type_used( $ticket_type_id, $exclude_order_id, $now ) {

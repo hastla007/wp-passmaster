@@ -34,6 +34,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Cancellation {
 	/** Summaries of the last after_core() run per occurrence (request scope). */
 	private static $summaries = array();

@@ -1,6 +1,6 @@
 {
   "contract": "offline",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Offline-Scanner pass-captain/v1/app/offline/… (Geräte-Bearer-Token). Requests sind Parameter mit Platzhaltern, Responses Shapes; \"package payload\" ist die signierte Paket-JSON im Feld payload.",
   "endpoints": {
     "GET /app/offline/keys": {
@@ -92,6 +92,7 @@
           "attendee_names": "bool"
         },
         "device_area_id": "int|null",
+        "?day_cutoff_hour": "int",
         "hash": "string",
         "ticket_types": [
           {
@@ -100,12 +101,26 @@
             "areas": [],
             "policy": "string",
             "multi": "bool",
+            "?own_policy": "bool",
+            "?max_entries": "int",
+            "?valid_days": "array|null",
             "id_check": "bool",
             "min_age": "int",
             "hint": "string"
           }
         ],
         "areas": [],
+        "?permissions": {
+          "undo": "bool",
+          "check_out": "bool"
+        },
+        "?checkout": {
+          "staff_area_ids": [
+            "int"
+          ],
+          "reentry_after_checkout": "bool",
+          "max_reentries": "int"
+        },
         "tickets": [
           {
             "h": "string",

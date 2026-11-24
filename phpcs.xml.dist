@@ -12,6 +12,10 @@
 <ruleset name="Pass Captain">
 	<description>WordPress Coding Standards (security, DB, i18n, WP API) and PHPCompatibilityWP for Pass Captain.</description>
 
+	<!-- Standards registered here instead of by the dealerdirect Composer plugin: CI runs
+	     composer install with scripts and plugins disabled (A653). Paths are relative to the repository root, run phpcs from there. -->
+	<config name="installed_paths" value="vendor/phpcompatibility/php-compatibility,vendor/phpcompatibility/phpcompatibility-paragonie,vendor/phpcompatibility/phpcompatibility-wp,vendor/phpcsstandards/phpcsextra,vendor/phpcsstandards/phpcsutils,vendor/wp-coding-standards/wpcs"/>
+
 	<file>pass-captain.php</file>
 	<file>uninstall.php</file>
 	<file>src</file>

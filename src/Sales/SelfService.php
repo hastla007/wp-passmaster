@@ -23,6 +23,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SelfService {
 	public static function register() {
 		add_filter( 'wpcap_order_portal_sections', array( __CLASS__, 'portal_section' ), 20, 2 );
@@ -73,7 +76,7 @@ final class SelfService {
 			foreach ( (array) json_decode( (string) $list, true ) as $id ) { $pending[ (int) $id ] = true; }
 		}
 		$checked_in = array_flip( Refunds::checked_in_ids( array_map( static function ( $r ) { return (int) $r->ticket_id; }, $rows ) ) );
-		$now = time();
+		$now = \PassCaptain\Clock::now();
 		$out = array();
 		foreach ( $rows as $row ) {
 			if ( isset( $pending[ (int) $row->ticket_id ] ) || isset( $checked_in[ (int) $row->ticket_id ] ) ) { continue; }

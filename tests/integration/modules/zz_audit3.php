@@ -11,6 +11,13 @@
 use PassCaptain\Exchange\Service as Exchange;
 use PassCaptain\Orders;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Exchange::class ); // Module hooks earlier modules register in a full run.
+wpcap_test_ensure_registered( PassCaptain\Modules\GuestLists::class );
+wpcap_test_ensure_registered( PassCaptain\Modules\Allocations::class );
+wpcap_test_ensure_registered( PassCaptain\Waitlists::class );
+wpcap_test_ensure_registered( PassCaptain\Modules\BoxOffice::class );
+wpb_cash_ready();
 global $wpdb;
 $p = $wpdb->prefix;
 
@@ -393,13 +400,19 @@ $a28_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE waitlist_id=$
 check( 'A028: waitlist e-mail and hash are removed 30 days after the date', $a28_counts['waitlist'] >= 1 && '' === $a28_row->email && hash( 'sha256', 'wl-old@example.com' ) !== $a28_row->email_hash );
 
 echo "Audit 3: privacy policy text matches the behaviour and the modules in use (A030)\n";
+// The policy names guest lists and partner sales only when they are used (rows of earlier modules in a full run).
+$a30_rows = array( 'wpcap_guest_lists' => wpcap_test_ensure_row( 'wpcap_guest_lists' ), 'wpcap_partner_orders' => wpcap_test_ensure_row( 'wpcap_partner_orders' ) );
 $a30 = PassCaptain\Privacy\PolicyText::content();
 check( 'A030: policy text describes the deferred deletion, not immediate invalidation', false === strpos( $a30, 'werden mit der Löschung ungültig' ) && false !== strpos( $a30, 'nach dem letzten Termin' ) );
 check( 'A030: sections for guest lists (Art. 14), waitlist offers, buyer limits, box office, exchange and partner sales when used', false !== strpos( $a30, 'Art. 14 DSGVO' ) && false !== strpos( $a30, 'befristetes Angebot' ) && false !== strpos( $a30, 'Höchstmenge pro Person' ) && false !== strpos( $a30, 'Abendkasse' ) && false !== strpos( $a30, 'Ticketumtausch' ) && false !== strpos( $a30, 'Verkauf über Partner' ) );
+foreach ( array_filter( $a30_rows ) as $a30_table => $a30_id ) {
+	$a30_pk = $wpdb->get_row( "SHOW KEYS FROM {$p}{$a30_table} WHERE Key_name='PRIMARY'" );
+	if ( $a30_pk ) { $wpdb->delete( $p . $a30_table, array( $a30_pk->Column_name => $a30_id ) ); }
+}
 
 echo "Audit 3: voucher provider treatment field (A031)\n";
 $C = PassCaptain\Integrations\Vouchers\Checkout::class;
-check( 'A031: treatment payment → multi-purpose, single/discount → single-purpose (reduction)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) );
+check( 'A031: treatment payment → multi-purpose, single → single-purpose, discount → promotion code (both reduce the price)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'discount' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) && $C::reduces_price( 'discount' ) && $C::reduces_price( 'single' ) );
 check( 'A031: explicit purpose fields still work without treatment', 'multi' === $C::purpose_from_data( array( 'voucher_type' => 'MPV' ) ) && null === $C::purpose_from_data( array( 'amount_minor' => 100 ) ) );
 
 echo "Audit 3: wpcap_order_paid fires before issuance for paid and free orders (A032)\n";

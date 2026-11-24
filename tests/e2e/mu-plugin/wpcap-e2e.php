@@ -8,6 +8,7 @@
  *   browser tests (a11y) on the same site see the normal checkout.
  * - ?wpcap_e2e_pay=<order public id>: hosted payment page; "Jetzt bezahlen" confirms the payment like a
  *   provider webhook would (Orders::confirm_external_payment) and shows the order portal link from the order mail.
+ * - Bot check of the checkout form: minimum fill time off for web requests unless the cookie wpcap_e2e_guard=1.
  *
  * @package PassCaptain
  */
@@ -43,6 +44,20 @@ add_action( 'plugins_loaded', static function () {
 		add_filter( 'default_option_wpcap_settings', $enable ); // fresh site: the option does not exist yet
 	}
 }, 1 );
+
+// Bot check of the checkout form (Security\FormGuard): the tests fill a form in far less than the minimum fill
+// time (default 3 s), so the time check is off on the test site. The trap field stays on. Browsers with the
+// cookie wpcap_e2e_guard=1 get the real threshold (conditions-widgets.test.js checks the "too fast" hint).
+// Web requests only: the CLI helpers read and save the stored settings and must not persist the override.
+if ( 'cli' !== PHP_SAPI && ( $_COOKIE['wpcap_e2e_guard'] ?? '' ) !== '1' ) {
+	$wpcap_e2e_fast = static function ( $settings ) {
+		$settings = is_array( $settings ) ? $settings : array();
+		$settings['checkout_min_fill_seconds'] = 0;
+		return $settings;
+	};
+	add_filter( 'option_wpcap_settings', $wpcap_e2e_fast, 20 );
+	add_filter( 'default_option_wpcap_settings', $wpcap_e2e_fast, 20 );
+}
 
 // The order access link goes out by mail when the order is created (REST checkout): keep it for the payment page.
 add_filter( 'pre_wp_mail', static function ( $short, $atts ) {

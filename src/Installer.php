@@ -11,8 +11,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Installer {
-	const DB_VERSION = '3.18.3';
+	const DB_VERSION = '3.18.5';
 
 	public static function install() {
 		global $wpdb;
@@ -118,48 +121,36 @@ final class Installer {
 	public static function schema_statements() {
 		global $wpdb;
 		$charset = $wpdb->get_charset_collate();
+		// A401: one method per table group, merged in the former order of the statements.
+		$queries = array_merge(
+			self::schema_event_tables( $charset ),
+			self::schema_order_tables( $charset ),
+			self::schema_staff_tables( $charset ),
+			self::schema_seating_tables( $charset ),
+			self::schema_service_tables( $charset ),
+			self::schema_admission_tables( $charset ),
+			self::schema_invoice_tables( $charset ),
+			self::schema_participant_tables( $charset ),
+			self::schema_message_tables( $charset ),
+			self::schema_pass_campaign_tables( $charset ),
+			self::schema_waitlist_tables( $charset ),
+			self::schema_settings_tables( $charset ),
+			self::schema_payment_tables( $charset ),
+			self::schema_operation_tables( $charset )
+		);
+
+		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
+		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
+		return array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
+	}
+
+	/** A401: schema_statements() part: Events, dates and ticket types. */
+	private static function schema_event_tables( $charset ) {
+		global $wpdb;
 		$events = $wpdb->prefix . 'wpcap_events';
 		$occurrences = $wpdb->prefix . 'wpcap_occurrences';
 		$types = $wpdb->prefix . 'wpcap_ticket_types';
-		$orders = $wpdb->prefix . 'wpcap_orders';
-		$items = $wpdb->prefix . 'wpcap_order_items';
-		$reservations = $wpdb->prefix . 'wpcap_reservations';
-		$tickets = $wpdb->prefix . 'wpcap_tickets';
-		$checkins = $wpdb->prefix . 'wpcap_checkins';
-		$staff = $wpdb->prefix . 'wpcap_event_staff';
-		$staff_assignments = $wpdb->prefix . 'wpcap_staff_assignments';
-		$audit = $wpdb->prefix . 'wpcap_audit_logs';
-		$seat_maps = $wpdb->prefix . 'wpcap_seat_maps';
-		$seats = $wpdb->prefix . 'wpcap_seats';
-		$seat_holds = $wpdb->prefix . 'wpcap_seat_holds';
-		$resources = $wpdb->prefix . 'wpcap_resources';
-		$service_slots = $wpdb->prefix . 'wpcap_service_slots';
-		$service_bookings = $wpdb->prefix . 'wpcap_service_bookings';
-		$service_providers = $wpdb->prefix . 'wpcap_service_providers';
-		$resource_providers = $wpdb->prefix . 'wpcap_resource_providers';
-		$occurrence_days = $wpdb->prefix . 'wpcap_occurrence_days';
-		$scanner_devices = $wpdb->prefix . 'wpcap_scanner_devices';
-		$wallet_passes = $wpdb->prefix . 'wpcap_wallet_passes';
-		$invoices = $wpdb->prefix . 'wpcap_invoices';
-		$invoice_lines = $wpdb->prefix . 'wpcap_invoice_lines';
-		$invoice_sequences = $wpdb->prefix . 'wpcap_invoice_sequences';
-		$participant_fields = $wpdb->prefix . 'wpcap_participant_fields';
-		$participant_answers = $wpdb->prefix . 'wpcap_participant_answers';
-		$message_queue = $wpdb->prefix . 'wpcap_message_queue';
-		$ticket_assignments = $wpdb->prefix . 'wpcap_ticket_assignments';
-		$member_passes = $wpdb->prefix . 'wpcap_member_passes';
-		$pass_rules = $wpdb->prefix . 'wpcap_pass_rules';
-		$pass_uses = $wpdb->prefix . 'wpcap_pass_uses';
-		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
-		$campaign_uses = $wpdb->prefix . 'wpcap_campaign_uses';
-		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
-		$api_keys = $wpdb->prefix . 'wpcap_api_keys';
-		$event_translations = $wpdb->prefix . 'wpcap_event_translations';
-		$tax_profiles = $wpdb->prefix . 'wpcap_tax_profiles';
-		$connector_settings = $wpdb->prefix . 'wpcap_connector_settings';
-		$jobs = $wpdb->prefix . 'wpcap_jobs';
-
-		$queries = array(
+		return array(
 			"CREATE TABLE $events (
 				event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				name varchar(190) NOT NULL,
@@ -224,10 +215,24 @@ final class Installer {
 				staff_note varchar(190) NOT NULL DEFAULT '',
 				attendee_name_required tinyint(1) unsigned NOT NULL DEFAULT 0,
 				service_fee_minor bigint(20) unsigned NULL DEFAULT NULL,
+				kind varchar(10) NOT NULL DEFAULT 'ticket',
+				addon_max_per_ticket smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Orders, order lines, holds, tickets and check-ins. */
+	private static function schema_order_tables( $charset ) {
+		global $wpdb;
+		$orders = $wpdb->prefix . 'wpcap_orders';
+		$items = $wpdb->prefix . 'wpcap_order_items';
+		$reservations = $wpdb->prefix . 'wpcap_reservations';
+		$tickets = $wpdb->prefix . 'wpcap_tickets';
+		$checkins = $wpdb->prefix . 'wpcap_checkins';
+		return array(
 			"CREATE TABLE $orders (
 				order_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				public_id char(32) NOT NULL,
@@ -368,6 +373,16 @@ final class Installer {
 				KEY created (created_at,checkin_id),
 				KEY device_event_result (device_id,event_id,result)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Event staff, staff assignments, audit log, date-level staff and support access. */
+	private static function schema_staff_tables( $charset ) {
+		global $wpdb;
+		$staff = $wpdb->prefix . 'wpcap_event_staff';
+		$staff_assignments = $wpdb->prefix . 'wpcap_staff_assignments';
+		$audit = $wpdb->prefix . 'wpcap_audit_logs';
+		return array(
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,
 				user_id bigint(20) unsigned NOT NULL,
@@ -428,6 +443,16 @@ final class Installer {
 				KEY user_status (user_id,status),
 				KEY status_expires (status,expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Seat maps, seats and seat holds. */
+	private static function schema_seating_tables( $charset ) {
+		global $wpdb;
+		$seat_maps = $wpdb->prefix . 'wpcap_seat_maps';
+		$seats = $wpdb->prefix . 'wpcap_seats';
+		$seat_holds = $wpdb->prefix . 'wpcap_seat_holds';
+		return array(
 			"CREATE TABLE $seat_maps (
 				map_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -466,6 +491,18 @@ final class Installer {
 				UNIQUE KEY request_seat (request_key,seat_id),
 				KEY expiry (status,expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Bookable resources, service providers, slots and service bookings. */
+	private static function schema_service_tables( $charset ) {
+		global $wpdb;
+		$resources = $wpdb->prefix . 'wpcap_resources';
+		$service_slots = $wpdb->prefix . 'wpcap_service_slots';
+		$service_bookings = $wpdb->prefix . 'wpcap_service_bookings';
+		$service_providers = $wpdb->prefix . 'wpcap_service_providers';
+		$resource_providers = $wpdb->prefix . 'wpcap_resource_providers';
+		return array(
 			"CREATE TABLE $resources (
 				resource_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -553,6 +590,16 @@ final class Installer {
 				KEY status_confirm (status,confirm_by),
 				UNIQUE KEY idempotency_key (idempotency_key)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Days of multi-day dates, scanner devices and wallet passes. */
+	private static function schema_admission_tables( $charset ) {
+		global $wpdb;
+		$occurrence_days = $wpdb->prefix . 'wpcap_occurrence_days';
+		$scanner_devices = $wpdb->prefix . 'wpcap_scanner_devices';
+		$wallet_passes = $wpdb->prefix . 'wpcap_wallet_passes';
+		return array(
 			"CREATE TABLE $occurrence_days (
 				occurrence_day_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				occurrence_id bigint(20) unsigned NOT NULL,
@@ -595,6 +642,16 @@ final class Installer {
 				UNIQUE KEY serial_number (serial_number),
 				KEY ticket_provider (ticket_id,provider)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Invoices, invoice lines and invoice number sequences. */
+	private static function schema_invoice_tables( $charset ) {
+		global $wpdb;
+		$invoices = $wpdb->prefix . 'wpcap_invoices';
+		$invoice_lines = $wpdb->prefix . 'wpcap_invoice_lines';
+		$invoice_sequences = $wpdb->prefix . 'wpcap_invoice_sequences';
+		return array(
 			"CREATE TABLE $invoices (
 				invoice_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				order_id bigint(20) unsigned NOT NULL,
@@ -628,6 +685,15 @@ final class Installer {
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (year)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Participant fields and answers, consent texts and consent log. */
+	private static function schema_participant_tables( $charset ) {
+		global $wpdb;
+		$participant_fields = $wpdb->prefix . 'wpcap_participant_fields';
+		$participant_answers = $wpdb->prefix . 'wpcap_participant_answers';
+		return array(
 			"CREATE TABLE $participant_fields (
 				field_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				ticket_type_id bigint(20) unsigned NOT NULL,
@@ -696,6 +762,15 @@ final class Installer {
 				KEY order_id (order_id),
 				KEY field_id (field_id)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Message queue and ticket assignments. */
+	private static function schema_message_tables( $charset ) {
+		global $wpdb;
+		$message_queue = $wpdb->prefix . 'wpcap_message_queue';
+		$ticket_assignments = $wpdb->prefix . 'wpcap_ticket_assignments';
+		return array(
 			"CREATE TABLE $message_queue (
 				message_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				dedupe_key char(64) NOT NULL,
@@ -729,6 +804,18 @@ final class Installer {
 				KEY attendee_email (attendee_email,ticket_id),
 				KEY attendee_name (attendee_name,ticket_id)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Member passes, pass rules and uses, campaigns and campaign uses. */
+	private static function schema_pass_campaign_tables( $charset ) {
+		global $wpdb;
+		$member_passes = $wpdb->prefix . 'wpcap_member_passes';
+		$pass_rules = $wpdb->prefix . 'wpcap_pass_rules';
+		$pass_uses = $wpdb->prefix . 'wpcap_pass_uses';
+		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
+		$campaign_uses = $wpdb->prefix . 'wpcap_campaign_uses';
+		return array(
 			"CREATE TABLE $member_passes (
 				pass_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				public_id char(32) NOT NULL,
@@ -821,6 +908,14 @@ final class Installer {
 				UNIQUE KEY campaign_order (campaign_id,order_id),
 				KEY order_status (order_id,status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Ticket and service waitlists. */
+	private static function schema_waitlist_tables( $charset ) {
+		global $wpdb;
+		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
+		return array(
 			"CREATE TABLE $waitlist (
 				waitlist_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -876,6 +971,17 @@ final class Installer {
 				KEY offer_expiry (status,offer_expires_at),
 				KEY confirm_expiry (status,confirm_expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: API keys, event translations, tax profiles and connector settings. */
+	private static function schema_settings_tables( $charset ) {
+		global $wpdb;
+		$api_keys = $wpdb->prefix . 'wpcap_api_keys';
+		$event_translations = $wpdb->prefix . 'wpcap_event_translations';
+		$tax_profiles = $wpdb->prefix . 'wpcap_tax_profiles';
+		$connector_settings = $wpdb->prefix . 'wpcap_connector_settings';
+		return array(
 			"CREATE TABLE $api_keys (
 				api_key_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				user_id bigint(20) unsigned NOT NULL,
@@ -944,6 +1050,13 @@ final class Installer {
 				UNIQUE KEY connector_site (connector_key,site_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Payment events, refunds, credit notes, payment cases and document sequences. */
+	private static function schema_payment_tables( $charset ) {
+		global $wpdb;
+		return array(
 			"CREATE TABLE {$wpdb->prefix}wpcap_payment_events (
 				payment_event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				provider varchar(32) NOT NULL,
@@ -975,6 +1088,10 @@ final class Installer {
 				credit_note_number varchar(40) NOT NULL DEFAULT '',
 				provider_attempt smallint(5) unsigned NOT NULL DEFAULT 0,
 				deducted_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				fee_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				fee_tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				fee_kept_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				fee_kept_tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				source varchar(20) NOT NULL DEFAULT '',
 				provider_status varchar(20) NOT NULL DEFAULT '',
 				reversed_at datetime NULL DEFAULT NULL,
@@ -1042,6 +1159,14 @@ final class Installer {
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (series,year)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Device pairings, jobs, support log, bulk runs, code history, legal versions and the tables owned by other classes (outbox, action keys, rate limits, check-in claims, mail suppressions). */
+	private static function schema_operation_tables( $charset ) {
+		global $wpdb;
+		$jobs = $wpdb->prefix . 'wpcap_jobs';
+		return array(
 			"CREATE TABLE {$wpdb->prefix}wpcap_device_pairings (
 				pairing_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				code_hash char(64) NOT NULL,
@@ -1144,10 +1269,10 @@ final class Installer {
 				UNIQUE KEY version (version),
 				KEY created_at (created_at)
 			) ENGINE=InnoDB $charset;",
-			// Event outbox of the workflow contract (schema 3.10.24, A675; see Workflow\Outbox).
-			Workflow\Outbox::schema( $wpdb->prefix, $charset ),
-			// Idempotency and results of workflow commands v1 (schema 3.10.27, A676; see Workflow\Commands).
-			Workflow\Commands::schema( $wpdb->prefix, $charset ),
+			// Event outbox of the review contract (schema 3.10.24, A675/A667; see Suite\Outbox).
+			Suite\Outbox::schema( $wpdb->prefix, $charset ),
+			// Idempotency keys of the public actions (schema 3.10.27, created for the former workflow commands A676; see Api\Actions).
+			Api\Actions::schema( $wpdb->prefix, $charset ),
 			// Atomic rate-limit counters without a persistent object cache (QA-V2/PERF-16, src/RateLimit.php).
 			RateLimit::schema( $wpdb->prefix . 'wpcap_rate_limits', $charset ),
 			// Atomic idempotency claims of check-ins (audit R2 #6, src/Checkin.php).
@@ -1155,10 +1280,6 @@ final class Installer {
 			// Reminder unsubscribes and bounce/complaint reports, address hashes only (DB 3.17.2, src/Mail/Suppression.php).
 			Mail\Suppression::schema( $wpdb->prefix . 'wpcap_mail_suppressions', $charset ),
 		);
-
-		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
-		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
-		return array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
 	}
 
 	/** Option: schema line a site came from when the merged code first ran (fresh, base, ours, theirs, merged). */
@@ -1322,7 +1443,7 @@ final class Installer {
 		$previous = get_option( self::ATTEMPT_OPTION );
 		$target = self::version();
 		$count = is_array( $previous ) && ( $previous['target'] ?? '' ) === $target ? (int) ( $previous['count'] ?? 0 ) + 1 : 1;
-		update_option( self::ATTEMPT_OPTION, array( 'target' => $target, 'count' => $count, 'at' => time() ), false );
+		update_option( self::ATTEMPT_OPTION, array( 'target' => $target, 'count' => $count, 'at' => Clock::real() ), false );
 	}
 
 	/** First retry after a failed schema upgrade (seconds); doubles per failure up to RETRY_MAX (A466). */
@@ -1351,8 +1472,8 @@ final class Installer {
 		 * @param int $attempts Failed attempts for this schema version so far.
 		 */
 		$delay = max( 0, (int) apply_filters( 'wpcap_schema_retry_delay', $delay, $attempts ) );
-		update_option( 'wpcap_schema_error', array( 'missing' => $missing, 'at' => time(), 'db_error' => $db_error, 'target' => $target, 'attempts' => $attempts, 'retry_at' => time() + $delay ), false );
-		Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => $missing, 'attempts' => $attempts, 'retry_at' => gmdate( 'Y-m-d H:i:s', time() + $delay ) ) );
+		update_option( 'wpcap_schema_error', array( 'missing' => $missing, 'at' => Clock::real(), 'db_error' => $db_error, 'target' => $target, 'attempts' => $attempts, 'retry_at' => Clock::real() + $delay ), false );
+		Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => $missing, 'attempts' => $attempts, 'retry_at' => gmdate( 'Y-m-d H:i:s', Clock::real() + $delay ) ) );
 	}
 
 	/**
@@ -1371,7 +1492,7 @@ final class Installer {
 			$count = (int) $attempt['count'];
 			$at = max( $at, (int) $attempt['at'] + (int) min( self::RETRY_MAX, self::RETRY_FIRST * ( 2 ** min( 16, $count - 2 ) ) ) );
 		}
-		return $at > time() ? $at : 0;
+		return $at > Clock::real() ? $at : 0;
 	}
 
 	/** Lets the next request retry a failed schema upgrade at once (admin button, WP-CLI). */
@@ -1503,7 +1624,7 @@ final class Installer {
 		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.22', '>=' ) || ! TicketCodes::holder_ready() ) { return false; }
 		$p = $wpdb->prefix;
 		$oldest = (string) $wpdb->get_var( "SELECT MIN(created_at) FROM {$p}wpcap_audit_logs" );
-		$oldest = '' !== $oldest ? $oldest : gmdate( 'Y-m-d H:i:s' );
+		$oldest = '' !== $oldest ? $oldest : Clock::real_mysql();
 		return false !== $wpdb->query( $wpdb->prepare(
 			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id SET t.code_with_attendee=1
 			WHERE t.code_with_attendee=0 AND t.attendee_email<>'' AND LOWER(t.attendee_email)<>LOWER(ord.customer_email) AND (
@@ -1666,14 +1787,14 @@ final class Installer {
 		$details = (array) get_option( self::ERROR_OPTION, array() );
 		$attempts = max( 1, (int) ( $details['attempts'] ?? 1 ) );
 		$details += array(
-			'time'       => time(),
+			'time'       => Clock::real(),
 			'version'    => self::version(),
 			'errors'     => array_slice( array_values( array_unique( array_map( array( Redact::class, 'text' ), $errors ) ) ), 0, 5 ),
-			'next_retry' => (int) ( $details['retry_at'] ?? ( time() + self::retry_delay( $attempts ) ) ),
+			'next_retry' => (int) ( $details['retry_at'] ?? ( Clock::real() + self::retry_delay( $attempts ) ) ),
 		);
 		update_option( self::ERROR_OPTION, $details, false );
 		// The admin notice (ERROR_OPTION) is the primary channel; the log reaches add-ons and, if enabled, the PHP error log.
-		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . max( 0, (int) $details['next_retry'] - time() ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
+		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . max( 0, (int) $details['next_retry'] - Clock::real() ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
 	}
 
 	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */
@@ -1900,6 +2021,12 @@ final class Installer {
 		} elseif ( function_exists( 'add_action' ) ) {
 			add_action( 'init', array( __CLASS__, 'rename_legacy_roles' ), 1 );
 		}
+		// Undo/redeem split off wpcap_checkin: granted once to the roles that could do it before.
+		if ( did_action( 'init' ) ) {
+			self::grant_split_capabilities();
+		} elseif ( function_exists( 'add_action' ) ) {
+			add_action( 'init', array( __CLASS__, 'grant_split_capabilities' ), 1 );
+		}
 		$fingerprint_ok = get_option( 'wpcap_schema_fingerprint' ) === self::fingerprint();
 		// A failing upgrade waits for its next attempt (A466); WP-CLI always tries.
 		$retry_at = 'cli' === $context ? 0 : self::retry_at();
@@ -1907,10 +2034,10 @@ final class Installer {
 			if ( $fingerprint_ok ) { return false; }
 			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
 			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
-				wp_schedule_single_event( max( time(), $retry_at ), self::UPGRADE_HOOK );
+				wp_schedule_single_event( max( Clock::real(), $retry_at ), self::UPGRADE_HOOK );
 				return false;
 			}
-			if ( $retry_at || ( $next && (int) $next > time() - self::OVERDUE_AFTER ) ) { return false; }
+			if ( $retry_at || ( $next && (int) $next > Clock::real() - self::OVERDUE_AFTER ) ) { return false; }
 		}
 		if ( self::version() === get_option( 'wpcap_db_version' ) ) {
 			// Schema is current; only the fingerprint was missing or outdated (e.g. installs before 1.2).
@@ -2086,10 +2213,10 @@ final class Installer {
 	public static function role_definitions() {
 		return array(
 			'wpcap_ticket_admin'      => array( self::ROLE_NAMES['wpcap_ticket_admin'], self::CAPABILITIES ),
-			'wpcap_event_manager'     => array( self::ROLE_NAMES['wpcap_event_manager'], array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
-			'wpcap_box_office'        => array( self::ROLE_NAMES['wpcap_box_office'], array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
-			'wpcap_checkin_staff'     => array( self::ROLE_NAMES['wpcap_checkin_staff'], array( 'wpcap_checkin' ) ),
-			'wpcap_partner'           => array( self::ROLE_NAMES['wpcap_partner'], array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_event_manager'     => array( self::ROLE_NAMES['wpcap_event_manager'], array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_box_office'        => array( self::ROLE_NAMES['wpcap_box_office'], array( 'wpcap_manage_orders', 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_checkin_staff'     => array( self::ROLE_NAMES['wpcap_checkin_staff'], array( 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES ) ),
+			'wpcap_partner'           => array( self::ROLE_NAMES['wpcap_partner'], array( 'wpcap_checkin', Capabilities::UNDO_CHECKIN, Capabilities::REDEEM_PASSES, 'wpcap_view_reports' ) ),
 			'wpcap_service_provider'  => array( self::ROLE_NAMES['wpcap_service_provider'], array( 'wpcap_service_bookings' ) ),
 			'wpcap_finance'           => array( self::ROLE_NAMES['wpcap_finance'], array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
 			'wpcap_support'           => array( self::ROLE_NAMES['wpcap_support'], array( 'wpcap_manage_orders' ) ),
@@ -2119,8 +2246,42 @@ final class Installer {
 				add_role( $slug, $definition[0], $caps );
 				continue;
 			}
-			// Upgrade existing roles additively; never remove capabilities an operator granted.
-			foreach ( $caps as $cap => $grant ) { $role->add_cap( $cap, $grant ); }
+			// Upgrade existing roles additively; never remove capabilities an operator granted. The
+			// capabilities split off wpcap_checkin are granted once (grant_split_capabilities()); after that an
+			// operator's removal from an existing role stays in force.
+			$split_done = function_exists( 'get_option' ) && get_option( self::SPLIT_CAPS_OPTION );
+			foreach ( $caps as $cap => $grant ) {
+				if ( $split_done && in_array( $cap, Capabilities::SPLIT_FROM_CHECKIN, true ) ) { continue; }
+				$role->add_cap( $cap, $grant );
+			}
 		}
+	}
+
+	/** Option marking that grant_split_capabilities() ran on this site. */
+	const SPLIT_CAPS_OPTION = 'wpcap_split_checkin_caps';
+
+	/**
+	 * Taking back check-ins (Capabilities::UNDO_CHECKIN) and redeeming member passes
+	 * (Capabilities::REDEEM_PASSES) used to need only wpcap_checkin. Once per site, every role holding
+	 * wpcap_checkin – plugin roles, administrators and roles an operator built – also receives the split
+	 * capabilities, so existing sites keep working. Runs only once (option SPLIT_CAPS_OPTION): an operator
+	 * who later removes a split capability from a role is not overruled.
+	 *
+	 * @param \WP_Roles|object|null $wp_roles Roles registry (default wp_roles()).
+	 */
+	public static function grant_split_capabilities( $wp_roles = null ): void {
+		if ( ! function_exists( 'get_option' ) || get_option( self::SPLIT_CAPS_OPTION ) ) { return; }
+		if ( null === $wp_roles ) {
+			if ( ! function_exists( 'wp_roles' ) ) { return; }
+			$wp_roles = wp_roles();
+		}
+		foreach ( array_keys( (array) ( $wp_roles->roles ?? array() ) ) as $slug ) {
+			$role = method_exists( $wp_roles, 'get_role' ) ? $wp_roles->get_role( (string) $slug ) : get_role( (string) $slug );
+			if ( ! is_object( $role ) || empty( $role->capabilities['wpcap_checkin'] ) ) { continue; }
+			foreach ( Capabilities::SPLIT_FROM_CHECKIN as $cap ) {
+				if ( ! isset( $role->capabilities[ $cap ] ) ) { $role->add_cap( $cap, true ); }
+			}
+		}
+		update_option( self::SPLIT_CAPS_OPTION, 1, true );
 	}
 }

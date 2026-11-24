@@ -17,6 +17,8 @@ use PassCaptain\Reports\Scope;
 PassCaptain\Modules\BoxOffice::register();
 PassCaptain\Payments\Registry::reset();
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpb_cash_ready(); // Cash/card at the box office (left on by boxoffice.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

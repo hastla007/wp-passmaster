@@ -15,6 +15,9 @@ use PassCaptain\Mail\Layout;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class MailTemplates {
 	public static function register() {
 		add_action( 'wp_ajax_' . Admin::ACTION_PREVIEW, array( Admin::class, 'handle_preview_ajax' ) );
@@ -27,6 +30,13 @@ final class MailTemplates {
 				'color' => Layout::DEFAULT_COLOR,
 				'footer' => '',
 			),
+		);
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'mail_layout' => array( 'type' => 'group', 'label' => __( 'Mail-Layout', 'pass-captain' ), 'help' => __( 'Logo, Akzentfarbe und Fußzeile aller E-Mails.', 'pass-captain' ), 'page' => 'wpcap-mail-templates' ),
 		);
 	}
 

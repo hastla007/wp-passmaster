@@ -29,6 +29,8 @@ use PassCaptain\Payments\StripeGateway;
 use PassCaptain\Payments\Webhooks;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie gateway (mollie.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;

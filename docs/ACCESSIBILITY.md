@@ -48,6 +48,17 @@ Vor 1.0 sind manuelle Tastatur- und Screenreader-Prüfungen für Checkout, Scann
 
 - Termin-Auswahl im Verkauf und Kassen-Filter der Schichtliste laden die Seite nicht mehr bei jeder Änderung neu (mit der Tastatur löste jede Pfeiltaste einen Seitenwechsel aus); gewählt wird mit dem Knopf „Anzeigen“ (A314).
 
+## Einstellungsseiten (SET-PC-44)
+
+Prüfliste für jede Einstellungs- und Modulseite:
+
+- Jedes Feld hat ein sichtbares `<label for>`; der Hilfetext ist über `aria-describedby` mit dem Feld verbunden.
+- Nach dem Speichern mit Fehlern steht oben eine Fehlerliste (`role="alert"`) mit Sprungmarken zu den Feldern;
+  fehlerhafte Felder tragen `aria-invalid="true"` und die Meldung direkt darunter (ebenfalls per `aria-describedby`).
+- Alles ist per Tastatur erreichbar (Reiter, Unteransichten „Werkzeuge“, Ausblenden-Knopf der Hinweiszeilen).
+- Graue Hinweiszeilen (`.wpcap-pro-hint`, #50575e auf Weiß) und Fehlertexte (#b32d2e) erreichen WCAG AA.
+- Test: `tests/integration/modules/zz_set_pc_44.php`.
+
 ## Kontrast und dunkle Themes
 
 - Eventkarte, Checkout und Kalender setzen Text- und Hintergrundfarbe immer paarweise (Fehlertexte, „Ausverkauft“, Tage mit Terminen, Bankdaten). Sie hängen damit nicht von der Seitenfarbe des Themes ab; jedes Paar hat mindestens 4,5:1 (Test `zz_a318.php`). Gedämpfte Grautöne gibt es nur noch innerhalb solcher Flächen, sonst erben Hinweise die Textfarbe des Themes (A318).

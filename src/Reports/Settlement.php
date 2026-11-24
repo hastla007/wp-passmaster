@@ -16,6 +16,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Settlement {
 	const ACTION = 'wpcap_settlement_sheet';
 
@@ -35,7 +38,7 @@ final class Settlement {
 		$scope = Data::scope();
 		if ( false === $scope ) { return array(); }
 		$scope_sql = \PassCaptain\Admin\Queries::scope_sql( $scope, 'o.event_id' ) . \PassCaptain\Access::occurrence_scope_sql( 'o' );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope_sql ORDER BY o.starts_at DESC LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 365 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope_sql ORDER BY o.starts_at DESC LIMIT 300", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 365 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope list.
 		$out = array();
 		foreach ( $rows as $r ) {
 			$out[ (int) $r->occurrence_id ] = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ) . ( 'scheduled' !== $r->status ? ' (' . __( 'abgesagt', 'pass-captain' ) . ')' : '' );
@@ -129,6 +132,8 @@ final class Settlement {
 		$providers = array(); // box office provider => bucket
 		$total = self::bucket();
 		$currencies = array();
+		// A425: service fee lines (part of the figures above), shown separately; operator's revenue unless passed on.
+		$service_fee = self::bucket();
 
 		$add = static function ( $line, $provider, array $values ) use ( &$type_channel, &$type_names, &$channels, &$rates, &$providers, &$total ) {
 			$type = (int) $line->ticket_type_id;
@@ -163,11 +168,15 @@ final class Settlement {
 					if ( (int) $line->occurrence_id !== $occurrence_id || \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
 					$currencies[ $order->currency ] = true;
 					$add( $line, (string) $order->payment_provider, array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => (int) $gross_lines[ $i ], 'tax' => (int) $line->tax_minor ) );
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$service_fee['gross'] += (int) $gross_lines[ $i ];
+						$service_fee['tax'] += (int) $line->tax_minor;
+					}
 				}
 			}
 			if ( ! $sale_orders ) { continue; }
 			$in = implode( ',', array_map( 'absint', $sale_orders ) );
-			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$refunds = $wpdb->get_results( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . \PassCaptain\Refunds::fee_columns() . ",ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.order_id IN ($in) ORDER BY r.refund_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- integer list.; Refunds::fee_columns() is a fixed column list.
 			$history = $refunds ? \PassCaptain\Invoices::refund_history( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) : array();
 			foreach ( $refunds as $refund ) {
 				$lines = $block_lines[ (int) $refund->order_id ] ?? array();
@@ -175,6 +184,10 @@ final class Settlement {
 					$line = $lines[ $part['index'] ];
 					if ( (int) $line->occurrence_id !== $occurrence_id ) { continue; }
 					$add( $line, (string) $refund->payment_provider, array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'] ) );
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$service_fee['refunded'] += (int) $part['amount'];
+						$service_fee['refunded_tax'] += (int) $part['tax'];
+					}
 				}
 			}
 		}
@@ -206,6 +219,9 @@ final class Settlement {
 		$box_office = array();
 		foreach ( $providers as $provider => $b ) { $box_office[ $provider ] = array_merge( self::finish( $b ), array( 'label' => self::provider_label( $provider ) ) ); }
 		$total = self::finish( $total );
+		$service_fee = self::finish( $service_fee ) + array( 'to_partner' => \PassCaptain\ServiceFee::to_partner() );
+		// Deal basis: net revenue of the date; the operator's service fee only counts when it is passed on.
+		$deal_basis = $total['revenue_net'] - ( $service_fee['to_partner'] ? 0 : $service_fee['revenue_net'] );
 
 		$issued = (int) ( $stats['issued'] ?? 0 );
 		$checked_in = (int) ( $stats['checked_in'] ?? 0 );
@@ -233,7 +249,8 @@ final class Settlement {
 			'comps_total' => array_sum( array_column( $comps, 'tickets' ) ),
 			'total' => $total,
 			'attendance' => array( 'issued' => $issued, 'checked_in' => $checked_in, 'no_shows' => max( 0, $issued - $checked_in ) ),
-			'deal' => self::deal( $total['revenue_net'], $deal['fixed'], $deal['share_bp'] ),
+			'service_fee' => $service_fee,
+			'deal' => self::deal( $deal_basis, $deal['fixed'], $deal['share_bp'] ),
 		);
 	}
 
@@ -272,6 +289,14 @@ final class Settlement {
 		$rows[] = array( __( 'Eingecheckt', 'pass-captain' ), $a['checked_in'] );
 		$rows[] = array( __( 'No-Shows', 'pass-captain' ), $a['no_shows'] );
 		$rows[] = array();
+		// A425: service fee (included in the figures above) and whether it is part of the deal basis.
+		$fee = (array) ( $sheet['service_fee'] ?? array() );
+		if ( (int) ( $fee['gross'] ?? 0 ) || (int) ( $fee['refunded'] ?? 0 ) ) {
+			$rows[] = array( __( 'Servicegebühren nach Erstattungen (in den Summen oben enthalten)', 'pass-captain' ), $m( (int) $fee['revenue'] ) );
+			$rows[] = array( __( 'davon netto', 'pass-captain' ), $m( (int) $fee['revenue_net'] ) );
+			$rows[] = array( __( 'Zurechnung', 'pass-captain' ), ! empty( $fee['to_partner'] ) ? __( 'an den Veranstalter weitergegeben (Teil der Deal-Basis)', 'pass-captain' ) : __( 'Umsatz des Betreibers (nicht Teil der Deal-Basis)', 'pass-captain' ) );
+			$rows[] = array();
+		}
 		$d = $sheet['deal'];
 		$rows[] = array( __( 'Deal', 'pass-captain' ), __( 'Betrag', 'pass-captain' ) );
 		$rows[] = array( __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ), $m( $d['basis'] ) );
@@ -301,7 +326,7 @@ final class Settlement {
 		$html = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $e( $title ) . '</title>'
 			. '<style>@page{size:A4;margin:12mm}body{font:12px/1.4 system-ui,sans-serif;color:#000;max-width:60rem;margin:1rem auto;padding:0 1rem}table{width:100%;border-collapse:collapse;margin:.5rem 0 1rem}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}.n{text-align:right}tfoot td,tfoot th{font-weight:bold}form{background:#f6f7f7;border:1px solid #c3c4c7;padding:.5rem 1rem;margin:1rem 0}form label{margin-right:1rem}.sign{display:flex;gap:3rem;margin-top:3rem}.sign div{flex:1;border-top:1px solid #000;padding-top:.25rem}@media print{form,.noprint{display:none}}</style></head><body>';
 		$html .= '<h1>' . $e( __( 'Abrechnungsblatt', 'pass-captain' ) ) . '</h1>';
-		$html .= '<p><strong>' . $e( $o['event_name'] ) . '</strong> · ' . $e( $o['starts'] ) . ( '' !== $o['location'] ? ' · ' . $e( $o['location'] ) : '' ) . ( 'scheduled' !== $o['status'] ? ' · ' . $e( __( 'abgesagt', 'pass-captain' ) ) : '' ) . '<br>' . $e( sprintf( /* translators: 1: date/time, 2: currency */ __( 'Stand: %1$s · Beträge in %2$s, brutto inkl. USt, Erstattungen abgezogen.', 'pass-captain' ), Scope::local( gmdate( 'Y-m-d H:i:s' ), Scope::site_timezone() ), $sheet['currency'] ) ) . '</p>';
+		$html .= '<p><strong>' . $e( $o['event_name'] ) . '</strong> · ' . $e( $o['starts'] ) . ( '' !== $o['location'] ? ' · ' . $e( $o['location'] ) : '' ) . ( 'scheduled' !== $o['status'] ? ' · ' . $e( __( 'abgesagt', 'pass-captain' ) ) : '' ) . '<br>' . $e( sprintf( /* translators: 1: date/time, 2: currency */ __( 'Stand: %1$s · Beträge in %2$s, brutto inkl. USt, Erstattungen abgezogen.', 'pass-captain' ), Scope::local( \PassCaptain\Clock::mysql(), Scope::site_timezone() ), $sheet['currency'] ) ) . '</p>';
 
 		if ( $form ) {
 			$html .= '<form method="get" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="' . esc_attr( self::ACTION ) . '"><input type="hidden" name="_wpnonce" value="' . esc_attr( (string) ( $form['nonce'] ?? '' ) ) . '"><input type="hidden" name="occurrence_id" value="' . (int) $o['occurrence_id'] . '">'
@@ -341,9 +366,17 @@ final class Settlement {
 			. '<tr><th scope="row">' . $e( __( 'Eingecheckt', 'pass-captain' ) ) . '</th><td class="n">' . (int) $a['checked_in'] . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'No-Shows', 'pass-captain' ) ) . '</th><td class="n">' . (int) $a['no_shows'] . '</td></tr></tbody></table>';
 
+		// A425: the buyers' service fee, apart from the deal (operator's revenue unless passed on).
+		$fee = (array) ( $sheet['service_fee'] ?? array() );
+		if ( (int) ( $fee['gross'] ?? 0 ) || (int) ( $fee['refunded'] ?? 0 ) ) {
+			$html .= '<h2>' . $e( __( 'Servicegebühren', 'pass-captain' ) ) . '</h2><table><tbody>'
+				. '<tr><th scope="row">' . $e( __( 'Servicegebühren nach Erstattungen (in den Summen oben enthalten)', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( (int) $fee['revenue'] ) ) . '</td></tr>'
+				. '<tr><th scope="row">' . $e( __( 'davon netto', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( (int) $fee['revenue_net'] ) ) . '</td></tr>'
+				. '<tr><th scope="row">' . $e( __( 'Zurechnung', 'pass-captain' ) ) . '</th><td>' . $e( ! empty( $fee['to_partner'] ) ? __( 'an den Veranstalter weitergegeben (Teil der Deal-Basis)', 'pass-captain' ) : __( 'Umsatz des Betreibers (nicht Teil der Deal-Basis)', 'pass-captain' ) ) . '</td></tr></tbody></table>';
+		}
 		$d = $sheet['deal'];
 		$html .= '<h2>' . $e( __( 'Deal', 'pass-captain' ) ) . '</h2><table><tbody>'
-			. '<tr><th scope="row">' . $e( __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['basis'] ) ) . '</td></tr>'
+			. '<tr><th scope="row">' . $e( empty( $fee['to_partner'] ) && (int) ( $fee['gross'] ?? 0 ) ? __( 'Netto-Umsatz nach Erstattungen ohne Servicegebühren', 'pass-captain' ) : __( 'Netto-Umsatz nach Erstattungen', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['basis'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'abzüglich Fixbetrag', 'pass-captain' ) ) . '</th><td class="n">' . $e( '-' . $money( $d['fixed'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( __( 'Bemessungsgrundlage', 'pass-captain' ) ) . '</th><td class="n">' . $e( $money( $d['after_fixed'] ) ) . '</td></tr>'
 			. '<tr><th scope="row">' . $e( sprintf( /* translators: %s: percentage */ __( 'Anteil Künstler/Veranstalter (%s %%)', 'pass-captain' ), number_format_i18n( $d['share_bp'] / 100, 2 ) ) ) . '</th><td class="n">' . $e( $money( $d['artist'] ) ) . '</td></tr>'

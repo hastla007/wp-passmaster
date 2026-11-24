@@ -59,5 +59,5 @@ $wpdb->update( "{$p}wpcap_tickets", array( 'refunded' => 0 ), array( 'ticket_id'
 $x6c_new = array_slice( $x6c_audits(), $x6c_audit_before );
 $x6c_results = array_map( static fn( $d ) => json_decode( $d, true )['result'] ?? '', $x6c_new );
 check( 'A668: every call is audited with its result – never with the contact', 8 === count( $x6c_new ) && in_array( 'ok', $x6c_results, true ) && in_array( 'forbidden', $x6c_results, true ) && in_array( 'recipient_changed', $x6c_results, true ) && ! array_filter( $x6c_new, static fn( $d ) => false !== strpos( $d, '@' ) || false !== stripos( $d, 'Grete' ) ) );
-check( 'A668: the review events themselves never contain the contact', 0 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . PassCaptain\Workflow\Outbox::table() . " WHERE contract='review' AND (payload LIKE '%@%' OR payload LIKE '%Grete%')" ) );
+check( 'A668: the review events themselves never contain the contact', 0 === (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . PassCaptain\Suite\Outbox::table() . " WHERE contract='review' AND (payload LIKE '%@%' OR payload LIKE '%Grete%')" ) );
 $GLOBALS['wpcap_test_hooks'] = $x6c_hooks_before;

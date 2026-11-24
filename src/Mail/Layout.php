@@ -13,6 +13,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Layout {
 	const DEFAULT_COLOR = '#2271b1';
 
@@ -86,6 +89,8 @@ final class Layout {
 			? '<img src="' . esc_attr( $logo ) . '" alt="' . esc_attr( $site ) . '" style="max-width:200px;max-height:80px;height:auto;border:0;display:block">'
 			: '<span style="font-size:20px;font-weight:bold;color:' . esc_attr( $color ) . '">' . esc_html( $site ) . '</span>';
 		$footer = '' !== trim( (string) $s['footer'] ) ? Mailer::text_to_html( (string) $s['footer'] ) : esc_html( $site );
+		$legal_links = \PassCaptain\Frontend\LegalNotice::links_html(); // SET-PC-19
+		if ( '' !== $legal_links ) { $footer .= '<br>' . $legal_links; }
 		$font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 		// A625: color-scheme meta + dark-mode overrides (Apple Mail, Outlook.com/app, Gmail apps honour
 		// them), and an MSO ghost table that gives desktop Outlook (Word engine, ignores max-width) the
@@ -117,7 +122,7 @@ final class Layout {
 	 */
 	public static function alt_text( $content, $text = null ) {
 		$text = null !== $text ? (string) $text : self::to_text( $content );
-		$footer = trim( (string) self::settings()['footer'] );
+		$footer = trim( trim( (string) self::settings()['footer'] ) . "\n" . \PassCaptain\Frontend\LegalNotice::links_text() ); // SET-PC-19
 		return '' !== $footer ? rtrim( $text ) . "\n\n-- \n" . $footer : $text;
 	}
 

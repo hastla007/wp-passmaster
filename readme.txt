@@ -4,7 +4,7 @@ Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.5
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -113,6 +113,10 @@ The schema upgrade runs in the admin area, via WP-Cron or WP-CLI, protected by a
 
 In its own database tables (prefix `wpcap_`, created on activation and removed on uninstall only if you opt in), not in posts or post meta: orders, tickets, check-ins and seat claims need transactions, row locks and unique keys that the post tables cannot provide. All queries on these tables go through `$wpdb->prepare()`; values are never concatenated into SQL. Because the tables are the source of truth for availability and payments, their reads are not cached in the object cache.
 
+= Does the box office work without network? =
+
+No, by design. Without network only admissions are possible, with the installable offline scanner (signed packages, scans are synced later). Box office sales, stornos and refund payouts need the network: the sale must reserve the remaining stock on the server, receive the payment confirmation and, where fiscalization is active, the provider's signed receipt. Nothing is queued offline; while the browser reports no connection, the box office shows a notice and disables these buttons until the connection is back. Details: docs/OFFLINE-SCANNER.md and docs/OPERATIONS.md.
+
 = Operations =
 
 Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budget of about 20 seconds per run; if a backlog remains, another run follows immediately. If Action Scheduler is available (for example with WooCommerce), follow-up runs are scheduled through it. For busy shops, set `define( 'DISABLE_WP_CRON', true );` in wp-config.php and run `wp cron event run --due-now` every minute from a system cron job. On Multisite this command only runs the main site's events; run it for every site instead, e.g. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
@@ -126,6 +130,12 @@ Only the name, the main file (`pass-captain.php`), the folder and the text domai
 Yes. The ticket page, order portal, waiting list and invoice links, payment return and web scanner are never cached (DONOTCACHEPAGE and no-cache headers). Pages with an event list or calendar are purged automatically when events, dates, ticket types, prices, sales windows or legal texts change, on "sold out"/"available again" and at the start and end of sales: WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache, Cloudflare (official plugin, including APO) and optionally Varnish. Exclusion rules per product and the WAF/bot protection exceptions needed for payment webhooks and Apple Wallet are described in docs/OPERATIONS.md, section "Seitencache und CDN".
 
 == Changelog ==
+
+= 1.7.0 =
+* Service fee: included in every price shown before purchase (event card, event page, REST, JSON-LD), own tax setting (like the ticket or own tax profile), refund rules (always refunded on cancellation, buyer's wish per setting) and shown separately in partner settlements and reports (optional pass-on to partners).
+* Vouchers: single-purpose vouchers only for the VAT of their sale, discount codes as price reduction; versioned read API for voucher reconciliation (extension contract 1.4.0).
+* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions.
+* Public action functions `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()`; the unused workflow provider contract was removed (Pass Captain sends all mails itself). `wpcap_event_cancelled` now fires once per cancellation after the tickets are revoked.
 
 = 1.6.0 =
 * First release after 1.4.0; includes everything prepared as 1.5.0 (below), which was not published separately.
@@ -163,6 +173,9 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 The full change log is in CHANGELOG.md in the source repository.
 
 == Upgrade Notice ==
+
+= 1.7.0 =
+Schema 3.18.4 installs automatically (refunds store the service fee). The workflow provider filter wp_pass_captain_workflow_provider_v1 no longer exists; use the wpcap_* actions, the read API and the new action functions. Back up the database before updating.
 
 = 1.6.0 =
 Requires PHP 8.5 and WordPress 7.0 (WooCommerce 11.2.2). Schema 3.18.3 installs automatically, credentials are stored encrypted, renamed from "WP Pass Captain" (data kept). Back up the database before updating.

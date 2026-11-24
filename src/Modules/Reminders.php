@@ -27,6 +27,9 @@ use PassCaptain\Sms\Service as SmsService;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Reminders {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-reminders';
@@ -161,12 +164,22 @@ final class Reminders {
 		);
 	}
 
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'reminders' => array( 'type' => 'group', 'label' => __( 'Erinnerungen', 'pass-captain' ), 'help' => __( 'Erinnerungsmails und -SMS vor dem Termin: Zeitpunkte, Betreff und Text je Sprache; ein- und ausschalten sowie Zeitpunkte je Event übersteuerbar.', 'pass-captain' ), 'page' => 'wpcap-reminders', 'fields' => array( 'offsets' => array( 'type' => 'list', 'item' => array( 'type' => 'int', 'min' => 1, 'max' => 720, 'label' => __( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) ), 'max_items' => 5, 'label' => __( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) ) ) ),
+		);
+	}
+
 	public static function admin_pages() {
 		return array( array( self::PAGE, __( 'Erinnerungen', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
-		return array( 'wpcap_reminders_save' => array( __CLASS__, 'handle_save' ) );
+		return array(
+			'wpcap_reminders_save' => array( __CLASS__, 'handle_save' ),
+			'wpcap_reminders_event_save' => array( __CLASS__, 'handle_save_event' ),
+		);
 	}
 
 	public static function config() {
@@ -183,6 +196,40 @@ final class Reminders {
 		sort( $offsets );
 		$c['offsets'] = $offsets;
 		return $c;
+	}
+
+	/**
+	 * SET-PC-34: configuration of one event: the global configuration with the event's override
+	 * (EventOverrides, area reminders: enabled 1/0, offsets; missing = global value).
+	 */
+	public static function config_for_event( array $c, $event_id ) {
+		$own = $event_id ? \PassCaptain\EventOverrides::get( (int) $event_id, 'reminders' ) : array();
+		if ( array_key_exists( 'enabled', $own ) ) { $c['enabled'] = empty( $own['enabled'] ) ? 0 : 1; }
+		if ( ! empty( $own['offsets'] ) && is_array( $own['offsets'] ) ) {
+			$offsets = array_values( array_unique( array_filter( array_map( 'absint', $own['offsets'] ), static function ( $h ) { return $h >= 1 && $h <= 720; } ) ) );
+			sort( $offsets );
+			if ( $offsets ) { $c['offsets'] = $offsets; }
+		}
+		return $c;
+	}
+
+	/**
+	 * Largest offset any event may use (global or override) and whether any event sends reminders
+	 * (SET-PC-34), as [enabled, max offset].
+	 *
+	 * @return array{0:bool,1:int}
+	 */
+	private static function reach( array $c ) {
+		$enabled = ! empty( $c['enabled'] ) && $c['offsets'];
+		$max = $c['offsets'] ? max( $c['offsets'] ) : 0;
+		foreach ( \PassCaptain\EventOverrides::events( 'reminders' ) as $event_id ) {
+			$own = self::config_for_event( $c, $event_id );
+			if ( ! empty( $own['enabled'] ) && $own['offsets'] ) {
+				$enabled = true;
+				$max = max( $max, max( $own['offsets'] ) );
+			}
+		}
+		return array( (bool) $enabled, (int) $max );
 	}
 
 	/**
@@ -238,12 +285,14 @@ final class Reminders {
 	public static function schedule_due( $now = null ) {
 		global $wpdb;
 		$c = self::config();
-		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
+		// SET-PC-34: an event may switch reminders on (or use other offsets) while the global setting is off.
+		list( $any, $reach ) = self::reach( $c );
+		if ( ! $any || ! $reach ) { return 0; }
 		$p = $wpdb->prefix;
 		$now = $now ?? \PassCaptain\Clock::now();
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
 		$from = gmdate( 'Y-m-d H:i:s', $now );
-		$to = gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS );
+		$to = gmdate( 'Y-m-d H:i:s', $now + $reach * HOUR_IN_SECONDS );
 		$saved = (string) get_option( self::CURSOR_OPTION, '' );
 		// Start cursor: a valid DATETIME literal (MySQL 8 rejects comparing a DATETIME with '' – error 1525).
 		$origin = array( '1970-01-01 00:00:00', '0' );
@@ -254,7 +303,7 @@ final class Reminders {
 		$queued = 0;
 		foreach ( $passes as list( $cursor, $until ) ) {
 			while ( true ) {
-				$sql = "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s AND (o.starts_at>%s OR (o.starts_at=%s AND o.occurrence_id>%d))";
+				$sql = "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s AND (o.starts_at>%s OR (o.starts_at=%s AND o.occurrence_id>%d))";
 				$args = array( $p . 'wpcap_occurrences', $p . 'wpcap_events', $from, $to, $cursor[0], $cursor[0], (int) $cursor[1] );
 				if ( $until ) {
 					$sql .= ' AND (o.starts_at<%s OR (o.starts_at=%s AND o.occurrence_id<=%d))';
@@ -284,6 +333,8 @@ final class Reminders {
 	private static function schedule_occurrence( $occ, array $c, $now ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$c = self::config_for_event( $c, (int) ( $occ->event_id ?? 0 ) ); // SET-PC-34
+		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
 		$stage = self::stage( (int) strtotime( $occ->starts_at . ' UTC' ), $c['offsets'], $now );
 		if ( ! $stage ) { return 0; }
 		$queued = 0;
@@ -332,8 +383,11 @@ final class Reminders {
 		global $wpdb;
 		if ( self::is_opted_out( (string) $recipient ) ) { return false; }
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.starts_at,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.event_id,o.starts_at,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) ( $payload['occurrence_id'] ?? 0 ) ) );
 		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= \PassCaptain\Clock::now() ) { return false; }
+		// SET-PC-34: reminders switched off for this event after they were queued.
+		$own = \PassCaptain\EventOverrides::get( (int) $occ->event_id, 'reminders' );
+		if ( array_key_exists( 'enabled', $own ) && empty( $own['enabled'] ) ) { return false; }
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(" . \PassCaptain\TicketCodes::holder_email_sql() . ")=%s", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- TicketCodes::holder_email_sql() returns one of two fixed column expressions.
 	}
 
@@ -422,7 +476,11 @@ final class Reminders {
 
 	public static function save( array $in ) {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
-		$offsets = array_values( array_unique( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', (string) ( is_scalar( $in['offsets'] ?? null ) ? $in['offsets'] : '' ) ) ), static function ( $h ) { return $h >= 1 && $h <= 720; } ) ) );
+		// SET-PC-01: every point in time is checked by the settings register (reported, not dropped).
+		$offsets = array_values( array_unique( preg_split( '/[\s,;]+/', trim( (string) ( is_scalar( $in['offsets'] ?? null ) ? $in['offsets'] : '' ) ), -1, PREG_SPLIT_NO_EMPTY ) ) );
+		$checked = \PassCaptain\SettingsSchema::check_group( 'reminders', array( 'offsets' => $offsets ) );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$offsets = array_values( array_unique( $checked['offsets'] ) );
 		sort( $offsets );
 		$values = array(
 			'enabled' => Forms::flag( $in, 'enabled' ) ? 1 : 0,
@@ -449,6 +507,64 @@ final class Reminders {
 		}
 		Settings::update( array( 'reminders' => $values ) );
 		return array( 'saved' => $values );
+	}
+
+	/**
+	 * SET-PC-34: saves the reminder override of one event: enabled '' (as globally), '1' or '0';
+	 * offsets as text ('' = as globally). Offsets are checked by the settings register.
+	 *
+	 * @return array|\WP_Error ['saved' => stored values]
+	 */
+	public static function save_event( array $in ) {
+		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
+		$event_id = absint( $in['event_id'] ?? 0 );
+		$values = array();
+		$enabled = is_scalar( $in['enabled'] ?? null ) ? (string) $in['enabled'] : '';
+		if ( ! in_array( $enabled, array( '', '0', '1' ), true ) ) {
+			return Forms::error( 'wpcap_reminders_invalid', __( 'Bitte „wie global“, „an“ oder „aus“ wählen.', 'pass-captain' ) );
+		}
+		if ( '' !== $enabled ) { $values['enabled'] = (int) $enabled; }
+		$offsets = array_values( array_unique( preg_split( '/[\s,;]+/', trim( (string) ( is_scalar( $in['offsets'] ?? null ) ? $in['offsets'] : '' ) ), -1, PREG_SPLIT_NO_EMPTY ) ) );
+		if ( $offsets ) {
+			$checked = \PassCaptain\SettingsSchema::check_group( 'reminders', array( 'offsets' => $offsets ) );
+			if ( is_wp_error( $checked ) ) { return $checked; }
+			$offsets = array_values( array_unique( $checked['offsets'] ) );
+			sort( $offsets );
+			$values['offsets'] = $offsets;
+		}
+		$saved = \PassCaptain\EventOverrides::save( $event_id, 'reminders', $values );
+		return is_wp_error( $saved ) ? $saved : array( 'saved' => $values );
+	}
+
+	public static function handle_save_event() {
+		Forms::verify( 'wpcap_reminders_event_save' );
+		Forms::finish( self::save_event( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) . '#wpcap-rem-events' );
+	}
+
+	/** SET-PC-34: list and form of the per-event overrides. */
+	private static function render_event_overrides( array $c ) {
+		$events = \PassCaptain\Admin\Queries::event_options( \PassCaptain\Admin\Queries::event_ids_for( array( 'wpcap_manage_events' ) ), \PassCaptain\EventOverrides::events( 'reminders' ) );
+		echo '<h2 id="wpcap-rem-events">' . esc_html__( 'Je Event übersteuern', 'pass-captain' ) . '</h2><p class="description">' . esc_html__( 'Ein Event kann Erinnerungen abweichend ein- oder ausschalten und eigene Zeitpunkte haben. Texte und SMS gelten wie oben.', 'pass-captain' ) . '</p>';
+		$rows = \PassCaptain\EventOverrides::events( 'reminders' );
+		if ( $rows ) {
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $rows as $event_id ) {
+				$own = \PassCaptain\EventOverrides::get( $event_id, 'reminders' );
+				$eff = self::config_for_event( $c, $event_id );
+				echo '<tr><td>' . esc_html( (string) ( $events[ $event_id ] ?? '#' . $event_id ) ) . '</td><td>' . esc_html( array_key_exists( 'enabled', $own ) ? ( $own['enabled'] ? __( 'an', 'pass-captain' ) : __( 'aus', 'pass-captain' ) ) : __( 'wie global', 'pass-captain' ) ) . '</td><td>' . esc_html( ! empty( $own['offsets'] ) ? implode( ', ', $eff['offsets'] ) : __( 'wie global', 'pass-captain' ) ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+		if ( ! $events ) { return; }
+		Forms::open_form( 'wpcap_reminders_event_save' );
+		echo '<p><label>' . esc_html__( 'Event', 'pass-captain' ) . ' ';
+		Forms::select( 'event_id', $events, '' );
+		echo '</label> <label>' . esc_html__( 'Aktiv', 'pass-captain' ) . ' ';
+		Forms::select( 'enabled', array( '' => __( 'wie global', 'pass-captain' ), '1' => __( 'an', 'pass-captain' ), '0' => __( 'aus', 'pass-captain' ) ), '' );
+		echo '</label> <label>' . esc_html__( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) . ' <input type="text" name="offsets" class="regular-text" placeholder="' . esc_attr( implode( ', ', $c['offsets'] ) ) . '"></label></p>';
+		echo '<p class="description">' . esc_html__( 'Leer = wie global. „Wie global“ und leere Zeitpunkte entfernen die Abweichung des Events.', 'pass-captain' ) . '</p>';
+		submit_button( __( 'Für dieses Event speichern', 'pass-captain' ), 'secondary' );
+		echo '</form>';
 	}
 
 	public static function handle_save() {
@@ -481,6 +597,8 @@ final class Reminders {
 		foreach ( Placeholders::available() as $placeholder => $label ) { echo '<li><code>' . esc_html( $placeholder ) . '</code> – ' . esc_html( $label ) . '</li>'; }
 		echo '</ul>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
-		echo '</form></div>';
+		echo '</form>';
+		self::render_event_overrides( $c );
+		echo '</div>';
 	}
 }

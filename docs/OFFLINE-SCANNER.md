@@ -15,6 +15,24 @@ offline sync (`POST /app/scan/sync`, see [MOBILE-API.md](MOBILE-API.md)).
 6. When the device is back online, the queued scans are synced. Conflicts appear in the app and under
    *Einlass-Konflikte*.
 
+## Kasse ohne Netz (Entscheidung E-13)
+
+Ohne Netz sind **nur Einlässe** möglich: Check-ins mit dieser Scanner-Web-App (signiertes Paket, Scans
+werden später synchronisiert). Die **Kasse braucht für Verkäufe, Stornos und Erstattungen immer eine
+Netzverbindung**; es gibt keinen Offline-Verkauf und keine Offline-Erstattung. Gründe:
+
+- **Platzbestand:** Ein Verkauf reserviert den Restbestand (Kontingente, Sitzplätze) auf dem Server unter
+  Sperre. Ein offline erfasster Verkauf könnte bereits verkaufte Plätze ein zweites Mal vergeben.
+- **Zahlungsbestätigung:** Kartenzahlungen und Terminal-Abgleich brauchen die Antwort des Servers bzw.
+  des Zahlungsanbieters, bevor Tickets ausgestellt werden.
+- **Fiskalbelege:** Mit dem Modul Fiskalisierung wird jeder Verkauf erst nach dem bestätigten Beleg des
+  Anbieters gebucht (Ausfallregel `stop_sale`); ein Offline-Beleg ohne Signatur wäre unzulässig.
+
+Die Kassenoberfläche (`assets/boxoffice/pos.js`) zeigt deshalb ohne Verbindung einen Hinweis und sperrt
+die Schaltflächen für Verkauf, „Nachbuchen“, Storno und Auszahlung, bis die Verbindung wieder steht.
+Nichts wird zwischengespeichert oder später automatisch gesendet. Ein Barverkauf ohne Netz wäre ein
+eigenes späteres Vorhaben mit lokaler Bestandsreservierung, Konfliktabgleich und Fiskalregeln.
+
 ## Event rules (`wpcap_offline_events`)
 
 | Setting | Default | Meaning |
@@ -64,7 +82,8 @@ Public (no token, the pairing screen needs it before a device token exists; it o
 Existing responses are also extended:
 
 - `POST /app/pair` adds `offline: {keys, package_format, package_formats}`, which delivers the public keys at pairing (`package_formats`: the supported payload versions, `[1, 2]`).
-- `GET /app/me` sets `features.offline_packages = true`.
+- `GET /app/me` sets `features.offline_packages = true`; its `permissions` (`undo`, `check_out`, see
+  [MOBILE-API.md](MOBILE-API.md)) are read by the PWA on every online refresh and kept in IndexedDB (`kv.perms`).
 - `POST /app/scan/sync` result rows gain `offline_rules`, `auto_resolved`, `cross_device` (double admissions), `offline_expired` and `conflict_status`.
 - A result row with `retryable: true` (`result: "retry"`) was not booked because of a transient server
   error (A345). The PWA keeps such scans as "wartet auf Sync" (code kept) and uploads them again with the
@@ -98,8 +117,10 @@ Signed payload (`v` = package format version 1):
   "issued_at": "…", "expires_at": "…", "since": null, "cursor": "a1b2c3d4e5f60718.7",
   "rules": {"max_offline_hours": 12, "duplicate_policy": "review", "attendee_names": false},
   "device_area_id": null, "day_cutoff_hour": 0, "hash": "sha256",
-  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "max_entries": 1, "valid_days": null, "id_check": false, "min_age": 0, "hint": ""}],
+  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "own_policy": false, "max_entries": 1, "valid_days": null, "id_check": false, "min_age": 0, "hint": ""}],
   "areas": [{"id": 3, "name": "Eingang Nord"}],
+  "permissions": {"undo": true, "check_out": true},
+  "checkout": {"staff_area_ids": [], "reentry_after_checkout": false, "max_reentries": 0},
   "tickets": [{"h": "<sha256(code) hex>", "s": "valid|checked_in|revoked", "t": 5, "n": "Name (optional)"}] }
 ```
 
@@ -119,6 +140,18 @@ preimage); the app keys its index by these 32 digits for both formats.
 
 `max_entries` and `valid_days` (the service days of `daily`/`multi_day` types, `null` = no day
 restriction) and `day_cutoff_hour` feed the app's local entry counters (see below).
+
+Rights and check-out rules (both formats, every full package and delta; older apps ignore them):
+
+- `permissions` – what the device's user may do: `undo` (capability `wpcap_undo_checkin`), `check_out`
+  (role rule `checkout_roles`, `Checkin::checkout_allowed()`; administrators always). The PWA hides
+  „Rückgängig“ and the direction switch without the right.
+- `checkout` – the rules of an offline check-out: `staff_area_ids` (areas the user is assigned to for this
+  event, empty = all areas, always empty for administrators; rule 2 of `Admission\Areas`),
+  `reentry_after_checkout` and `max_reentries` (re-entry of ticket types without own admission rule).
+  A package without `checkout` (older server) offers no check-out in the PWA.
+- `ticket_types[].own_policy` – the type has its own admission rule (then the re-entry setting does not
+  apply, like on the server).
 
 Measured with 50,000 tickets of one occurrence (`Package::build`, no names): format 1 payload 4.34 MB,
 HTTP body 4.82 MB, gzip 1.83 MB; format 2 payload/body 1.53 MB, gzip 0.86 MB. A compact delta after
@@ -323,7 +356,13 @@ everywhere, whatever the setting.
     most every 10 s, own first admissions counted at once) plus this device's offline admissions not
     uploaded yet; without a server value the package count (“laut Prüfpaket”: tickets used in the
     package or admitted on this device). An old server value shows “Stand hh:mm”.
-  - **Undo (A547):** for 30 s after an admission the app offers “Rückgängig”. A reason is required
+  - **Undo (A547):** for 30 s after an admission the app offers “Rückgängig” – only when the device's user
+    holds `wpcap_undo_checkin` (`permissions.undo` of `/app/me`, else of the package; unknown, e.g. an
+    older server, = offered and the server decides). Without the right there is no undo, also not for an
+    offline admission that is not uploaded yet. If the server still refuses (`wpcap_undo_capability`, as
+    `ok: false` or HTTP 403), the app shows the server's message (for a 403 without a readable body: „Du
+    darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen.“) and offers no undo from then
+    on. A reason is required
     (four presets or own text). An online admission – or an offline one that is already uploaded –
     is taken back with `POST /app/scan/undo` (`ticket_public_id`, `reason`, area of the scan); the
     server checks device events, area binding and refunds (`Checkin::undo_guard()`). An offline
@@ -333,8 +372,34 @@ everywhere, whatever the setting.
   - Multi-entry types are limited by local counters per hash from the device's own scan log (online
     and offline admissions of the last day; pending scans always): `daily`/`multi_day` once per service
     day (occurrence timezone and day cutoff hour, `valid_days`), `multi_entry` up to `max_entries`,
-    `reentry` not while the ticket is inside (the PWA has no check-out, so once per device). Entries on
-    other devices are only known to the server; it checks the limits again at sync.
+    `reentry` not while the ticket is inside (inside = admitted on this device and not checked out on this
+    device since). Entries on other devices are only known to the server; it checks the limits again at sync.
+  - **Re-entry after check-out:** with the setting `reentry_after_checkout` (package `checkout`) a used
+    single-entry ticket of a type without own admission rule is admitted again offline when this device
+    checked it out after its last entry here, up to `max_reentries` re-entries counted from this device's
+    entries (shown with „Wiedereinlass nach Check-out – Prüfung beim Sync“). The server checks again at
+    sync; a refused re-entry becomes an admission conflict like any other offline admission. Known limit:
+    a refunded ticket that was checked in keeps status `checked_in` in the package, so the device cannot
+    tell; the server refuses the re-entry at sync (conflict).
+- **Check-out (Auslass) offline:** the switch „Einlass / Auslass (Check-out)“ appears only when the selected
+  package carries `checkout` and the user may check out (`permissions.check_out` of `/app/me`, else of the
+  package). In check-out mode the idle box shows „Bereit (Auslass)“. Same rules as online
+  (`Checkin::check_out()`):
+  - Online the app calls `POST /app/scan/check-out` (code, idempotency key, occurrence, area); a help code
+    is checked out online as well. A refusal `wpcap_checkout_forbidden` hides the switch from then on.
+  - On a network error, timeout or outage it decides offline: package missing/expired, no right
+    (`checkout_forbidden`), unknown hash and an area the user is not assigned to (`staff_area_ids`) are
+    refused. Inside is only known for this device: a ticket this device admitted and did not check out
+    since is checked out at once („Ausgecheckt (offline)“); a ticket this device already checked out after
+    its last entry here is refused („Nicht eingecheckt · Auf diesem Gerät bereits ausgecheckt“). **Every
+    other known ticket cannot be decided offline safely** (entries on other devices, revoked tickets that
+    are still inside): it is queued as „Check-out vorgemerkt – Prüfung beim Sync“ and the server decides.
+  - Accepted offline check-outs are logged like admissions (code kept until uploaded, „wartet auf Sync“)
+    and uploaded with the batch sync as `direction: "out"`. The server applies the online rules (inside,
+    role, area binding, event/date scope); a refused check-out is **no** admission conflict, the log shows
+    „Check-out abgelehnt: <reason>“. Uploading again replays the first answer (idempotency key).
+  - Check-outs are not offered for undo, do not count in the check-in counter, and the search
+    („Einchecken“) always admits.
 - **Package download:** 120 s timeout (full packages of large events on weak networks) with the
   received kilobytes shown in the package box; format 2 is requested.
 - **Log and sync:** every scan is logged locally with its idempotency key. Offline admissions are
@@ -364,7 +429,7 @@ everywhere, whatever the setting.
 - **Diagnostics:** `window.wpcapOffline` exposes helper functions and a view of the state without the
   device token.
 
-Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v9`). Assets are also refreshed in the background
+Ship changed shell files by bumping `CACHE` in `sw.js` (currently `wpcap-offline-scanner-v11`). Assets are also refreshed in the background
 (stale-while-revalidate).
 
 The app runs edge to edge (`viewport-fit=cover`); the top bar, the content and the full-screen result keep
@@ -390,6 +455,11 @@ clear of the notch, rounded corners and the home indicator with `env(safe-area-i
 - `tests/js/offline-scanner.test.js` also covers the 401 wipe, pruning of expired packages and of the
   log, the `?api=` rules, rollback protection and the server time floor; `tests/js/offline-sw.test.js`
   the service worker cache rules.
+- `tests/js/offline-scanner-checkout.test.js` covers undo only with the right (and readable refusals),
+  the direction switch, the offline check-out decision, queueing and upload with `direction: "out"`, and
+  re-entry after a local check-out; `tests/integration/modules/zz_offline_checkout.php` the package
+  fields `permissions`/`checkout`/`own_policy`, `/app/me permissions.check_out` and uploaded check-outs
+  (inside, role, area, replay, re-entry).
 - `tests/integration/modules/offline_scanner.php` covers opt-in, assignment, signatures (including
   `sodium_crypto_sign_verify_detached`), deltas with revocations, expiry, rotation and grace, and the
   sync rules.

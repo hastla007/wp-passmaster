@@ -30,6 +30,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Templates {
 	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband', 'label_3x8', 'label_2x7', 'badge_4up' );
 
@@ -411,8 +414,15 @@ final class Templates {
 			if ( 'ticket' === $kind ) {
 				// A330: header (e.g. site name) and footer (e.g. "only valid once") of ticket PDFs.
 				if ( '' !== (string) ( $item['_title'] ?? '' ) ) { $pdf->text( $pad, $ph - 30, 11, PdfWriter::fit( (string) $item['_title'], 11, $pw - 2 * $pad ) ); }
-				$footer = '' !== (string) ( $item['_footer'] ?? '' ) ? array_slice( PdfWriter::wrap( (string) $item['_footer'], 8, $pw - 2 * $pad ), 0, 3 ) : array();
-				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, 22 + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
+				// SET-PC-33: every line of the footer starts a new line (the last one: imprint/privacy links);
+				// the footer text keeps at most three lines, the links line is never cut off.
+				$footer = array();
+				$parts = '' !== trim( (string) ( $item['_footer'] ?? '' ) ) ? array_values( array_filter( array_map( 'trim', preg_split( '/\r\n|\r|\n/', (string) $item['_footer'] ) ), static function ( $line ) { return '' !== $line; } ) ) : array();
+				$last = count( $parts ) > 1 ? PdfWriter::wrap( (string) array_pop( $parts ), 8, $pw - 2 * $pad, false, 1 ) : array();
+				foreach ( $parts as $part ) { $footer = array_merge( $footer, PdfWriter::wrap( $part, 8, $pw - 2 * $pad ) ); }
+				$footer = array_merge( array_slice( $footer, 0, 3 ), $last );
+				$base = count( $footer ) > 3 ? 14 : 22;
+				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, $base + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
 			}
 			// A685: logo at the top (ticket: left, badge: centred).
 			$logo_h = 0;
@@ -743,7 +753,7 @@ final class Templates {
 		return array(
 			'event'           => (string) ( $row->event_name ?? '' ),
 			'date'            => \PassCaptain\Frontend\Format::local( $row->starts_at ?? '', $row->timezone ?? 'UTC' ),
-			'time'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'H:i' ),
+			'time'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', \PassCaptain\Frontend\Format::ticket_time_format() ),
 			'location'        => (string) ( $row->location ?? '' ),
 			'ticket_category' => (string) ( $row->ticket_name ?? '' ),
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),

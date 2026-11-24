@@ -14,6 +14,9 @@ use PassCaptain\Checkin;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CheckinService {
 	const FILTER = 'wp_pass_captain_checkin_service_v1';
 	const VERSION = 1;

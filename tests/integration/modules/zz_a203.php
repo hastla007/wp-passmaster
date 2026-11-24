@@ -117,8 +117,8 @@ foreach ( glob( dirname( __DIR__, 2 ) . '/contracts/*.json' ) as $a203_file ) {
 	$a203_fixture_ok = $a203_fixture_ok && is_array( $a203_fx ) && isset( $a203_versions[ $a203_fx['contract'] ?? '' ] ) && Contracts::compatible( $a203_fx['version'] ?? '', $a203_versions[ $a203_fx['contract'] ] ) && ! empty( $a203_fx['endpoints'] );
 }
 sort( $a203_fixture_names );
-check( 'every interface has a fixture file; each names a known contract of the current major version', $a203_fixture_ok && array( 'affiliate', 'app', 'developer', 'offline', 'partner', 'public', 'review', 'voucher-bridge', 'workflow', 'workflow_commands' ) === $a203_fixture_names );
-check( 'contract versions follow the interface constants (app 1.1, partner 1, offline package 1, bridge 1)', PassCaptain\Mobile\Api::VERSION === $a203_versions['app'] && 1 === Contracts::major( $a203_versions['partner'] ) && 1 === Contracts::major( $a203_versions['offline'] ) && '1.0' === $a203_versions['voucher_provider'] && 1 === Contracts::major( $a203_versions['affiliate'] ) );
+check( 'every interface has a fixture file; each names a known contract of the current major version', $a203_fixture_ok && array( 'actions', 'affiliate', 'app', 'developer', 'offline', 'partner', 'public', 'review', 'voucher-bridge' ) === $a203_fixture_names );
+check( 'contract versions follow the interface constants (app 1.2, partner 1, offline package 1 with own minor 1.1, bridge 1)', PassCaptain\Mobile\Api::VERSION === $a203_versions['app'] && 1 === Contracts::major( $a203_versions['partner'] ) && 1 === Contracts::major( $a203_versions['offline'] ) && PassCaptain\OfflineScanner\Package::VERSION . '.' . PassCaptain\OfflineScanner\Package::CONTRACT_MINOR === $a203_versions['offline'] && '1.0' === $a203_versions['voucher_provider'] && 1 === Contracts::major( $a203_versions['affiliate'] ) );
 
 echo "A203: REST contract version negotiation\n";
 check( 'major/compatible: minor and patch versions are compatible, other majors and garbage are not', Contracts::compatible( '1.7', '1.0' ) && Contracts::compatible( '1', '1.1' ) && Contracts::compatible( 'v1.2.3', '1.0' ) && ! Contracts::compatible( '2.0', '1.0' ) && ! Contracts::compatible( '0.9', '1.0' ) && ! Contracts::compatible( 'banana', '1.0' ) && ! Contracts::compatible( '', '1.0' ) );
@@ -141,7 +141,7 @@ $a203_earlier = new WP_Error( 'earlier', 'x' );
 check( 'an earlier rest_pre_dispatch result is passed through', $a203_earlier === Contracts::pre_dispatch( $a203_earlier, null, wpa203_request( 'GET', '/events', array(), array( 'X-WPCAP-Contract' => '2.0' ) ) ) );
 $a203_resp = new class() { public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } };
 Contracts::post_dispatch( $a203_resp, null, wpa203_request( 'GET', '/app/me' ) );
-check( 'answers announce the served contract (X-WPCAP-Contract: app/1.1)', 'app/' . PassCaptain\Mobile\Api::VERSION === ( $a203_resp->headers['X-WPCAP-Contract'] ?? '' ) );
+check( 'answers announce the served contract (X-WPCAP-Contract: app/1.2)', 'app/' . PassCaptain\Mobile\Api::VERSION === ( $a203_resp->headers['X-WPCAP-Contract'] ?? '' ) );
 wpa203_contract( 'public', 'error', 'response', wpa203_body( $a203_major ) );
 check( 'Contracts filters are registered by the plugin', false !== strpos( (string) file_get_contents( dirname( __DIR__, 3 ) . '/src/Plugin.php' ), 'Contracts::register();' ) );
 
@@ -270,7 +270,7 @@ check( 'sync: unknown scan fields are ignored, missing optional fields (scanned_
 wpa203_contract( 'app', 'POST /app/scan/sync', 'response', $a203_sync );
 $a203_app_v2 = $a203_app( 'GET', 'GET /app/me', '/app/me', 'me', array(), array( 'X-WPCAP-Contract' => '2.0' ) );
 $a203_app_v11 = $a203_app( 'GET', 'GET /app/me', '/app/me', 'me', array(), array( 'X-WPCAP-Contract' => '1.0' ) );
-check( 'an app built for 1.0 still works against 1.1, an app for 2.0 gets a clean 400', is_array( $a203_app_v11 ) && is_wp_error( $a203_app_v2 ) && 400 === $a203_app_v2->get_error_data()['status'] );
+check( 'an app built for 1.0 still works against 1.2, an app for 2.0 gets a clean 400', is_array( $a203_app_v11 ) && is_wp_error( $a203_app_v2 ) && 400 === $a203_app_v2->get_error_data()['status'] );
 
 echo "A203: offline scanner API contract\n";
 PassCaptain\OfflineScanner\AdminPage::save_rules( array( 'event_id' => $a203_free_event, 'enabled' => '1', 'max_offline_hours' => '6', 'duplicate_policy' => 'review' ) );

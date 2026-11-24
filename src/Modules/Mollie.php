@@ -14,6 +14,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Mollie {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-mollie';
@@ -62,6 +65,14 @@ final class Mollie {
 		return array(
 			'mollie' => array( 'methods' => array(), 'billing_country' => '' ),
 			'mollie_api_key' => '',
+		);
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'mollie' => array( 'type' => 'group', 'label' => __( 'Mollie', 'pass-captain' ), 'help' => __( 'Angebotene Zahlungsmethoden und das Land für die Rechnungsadresse bei Mollie.', 'pass-captain' ), 'page' => 'wpcap-settings' ),
+			'mollie_api_key' => array( 'type' => 'secret', 'label' => __( 'Mollie API-Schlüssel', 'pass-captain' ), 'help' => __( 'Live- oder Test-Schlüssel aus dem Mollie-Dashboard; wird verschlüsselt gespeichert.', 'pass-captain' ), 'page' => 'wpcap-settings' ),
 		);
 	}
 

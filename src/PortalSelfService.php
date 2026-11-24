@@ -20,6 +20,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PortalSelfService {
 	const SOURCE = 'portal';
 	/** Upper bound of tickets per request (form input). */
@@ -186,7 +189,7 @@ final class PortalSelfService {
 		$p = $wpdb->prefix;
 		$order = self::order_with_access( $public_id, $token );
 		if ( ! $order ) { return self::denied(); }
-		if ( ! RateLimit::allow( 'portal-pdf-client|' . RateLimit::client(), 60, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'portal-pdf|' . $order->order_id, (int) apply_filters( 'wpcap_portal_pdf_rate_limit', 20, $order ), HOUR_IN_SECONDS ) ) {
+		if ( ! RateLimit::allow( 'portal-pdf-client|' . RateLimit::client(), 60, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'portal-pdf|' . $order->order_id, (int) apply_filters( 'wpcap_portal_pdf_rate_limit', RateLimit::configured( 'rate_portal_pdf_per_hour' ), $order ), HOUR_IN_SECONDS ) ) {
 			return self::limited();
 		}
 		if ( 'paid' !== $order->payment_status ) {
@@ -286,7 +289,7 @@ final class PortalSelfService {
 				'ticket_id' => (int) $ticket->ticket_id,
 			);
 		}
-		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => \PassCaptain\TicketPdf::default_footer() ) );
 		Audit::record( 'portal_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'new_codes' => count( $rotated ), 'scope' => 'all' === $which ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', Frontend\Format::order_reference( $order->public_id ) );
 		return array(
@@ -300,6 +303,7 @@ final class PortalSelfService {
 	/** template_redirect: streams the PDF of a portal download form (POST). */
 	public static function maybe_download() {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified below.
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_portal_ics'] ) ) { self::maybe_download_ics(); return; }
 		if ( ! \PassCaptain\Http::is_post() || ! isset( $_POST['wpcap_portal_pdf'] ) ) { return; }
 		$public_id = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_order'] ?? '' ) ) );
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_access'] ?? '' ) ) );
@@ -323,6 +327,90 @@ final class PortalSelfService {
 		header( 'Referrer-Policy: no-referrer' );
 		echo $result['content']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary PDF.
 		\PassCaptain\Http::end();
+	}
+
+	/* ------------------------------------------------------------------ Calendar (.ics) */
+
+	/**
+	 * Occurrences of the order's usable tickets (valid or checked in, not refunded) as calendar rows of
+	 * public events (Calendar\Ics::published_occurrence), in start order; only dates that are not over
+	 * unless $all.
+	 *
+	 * @return object[]
+	 */
+	public static function calendar_rows( $order, $all = false ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		// Without $all: dates whose end (or start) is not over; with $all the cut-off lies far in the past.
+		$since = $all ? '1970-01-01 00:00:00' : \PassCaptain\Clock::mysql();
+		// GROUP BY instead of DISTINCT: MySQL refuses ORDER BY on a column outside a DISTINCT select list.
+		$ids = (array) $wpdb->get_col( $wpdb->prepare( "SELECT tt.occurrence_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') AND t.refunded=0 AND COALESCE(o.ends_at,o.starts_at)>=%s GROUP BY tt.occurrence_id ORDER BY MIN(o.starts_at) LIMIT 100", (int) $order->order_id, $since ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from $wpdb->prefix.
+		$rows = array();
+		foreach ( $ids as $occurrence_id ) {
+			$row = Calendar\Ics::published_occurrence( (int) $occurrence_id );
+			if ( $row ) { $rows[] = $row; }
+		}
+		return $rows;
+	}
+
+	/**
+	 * Calendar file with the dates of the order (portal download).
+	 *
+	 * @return array|\WP_Error filename, content.
+	 */
+	public static function ics( $public_id, $token ) {
+		$order = self::order_with_access( $public_id, $token );
+		if ( ! $order ) { return self::denied(); }
+		if ( ! RateLimit::allow( 'portal-ics-client|' . RateLimit::client(), 60, HOUR_IN_SECONDS ) ) { return self::limited(); }
+		if ( 'paid' !== (string) $order->payment_status ) { return new \WP_Error( 'wpcap_order_not_paid', self::pdf_state_note( 'unpaid' ), array( 'status' => 409 ) ); }
+		$rows = self::calendar_rows( $order );
+		if ( ! $rows ) { return new \WP_Error( 'wpcap_portal_ics_none', __( 'Für diese Bestellung gibt es keine anstehenden Termine.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		return array(
+			'filename' => 'termine-' . Frontend\Format::order_reference( (string) $order->public_id ) . '.ics',
+			'content' => Calendar\Ics::build( array_map( array( Calendar\Ics::class, 'entry_from_row' ), $rows ), array( 'organizer' => Calendar\Ics::organizer() ) ),
+		);
+	}
+
+	/** Streams the calendar file of a portal form (POST, nonce of the portal's download forms). */
+	private static function maybe_download_ics() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified below.
+		$public_id = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_order'] ?? '' ) ) );
+		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_access'] ?? '' ) ) );
+		$nonce = sanitize_text_field( wp_unslash( (string) ( $_POST['_wpnonce'] ?? '' ) ) );
+		// phpcs:enable
+		if ( ! wp_verify_nonce( $nonce, self::nonce_action( 'pdf', $public_id ) ) ) {
+			wp_die( esc_html__( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+		}
+		$result = self::ics( $public_id, $token );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			wp_die( esc_html( $result->get_error_message() ), '', array( 'response' => (int) ( $data['status'] ?? 400 ), 'back_link' => true ) );
+		}
+		nocache_headers();
+		header( 'Content-Type: text/calendar; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $result['filename'] . '"' );
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		header( 'X-Content-Type-Options: nosniff' );
+		header( 'Referrer-Policy: no-referrer' );
+		echo $result['content']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text/calendar body, values escaped per RFC 5545.
+		\PassCaptain\Http::end();
+	}
+
+	/** Portal card with the calendar download ('' without upcoming dates or before payment). */
+	public static function calendar_html( $order, $token ) {
+		if ( 'paid' !== (string) $order->payment_status ) { return ''; }
+		$rows = self::calendar_rows( $order );
+		if ( ! $rows ) { return ''; }
+		$html = '<section class="card" aria-labelledby="wpcap-ics-title"><h2 id="wpcap-ics-title">' . esc_html__( 'Kalender', 'pass-captain' ) . '</h2>';
+		$html .= '<form method="post" action="' . esc_url( home_url( '/' ) ) . '" class="wpcap-ics-form">';
+		$html .= '<input type="hidden" name="wpcap_portal_ics" value="all">';
+		$html .= '<input type="hidden" name="wpcap_portal_order" value="' . esc_attr( (string) $order->public_id ) . '">';
+		$html .= '<input type="hidden" name="wpcap_portal_access" value="' . esc_attr( (string) $token ) . '">';
+		$html .= '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( self::nonce_action( 'pdf', (string) $order->public_id ) ) ) . '">';
+		$label = sprintf( /* translators: %d: number of dates */ _n( '%d Termin in den Kalender übernehmen (.ics)', '%d Termine in den Kalender übernehmen (.ics)', count( $rows ), 'pass-captain' ), count( $rows ) );
+		$html .= '<button type="submit">' . esc_html( $label ) . '</button></form>';
+		$html .= '<p class="muted"><small>' . esc_html__( 'Die Datei enthält nur Datum, Ort und Event, keine Ticketcodes. Ändert sich ein Termin, informieren wir dich per E-Mail.', 'pass-captain' ) . '</small></p></section>';
+		return $html;
 	}
 
 	/* ------------------------------------------------------------------ Refund requests */
@@ -575,6 +663,7 @@ final class PortalSelfService {
 			}
 			$html .= '</section>';
 		}
+		$html .= self::calendar_html( $order, $token );
 		$html .= self::refunds_html( $order );
 		$html .= self::refund_form_html( $order, $token, $tickets );
 		return $html;
@@ -652,7 +741,12 @@ final class PortalSelfService {
 		$html .= '<label>' . esc_html__( 'Grund (optional)', 'pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
 		/* translators: %d: hours */
 		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'pass-captain' ), $hours ) ) . ' ';
-		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'pass-captain' ) . '</small></p>';
+		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'pass-captain' );
+		// A425 (owner decision 23.11.2026): a kept service fee is named before the request.
+		if ( ServiceFee::of_order( $order ) && 'retain' === ServiceFee::buyer_refund_rule() ) {
+			$html .= ' ' . esc_html__( 'Die Servicegebühr wird bei einer Stornierung auf deinen Wunsch nicht erstattet.', 'pass-captain' );
+		}
+		$html .= '</small></p>';
 		$html .= '<button type="submit">' . esc_html__( 'Stornierung anfragen', 'pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></section>';
 		return $html;
 	}

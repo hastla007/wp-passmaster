@@ -18,6 +18,9 @@ use PassCaptain\Series\Pricing as Engine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminSections {
 	const CAP = 'wpcap_manage_events';
 	const NONCE = 'wpcap_sales_rules';
@@ -114,7 +117,7 @@ final class AdminSections {
 		$occurrences = array();
 		$types = array();
 		$timezone = 'UTC';
-		$currency = 'EUR';
+		$currency = \PassCaptain\Localization::default_currency();
 		foreach ( $occ_rows as $occ ) {
 			$occurrences[ (int) $occ->occurrence_id ] = Forms::datetime( $occ->starts_at, $occ->timezone, false );
 			$timezone = (string) $occ->timezone;

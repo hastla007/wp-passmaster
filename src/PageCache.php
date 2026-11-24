@@ -24,6 +24,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PageCache {
 	/** Central purge action: ( int $event_id, string[] $urls, array $context ). */
 	const ACTION = 'wpcap_purge_page_cache';
@@ -45,6 +48,7 @@ final class PageCache {
 	const NO_STORE_PARAMS = array(
 		'wpcap_ticket' => 'ticket',
 		'wpcap_order' => 'portal',
+		'wpcap_order_link' => 'order_link_request',
 		'wpcap_waitlist_accept' => 'waitlist_offer',
 		'wpcap_waitlist_unsubscribe' => 'waitlist_unsubscribe',
 		'wpcap_waitlist_confirm' => 'waitlist_confirm',
@@ -399,7 +403,7 @@ final class PageCache {
 
 	/** Settings::update(): legal texts or their requirement changed → every listing page. */
 	public static function settings_changed( array $old, array $new ) {
-		foreach ( array( 'terms_text', 'consumer_info_text', 'require_terms', 'legal_texts' ) as $key ) {
+		foreach ( array( 'terms_text', 'consumer_info_text', 'require_terms', 'legal_texts', 'min_age_checkbox', 'min_age_notice_text' ) as $key ) { // SET-PC-18: the age confirmation is part of the event card.
 			if ( array_key_exists( $key, $new ) && ( $old[ $key ] ?? null ) != $new[ $key ] ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- 0 vs '0' after form input.
 				self::all_changed( 'legal' );
 				return;
@@ -467,14 +471,14 @@ final class PageCache {
 		$event_id = absint( $event_id );
 		if ( ! $event_id || ! function_exists( 'wp_schedule_single_event' ) ) { return array(); }
 		$p = $wpdb->prefix;
-		$now = gmdate( 'Y-m-d H:i:s' );
+		$now = Clock::real_mysql();
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.sales_start,tt.sales_end FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND o.status='scheduled' AND tt.status='active' AND (tt.sales_start>%s OR tt.sales_end>=%s)", $event_id, $now, $now ) );
 		$times = array();
 		foreach ( (array) $rows as $row ) {
 			foreach ( array( 'sales_start' => 0, 'sales_end' => 1 ) as $field => $offset ) {
 				$value = (string) ( $row->$field ?? '' );
 				$ts = '' !== $value ? strtotime( $value . ' UTC' ) + $offset : 0;
-				if ( $ts > time() ) { $times[ $ts ] = true; }
+				if ( $ts > Clock::real() ) { $times[ $ts ] = true; }
 			}
 		}
 		$times = array_keys( $times );

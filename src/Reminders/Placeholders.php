@@ -4,6 +4,9 @@ namespace PassCaptain\Reminders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Placeholders {
 	/** Documented placeholders (key => description). */
 	public static function available() {

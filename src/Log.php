@@ -34,6 +34,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Log {
 	const TABLE = 'wpcap_logs';
 	const LEVELS = array( 'debug' => 100, 'info' => 200, 'notice' => 250, 'warning' => 300, 'error' => 400, 'critical' => 500 );
@@ -73,7 +76,7 @@ final class Log {
 	public static function settings_changed( $old, $new ) {
 		$was = is_array( $old ) && ! empty( $old['debug_logging'] );
 		$is = is_array( $new ) && ! empty( $new['debug_logging'] );
-		if ( $is && ! $was ) { update_option( self::DEBUG_SINCE_OPTION, time(), false ); }
+		if ( $is && ! $was ) { update_option( self::DEBUG_SINCE_OPTION, Clock::real(), false ); }
 	}
 
 	public static function settings_added( $name, $value ) {
@@ -121,16 +124,18 @@ final class Log {
 		if ( defined( 'WPCAP_DEBUG' ) ) { return (bool) constant( 'WPCAP_DEBUG' ); }
 		if ( ! Settings::get( 'debug_logging' ) ) { return false; }
 		$since = (int) get_option( self::DEBUG_SINCE_OPTION, 0 );
-		return $since > 0 && time() - $since < self::DEBUG_HOURS * HOUR_IN_SECONDS;
+		return $since > 0 && Clock::real() - $since < self::DEBUG_HOURS * HOUR_IN_SECONDS;
 	}
 
 	/** Lowest stored level. */
 	public static function min_level() {
-		$level = self::debug_enabled() ? 'debug' : 'info';
+		// SET-PC-21: setting log_min_level (info, notice, warning, error; default info); debug mode stores everything.
+		$setting = (string) Settings::get( 'log_min_level', 'info' );
+		$level = self::debug_enabled() ? 'debug' : ( isset( self::LEVELS[ $setting ] ) && 'debug' !== $setting ? $setting : 'info' );
 		/**
 		 * Lowest level the support log stores (debug, info, notice, warning, error, critical).
 		 *
-		 * @param string $level Default: debug in debug mode, else info.
+		 * @param string $level Default: debug in debug mode, else the setting log_min_level (default info).
 		 */
 		$level = (string) apply_filters( 'wpcap_log_min_level', $level );
 		return isset( self::LEVELS[ $level ] ) ? $level : 'info';
@@ -223,7 +228,7 @@ final class Log {
 		$message = function_exists( 'mb_substr' ) ? mb_substr( $message, 0, 500 ) : \PassCaptain\Text::cut( $message, 500 );
 		$context = self::clean_context( $context );
 		$entry = array(
-			'created_at'    => current_time( 'mysql', true ),
+			'created_at'    => Clock::real_mysql(),
 			'level'         => $level,
 			'channel'       => '' !== $channel ? $channel : 'general',
 			'reference'     => $reference,
@@ -348,17 +353,23 @@ final class Log {
 		}, (array) $rows );
 	}
 
+	/** Days the support log keeps entries: setting log_retention_days (SET-PC-21, default 30), filter keeps precedence. */
+	public static function retention_days() {
+		$setting = max( 1, min( 365, (int) Settings::get( 'log_retention_days', self::RETENTION_DAYS ) ) );
+		/**
+		 * Days the support log keeps entries (default: setting log_retention_days, 30; at least 1).
+		 *
+		 * @param int $days Days.
+		 */
+		return max( 1, (int) apply_filters( 'wpcap_log_retention_days', $setting ) );
+	}
+
 	/** Removes entries older than the retention and beyond MAX_ROWS. Returns removed rows. */
 	public static function purge( $now = null ) {
 		global $wpdb;
 		if ( ! self::ready() ) { return 0; }
-		$now = null === $now ? time() : (int) $now;
-		/**
-		 * Days the support log keeps entries (default 30, at least 1).
-		 *
-		 * @param int $days Days.
-		 */
-		$days = max( 1, (int) apply_filters( 'wpcap_log_retention_days', self::RETENTION_DAYS ) );
+		$now = null === $now ? Clock::real() : (int) $now;
+		$days = self::retention_days();
 		$table = $wpdb->prefix . self::TABLE;
 		$removed = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM $table WHERE created_at<%s LIMIT 5000", gmdate( 'Y-m-d H:i:s', $now - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
 		$low = min( $days, self::LOW_RETENTION_DAYS );

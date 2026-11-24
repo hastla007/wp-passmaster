@@ -55,7 +55,7 @@ $z2_run = static function () use ( $wpdb, $p ) {
 $z2_markers = array( 'z2-buyer@example.com', 'z2-voucher@example.com', 'Zweite Mustermann', 'z2-secret-redemption-KEY', 'QRST' );
 
 // Contract version.
-check( 'A705: connector contract version 1.1.0 (also in Contracts::versions()) and the ten events are declared', '1.1.0' === ConnectorEvents::CONTRACT_VERSION && '1.1.0' === PassCaptain\Contracts::version( 'connector' ) && 1 === ConnectorEvents::VERSION && in_array( 'voucher_redeemed', ConnectorEvents::EVENTS, true ) && in_array( 'ticket_revoked', ConnectorEvents::EVENTS, true ) && 10 === count( ConnectorEvents::EVENTS ) );
+check( 'A705: connector contract version 1.2.0 (also in Contracts::versions()) and the fourteen events are declared', '1.2.0' === ConnectorEvents::CONTRACT_VERSION && '1.2.0' === PassCaptain\Contracts::version( 'connector' ) && 1 === ConnectorEvents::VERSION && in_array( 'voucher_redeemed', ConnectorEvents::EVENTS, true ) && in_array( 'ticket_revoked', ConnectorEvents::EVENTS, true ) && 14 === count( ConnectorEvents::EVENTS ) );
 check( 'A705: reason codes pass, free text becomes "other"', 'refund_12' === ConnectorEvents::reason_code( 'refund_12' ) && 'other' === ConnectorEvents::reason_code( 'Kunde Max Mustermann krank' ) && 'other' === ConnectorEvents::reason_code( 'partner_api: Hallo' ) && '' === ConnectorEvents::reason_code( '' ) && 'other' === ConnectorEvents::reason_code( str_repeat( 'a', 70 ) ) );
 
 // 1. Paid order.
@@ -64,7 +64,7 @@ $z2_oid = admin_paid_order( $z2_type, 2, 'z2-buyer@example.com' );
 $z2_run();
 check( 'A705: paid order delivers order_paid and tickets_issued (no voucher_redeemed) to the enabled stub only', 1 === count( $z2_stub->of( 'order_paid' ) ) && 1 === count( $z2_stub->of( 'tickets_issued' ) ) && array() === $z2_stub->of( 'voucher_redeemed' ) && array() === $z2_idle->received );
 $z2_paid = $z2_stub->of( 'order_paid' )[0];
-check( 'A705: payload carries version 1, contract_version 1.1.0, event, time and the order identifiers', 1 === $z2_paid['payload']['version'] && '1.1.0' === $z2_paid['payload']['contract_version'] && 'order_paid' === $z2_paid['payload']['event'] && 1 === preg_match( '/^\d{4}-\d\d-\d\dT/', $z2_paid['payload']['occurred_at'] ) && $z2_oid === $z2_paid['payload']['data']['order_id'] && 32 === strlen( $z2_paid['payload']['data']['public_id'] ) );
+check( 'A705: payload carries version 1, contract_version 1.2.0, event, time and the order identifiers', 1 === $z2_paid['payload']['version'] && '1.2.0' === $z2_paid['payload']['contract_version'] && 'order_paid' === $z2_paid['payload']['event'] && 1 === preg_match( '/^\d{4}-\d\d-\d\dT/', $z2_paid['payload']['occurred_at'] ) && $z2_oid === $z2_paid['payload']['data']['order_id'] && 32 === strlen( $z2_paid['payload']['data']['public_id'] ) );
 check( 'A705: idempotency key = sha256(event key | connector key)', hash( 'sha256', 'order_paid|' . $z2_oid . '|z2_boatingschool' ) === $z2_paid['key'] );
 
 // 2. Voucher redeemed → tickets (ticket service v1).
@@ -108,7 +108,7 @@ check( 'A705: the voucher system\'s free-text reason reaches connectors only as 
 $z2_all = wp_json_encode( $z2_stub->received );
 $z2_leaks = array_values( array_filter( array_merge( $z2_markers, array( (string) $z2_code ) ), static fn( $m ) => '' !== $m && false !== stripos( $z2_all, $m ) ) );
 check( 'A705: no e-mail, name, ticket code, code hint or redemption key in any connector payload' . ( $z2_leaks ? ' – found ' . implode( ', ', $z2_leaks ) : '' ), array() === $z2_leaks && count( $z2_stub->received ) >= 12 );
-check( 'A705: every delivered payload names contract 1.1.0', array( '1.1.0' ) === array_values( array_unique( array_map( static fn( $r ) => $r['payload']['contract_version'], $z2_stub->received ) ) ) );
+check( 'A705: every delivered payload names contract 1.2.0', array( '1.2.0' ) === array_values( array_unique( array_map( static fn( $r ) => $r['payload']['contract_version'], $z2_stub->received ) ) ) );
 check( 'A705: the connector that is registered but not enabled received nothing', array() === $z2_idle->received );
 
 // Retry keeps the idempotency key.
@@ -124,11 +124,11 @@ check( 'A705: a failed delivery is retried by the job queue with the same idempo
 // Suite status: registered connectors with contract version, no licence state.
 $z2_reg = ConnectorEvents::registered();
 $z2_by_key = array_column( $z2_reg, null, 'key' );
-check( 'A705: registered() lists both stub connectors with own version, opt-in state and contract version', isset( $z2_by_key['z2_boatingschool'], $z2_by_key['z2_learnboating'] ) && '2.4.1' === $z2_by_key['z2_boatingschool']['version'] && true === $z2_by_key['z2_boatingschool']['enabled'] && false === $z2_by_key['z2_learnboating']['enabled'] && '1.1.0' === $z2_by_key['z2_boatingschool']['contract_version'] && array( 'course_access', 'tickets' ) === $z2_by_key['z2_boatingschool']['capabilities'] );
+check( 'A705: registered() lists both stub connectors with own version, opt-in state and contract version', isset( $z2_by_key['z2_boatingschool'], $z2_by_key['z2_learnboating'] ) && '2.4.1' === $z2_by_key['z2_boatingschool']['version'] && true === $z2_by_key['z2_boatingschool']['enabled'] && false === $z2_by_key['z2_learnboating']['enabled'] && '1.2.0' === $z2_by_key['z2_boatingschool']['contract_version'] && array( 'course_access', 'tickets' ) === $z2_by_key['z2_boatingschool']['capabilities'] );
 ob_start();
 SuiteStatus::render_connectors();
 $z2_html = (string) ob_get_clean();
-check( 'A705: suite status shows the connectors, their versions, opt-in and contract 1.1.0', false !== strpos( $z2_html, 'data-connector="z2_boatingschool" data-enabled="1"' ) && false !== strpos( $z2_html, 'data-connector="z2_learnboating" data-enabled="0"' ) && false !== strpos( $z2_html, '2.4.1' ) && false !== strpos( $z2_html, 'Connector-Vertrag 1.1.0' ) );
+check( 'A705: suite status shows the connectors, their versions, opt-in and contract 1.2.0', false !== strpos( $z2_html, 'data-connector="z2_boatingschool" data-enabled="1"' ) && false !== strpos( $z2_html, 'data-connector="z2_learnboating" data-enabled="0"' ) && false !== strpos( $z2_html, '2.4.1' ) && false !== strpos( $z2_html, 'Connector-Vertrag 1.2.0' ) );
 check( 'A705: suite status shows no licence state', 0 === preg_match( '/lizenz|licen[cs]e/i', $z2_html ) );
 $z2_src_files = (string) file_get_contents( WPCAP_PATH . 'src/Integrations/ConnectorEvents.php' ) . (string) file_get_contents( WPCAP_PATH . 'src/Integrations/ConnectorRegistry.php' ) . (string) file_get_contents( WPCAP_PATH . 'src/Admin/SuiteStatus.php' );
 check( 'A708: connector delivery and suite status contain no licence or entitlement check', 0 === preg_match( '/LicenseClient|allows_entitlement|wplc\/v1|license_status|licence_status/i', $z2_src_files ) );

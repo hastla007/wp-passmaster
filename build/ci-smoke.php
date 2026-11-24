@@ -24,7 +24,8 @@ $wpcap_check( 'WPCAP_VERSION defined', defined( 'WPCAP_VERSION' ), defined( 'WPC
 $wpcap_check( 'plugin path is the installed copy', defined( 'WPCAP_PATH' ) && str_ends_with( wp_normalize_path( WPCAP_PATH ), '/plugins/pass-captain/' ), defined( 'WPCAP_PATH' ) ? WPCAP_PATH : '' );
 $wpcap_check( 'Composer autoloader present', is_readable( WPCAP_PATH . 'vendor/autoload.php' ) );
 $wpcap_check( 'plugin classes autoload', class_exists( PassCaptain\Plugin::class ) && class_exists( PassCaptain\Orders::class ) );
-$wpcap_check( 'runtime dependency bacon/bacon-qr-code autoloads', class_exists( BaconQrCode\Encoder\Encoder::class ) );
+$wpcap_check( 'runtime dependency bacon/bacon-qr-code autoloads (namespace-prefixed copy, A103)', class_exists( PassCaptain\Vendor\BaconQrCode\Encoder\Encoder::class ) && class_exists( PassCaptain\Vendor\DASPRiD\Enum\AbstractEnum::class ) );
+$wpcap_check( 'only the prefixed QR library is shipped (no vendor/bacon, vendor/dasprid)', ! is_dir( WPCAP_PATH . 'vendor/bacon' ) && ! is_dir( WPCAP_PATH . 'vendor/dasprid' ) && is_file( WPCAP_PATH . 'vendor-prefixed/bacon/bacon-qr-code/src/Encoder/Encoder.php' ) );
 $wpcap_check( 'no endroid/qr-code shipped (QR SVG is drawn from the Bacon matrix)', ! is_dir( WPCAP_PATH . 'vendor/endroid' ) );
 $wpcap_check( 'no Composer platform check shipped (own PHP version check)', ! is_file( WPCAP_PATH . 'vendor/composer/platform_check.php' ) );
 $qr = PassCaptain\QrCode::data_uri( 'pass-captain-ci' );

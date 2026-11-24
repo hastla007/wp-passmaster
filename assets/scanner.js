@@ -203,7 +203,11 @@
 			let line = (t.alreadyAt || '%s').replace('%s', when(data.first_checked_in_at, data.timezone));
 			if (data.last_checked_in_at && data.admissions > 1) line += ', ' + (t.lastAt || '%s').replace('%s', when(data.last_checked_in_at, data.timezone));
 			if (data.first_checked_in_by) line += ' ' + (t.byWhom || '(%s)').replace('%s', data.first_checked_in_by); // A595: device or person
-			if (data.last_checked_in_area) line += ' · ' + (t.atArea || '%s').replace('%s', data.last_checked_in_area);
+			// Staff member behind the device of the first admission, when the device label was shown.
+			if (data.first_checked_in_staff && data.first_checked_in_staff !== data.first_checked_in_by) line += ' · ' + (t.staffName || '%s').replace('%s', data.first_checked_in_staff);
+			// Entrance of the first admission; the area of the latest one only when it differs.
+			if (data.first_checked_in_area) line += ' · ' + (t.atEntrance || '%s').replace('%s', data.first_checked_in_area);
+			if (data.last_checked_in_area && data.last_checked_in_area !== data.first_checked_in_area) line += ' · ' + (t.atArea || '%s').replace('%s', data.last_checked_in_area);
 			lines.push(line);
 		}
 		return lines;
@@ -668,7 +672,7 @@
 		if (kind === 'refusal') {
 			// Refusal of a known ticket: name the ticket and when it was first used.
 			const info = data.data || {};
-			const refusal = [message || t.invalid || 'Invalid ticket.'].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
+			const refusal = [message || t.invalid || 'Invalid ticket.'].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], info.attendee_name ? [info.attendee_name] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
 			show('error', refusal.join(' — '), { lines: refusal });
 			return;
 		}

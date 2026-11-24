@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Waitlists {
 	/** Waitlist sign-ups with mail per address, event and hour (A644: only sign-ups that send a mail count). */
 	const EMAIL_HOURLY_LIMIT = 5;
@@ -127,12 +130,13 @@ final class Waitlists {
 		// Offer hours default to the security/settings value waitlist_offer_hours (offer_hours()).
 		$defaults = array( 'auto_offers' => 1, 'offer_hours' => self::offer_hours(), 'max_offers_per_run' => 10, 'strict_fifo' => 0 );
 		$stored = Settings::get( 'waitlist' );
-		$c = array_merge( $defaults + array( 'close_mail' => 1, 'change_mail' => 1, 'double_opt_in' => 1, 'confirm_hours' => 48 ), is_array( $stored ) ? $stored : array() );
+		$c = array_merge( $defaults + array( 'close_mail' => 1, 'change_mail' => 1, 'double_opt_in' => 1, 'confirm_hours' => 48, 'offer_cutoff_minutes' => 15 ), is_array( $stored ) ? $stored : array() );
 		$c['auto_offers'] = (int) ! empty( $c['auto_offers'] );
 		$c['close_mail'] = (int) ! empty( $c['close_mail'] );
 		$c['change_mail'] = (int) ! empty( $c['change_mail'] );
 		$c['double_opt_in'] = (int) ! empty( $c['double_opt_in'] );
 		$c['confirm_hours'] = max( 1, min( 168, (int) $c['confirm_hours'] ) );
+		$c['offer_cutoff_minutes'] = max( 5, min( 1440, (int) $c['offer_cutoff_minutes'] ) );
 		$c['strict_fifo'] = (int) ! empty( $c['strict_fifo'] );
 		$c['offer_hours'] = max( 1, min( 336, (int) $c['offer_hours'] ) );
 		$c['max_offers_per_run'] = max( 1, min( 100, (int) $c['max_offers_per_run'] ) );
@@ -154,7 +158,7 @@ final class Waitlists {
 		if ( ! $event_id || ! Http::valid_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $ticket_type_id, $occurrence_id ) );
+		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'" . Sales\Addons::not_addon_sql( '' ), $ticket_type_id, $occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment: add-on products (Sales\Addons) have no waitlist (an offer could not be bought alone).
 		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $quantity > max( 1, (int) $type->max_per_order ) ) {
 			/* translators: %d: maximum number of tickets per order */
@@ -173,7 +177,7 @@ final class Waitlists {
 		// type it) only counts sign-ups that send a mail, so junk requests cannot lock it out.
 		$email_bucket = 'waitlist|' . strtolower( $email ) . '|' . $event_id; // Y1: one bucket per address, whatever the case.
 		// One network (IPv6 /64) is also limited across all events (audit Y1, filter wp_pass_captain_waitlist_ip_limit_v1).
-		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT
+		if ( ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) || RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::email_limit_per_hour()
 			|| ! RateLimit::hit( 'wpcap_waitlist_ipall_' . RateLimit::hash( RateLimit::client_network() ), self::ip_limit_per_hour(), HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
@@ -211,7 +215,7 @@ final class Waitlists {
 			if ( '' !== $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::join_failed(); }
 		}
 		$wpdb->query( 'COMMIT' );
-		RateLimit::allow( $email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644: a sign-up mail goes out.
+		RateLimit::allow( $email_bucket, self::email_limit_per_hour(), HOUR_IN_SECONDS ); // A644: a sign-up mail goes out.
 		if ( $doi ) {
 			$c = self::config();
 			$names = self::mail_names( $event_id, $ticket_type_id );
@@ -674,7 +678,8 @@ final class Waitlists {
 		// Never beyond the end of online sales: the start, or a sales_end after it (A535).
 		$phase = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.ends_at,tt.sales_end FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $row->ticket_type_id ) );
 		if ( $phase ) { $expires_ts = min( $expires_ts, Occurrence::online_sales_until( $phase, $phase ) ); }
-		if ( $expires_ts - $now_ts < 15 * MINUTE_IN_SECONDS ) {
+		// SET-PC-21: lock period before the end of online sales (waitlist offer_cutoff_minutes, default 15).
+		if ( $expires_ts - $now_ts < $c['offer_cutoff_minutes'] * MINUTE_IN_SECONDS ) {
 			return new \WP_Error( 'wpcap_waitlist_too_late', __( 'Für diesen Termin ist kein Wartelistenangebot mehr möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );
@@ -945,7 +950,7 @@ final class Waitlists {
 		// the payment window of the chosen method (never shortened).
 		$minutes = self::ACCEPT_GUARD_MINUTES;
 		if ( $paid ) {
-			$enabled = Payments\Registry::enabled( $order->currency );
+			$enabled = Payments\Rules::filter( Payments\Registry::enabled( $order->currency ), Payments\Rules::order_context( (int) $order->order_id ) ); // SET-PC-40
 			$wanted = sanitize_key( $args['provider'] ?? '' );
 			$gateway = $enabled[ $wanted ] ?? ( $enabled['manual'] ?? ( $enabled ? reset( $enabled ) : null ) );
 			if ( ! $gateway ) { return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) ); }
@@ -2011,7 +2016,12 @@ final class Waitlists {
 
 	/** Sign-ups per network and hour across all events (filter wp_pass_captain_waitlist_ip_limit_v1). */
 	public static function ip_limit_per_hour() {
-		return max( 1, (int) apply_filters( 'wp_pass_captain_waitlist_ip_limit_v1', 60 ) );
+		return max( 1, (int) apply_filters( 'wp_pass_captain_waitlist_ip_limit_v1', RateLimit::configured( 'rate_waitlist_ip_per_hour' ) ) );
+	}
+
+	/** SET-PC-38: sign-up mails per address, event and hour (setting rate_waitlist_email_per_hour, default EMAIL_HOURLY_LIMIT). */
+	public static function email_limit_per_hour() {
+		return RateLimit::configured( 'rate_waitlist_email_per_hour' );
 	}
 
 	/** Tickets of a ticket type held by open offers (placeholder orders of offered/accepted entries). */

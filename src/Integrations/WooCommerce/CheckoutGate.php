@@ -18,6 +18,9 @@ use PassCaptain\Sales\CheckoutGate as Gate;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CheckoutGate {
 	/** Registers the hooks when WooCommerce is active. */
 	public static function register() {

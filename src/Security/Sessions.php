@@ -17,6 +17,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Sessions {
 	public static function register() {
 		add_action( 'set_logged_in_cookie', array( __CLASS__, 'logged_in_cookie_set' ), 10, 6 );

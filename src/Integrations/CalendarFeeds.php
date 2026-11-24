@@ -19,6 +19,9 @@ use PassCaptain\Calendar\Ics;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CalendarFeeds {
 	const SCOPES = array( 'all', 'event', 'partner' );
 	const MAX_ENTRIES = 1000;
@@ -70,7 +73,7 @@ final class CalendarFeeds {
 			return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );
-		$ok = $wpdb->insert( self::table( 'calendar_feeds' ), array( 'scope' => $scope, 'scope_id' => $scope_id, 'label' => mb_substr( sanitize_text_field( (string) $label ), 0, 190 ), 'token_hash' => hash( 'sha256', $token ), 'status' => 'active', 'created_by' => get_current_user_id(), 'created_at' => current_time( 'mysql', true ) ) );
+		$ok = $wpdb->insert( self::table( 'calendar_feeds' ), array( 'scope' => $scope, 'scope_id' => $scope_id, 'label' => mb_substr( sanitize_text_field( (string) $label ), 0, 190 ), 'token_hash' => hash( 'sha256', $token ), 'status' => 'active', 'created_by' => get_current_user_id(), 'created_at' => \PassCaptain\Clock::mysql() ) );
 		if ( ! $ok ) { return new \WP_Error( 'wpcap_feed_save', __( 'Kalender-Abo konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$feed_id = (int) $wpdb->insert_id;
 		\PassCaptain\Audit::record( 'calendar_feed_created', 'settings', $feed_id, array( 'scope' => $scope, 'scope_id' => $scope_id ) );
@@ -80,7 +83,7 @@ final class CalendarFeeds {
 	/** Revokes a feed: its URL stops working immediately. */
 	public static function revoke( $feed_id ) {
 		global $wpdb;
-		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked',revoked_at=%s WHERE feed_id=%d AND status='active'", self::table( 'calendar_feeds' ), current_time( 'mysql', true ), absint( $feed_id ) ) );
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked',revoked_at=%s WHERE feed_id=%d AND status='active'", self::table( 'calendar_feeds' ), \PassCaptain\Clock::mysql(), absint( $feed_id ) ) );
 		if ( $changed ) { \PassCaptain\Audit::record( 'calendar_feed_revoked', 'settings', absint( $feed_id ), array() ); }
 		return (bool) $changed;
 	}
@@ -110,7 +113,7 @@ final class CalendarFeeds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$sql = "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.status AS event_status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status IN ('published','cancelled') AND o.starts_at>=%s";
-		$args = array( gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) );
+		$args = array( gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 30 * DAY_IN_SECONDS ) );
 		if ( 'event' === $feed->scope ) {
 			$sql .= ' AND o.event_id=%d';
 			$args[] = (int) $feed->scope_id;
@@ -143,7 +146,7 @@ final class CalendarFeeds {
 			$known[ (int) $s->occurrence_id ] = $s;
 		}
 		$out = array();
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		foreach ( $rows as $row ) {
 			$id = (int) $row->occurrence_id;
 			$fp = self::fingerprint( $row );
@@ -174,7 +177,7 @@ final class CalendarFeeds {
 		if ( ! $row ) { return; }
 		$table = self::table( 'calendar_sequences' );
 		$fp = self::fingerprint( $row );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (occurrence_id,fingerprint,sequence,changed_at) VALUES (%d,%s,1,%s) ON DUPLICATE KEY UPDATE sequence=IF(fingerprint=VALUES(fingerprint),sequence,sequence+1),fingerprint=VALUES(fingerprint),changed_at=IF(fingerprint=VALUES(fingerprint),changed_at,VALUES(changed_at))', $table, (int) $row->occurrence_id, $fp, $now ) );
 	}
 
@@ -190,12 +193,12 @@ final class CalendarFeeds {
 			$entry = Ics::entry_from_row( $row );
 			if ( 'cancelled' === ( $row->event_status ?? '' ) ) { $entry['status'] = 'cancelled'; }
 			$entry['sequence'] = $sequences[ (int) $row->occurrence_id ]['sequence'] ?? 0;
-			$entry['last_modified'] = $sequences[ (int) $row->occurrence_id ]['changed_at'] ?? time();
+			$entry['last_modified'] = $sequences[ (int) $row->occurrence_id ]['changed_at'] ?? \PassCaptain\Clock::now();
 			$entries[] = $entry;
 		}
 		$name = '' !== (string) $feed->label ? (string) $feed->label : ( 'event' === $feed->scope && $rows ? (string) $rows[0]->event_name : (string) get_bloginfo( 'name' ) );
-		if ( ! $feed->last_access_at || strtotime( $feed->last_access_at . ' UTC' ) < time() - HOUR_IN_SECONDS ) {
-			$wpdb->update( self::table( 'calendar_feeds' ), array( 'last_access_at' => current_time( 'mysql', true ) ), array( 'feed_id' => (int) $feed->feed_id ) );
+		if ( ! $feed->last_access_at || strtotime( $feed->last_access_at . ' UTC' ) < \PassCaptain\Clock::now() - HOUR_IN_SECONDS ) {
+			$wpdb->update( self::table( 'calendar_feeds' ), array( 'last_access_at' => \PassCaptain\Clock::mysql() ), array( 'feed_id' => (int) $feed->feed_id ) );
 		}
 		return Ics::build( $entries, array( 'name' => $name, 'refresh' => 60 ) );
 	}

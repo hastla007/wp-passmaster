@@ -23,6 +23,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Verification {
 	const TTL = 600;
 	const MAX_ATTEMPTS = 5;
@@ -85,7 +88,7 @@ final class Verification {
 		$phone = Service::normalize_phone( $raw_phone );
 		if ( '' === $phone ) { return self::error( 'wpcap_sms_phone_invalid', __( 'Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung.', 'pass-captain' ), 400 ); }
 		if ( ! Service::number_allowed( $phone ) ) { return self::error( 'wpcap_sms_phone_not_allowed', __( 'SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer.', 'pass-captain' ), 400 ); }
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$row = null;
 		$token = \PassCaptain\Security\Input::hex( $token );
 		if ( 64 === strlen( $token ) ) {
@@ -147,7 +150,7 @@ final class Verification {
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s', self::table(), $token_hash ) );
 		if ( ! $row ) { return $invalid; }
 		if ( null !== $row->verified_at ) { return array( 'verified' => true ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::real_mysql();
 		if ( (int) $row->attempts >= self::MAX_ATTEMPTS || (string) $row->expires_at <= $now ) { return $invalid; }
 		// Count the attempt first (atomic), so parallel guesses cannot exceed MAX_ATTEMPTS.
 		$counted = (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attempts=attempts+1 WHERE verification_id=%d AND attempts<%d AND verified_at IS NULL', self::table(), (int) $row->verification_id, self::MAX_ATTEMPTS ) );
@@ -166,7 +169,7 @@ final class Verification {
 		global $wpdb;
 		$token = \PassCaptain\Security\Input::hex( $token );
 		if ( 64 !== strlen( $token ) || '' === (string) $phone ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s AND phone=%s AND verified_at IS NOT NULL AND verified_at>%s', self::table(), hash( 'sha256', $token ), (string) $phone, gmdate( 'Y-m-d H:i:s', time() - self::USE_WINDOW ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s AND phone=%s AND verified_at IS NOT NULL AND verified_at>%s', self::table(), hash( 'sha256', $token ), (string) $phone, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::real() - self::USE_WINDOW ) ) );
 		if ( ! $row ) { return null; }
 		if ( (int) $row->used_order_id === absint( $order_id ) ) { return (string) $row->verified_at; }
 		$used = (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET used_order_id=%d WHERE verification_id=%d AND used_order_id=0', self::table(), absint( $order_id ), (int) $row->verification_id ) );
@@ -176,7 +179,7 @@ final class Verification {
 	/** Deletes verifications older than a day (data minimisation; cron). */
 	public static function prune() {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE created_at<%s', self::table(), gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE created_at<%s', self::table(), gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::real() - DAY_IN_SECONDS ) ) );
 	}
 
 	/** "+49 151 ••••• 89" style mask for the confirmation text. */

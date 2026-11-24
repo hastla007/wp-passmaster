@@ -19,6 +19,9 @@ use PassCaptain\Webhooks\Dispatcher;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Queues {
 	/** Most items one retry/discard request changes. */
 	const MAX_BULK = 500;
@@ -131,7 +134,7 @@ final class Queues {
 		global $wpdb;
 		$def = self::def( $queue );
 		if ( ! $def ) { return null; }
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$table = $wpdb->prefix . $def['table'];
 		$counts = array();
 		foreach ( (array) $wpdb->get_results( "SELECT status, COUNT(*) AS n FROM $table GROUP BY status" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed table name.
@@ -286,7 +289,7 @@ final class Queues {
 		$ids = self::clean_ids( $ids );
 		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$table = $wpdb->prefix . $def['table'];
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$done = array();
 		foreach ( $ids as $id ) {
 			if ( 'webhooks' === $queue ) {
@@ -325,7 +328,7 @@ final class Queues {
 		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$table = $wpdb->prefix . $def['table'];
 		$id_col = $def['id'];
-		$set = 'messages' === $queue ? "status='cancelled', locked_at=NULL" : $wpdb->prepare( "status='cancelled', locked_at=NULL, updated_at=%s", current_time( 'mysql', true ) );
+		$set = 'messages' === $queue ? "status='cancelled', locked_at=NULL" : $wpdb->prepare( "status='cancelled', locked_at=NULL, updated_at=%s", \PassCaptain\Clock::mysql() );
 		$done = array();
 		foreach ( $ids as $id ) {
 			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET $set WHERE $id_col=%d AND " . self::failed_where( $def ), $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- fixed names, prepared SET and condition.

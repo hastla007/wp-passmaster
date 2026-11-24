@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PublicEvents {
 	/** Whether the scanner shortcode was rendered in this request (scanner-only localizations). */
 	private static $scanner_rendered = false;
@@ -36,7 +39,7 @@ final class PublicEvents {
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', self::checkout_config() );
 		self::register_styles();
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => current_user_can( Capabilities::UNDO_CHECKIN ) ? esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ) : '', 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
 			/* translators: %d: number of queued scans (not 1; scanner.js uses syncCountOne for 1) */
 			'syncCount' => __( '%d Offline-Scans synchronisieren', 'pass-captain' ),
@@ -76,6 +79,10 @@ final class PublicEvents {
 			'atArea' => __( 'Bereich: %s', 'pass-captain' ),
 			/* translators: %s: scanner device or staff member (A595) */
 			'byWhom' => __( 'durch %s', 'pass-captain' ),
+			/* translators: %s: name of the entrance area of the first admission */
+			'atEntrance' => __( 'Eingang: %s', 'pass-captain' ),
+			/* translators: %s: display name of the staff member who admitted first */
+			'staffName' => __( 'Personal: %s', 'pass-captain' ),
 			/* translators: %d: number of further tickets in the order (A596) */
 			'groupTitle' => __( 'Weitere Tickets dieser Bestellung (%d)', 'pass-captain' ),
 			/* translators: %d: number of selected tickets */
@@ -169,7 +176,8 @@ final class PublicEvents {
 				'unclearAnswer' => __( 'Wir haben keine eindeutige Antwort erhalten, ob deine Bestellung angelegt wurde. Sieh bitte in dein E-Mail-Postfach oder sende das Formular unverändert erneut ab – es wird dabei keine zweite Bestellung angelegt.', 'pass-captain' ),
 				/* translators: %s: short order number */
 				'pendingOrder' => __( 'Deine Bestellung %s wartet noch auf die Zahlung.', 'pass-captain' ),
-				'resumePayment' => __( 'Zahlung fortsetzen', 'pass-captain' ),
+				// SET-PC-20: '' = setting payment_resume_link off, the pending-order notice shows no payment link.
+				'resumePayment' => \PassCaptain\Payments\ReturnNotice::resume_enabled() ? __( 'Zahlung fortsetzen', 'pass-captain' ) : '',
 				'pendingHint' => __( 'Sendest du das Formular unverändert erneut ab, wird dieselbe Bestellung fortgesetzt. Mit geänderter Auswahl entsteht eine neue Bestellung; die Reservierung der alten verfällt dann automatisch.', 'pass-captain' ),
 				/* translators: %d: hold minutes */
 				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'pass-captain' ), // n>1: checkout.js uses pendingOne for 1
@@ -196,8 +204,10 @@ final class PublicEvents {
 				'orderTotal' => __( 'Gesamtbetrag: %s.', 'pass-captain' ),
 				// A165: shown while a busy server is retried automatically (same order attempt).
 				'retrying' => __( 'Gerade ist viel los. Wir versuchen es automatisch noch einmal …', 'pass-captain' ),
-				/* translators: %s: formatted service fee amount (A425) */
-				'estimateFee' => __( 'inkl. Servicegebühr %s', 'pass-captain' ),
+				/* translators: %s: formatted per-ticket service fees included in the sum (A425) */
+				'estimateFee' => __( 'inkl. %s Servicegebühr', 'pass-captain' ),
+				/* translators: %s: formatted processing fee per order included in the sum (A425) */
+				'estimateOrderFee' => __( 'inkl. %s Bearbeitungsgebühr je Bestellung', 'pass-captain' ),
 				// Error summary and inline field errors.
 				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'pass-captain' ),
 				// A383: the summary line is only shown for two or more problems.
@@ -560,7 +570,7 @@ final class PublicEvents {
 		$args = array();
 		if ( absint( $event_id ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $event_id ); }
 		if ( $none ) { $where .= ' AND 1=0'; } // A503: invalid event/occurrence attribute – no "all events".
-		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
+		$sql = "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . ( Calendar\Revisions::ready() ? ',o.revision' : '' ) . ",(SELECT pe.partner_id FROM {$wpdb->prefix}wpcap_partner_events pe WHERE pe.event_id=e.event_id LIMIT 1) AS organizer_partner_id FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where}";
 		return array( $sql, $args );
 	}
 
@@ -619,6 +629,23 @@ final class PublicEvents {
 	 * @param int      $requested Occurrence requested with ?wpcap_occurrence= (0 = none).
 	 */
 	private static function render_rows( array $rows, array $atts, $wrapper = '', $requested = 0 ) {
+		// The contract partner notice of every card (LegalNotice) reads the events' organizers from one query.
+		// Rows of listing_sql() bring the organizer along; other rows are read with one query.
+		$known = array();
+		foreach ( $rows as $row ) {
+			if ( ! property_exists( $row, 'organizer_partner_id' ) ) { $known = null; break; }
+			$known[ (int) $row->event_id ] = (int) $row->organizer_partner_id;
+		}
+		Partners\SalesModel::prime_event_sellers( array_map( static fn( $row ) => (int) $row->event_id, $rows ), $known );
+		try {
+			return self::render_rows_primed( $rows, $atts, $wrapper, $requested );
+		} finally {
+			Partners\SalesModel::prime_event_sellers( array() );
+		}
+	}
+
+	/** render_rows() with the organizers of the listing primed. */
+	private static function render_rows_primed( array $rows, array $atts, $wrapper, $requested ) {
 		/**
 		 * The occurrences of an event listing are known (A376): modules load their per-occurrence/per-
 		 * event data for exactly these in one query (seat map links, buyer limits) instead of per card
@@ -962,13 +989,17 @@ final class PublicEvents {
 
 	/**
 	 * Payment methods the card of a date offers (id => gateway): enabled for the currency; bank
-	 * transfer is left out when the start is closer than manual_cutoff_hours and another method exists.
+	 * transfer is left out when the start is closer than manual_cutoff_hours, or when unpaid bank
+	 * transfers already hold as much of the event/date as allowed, and another method exists.
 	 *
 	 * @param object $event Listing row (starts_at).
 	 */
 	public static function card_providers( $event, $currency ) {
 		$providers = Payments\Registry::enabled( (string) $currency );
+		$providers = Payments\Rules::filter( $providers, array( 'event_ids' => isset( $event->event_id ) ? array( (int) $event->event_id ) : array() ) ); // SET-PC-40
 		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
+		// Unpaid bank transfers already hold as much of this event/date as allowed: the other methods stay.
+		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && Orders::manual_holds_exhausted( (int) ( $event->event_id ?? 0 ), (int) ( $event->occurrence_id ?? 0 ) ) ) { unset( $providers['manual'] ); }
 		return $providers;
 	}
 
@@ -1012,13 +1043,16 @@ final class PublicEvents {
 			$soldout = array();
 			foreach ( $types as $type ) {
 				$max = Frontend\EventCard::quantity_max( $type, $event );
-				if ( null !== $type->available && (int) $type->available < 1 ) { $soldout[] = (int) $type->ticket_type_id; }
-				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
+				// A sold-out add-on product is no reason for the waitlist (Sales\Addons).
+				if ( null !== $type->available && (int) $type->available < 1 && ! Sales\Addons::is_addon( $type ) ) { $soldout[] = (int) $type->ticket_type_id; }
+				// A425: shown prices include the per-ticket service fee; price_minor stays the ticket price.
+				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( ServiceFee::shown_unit( $type, (int) $type->base_price_minor ), $type->currency ) : '';
 				$state_types[ (int) $type->ticket_type_id ] = array(
 					'max' => $max,
 					'available' => null === $type->available ? null : max( 0, (int) $type->available ),
 					'price_minor' => (int) $type->price_minor,
-					'price' => Frontend\Format::price( $type->price_minor, $type->currency ),
+					'service_fee_minor' => ServiceFee::shown_unit( $type ) - (int) $type->price_minor,
+					'price' => Frontend\Format::price( ServiceFee::shown_unit( $type ), $type->currency ),
 					'base_price' => $base,
 					'price_label' => (string) ( $type->price_label ?? '' ),
 					'currency' => (string) $type->currency,
@@ -1035,7 +1069,7 @@ final class PublicEvents {
 				'availability' => (string) $card['availability'],
 				'price' => (string) $card['price'],
 				'badges' => array_map( static function ( $badge ) { return array( 'key' => (string) ( $badge['key'] ?? '' ), 'label' => (string) $badge['label'] ); }, $badges ),
-				'all_soldout' => count( $soldout ) === count( $types ),
+				'all_soldout' => count( $soldout ) === count( Sales\Addons::tickets( $types ) ),
 				'providers' => $providers,
 				'waitlist' => $waitlist,
 				'waitlist_types' => $waitlist ? $soldout : array(),
@@ -1046,7 +1080,7 @@ final class PublicEvents {
 		return array(
 			'occurrences' => (object) $out,
 			'legal' => array( 'require_terms' => (bool) $legal['require_terms'], 'terms_version' => (string) $legal['terms_version'], 'locale' => (string) $legal['locale'] ),
-			'server_time' => gmdate( 'c' ),
+			'server_time' => gmdate( 'c', Clock::now() ),
 		);
 	}
 
@@ -1278,7 +1312,11 @@ final class PublicEvents {
 		$visible = Sales\Visibility::filter_listing( $type_rows, $code );
 		$is_code = static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); };
 		$meta['has_locked'] = count( array_filter( $type_rows, $is_code ) ) > count( array_filter( $visible, $is_code ) );
-		$keep = array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'id_check', 'min_age', 'attendee_name_required', 'attendee_name', 'visibility', 'description', 'sales_start', 'sales_end', 'position' ) );
+		$keep = array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'id_check', 'min_age', 'attendee_name_required', 'attendee_name', 'visibility', 'description', 'sales_start', 'sales_end', 'position', 'kind', 'addon_max_per_ticket' ) );
+		// Add-on products (Sales\Addons) are only offered next to a ticket of the same date that is on sale.
+		$with_tickets = array();
+		foreach ( Sales\Addons::tickets( $visible ) as $type ) { $with_tickets[ (int) $type->occurrence_id ] = true; }
+		$visible = array_filter( $visible, static function ( $type ) use ( $with_tickets ) { return ! Sales\Addons::is_addon( $type ) || isset( $with_tickets[ (int) $type->occurrence_id ] ); } );
 		foreach ( $visible as $type ) {
 			// Only what the card needs (no access codes in the page).
 			$type = (object) array_intersect_key( (array) $type, $keep );
@@ -1295,6 +1333,7 @@ final class PublicEvents {
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.*," . Frontend\EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.occurrence_id IN ($occ_in) OR (o.event_id IN ($event_in) AND o.status='cancelled' AND o.starts_at >= %s)", $now ) ) as $occurrence ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- (int) cast integer lists; EventCard::rescheduled_sql() is a static expression.
 			$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
 		}
+		Sales\Addons::annotate_occurrences( $occurrences ); // Seats left without add-on products (EventCard::occurrence_available()).
 		$meta['occurrences'] = $occurrences;
 		$type_in = implode( ',', array_keys( $all_types ) );
 		$fields = array();

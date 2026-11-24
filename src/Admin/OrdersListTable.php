@@ -17,6 +17,9 @@ if ( ! class_exists( '\WP_List_Table' ) ) {
 	require_once ABSPATH . 'wp-admin/includes/class-wp-list-table.php';
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrdersListTable extends \WP_List_Table {
 	/** @var array<int,bool> Orders whose buyer data is masked on this page (decided once, PERF-15). */
 	private $masked = array();

@@ -26,6 +26,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Attendees {
 	const POST_KEY  = 'wpcap_attendees';
 	const EXT_NS    = 'wpcap';
@@ -86,14 +89,14 @@ final class Attendees {
 		$list = get_option( self::FAILED_OPTION, array() );
 		$list = is_array( $list ) ? $list : array();
 		if ( ! isset( $list[ $wc_order_id ] ) ) {
-			$list[ $wc_order_id ] = time();
+			$list[ $wc_order_id ] = \PassCaptain\Clock::now();
 			update_option( self::FAILED_OPTION, $list, false );
 		}
 	}
 
 	/** Daily (privacy retention run): removes attendee copies of orders that stayed unpaid. */
 	public static function purge_failed( $now = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$list = get_option( self::FAILED_OPTION, array() );
 		if ( ! is_array( $list ) || ! $list || ! function_exists( 'wc_get_order' ) ) { return 0; }
 		$removed = 0;
@@ -169,7 +172,9 @@ final class Attendees {
 			 * @param bool $collect Collect participant data.
 			 * @param int  $type_id Ticket type ID.
 			 */
-			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', $fields || $name_required, $type_id ) ) {
+			$mode = (string) \PassCaptain\Settings::get( 'woo_collect_attendees', 'fields' ); // SET-PC-29: fields | always | never.
+			$collect = 'always' === $mode ? true : ( 'never' === $mode ? false : ( $fields || $name_required ) );
+			if ( ! apply_filters( 'wpcap_woocommerce_collect_attendees', $collect, $type_id ) ) {
 				continue;
 			}
 			$type  = OrderAdapter::ticket_type( $type_id );

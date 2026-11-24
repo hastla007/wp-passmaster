@@ -14,6 +14,9 @@ namespace PassCaptain\Integrations\WooCommerce;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class MetaCleanup {
 	/** Order meta (same values as the OrderAdapter constants ORDER_META, ATTEMPT_META, REFUND_META, ATTENDEE_META, DEFER_NOTE). */
 	const ORDER_KEYS = array( '_wpcap_core_order_id', '_wpcap_checkout_attempt', '_wpcap_refund_processed', '_wpcap_attendees', '_wpcap_deferred_note' );

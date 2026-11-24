@@ -1,8 +1,8 @@
 <?php
 /**
- * Common machinery of the versioned Captain-Suite contracts (A667, A673): event allowlist with typed
+ * Common machinery of the versioned Captain-Suite contracts (A667): event allowlist with typed
  * objects, envelope, provider lookup by filter and major version, machine-readable description. A
- * concrete contract (Workflow\Contract, Review\Contract) only declares its constants:
+ * concrete contract (Review\Contract) only declares its constants:
  *
  * NAME, VERSION (SemVer), FILTER (provider filter, called with null and the major version),
  * CAPABILITY, DEPRECATION_MINOR_RELEASES, DEPRECATION_MONTHS, DEPRECATED, ERRORS, OBJECTS, EVENTS
@@ -18,6 +18,9 @@ namespace PassCaptain\Suite;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 abstract class Contract {
 	/** Keys that never appear anywhere in an envelope, whatever a filter or a future field list says. */
 	const FORBIDDEN = array( 'token', 'code', 'ticket_code', 'help_code', 'access_token', 'secret', 'email', 'customer_email', 'attendee_email', 'attendee_name', 'name', 'first_name', 'last_name', 'phone', 'address', 'billing', 'answers', 'ip', 'ip_hash' );

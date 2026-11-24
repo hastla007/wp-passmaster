@@ -40,6 +40,7 @@ final class Menu {
 			'wpcap_cancel_order' => array( OrdersPage::class, 'handle_cancel_order' ),
 			'wpcap_resend_tickets' => array( OrdersPage::class, 'handle_resend_tickets' ),
 			'wpcap_send_order_link' => array( OrdersPage::class, 'handle_send_order_link' ),
+			'wpcap_change_buyer_email' => array( OrdersPage::class, 'handle_change_buyer_email' ),
 			'wpcap_request_attendee_data' => array( OrdersPage::class, 'handle_request_attendee_data' ),
 			'wpcap_ticket_pdf' => array( OrdersPage::class, 'handle_ticket_pdf' ),
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
@@ -53,11 +54,17 @@ final class Menu {
 			'wpcap_undo_checkin' => array( TicketsPage::class, 'handle_undo_checkin' ),
 			'wpcap_correct_attendee' => array( TicketsPage::class, 'handle_correct_attendee' ),
 			'wpcap_reissue_ticket' => array( TicketsPage::class, 'handle_reissue_ticket' ),
+			'wpcap_change_holder' => array( TicketsPage::class, 'handle_change_holder' ),
 			'wpcap_checkin_ticket' => array( TicketsPage::class, 'handle_checkin_ticket' ),
 			'wpcap_bulk_checkin' => array( TicketsPage::class, 'handle_bulk_checkin' ),
 			ScannerPage::ACTION_CREATE => array( ScannerPage::class, 'handle_create' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			SettingsPage::TEST_ACTION => array( SettingsPage::class, 'handle_test_connection' ),
+			SettingsTools::EXPORT_ACTION => array( SettingsTools::class, 'handle_export' ),
+			SettingsTools::IMPORT_ACTION => array( SettingsTools::class, 'handle_import' ),
+			SettingsTools::RESET_ACTION => array( SettingsTools::class, 'handle_reset' ),
+			SettingsTools::PRESET_ACTION => array( SettingsTools::class, 'handle_preset' ),
+			ProHints::ACTION => array( ProHints::class, 'handle_hide' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
 			'wpcap_campaign_create' => array( CampaignsPage::class, 'handle_create' ),
@@ -70,7 +77,6 @@ final class Menu {
 			GettingStarted::PAGE_ACTION => array( GettingStarted::class, 'handle_create_sales_page' ),
 			OperationsPage::ACTION => array( OperationsPage::class, 'handle_action' ),
 			OperationsPage::DOCTOR_ACTION => array( OperationsPage::class, 'handle_doctor' ),
-			SuiteStatus::HANDOFF_ACTION => array( SuiteStatus::class, 'handle_handoff' ),
 			'wpcap_developer_key_create' => array( DeveloperKeysPage::class, 'handle_create' ),
 			'wpcap_developer_key_update' => array( DeveloperKeysPage::class, 'handle_update' ),
 			'wpcap_developer_key_revoke' => array( DeveloperKeysPage::class, 'handle_revoke' ),
@@ -149,6 +155,8 @@ final class Menu {
 		}
 		add_action( 'current_screen', array( self::class, 'help_tabs' ) );
 		add_filter( 'set_screen_option_' . OrdersPage::PER_PAGE_OPTION, array( OrdersPage::class, 'save_per_page' ), 10, 3 ); // A411.
+		add_filter( 'set_screen_option_' . TicketsPage::PER_PAGE_OPTION, array( TicketsPage::class, 'save_per_page' ), 10, 3 ); // A411.
+		add_filter( 'set_screen_option_' . EventsPage::PER_PAGE_OPTION, array( EventsPage::class, 'save_per_page' ), 10, 3 ); // A411.
 		// A299: pages without an own menu entry keep the menu entry of the screen they are reached from open.
 		add_filter( 'parent_file', array( self::class, 'linked_parent_file' ) );
 		add_filter( 'submenu_file', array( self::class, 'linked_submenu_file' ), 10, 2 );
@@ -378,6 +386,8 @@ final class Menu {
 
 	/** Inline CSS of plugin_page_assets() (handle wpcap-admin). */
 	const ADMIN_CSS = '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+		// SET-PC-44: field errors and grey hint lines with sufficient contrast (WCAG AA on white).
+		. '#wpbody-content .wpcap-admin .wpcap-field-error{color:#b32d2e;margin:4px 0 0}#wpbody-content .wpcap-admin .wpcap-pro-hint{color:#50575e}#wpbody-content .wpcap-admin [aria-invalid="true"]{border-color:#b32d2e;box-shadow:0 0 0 1px #b32d2e}'
 		. '#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}#wpbody-content .wpcap-admin .button-link{min-height:24px;min-width:24px;padding:2px 0;line-height:20px}'
 		. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
 		. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
@@ -458,6 +468,9 @@ final class Menu {
 			$hook = add_submenu_page( self::SLUG, $title, $menu_title, $cap, $slug, $callback );
 			// A411: screen option and bulk action of the order list (before output).
 			if ( OrdersPage::SLUG === $slug && is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( OrdersPage::class, 'load_screen' ) ); }
+			// A411: screen option (and the event list's bulk action) of the ticket and event lists.
+			if ( TicketsPage::SLUG === $slug && is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( TicketsPage::class, 'load_screen' ) ); }
+			if ( self::SLUG === $slug && is_string( $hook ) && '' !== $hook ) { add_action( 'load-' . $hook, array( EventsPage::class, 'load_screen' ) ); }
 		}
 		// Second screens of a feature both development lines built (one menu entry per feature): reachable by link.
 		foreach ( self::unlisted_pages() as $slug => $page ) {

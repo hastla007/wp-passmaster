@@ -17,6 +17,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SiteHealth {
 	/** Transient with the critical test labels for the admin notice. */
 	const NOTICE_TRANSIENT = 'wpcap_health_critical';
@@ -96,6 +99,8 @@ final class SiteHealth {
 			'rest_anonymous'   => array( __CLASS__, 'test_rest_anonymous' ),
 			'proxy'            => array( __CLASS__, 'test_proxy' ),
 			'db_server'        => array( __CLASS__, 'test_db_server' ),
+			'retention'        => array( __CLASS__, 'test_retention' ),
+			'small_business_vat' => array( __CLASS__, 'test_small_business_vat' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -142,6 +147,44 @@ final class SiteHealth {
 			/* translators: 1: minimum MySQL version, 2: minimum MariaDB version */
 			self::p( sprintf( __( 'Pass Captain wird mit MySQL %1$s+ und MariaDB %2$s+ getestet. Ältere Datenbankserver werden nicht gesperrt, sind aber nicht mehr geprüft. Bitte den Datenbankserver beim Hosting aktualisieren.', 'pass-captain' ), self::MIN_MYSQL, self::MIN_MARIADB ) )
 		);
+	}
+
+	/**
+	 * SET-PC-47: reminder while no retention period for attendee and contact data is set (setting
+	 * attendee_retention_days = 0). The technical default stays "no general period" and existing
+	 * installations are not changed; the country preset proposes a period. Status "recommended", never
+	 * critical (no admin notice).
+	 */
+	public static function test_retention() {
+		$days = \PassCaptain\Privacy\Retention::attendee_days();
+		$actions = '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'privacy' ) ) ) . '">' . esc_html__( 'Datenschutz-Einstellungen öffnen', 'pass-captain' ) . '</a></p>';
+		if ( $days > 0 ) {
+			/* translators: %d: number of days */
+			return self::result( 'retention', 'good', __( 'Pass Captain: Löschfrist für Teilnehmerdaten ist festgelegt', 'pass-captain' ), self::p( sprintf( _n( 'Teilnehmerdaten werden %d Tag nach Ende des Termins gelöscht.', 'Teilnehmerdaten werden %d Tage nach Ende des Termins gelöscht.', $days, 'pass-captain' ), $days ) ) );
+		}
+		$text = __( 'In den Datenschutz-Einstellungen ist keine allgemeine Löschfrist für Teilnehmer- und Kontaktdaten festgelegt. Antworten auf Zusatzfelder bleiben dann so lange gespeichert, wie es die Einstellung des jeweiligen Feldes vorsieht – ohne Feldfrist unbegrenzt. Die DSGVO verlangt, personenbezogene Daten nur so lange zu speichern, wie sie gebraucht werden.', 'pass-captain' );
+		$hint = __( 'Lege unter Einstellungen → Datenschutz fest, nach wie vielen Tagen nach dem Termin Teilnehmerdaten gelöscht werden. Das Länderprofil schlägt eine Frist vor (z. B. 365 Tage); lass die Frist von deiner Datenschutzberatung prüfen.', 'pass-captain' );
+		return self::result( 'retention', 'recommended', __( 'Pass Captain: keine Löschfrist für Teilnehmerdaten festgelegt', 'pass-captain' ), self::p( $text ) . self::p( $hint ), $actions );
+	}
+
+	/**
+	 * Site Health: active ticket types of upcoming dates with VAT although their seller (platform or
+	 * agent organizer) is a small business. Checkout refuses them (Orders::checkout_apply_taxes()); prices
+	 * are never changed automatically, the list names what to correct.
+	 */
+	public static function test_small_business_vat() {
+		$types = \PassCaptain\Partners\SalesModel::small_business_vat_types( 20 );
+		if ( ! $types ) {
+			return self::result( 'small_business_vat', 'good', __( 'Pass Captain: keine Umsatzsteuer auf Tickets von Kleinunternehmern', 'pass-captain' ), self::p( __( 'Keine aktive Ticketart eines Kleinunternehmers (Plattform oder Veranstalter im Vermittlermodell) enthält Umsatzsteuer.', 'pass-captain' ) ) );
+		}
+		$lines = array();
+		foreach ( $types as $type ) {
+			/* translators: 1: event, 2: date, 3: ticket type, 4: tax rate in percent, 5: seller */
+			$lines[] = sprintf( __( '%1$s (%2$s) – %3$s: %4$s %% USt, Rechnungssteller %5$s', 'pass-captain' ), $type['event'], \PassCaptain\Frontend\Format::site_datetime( $type['starts_at'] ), $type['ticket'], Forms::percent_input( $type['rate_bp'] ), $type['seller'] );
+		}
+		$text = __( 'Diese Ticketarten enthalten Umsatzsteuer, obwohl ihr Rechnungssteller als Kleinunternehmer eingestellt ist. Der Checkout lehnt Bestellungen dieser Ticketarten ab, weil dafür keine Rechnung ausgestellt werden dürfte (§ 14c UStG). Bitte setze den Steuersatz auf 0 % oder prüfe die Einstellung „Kleinunternehmer“ der Plattform bzw. des Veranstalters. Preise werden nicht automatisch geändert.', 'pass-captain' );
+		$actions = '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG ) ) . '">' . esc_html__( 'Events öffnen', 'pass-captain' ) . '</a></p>';
+		return self::result( 'small_business_vat', 'critical', __( 'Pass Captain: Ticketarten mit Umsatzsteuer bei Kleinunternehmern', 'pass-captain' ), self::p( $text ) . self::list_html( $lines ), $actions );
 	}
 
 	/** Site Health result array. */
@@ -197,7 +240,7 @@ final class SiteHealth {
 	 * @param bool|null  $disabled DISABLE_WP_CRON (tests).
 	 */
 	public static function cron_state( $crons = null, $now = null, $disabled = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		if ( null === $crons ) { $crons = function_exists( '_get_cron_array' ) ? _get_cron_array() : null; }
 		$hooks = \PassCaptain\Plugin::cron_hooks();
 		$overdue = array();
@@ -288,7 +331,7 @@ final class SiteHealth {
 
 	public static function test_mail( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$failures = Monitor::mail_failures( $now - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 		$count = count( $failures );
 		if ( 0 === $count || ( $t['mail_failures'] > 0 && $count < $t['mail_failures'] ) ) {
@@ -312,7 +355,7 @@ final class SiteHealth {
 		global $wpdb;
 		if ( ! Privacy::has_table( 'wpcap_sms_messages' ) ) { return 0; }
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_sms_messages WHERE status IN ('failed','undelivered') AND updated_at>=%s", gmdate( 'Y-m-d H:i:s', $now - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ) );
 	}
 
@@ -341,7 +384,7 @@ final class SiteHealth {
 	public static function payment_webhooks( $now = null ) {
 		global $wpdb;
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$since = gmdate( 'Y-m-d H:i:s', $now - $t['payment_webhook_hours'] * HOUR_IN_SECONDS );
 		$out = array();
 		$has_events = Privacy::has_table( 'wpcap_payment_events' );
@@ -357,7 +400,7 @@ final class SiteHealth {
 
 	public static function test_payment_webhooks( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$lines = array();
 		foreach ( self::payment_webhooks( $now ) as $provider => $info ) {
 			$fresh = '' !== $info['last'] && strtotime( $info['last'] . ' UTC' ) >= $now - $t['payment_webhook_hours'] * HOUR_IN_SECONDS;
@@ -404,7 +447,7 @@ final class SiteHealth {
 	 */
 	public static function test_webhook_errors( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$entries = Monitor::provider_failures( Monitor::WEBHOOK_OPTION, $now - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 		$total = Monitor::count_failures( $entries );
 		$crashes = Monitor::count_failures( $entries, 'exception' );
@@ -434,7 +477,7 @@ final class SiteHealth {
 	/** Failed payment starts per provider within payment_start_window_minutes (A324). */
 	public static function test_payment_start( $now = null ) {
 		$t = self::thresholds();
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$entries = Monitor::provider_failures( Monitor::PAYMENT_START_OPTION, $now - $t['payment_start_window_minutes'] * MINUTE_IN_SECONDS );
 		$total = Monitor::count_failures( $entries );
 		if ( ! $entries || ( $t['payment_start_failures'] > 0 && $total < $t['payment_start_failures'] ) ) {
@@ -481,7 +524,7 @@ final class SiteHealth {
 			// Loopback: core's own Site Health loopback test uses the same filter.
 			'sslverify' => (bool) apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core filter.
 		), array( 'allow_local' => true, 'max_bytes' => 262144 ) );
-		$probe = array( 'code' => 0, 'error' => '', 'time' => time() );
+		$probe = array( 'code' => 0, 'error' => '', 'time' => \PassCaptain\Clock::real() );
 		if ( is_wp_error( $response ) ) {
 			$data = $response->get_error_data();
 			$probe['code'] = is_array( $data ) ? (int) ( $data['response_code'] ?? 0 ) : 0;
@@ -598,7 +641,7 @@ final class SiteHealth {
 		$fields['mail_failures'] = array(
 			/* translators: %d: hours */
 			'label' => sprintf( __( 'Fehlgeschlagene Plugin-E-Mails (%d h)', 'pass-captain' ), $t['mail_window_hours'] ),
-			'value' => (string) count( Monitor::mail_failures( time() - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ),
+			'value' => (string) count( Monitor::mail_failures( \PassCaptain\Clock::real() - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ),
 		);
 		if ( self::sms_active() ) {
 			$fields['sms_failures'] = array(
@@ -615,7 +658,7 @@ final class SiteHealth {
 			);
 		}
 		foreach ( array( Monitor::WEBHOOK_OPTION => 'webhook_failures', Monitor::PAYMENT_START_OPTION => 'payment_start_failures' ) as $option => $key ) {
-			$entries = Monitor::provider_failures( $option, time() - $t['mail_window_hours'] * HOUR_IN_SECONDS );
+			$entries = Monitor::provider_failures( $option, \PassCaptain\Clock::real() - $t['mail_window_hours'] * HOUR_IN_SECONDS );
 			$fields[ $key ] = array(
 				'label' => Monitor::WEBHOOK_OPTION === $option
 					/* translators: %d: hours */
@@ -711,7 +754,7 @@ final class SiteHealth {
 		$currencies = (array) $wpdb->get_col( "SELECT DISTINCT currency FROM {$wpdb->prefix}wpcap_ticket_types WHERE status='active' ORDER BY currency LIMIT 10" );
 		$f['currencies'] = array( 'label' => __( 'Währungen aktiver Ticketarten', 'pass-captain' ), 'value' => $currencies ? implode( ', ', array_map( 'sanitize_text_field', $currencies ) ) : '–' );
 		$f['locale'] = array( 'label' => __( 'Sprache / Zeitzone', 'pass-captain' ), 'value' => ( function_exists( 'get_locale' ) ? (string) get_locale() : '' ) . ' / ' . ( function_exists( 'wp_timezone_string' ) ? (string) wp_timezone_string() : '' ) );
-		$holds = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, COALESCE(SUM(quantity),0) AS q, SUM(expires_at<%s) AS expired FROM {$wpdb->prefix}wpcap_reservations WHERE status='active'", current_time( 'mysql', true ) ) );
+		$holds = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, COALESCE(SUM(quantity),0) AS q, SUM(expires_at<%s) AS expired FROM {$wpdb->prefix}wpcap_reservations WHERE status='active'", \PassCaptain\Clock::mysql() ) );
 		/* translators: 1: open reservations, 2: tickets held, 3: reservations past their expiry */
 		$value = $holds ? sprintf( __( '%1$d (%2$d Tickets), davon abgelaufen %3$d', 'pass-captain' ), (int) $holds->n, (int) $holds->q, (int) $holds->expired ) : '–';
 		$f['holds'] = array( 'label' => __( 'Offene Reservierungen', 'pass-captain' ), 'value' => $value );

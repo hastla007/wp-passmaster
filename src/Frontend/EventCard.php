@@ -15,6 +15,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class EventCard {
 	/** @var int[] Cards rendered per occurrence in this request (form_id()). */
 	private static $rendered = array();
@@ -93,12 +96,13 @@ final class EventCard {
 	public static function occurrence_available( array $types, $occurrence = null ) {
 		$sum = 0;
 		$unlimited = false;
-		foreach ( $types as $type ) {
+		// Seats are tickets: add-on products (Sales\Addons) neither add to nor use them (addon_qty, annotate_occurrences()).
+		foreach ( \PassCaptain\Sales\Addons::tickets( $types ) as $type ) {
 			if ( null === $type->available ) { $unlimited = true; } else { $sum += max( 0, (int) $type->available ); }
 		}
 		$left = $unlimited ? null : $sum;
 		if ( is_object( $occurrence ) && (int) ( $occurrence->capacity ?? 0 ) > 0 && isset( $occurrence->sold_qty ) ) {
-			$rest = max( 0, (int) $occurrence->capacity - (int) $occurrence->sold_qty - (int) ( $occurrence->held_qty ?? 0 ) );
+			$rest = max( 0, (int) $occurrence->capacity - (int) $occurrence->sold_qty - (int) ( $occurrence->held_qty ?? 0 ) + (int) ( $occurrence->addon_qty ?? 0 ) );
 			$left = null === $left ? $rest : min( $left, $rest );
 		}
 		return $left;
@@ -130,11 +134,12 @@ final class EventCard {
 		}
 		if ( ! $types ) { return array(); }
 		$available = Orders::availability_many( array_keys( $types ), array( 'types' => $types, 'occurrences' => $occurrences ) );
+		\PassCaptain\Sales\Addons::annotate_occurrences( $occurrences );
 		$out = array();
 		foreach ( $by_occurrence as $occ_id => $list ) {
 			$prepared = array();
 			foreach ( $list as $type ) {
-				$prepared[] = (object) array( 'available' => array_key_exists( (int) $type->ticket_type_id, $available ) ? $available[ (int) $type->ticket_type_id ] : 0 );
+				$prepared[] = (object) array( 'available' => array_key_exists( (int) $type->ticket_type_id, $available ) ? $available[ (int) $type->ticket_type_id ] : 0, 'kind' => \PassCaptain\Sales\Addons::kind( $type ) );
 			}
 			$out[ $occ_id ] = self::occurrence_available( $prepared, $occurrences[ $occ_id ] ?? null );
 		}
@@ -228,11 +233,14 @@ final class EventCard {
 		return __( 'Tickets verfügbar', 'pass-captain' );
 	}
 
-	/** "19,90 €" when all prices are equal, else "ab 9,90 €" (lowest price of the types still on sale). */
+	/**
+	 * "19,90 €" when all prices are equal, else "ab 9,90 €" (lowest price of the types still on sale).
+	 * A425: prices include the per-ticket service fee (PAngV/PrAG total price).
+	 */
 	public static function price_from( array $types ) {
 		if ( ! $types ) { return ''; }
 		$open = array_filter( $types, static function ( $type ) { return null === $type->available || (int) $type->available > 0; } );
-		$prices = array_map( static function ( $type ) { return (int) $type->price_minor; }, $open ? $open : $types );
+		$prices = array_map( static function ( $type ) { return \PassCaptain\ServiceFee::shown_unit( $type ); }, $open ? $open : $types );
 		$min = min( $prices );
 		// A409: a card whose types are all free says "kostenlos" instead of "0,00 €".
 		if ( 0 === $min && 0 === max( $prices ) ) { return Format::price( 0, $types[0]->currency ); }
@@ -267,6 +275,7 @@ final class EventCard {
 	 */
 	public static function context( $event, array $types, array $listing = array() ) {
 		$occ_id = (int) $event->occurrence_id;
+		$tickets = \PassCaptain\Sales\Addons::tickets( $types ); // Price "ab …" and fees from the tickets, not the add-ons.
 		$occurrence = $listing['occurrences'][ $occ_id ] ?? null;
 		$available = array_key_exists( $occ_id, $listing['available'] ?? array() ) ? $listing['available'][ $occ_id ] : self::occurrence_available( $types, $occurrence );
 		$row = clone $event;
@@ -292,7 +301,9 @@ final class EventCard {
 			'next' => $next,
 			'available' => $available,
 			'availability' => self::availability_text( $available ),
-			'price' => self::price_from( $types ),
+			'price' => self::price_from( $tickets ),
+			// A425: per-order fee shown next to the price ('' without fee or for free cards).
+			'order_fee' => $tickets && ! Format::all_free( $tickets ) ? \PassCaptain\ServiceFee::order_note( $tickets[0]->currency ) : '',
 			'badges' => self::badges( $row, $available, array( 'next' => $next, 'doors' => false, 'view' => 'card' ) ),
 			'dates' => $dates,
 			'visible_types' => self::thresholds()['visible_types'],

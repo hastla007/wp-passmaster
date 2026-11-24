@@ -7,6 +7,8 @@
  * Included from run.php after modules/mollie.php (uses mollie_payment(), mollie_webhook()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Modules\Mollie;
 use PassCaptain\Mollie\MollieGateway;
 use PassCaptain\Orders;
@@ -16,6 +18,7 @@ use PassCaptain\Settings;
 
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r; } }
 
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie gateway (registered by mollie.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

@@ -42,6 +42,15 @@ check( 'A425 fiscal: the receipt total equals the order total (fees included)', 
 check( 'A425 fiscal: fee positions on the receipt (per ticket ×2, per order ×1) with the ticket rate', 2 === count( $a425f_fee_items ) && 2 === (int) $a425f_fee_items[0]['quantity'] && 300 === (int) $a425f_fee_items[0]['gross_minor'] && 1 === (int) $a425f_fee_items[1]['quantity'] && 1000 === (int) $a425f_fee_items[1]['tax_rate_bp'] );
 $a425f_rows = $a425f_doc ? $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,gross_minor,tax_minor FROM {$wpdb->prefix}wpcap_fiscal_document_items WHERE document_id=%d", (int) $a425f_doc->document_id ) ) : array();
 check( 'A425 fiscal: one document row per ticket type carries the fee amounts (refund adjustments per type), quantity = tickets', 1 === count( $a425f_rows ) && 2 === (int) $a425f_rows[0]->quantity && 2500 === (int) $a425f_rows[0]->gross_minor && (int) $a425f_doc->tax_minor === (int) $a425f_rows[0]->tax_minor );
+// Owner decision 23.11.2026 (2): with "eigenes Steuerprofil" the receipt positions of the fee carry the fee rate.
+Settings::update( array( 'service_fee_tax' => 'own', 'service_fee_tax_class' => 'a425f_none', 'service_fee_tax_rate' => '19' ) );
+$GLOBALS['wpcap_test_transients'] = array();
+$a425f_own = Orders::create( array( 'email' => 'a425f-' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $a425f_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a425f-' . wp_generate_uuid4() ) );
+$a425f_own_doc = is_wp_error( $a425f_own ) ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d ORDER BY document_id LIMIT 1", (int) $a425f_own['order_id'] ) );
+$a425f_own_items = $a425f_own_doc ? (array) ( json_decode( (string) $a425f_own_doc->snapshot, true )['items'] ?? array() ) : array();
+$a425f_own_rates = array();
+foreach ( $a425f_own_items as $a425f_i ) { $a425f_own_rates[] = (int) $a425f_i['tax_rate_bp']; }
+check( 'A425 fiscal: own tax – ticket position at the ticket rate, fee positions at the fee rate, receipt total = order total', $a425f_own_doc && array( 1000, 1900, 1900 ) === $a425f_own_rates && (int) $a425f_own['total_minor'] === (int) $a425f_own_doc->gross_minor && (int) Orders::get( $a425f_own['order_id'] )->tax_minor === (int) $a425f_own_doc->tax_minor );
 update_option( Settings::OPTION, $a425f_saved );
 Settings::flush();
 $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id=%d", $a425f_type ) );

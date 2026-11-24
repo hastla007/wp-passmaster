@@ -15,6 +15,9 @@ use PassCaptain\DeveloperKeys;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Controller {
 	/** Minimum length of a client-chosen checkout idempotency key (A639; the checkout form sends a UUID). */
 	const MIN_CHECKOUT_KEY_LENGTH = 16;
@@ -82,6 +85,7 @@ final class Controller {
 				// A421: lines with whole ticket type ids and quantities ≥ 1 (Orders::create() checks the same).
 				'items' => self::arg( 'items', array( 'required' => true ) ),
 				'accept_terms' => self::arg( 'bool' ),
+				'confirm_age' => self::arg( 'bool' ), // SET-PC-18
 			),
 		) );
 	}
@@ -442,7 +446,7 @@ final class Controller {
 			// Hidden types never, code-only types only with a matching ?code= (Sales\Visibility).
 			$type_rows = \PassCaptain\Sales\Visibility::filter_listing( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' ORDER BY ticket_type_id ASC" ), \PassCaptain\Http::str( $request->get_param( 'code' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			foreach ( $type_rows as $type_row ) {
-				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end' ) ) );
+				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'service_fee_minor', 'kind', 'addon_max_per_ticket' ) ) );
 				$types_of[ (int) $type['occurrence_id'] ][] = $type;
 			}
 			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
@@ -485,11 +489,17 @@ final class Controller {
 				'revision' => (int) ( $occurrence->revision ?? 0 ),
 				'tickets' => array_map( static function ( $type ) use ( $occurrence, $phase_row, $available, $now, $row ) {
 					$left = array_key_exists( (int) $type['ticket_type_id'], $available ) ? $available[ (int) $type['ticket_type_id'] ] : 0;
+					$unit = \PassCaptain\Orders::unit_price( (object) $type, $occurrence );
+					$shown = \PassCaptain\ServiceFee::shown_unit( (object) $type, $unit );
 					return array(
 					'ticket_type_id' => (int) $type['ticket_type_id'],
 					'name' => $type['name'],
 					// Effective (tier) price; regular_price_minor is the stored list price.
-					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type, $occurrence ),
+					'price_minor' => $unit,
+					// A425: per-ticket service fee of the own checkout and the price to display (PAngV: incl. fee).
+					'service_fee_minor' => $shown - $unit,
+					'display_price_minor' => $shown,
+					'order_fee_minor' => \PassCaptain\ServiceFee::shown()['order_minor'],
 					'regular_price_minor' => (int) $type['price_minor'],
 					'price_label' => \PassCaptain\Orders::price_label( (object) $type, $occurrence ),
 					'currency' => $type['currency'],
@@ -500,6 +510,9 @@ final class Controller {
 					'sales_end' => \PassCaptain\Occurrence::iso( $type['sales_end'], $row->timezone ),
 					'online_until' => \PassCaptain\Occurrence::iso( gmdate( 'Y-m-d H:i:s', \PassCaptain\Occurrence::online_sales_until( $phase_row, $type ) ), $row->timezone ),
 					'available' => null === $left ? null : max( 0, (int) $left ),
+					// Sales\Addons: "ticket" or "addon" (add-on product: only with a ticket of the same date, at most addon_max_per_ticket per ticket, 0 = no limit).
+					'kind' => \PassCaptain\Sales\Addons::kind( (object) $type ),
+					'addon_max_per_ticket' => \PassCaptain\Sales\Addons::max_per_ticket( (object) $type ),
 				); }, $types ),
 			), $row, $request );
 		}
@@ -535,6 +548,12 @@ final class Controller {
 	public static function checkout( \WP_REST_Request $request, array $context = array() ) {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
+		// Bot check of the public checkout form (trap field, minimum fill time): only requests that carry the
+		// form's `form_guard`; API clients and internal callers (with $context) are not affected.
+		if ( ! $context ) {
+			$guard = \PassCaptain\Security\FormGuard::check( $params );
+			if ( is_wp_error( $guard ) ) { return $guard; }
+		}
 		// Only customer fields; trusted adapter options must never come from a public request.
 		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
 		// tried as a voucher (when a voucher plugin is connected).
@@ -546,7 +565,7 @@ final class Controller {
 				$params['voucher_code'] = $single_code;
 			}
 		}
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices', 'attribution', 'buyer_name' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'confirm_age', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices', 'attribution', 'buyer_name' ) ) ) );
 		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
@@ -639,10 +658,15 @@ final class Controller {
 				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency', array( 'pending' ) );
 				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
+			// SET-PC-40: rules per event, amount and billing country.
+			if ( ! \PassCaptain\Payments\Rules::allows( $provider_id, \PassCaptain\Payments\Rules::order_context( (int) $result['order_id'] ) ) ) {
+				Orders::cancel_order( $result['order_id'], 'provider_not_allowed', array( 'pending' ) );
+				return new \WP_Error( 'wpcap_provider_rule', __( 'Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
+			}
 			if ( $min_hold ) {
 				// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
 				$hold_until = self::hold_until( (int) $result['order_id'] );
-				if ( $hold_until && $hold_until < time() + $min_hold * MINUTE_IN_SECONDS ) {
+				if ( $hold_until && $hold_until < \PassCaptain\Clock::now() + $min_hold * MINUTE_IN_SECONDS ) {
 					Orders::extend_hold( (int) $result['order_id'], $min_hold );
 					$hold_until = self::hold_until( (int) $result['order_id'] );
 				}
@@ -716,7 +740,7 @@ final class Controller {
 	/** End of the order's active hold as Unix timestamp (earliest active reservation), 0 when none is left. */
 	private static function hold_until( $order_id ) {
 		global $wpdb;
-		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) );
+		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), \PassCaptain\Clock::mysql() ) );
 		return $until ? (int) strtotime( $until . ' UTC' ) : 0;
 	}
 
@@ -727,16 +751,21 @@ final class Controller {
 	 */
 	/**
 	 * Manual payment holds tickets for days without any payment: one visitor must not be able to block an event
-	 * with a stream of anonymous orders. At most 2 unpaid manual orders per e-mail address
-	 * (filter `wpcap_manual_open_orders_per_email`) and 5 per client within the hold time
+	 * with a stream of anonymous orders. Unpaid manual orders per e-mail address: setting manual_open_orders_per_email
+	 * (SET-PC-20, default 2; filter `wpcap_manual_open_orders_per_email` keeps precedence) and 5 per client within the hold time
 	 * (filter `wpcap_manual_orders_per_client`); paid or expired orders do not count.
 	 */
+	public static function manual_open_orders_limit() {
+		return max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', max( 1, min( 50, (int) \PassCaptain\Settings::get( 'manual_open_orders_per_email', 2 ) ) ) ) );
+	}
+
+	/** Checkout guard for manual payment (see manual_open_orders_limit()). */
 	private static function manual_hold_limit( $email, $hold_minutes ) {
 		global $wpdb;
 		$email = sanitize_email( $email );
 		if ( is_email( $email ) ) {
 			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s AND payment_provider='manual' AND payment_status='pending' AND status NOT IN ('cancelled','expired','refunded')", $email ) );
-			if ( $open >= max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', 2 ) ) ) {
+			if ( $open >= self::manual_open_orders_limit() ) {
 				return new \WP_Error( 'wpcap_manual_open_orders', __( 'Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen.', 'pass-captain' ), array( 'status' => 429, 'field' => 'email' ) );
 			}
 		}
@@ -754,6 +783,7 @@ final class Controller {
 			'wpcap_invalid_checkout' => 'email',
 			'wpcap_terms_required' => 'accept_terms',
 			'wpcap_terms_changed' => 'accept_terms',
+			'wpcap_age_confirmation_required' => 'confirm_age', // SET-PC-18
 			'wpcap_attendees_invalid' => 'attendees',
 			'wpcap_attendee_field_required' => 'attendees',
 			'wpcap_attendee_field_invalid' => 'attendees',
@@ -879,7 +909,7 @@ final class Controller {
 		}
 		$order = self::order_with_access( $public_id, Credentials::token( $request ) );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', 3 ) );
+		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', \PassCaptain\RateLimit::configured( 'rate_portal_resend_per_hour' ) ) );
 		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend|' . $order->public_id, $limit, HOUR_IN_SECONDS ) ) {
 			/* translators: %d: allowed resends per hour */
 			return new \WP_Error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'pass-captain' ), $limit ), array( 'status' => 429 ) );
@@ -974,10 +1004,10 @@ final class Controller {
 			/**
 			 * Assignments (name/e-mail changes) per order and hour through the order portal (A635).
 			 *
-			 * @param int    $limit Default 20.
+			 * @param int    $limit Setting rate_portal_assign_per_hour (default 20, SET-PC-38).
 			 * @param object $order Order row.
 			 */
-			$per_order = max( 1, (int) apply_filters( 'wpcap_portal_assign_rate_limit', 20, $order ) );
+			$per_order = max( 1, (int) apply_filters( 'wpcap_portal_assign_rate_limit', \PassCaptain\RateLimit::configured( 'rate_portal_assign_per_hour' ), $order ) );
 			if ( ! \PassCaptain\RateLimit::allow( 'portal-assign|' . $order->public_id, $per_order, HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
@@ -1081,6 +1111,8 @@ final class Controller {
 	}
 
 	public static function redeem_pass( \WP_REST_Request $request ) {
+		// Redeeming passes is its own capability (split off wpcap_checkin); event access stays wpcap_checkin.
+		if ( ! current_user_can( \PassCaptain\Capabilities::REDEEM_PASSES ) ) { return new \WP_Error( 'wpcap_pass_redeem_capability', __( 'Du darfst keine Pässe einlösen.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$type_id = absint( $request->get_param( 'ticket_type_id' ) );
 		global $wpdb;
 		$occurrence_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );
@@ -1277,7 +1309,7 @@ final class Controller {
 		$payload = (array) $request->get_json_params();
 		$event_id = absint( $payload['event_id'] ?? 0 );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
-		if ( ! empty( $payload['expires_at'] ) && ( ! is_string( $payload['expires_at'] ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= time() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! empty( $payload['expires_at'] ) && ( ! is_string( $payload['expires_at'] ) || ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= \PassCaptain\Clock::now() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		// Expiry (UTC, future), scopes and the optional per-key rate limit are validated in issue().
 		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), (string) ( $payload['label'] ?? '' ), (string) ( $payload['expires_at'] ?? '' ), $payload['rate_limit'] ?? 0 );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
@@ -1328,7 +1360,7 @@ final class Controller {
 		$locale = sanitize_text_field( $payload['locale'] ?? '' );
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! preg_match( '/^[a-z]{2,3}([_-][A-Za-z0-9]{2,8})*$/', $locale ) || '' === $name ) { return new \WP_Error( 'wpcap_translation_invalid', __( 'Locale oder übersetzter Titel ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_event_translations (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)", $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_event_translations (event_id,locale,name,description,location,updated_at) VALUES (%d,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),location=VALUES(location),updated_at=VALUES(updated_at)", $event_id, $locale, $name, wp_kses_post( $payload['description'] ?? '' ), sanitize_text_field( $payload['location'] ?? '' ), \PassCaptain\Clock::mysql() ) );
 		\PassCaptain\PageCache::event_changed( $event_id, 'translation' ); // A446.
 		return rest_ensure_response( array( 'event_id' => $event_id, 'locale' => $locale, 'status' => 'saved' ) );
 	}

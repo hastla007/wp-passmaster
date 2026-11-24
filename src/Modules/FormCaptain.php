@@ -18,6 +18,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Registers the Form Captain adapter.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class FormCaptain {
 	/** Hooks (plugins_loaded). */

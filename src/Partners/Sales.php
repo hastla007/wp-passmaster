@@ -29,6 +29,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Sales {
 	const SOURCE = 'partner';
 	const PROVIDER = 'partner';
@@ -105,7 +108,7 @@ final class Sales {
 		if ( ! is_array( $sale ) ) { return; }
 		$partner_id = absint( $sale['partner_id'] ?? 0 );
 		if ( ! $partner_id ) { throw new \RuntimeException( 'db_busy' ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$occurrences = array();
 		foreach ( (array) $selected as $line ) { $occurrences[] = (int) $line['type']->occurrence_id; }
 		$occurrences = array_values( array_unique( array_filter( $occurrences ) ) );
@@ -173,7 +176,7 @@ final class Sales {
 	public static function contingent_used( $contingent, $now = null, $locking = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = $now ?: current_time( 'mysql', true );
+		$now = $now ?: \PassCaptain\Clock::mysql();
 		$rows = $locking
 			? $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,quantity FROM %i WHERE contingent_id=%d LOCK IN SHARE MODE', self::t( 'partner_contingent_usage' ), (int) $contingent->contingent_id ) )
 			: $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,quantity FROM %i WHERE contingent_id=%d', self::t( 'partner_contingent_usage' ), (int) $contingent->contingent_id ) );
@@ -295,7 +298,7 @@ final class Sales {
 			return self::error( 'wpcap_partner_price_type', __( 'Veranstalter können nur Ticketarten ihrer eigenen Events verkaufen. Für fremde Events die Rolle „Wiederverkäufer“ verwenden.', 'pass-captain' ) );
 		}
 		if ( null !== $price_minor && (int) $price_minor < 0 ) { return self::error( 'wpcap_partner_price', __( 'Der Preis darf nicht negativ sein.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO {$wpdb->prefix}wpcap_partner_prices (partner_id,ticket_type_id,price_minor,price_is_net,created_at,updated_at) VALUES (%d,%d," . ( null === $price_minor ? 'NULL' : (int) $price_minor ) . ',%d,%s,%s) ON DUPLICATE KEY UPDATE price_minor=VALUES(price_minor),price_is_net=VALUES(price_is_net),updated_at=VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- the price is the literal NULL or an (int) cast; %d cannot express NULL.
 			(int) $partner->partner_id,
@@ -355,7 +358,7 @@ final class Sales {
 			}
 		}
 		if ( ! $quantity && ! $allocation_id ) { return self::error( 'wpcap_partner_contingent', __( 'Bitte eine Menge oder ein Kontingent (Allocations) angeben.', 'pass-captain' ) ); }
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO {$p}wpcap_partner_contingents (partner_id,occurrence_id,ticket_type_id,quantity,allocation_id,created_at,updated_at) VALUES (%d,%d,%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE quantity=VALUES(quantity),allocation_id=VALUES(allocation_id),updated_at=VALUES(updated_at)",
 			(int) $partner->partner_id, $occurrence_id, $type_id, $quantity, $allocation_id, $now, $now
@@ -457,7 +460,7 @@ final class Sales {
 
 	private static function has_active_hold( $order_id ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s LIMIT 1", absint( $order_id ), current_time( 'mysql', true ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s LIMIT 1", absint( $order_id ), \PassCaptain\Clock::mysql() ) );
 	}
 
 	/** Strict body check: only the listed fields are accepted. */
@@ -704,7 +707,7 @@ final class Sales {
 			return self::error( 'wpcap_partner_confirm_failed', $result->get_error_message(), 409, array( 'reason' => $result->get_error_code() ) );
 		}
 		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
-		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET confirmed_at=COALESCE(confirmed_at,%s) WHERE order_id=%d', self::t( 'partner_orders' ), current_time( 'mysql', true ), $order_id ) );
+		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET confirmed_at=COALESCE(confirmed_at,%s) WHERE order_id=%d', self::t( 'partner_orders' ), \PassCaptain\Clock::mysql(), $order_id ) );
 		return true;
 	}
 
@@ -723,7 +726,7 @@ final class Sales {
 		$unknown = self::unknown_fields( $body, array( 'reason' ) );
 		if ( $unknown ) { self::audit( $ctx, 'cancel', $order_id, $unknown ); return $unknown; }
 		$reason = is_array( $body ) && is_string( $body['reason'] ?? null ) ? \PassCaptain\Text::cut( sanitize_text_field( $body['reason'] ), 190 ) : '';
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$done = static function ( $extra = array() ) use ( $ctx, $order_id ) {
 			$order = Orders::get( $order_id );
 			return array( 'status' => 200, 'data' => array_merge( array( 'order' => self::order_payload( $ctx, $order, self::sale_row( $order_id ) ) ), $extra ) );
@@ -749,7 +752,7 @@ final class Sales {
 		$error = null;
 		if ( $window <= 0 ) {
 			$error = self::error( 'wpcap_partner_cancel_not_allowed', __( 'Bezahlte Bestellungen können über die API nicht storniert werden (kein Stornofenster vereinbart).', 'pass-captain' ), 409 );
-		} elseif ( strtotime( $since . ' UTC' ) + $window * HOUR_IN_SECONDS < time() ) {
+		} elseif ( strtotime( $since . ' UTC' ) + $window * HOUR_IN_SECONDS < \PassCaptain\Clock::now() ) {
 			$error = self::error( 'wpcap_partner_cancel_window_closed', __( 'Das Stornofenster für diese Bestellung ist abgelaufen.', 'pass-captain' ), 409 );
 		} elseif ( self::order_started( $order_id, $now ) ) {
 			$error = self::error( 'wpcap_partner_cancel_started', __( 'Die Veranstaltung hat bereits begonnen; eine Stornierung ist nicht mehr möglich.', 'pass-captain' ), 409 );
@@ -901,7 +904,7 @@ final class Sales {
 		$p = $wpdb->prefix;
 		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_partner_ticket_codes' ) ) { return $counts; }
 		$days = max( 0, (int) \PassCaptain\Privacy\Retention::days( 'partner_ticket_codes' ) );
-		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - $days * DAY_IN_SECONDS );
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? \PassCaptain\Clock::now() : (int) $now ) - $days * DAY_IN_SECONDS );
 		$counts = (array) $counts;
 		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( "DELETE c FROM %i c INNER JOIN {$wpdb->prefix}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE " . \PassCaptain\Occurrence::end_sql( 'o' ) . ' < %s', self::t( 'partner_ticket_codes' ), $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Occurrence::end_sql() is a static expression (sanitized alias, integer duration).
 		// Codes whose ticket no longer exists.
@@ -911,7 +914,7 @@ final class Sales {
 
 	private static function store_code( $ticket_id, $order_id, $partner_id, $code ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE code_box=VALUES(code_box),updated_at=VALUES(updated_at)', self::t( 'partner_ticket_codes' ), (int) $ticket_id, (int) $order_id, (int) $partner_id, self::seal( $code ), current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE code_box=VALUES(code_box),updated_at=VALUES(updated_at)', self::t( 'partner_ticket_codes' ), (int) $ticket_id, (int) $order_id, (int) $partner_id, self::seal( $code ), \PassCaptain\Clock::mysql() ) );
 	}
 
 	/** ticket_id => plaintext code of an order (only codes that can be decrypted). */

@@ -17,6 +17,9 @@ namespace PassCaptain\Partners;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SalesApi {
 	const ORDER_ID = '(?P<order_id>[a-f0-9]{32})';
 
@@ -117,7 +120,7 @@ final class SalesApi {
 			return new \WP_Error( 'wpcap_partner_settlements_restricted', __( 'Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$period = (string) $request->get_param( 'period' );
-		if ( '' === $period ) { $period = gmdate( 'Y-m', strtotime( 'first day of last month' ) ); }
+		if ( '' === $period ) { $period = gmdate( 'Y-m', strtotime( 'first day of last month', \PassCaptain\Clock::now() ) ); }
 		if ( ! Settlements::valid_period( $period ) ) {
 			return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) );
 		}

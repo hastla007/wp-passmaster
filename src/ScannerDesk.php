@@ -29,6 +29,9 @@ use PassCaptain\Admission\Policies;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ScannerDesk {
 	const NS = 'pass-captain/v1';
 
@@ -89,6 +92,9 @@ final class ScannerDesk {
 	 * @return array|\WP_Error ['ok' => true, 'result' => 'undone', 'ticket_public_id' => …]; errors carry `result`.
 	 */
 	public static function undo( array $in, array $context ) {
+		// Own capability, split off wpcap_checkin: checked before the ticket is looked up.
+		$missing = Checkin::undo_capability_error();
+		if ( $missing ) { return $missing; }
 		$reason = mb_substr( sanitize_text_field( Http::str( $in['reason'] ?? '' ) ), 0, 255 );
 		if ( '' === $reason ) {
 			return new \WP_Error( 'wpcap_undo_reason_required', __( 'Bitte einen Grund für die Rücknahme angeben.', 'pass-captain' ), array( 'status' => 400, 'result' => 'reason_required' ) );
@@ -177,7 +183,7 @@ final class ScannerDesk {
 		if ( null === $counts ) {
 			return new \WP_Error( 'wpcap_stats_retry', __( 'Der Zähler konnte gerade nicht gelesen werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
-		return rest_ensure_response( $counts + array( 'server_time' => gmdate( 'c' ) ) );
+		return rest_ensure_response( $counts + array( 'server_time' => gmdate( 'c', Clock::now() ) ) );
 	}
 
 	/** Search results per request (one more is read to tell "more results"). */

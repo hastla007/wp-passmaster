@@ -13,7 +13,7 @@ Auf `document`, `event.detail`:
 |---|---|
 | `event` | `view_item` (Ticketauswahl angezeigt), `add_to_cart` / `remove_from_cart` (Menge geändert, Differenz), `begin_checkout` (Bestellung wird abgesendet), `purchase` (Bestellung ohne Weiterleitung abgeschlossen) |
 | `currency` | ISO-Währung der Ticketart |
-| `value` | Summe in Währungseinheiten (bei `purchase` der Bestellbetrag nach Rabatt) |
+| `value` | Summe in Währungseinheiten (bei `purchase` der Bestellbetrag nach Rabatt), umgerechnet mit den Nachkommastellen der Währung nach ISO 4217 (EUR 2, JPY 0, KWD 3; wie `PassCaptain\Money`), nie fest durch 100 |
 | `items` | `[{ item_id (Ticketart-ID), item_name, price, quantity }]` |
 | `transaction_id` | nur `purchase`: kurze Bestellnummer (`3F2A-9C1E`), nicht die Bestell-ID des Portallinks |
 

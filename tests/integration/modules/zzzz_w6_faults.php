@@ -21,6 +21,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 require_once dirname( __DIR__ ) . '/lib/fault_wpdb.php';
 
 use PassCaptain\Orders;
@@ -38,74 +40,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 // Claims left "processing" by an injected crash are retried at once here, not after the 3 s wait.
 $GLOBALS['wpcap_test_filters']['wpcap_webhook_claim_wait_ms'] = 0;
 
-/**
- * Runs a fault matrix over one flow.
- *
- * @param string        $label
- * @param callable      $setup   fn(): array            fresh fixture (real $wpdb)
- * @param callable      $run     fn(array $ctx): mixed   the flow (runs under the fault proxy)
- * @param callable      $check   fn(array $ctx, $result, string $phase): string  '' or violation.
- *                               phase 'fault' (after the fault and after an immediate retry) or 'final'.
- * @param callable|null $recover fn(array $ctx): void    recovery between the retries (cron, time travel)
- * @param int|null      $max     maximum statement positions tested (evenly sampled above); all with WPCAP_TEST_SLOW=1
- * @return array{positions:int,runs:int,violations:string[]}
- */
-function w6_matrix( $label, callable $setup, callable $run, callable $check, $recover = null, $max = null ) {
-	$max = getenv( 'WPCAP_TEST_SLOW' ) ? PHP_INT_MAX : ( $max ?? 24 );
-	$ctx = $setup();
-	$f = wpcap_faults();
-	$result = $run( $ctx );
-	$statements = $f->log;
-	wpcap_faults_restore();
-	$violations = array();
-	$dry = $check( $ctx, $result, 'final' );
-	if ( '' !== $dry ) { $violations[] = "dry run: $dry"; }
-	$n = count( $statements );
-	$positions = range( 0, max( 0, $n - 1 ) );
-	if ( $n > $max ) {
-		$positions = array();
-		for ( $i = 0; $i < $max; $i++ ) { $positions[] = (int) floor( $i * ( $n - 1 ) / max( 1, $max - 1 ) ); }
-		$positions = array_values( array_unique( $positions ) );
-	}
-	$runs = 0;
-	foreach ( $positions as $pos ) {
-		foreach ( wpcap_fault_kinds() as $kind ) {
-			$ctx = $setup();
-			$f = wpcap_faults();
-			$f->fail_nth( $pos, $kind );
-			try { $result = $run( $ctx ); } catch ( Throwable $e ) { $result = new WP_Error( 'exception', $e->getMessage() ); }
-			$stmt = substr( preg_replace( '/\s+/', ' ', (string) ( $f->log[ $pos ] ?? '?' ) ), 0, 90 );
-			wpcap_faults_restore();
-			++$runs;
-			$where = "#$pos $kind [$stmt]";
-			$v = $check( $ctx, $result, 'fault' );
-			if ( '' !== $v ) { $violations[] = "$where after fault: $v"; continue; }
-			$again = $run( $ctx ); // Immediate retry (client/provider/cashier), no recovery yet.
-			$v = $check( $ctx, $again, 'fault' );
-			if ( '' !== $v ) { $violations[] = "$where immediate retry: $v"; continue; }
-			if ( $recover ) { $recover( $ctx ); }
-			$final = $run( $ctx );
-			$v = $check( $ctx, $final, 'final' );
-			if ( '' !== $v ) { $violations[] = "$where final: $v"; }
-		}
-	}
-	$ok = ! $violations;
-	check( "$label: " . count( $positions ) . " of $n statements x 4 failure kinds ($runs runs) keep the invariants", $ok );
-	if ( ! $ok ) { foreach ( array_slice( $violations, 0, 6 ) as $v ) { echo "         $v\n"; } }
-	return array( 'positions' => count( $positions ), 'runs' => $runs, 'violations' => $violations );
-}
 
-function w6_count( $sql ) { global $wpdb; return (int) $wpdb->get_var( $sql ); }
-function w6_err( $r ) { return is_wp_error( $r ) ? $r->get_error_code() : ''; }
-/** Recovery a real site performs on its own: provider redelivery after the claim takeover window, cron. */
-function w6_recover() {
-	global $wpdb;
-	$p = $wpdb->prefix;
-	$past = gmdate( 'Y-m-d H:i:s', time() - 11 * MINUTE_IN_SECONDS );
-	$wpdb->query( "UPDATE {$p}wpcap_payment_events SET updated_at='$past' WHERE status='processing'" );
-	$wpdb->query( "UPDATE {$p}wpcap_jobs SET run_after='2000-01-01 00:00:00' WHERE status='queued' AND job_type IN ('ticket_issue')" );
-	Jobs::process_due( 50 );
-}
 
 /* ------------------------------------------------------------------------------------------ */
 echo "W6 faults: checkout (Orders::create)\n";

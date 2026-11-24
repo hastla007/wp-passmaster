@@ -29,6 +29,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Shifts {
 	/** Capability to storno checked-in tickets (with a reason). Administrators may always. */
 	const OVERRIDE_CAP = 'wpcap_boxoffice_override';
@@ -195,6 +198,8 @@ final class Shifts {
 		$resolved = Cash::resolve( $float_in, $args['denominations'] ?? null, $register->currency );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
 		list( $float, $denoms ) = $resolved;
+		$mode = Cash::check_mode( $float, $denoms ); // SET-PC-39
+		if ( is_wp_error( $mode ) ) { return $mode; }
 		$handover_id = absint( $args['handover_id'] ?? 0 );
 		// Fiscal scope of the shift (location + fiscal register, TerminalRegistry): the register's own
 		// assignment; the legacy API (Service::open_session()) may pass one for a register without.
@@ -352,6 +357,8 @@ final class Shifts {
 		$resolved = Cash::resolve( $args['cash_minor'] ?? null, $args['denominations'] ?? null, $shift->currency );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
 		list( $cash, $denoms ) = $resolved;
+		$mode = Cash::check_mode( $cash, $denoms ); // SET-PC-39
+		if ( is_wp_error( $mode ) ) { return $mode; }
 		$card = isset( $args['card_minor'] ) && null !== $args['card_minor'] && '' !== $args['card_minor'] ? (int) $args['card_minor'] : null;
 		if ( null !== $card && $card < 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ); }
 		$p = self::t( '' );
@@ -430,6 +437,8 @@ final class Shifts {
 			$resolved = Cash::resolve( $args['handover_minor'] ?? null, $args['handover_denominations'] ?? null, $shift->currency );
 			if ( is_wp_error( $resolved ) ) { return $resolved; }
 			list( $handover_amount, $handover_denoms ) = $resolved;
+			$mode = Cash::check_mode( $handover_amount, $handover_denoms ); // SET-PC-39
+			if ( is_wp_error( $mode ) ) { return $mode; }
 			if ( $handover_amount > (int) $count->cash_minor ) { return self::error( 'wpcap_pos_handover_amount', __( 'Der übergebene Betrag ist höher als der gezählte Bargeldbestand.', 'pass-captain' ) ); }
 		}
 		$veto = apply_filters( 'wpcap_boxoffice_can_close_shift', true, $shift, $count );
@@ -463,7 +472,8 @@ final class Shifts {
 		$card_counted = null === $count->card_minor ? null : (int) $count->card_minor;
 		$card_diff = null === $card_counted ? null : $card_counted - $totals['card']['expected'];
 		// Blind count: the cashier does not know the difference, so no reason can be asked for.
-		if ( ( 0 !== $cash_diff || ( null !== $card_diff && 0 !== $card_diff ) ) && '' === $reason && ( ! (int) $locked->blind_count || self::supervises() ) ) {
+		// SET-PC-39: differences within the tolerance need no reason.
+		if ( ( Cash::needs_reason( $cash_diff ) || Cash::needs_reason( $card_diff ) ) && '' === $reason && ( ! (int) $locked->blind_count || self::supervises() ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return self::error( 'wpcap_pos_difference_reason', __( 'Es gibt eine Kassendifferenz. Bitte einen Grund angeben.', 'pass-captain' ) );
 		}
@@ -552,8 +562,10 @@ final class Shifts {
 		$register = Registers::get( $handover->register_id );
 		$resolved = Cash::resolve( $args['cash_minor'] ?? null, $args['denominations'] ?? null, $register ? $register->currency : 'EUR' );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
+		$mode = Cash::check_mode( $resolved[0], $resolved[1] ); // SET-PC-39
+		if ( is_wp_error( $mode ) ) { return $mode; }
 		$reason = trim( sanitize_text_field( (string) ( $args['reason'] ?? '' ) ) );
-		if ( $resolved[0] !== (int) $handover->amount_minor && '' === $reason ) {
+		if ( Cash::needs_reason( $resolved[0] - (int) $handover->amount_minor ) && '' === $reason ) {
 			return self::error( 'wpcap_pos_difference_reason', __( 'Der gezählte Betrag weicht vom übergebenen Betrag ab. Bitte einen Grund angeben.', 'pass-captain' ) );
 		}
 		return self::open( (int) $handover->register_id, array( 'float_minor' => $resolved[0], 'denominations' => $resolved[1], 'note' => $args['note'] ?? '', 'handover_id' => (int) $handover->handover_id, 'handover_reason' => $reason ) );

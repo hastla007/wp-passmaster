@@ -17,6 +17,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AuditTrail {
 	/** Seconds in which repeated reads of the same object by the same person are aggregated. */
 	const READ_WINDOW = 900;
@@ -221,7 +224,7 @@ final class AuditTrail {
 		$key = 'wpcap_ar_' . md5( $user_id . '|' . $view . '|' . $object_type . '|' . (int) $object_id . '|' . (string) ( $details['scope'] ?? '' ) );
 		if ( get_transient( $key ) ) { return false; }
 		set_transient( $key, 1, self::READ_WINDOW );
-		$budget_key = 'wpcap_ar_budget_' . $user_id . '_' . gmdate( 'YmdH' );
+		$budget_key = 'wpcap_ar_budget_' . $user_id . '_' . gmdate( 'YmdH', \PassCaptain\Clock::real() );
 		$used = (int) get_transient( $budget_key );
 		$limit = max( 10, (int) Policy::get( 'audit_read_limit_per_hour' ) );
 		set_transient( $budget_key, $used + 1, HOUR_IN_SECONDS );

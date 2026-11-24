@@ -12,6 +12,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdmissionChecks {
 	const MAX_AGE = 99;
 	const NOTE_LENGTH = 190;
@@ -110,5 +113,27 @@ final class AdmissionChecks {
 		$hint = self::staff_hint( $checks );
 		if ( '' === $hint ) { return array(); }
 		return array( 'id_check' => $checks['id_check'], 'min_age' => $checks['min_age'], 'staff_hint' => $hint );
+	}
+
+	/**
+	 * SET-PC-18: highest minimum age of some ticket types (0 = none has one).
+	 *
+	 * @param int[] $type_ids Ticket type IDs.
+	 */
+	public static function max_min_age( array $type_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
+		if ( ! $ids || ! self::ready() ) { return 0; }
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(min_age) FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+	}
+
+	/**
+	 * SET-PC-18: whether the own checkout asks for the age confirmation for these ticket types (setting
+	 * min_age_checkbox on and a type with a minimum age); the highest minimum age, else 0.
+	 *
+	 * @param int[] $type_ids Ticket type IDs.
+	 */
+	public static function confirmation_age( array $type_ids ) {
+		return Settings::get( 'min_age_checkbox' ) ? self::max_min_age( $type_ids ) : 0;
 	}
 }

@@ -13,6 +13,9 @@ namespace PassCaptain\Mail;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Types {
 	/** Registry per locale (labels and descriptions are translated). */
 	private static $cache = array();
@@ -42,6 +45,8 @@ final class Types {
 		return array(
 			'site_name' => __( 'Name der Website', 'pass-captain' ),
 			'site_url' => __( 'Adresse der Website', 'pass-captain' ),
+			'imprint_url' => __( 'Link zum Impressum (leer, wenn keiner eingestellt ist)', 'pass-captain' ),
+			'privacy_url' => __( 'Link zur Datenschutzerklärung', 'pass-captain' ),
 			'terms_text' => __( 'AGB / Teilnahmebedingungen in der Sprache des Empfängers', 'pass-captain' ),
 			'consumer_info_text' => __( 'Verbraucherinformationen in der Sprache des Empfängers', 'pass-captain' ),
 		);
@@ -58,6 +63,7 @@ final class Types {
 			'ticket_list' => __( 'Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)', 'pass-captain' ),
 			'ticket_links' => __( 'Nur die Ticket-Links, einer pro Zeile', 'pass-captain' ),
 			'contract_texts' => __( 'Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)', 'pass-captain' ),
+			'contract_partner' => __( 'Vertragspartner (Veranstalter mit Anschrift) im Vermittlermodell; sonst leer', 'pass-captain' ),
 		) + self::legal_placeholders();
 	}
 
@@ -84,6 +90,8 @@ final class Types {
 				$terms = Blocks::legal_text( 'terms_text' );
 				return Mailer::block( $info['text'] . $terms['text'], $info['html'] . $terms['html'] );
 			},
+			// Agent model only (order known, Orders::ticket_mail_vars() / order_access_vars()); empty otherwise.
+			'contract_partner' => Blocks::contract_partner( null ),
 		);
 	}
 
@@ -157,6 +165,7 @@ final class Types {
 		if ( $order ) {
 			$vars['order_items'] = Blocks::order_items( \PassCaptain\Orders::summary_lines( (int) $order->order_id ) );
 			$vars['contract_texts'] = static function () use ( $order ) { return \PassCaptain\LegalVersions::mail_block( $order ); };
+			$vars['contract_partner'] = static function () use ( $order ) { return Blocks::contract_partner( \PassCaptain\Partners\SalesModel::contract_partner_for_order( (int) $order->order_id ) ); };
 		}
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
 			$vars['payment_instructions'] = Blocks::payment_instructions( \PassCaptain\Payments\BankTransfer::details( $order ) );
@@ -317,7 +326,7 @@ final class Types {
 				// A568: the confirmation carries the contract texts of the order's version ({contract_texts};
 				// without a known order the current texts of the settings, see legal_vars()).
 				/* translators: %s: site name */
-				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}{contract_texts}"; },
+				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}{contract_partner}{contract_texts}"; },
 				'vars' => static function () { return self::legal_vars(); },
 				'sample' => static function () { return self::sample_ticket_vars( false ); },
 			),
@@ -355,6 +364,31 @@ final class Types {
 					);
 				},
 			),
+			'order_links' => array(
+				'label' => __( 'Bestelllinks angefordert', 'pass-captain' ),
+				'description' => __( 'Neue persönliche Links zu allen Bestellungen einer Adresse, angefordert über das Formular „Tickets/Bestelllink anfordern“.', 'pass-captain' ),
+				'placeholders' => array(
+					'order_count' => __( 'Anzahl Bestellungen', 'pass-captain' ),
+					'order_list' => __( 'Bestellungen mit Bestellnummer, Datum, Events und persönlichem Link', 'pass-captain' ),
+					'valid_days' => __( 'Gültigkeit der neuen Links in Tagen (bis zum ersten Öffnen)', 'pass-captain' ),
+				),
+				/* translators: %s: site name */
+				'subject' => static function () { return sprintf( __( 'Deine Bestellungen bei %s', 'pass-captain' ), '{site_name}' ); },
+				'body' => static function () {
+					return __( 'Du hast neue Links zu deinen Bestellungen angefordert. Über diese persönlichen Links siehst du deine Bestellungen und Tickets:', 'pass-captain' ) . "\n\n{order_list}\n"
+						/* translators: %s: number of days placeholder */
+						. sprintf( __( 'Die Links gelten %s Tage. Bisherige Links bleiben gültig, bis du einen neuen Link zum ersten Mal öffnest.', 'pass-captain' ), '{valid_days}' ) . "\n\n"
+						. __( 'Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren.', 'pass-captain' );
+				},
+				'sample' => static function () {
+					$link = Mailer::link( home_url( '/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=' . str_repeat( 'd4', 32 ) ) );
+					return array(
+						'order_count' => 1,
+						'order_list' => Mailer::block( "3F2A-9C1E (21.06.2027): Sommerkonzert\n" . $link['text'] . "\n", '<ul><li><strong>3F2A-9C1E</strong> (21.06.2027): Sommerkonzert<br>' . $link['html'] . '</li></ul>' ),
+						'valid_days' => 7,
+					);
+				},
+			),
 			'order_access' => array(
 				'label' => __( 'Bestellzugang', 'pass-captain' ),
 				'description' => __( 'Persönlicher Link zur Bestellübersicht nach der Bestellung.', 'pass-captain' ),
@@ -365,13 +399,14 @@ final class Types {
 					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'pass-captain' ),
 					'order_items' => __( 'Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)', 'pass-captain' ),
 					'contract_texts' => __( 'Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)', 'pass-captain' ),
+					'contract_partner' => __( 'Vertragspartner (Veranstalter mit Anschrift) im Vermittlermodell; sonst leer', 'pass-captain' ),
 				) + self::legal_placeholders(),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					// {payment_instructions} is empty unless a manual payment is pending; it brings its own trailing blank line.
 					/* translators: %s: site name */
-					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{order_items}{payment_instructions}{contract_texts}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
+					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{order_items}{contract_partner}{payment_instructions}{contract_texts}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
 				},
 				// Values derived from the order when the caller does not pass them.
 				'vars' => static function ( array $vars ) { return self::order_access_vars( (string) ( $vars['order_id'] ?? '' ) ); },

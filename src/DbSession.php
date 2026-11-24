@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DbSession {
 	/** Default innodb_lock_wait_timeout (seconds) inside checkout and payment confirmation. */
 	const LOCK_WAIT_SECONDS = 5;

@@ -21,6 +21,9 @@ use PassCaptain\Ops\Status;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Diagnostics {
 	/** Option holding the last report shown on the status page. */
 	const REPORT_OPTION = 'wpcap_last_diagnostics';
@@ -57,7 +60,7 @@ final class Diagnostics {
 	 * @return array {time, checks: key => {key, label, count, severity: ok|warning|error, samples, action, repairable, error}}
 	 */
 	public static function run( array $only = array() ) {
-		$report = array( 'time' => time(), 'checks' => array() );
+		$report = array( 'time' => Clock::real(), 'checks' => array() );
 		foreach ( self::checks() as $key => list( $label, $repairable ) ) {
 			if ( $only && ! in_array( $key, $only, true ) ) { continue; }
 			$report['checks'][ $key ] = self::run_check( $key, $label, $repairable );
@@ -90,7 +93,7 @@ final class Diagnostics {
 	}
 
 	private static function gmt( $offset_seconds = 0 ) {
-		return gmdate( 'Y-m-d H:i:s', time() - (int) $offset_seconds );
+		return gmdate( 'Y-m-d H:i:s', Clock::now() - (int) $offset_seconds );
 	}
 
 	/* ------------------------------------------------------------------ Checks */
@@ -121,16 +124,19 @@ final class Diagnostics {
 	private static function orders_missing_tickets( $limit ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		// Lines of add-on products get no tickets (Orders::addon_free_join(), a literal join).
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 		return (array) $wpdb->get_results( $wpdb->prepare(
 			'SELECT ord.order_id, ord.public_id, ord.updated_at, SUM(GREATEST(0, CAST(oi.qty AS SIGNED) - COALESCE(t.n,0))) AS missing
 			FROM %i ord
-			INNER JOIN (SELECT order_id, ticket_type_id, SUM(quantity) AS qty FROM %i GROUP BY order_id, ticket_type_id) oi ON oi.order_id=ord.order_id
+			INNER JOIN (SELECT oi.order_id, oi.ticket_type_id, SUM(oi.quantity) AS qty FROM %i oi' . \PassCaptain\Orders::addon_free_join() . ' GROUP BY oi.order_id, oi.ticket_type_id) oi ON oi.order_id=ord.order_id
 			LEFT JOIN (SELECT order_id, ticket_type_id, COUNT(*) AS n FROM %i GROUP BY order_id, ticket_type_id) t ON t.order_id=oi.order_id AND t.ticket_type_id=oi.ticket_type_id
 			WHERE ord.payment_status=\'paid\' AND ord.updated_at<%s
 			GROUP BY ord.order_id, ord.public_id, ord.updated_at HAVING missing>0 ORDER BY ord.order_id LIMIT %d', $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_tickets',
 			self::gmt( self::ISSUE_GRACE ),
 			max( 1, (int) $limit )
 		) );
+		// phpcs:enable
 	}
 
 	public static function check_paid_without_tickets() {
@@ -239,8 +245,8 @@ final class Diagnostics {
 
 	public static function repair_expired_holds() {
 		global $wpdb;
-		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', current_time( 'mysql', true ) ) );
-		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_reservations', current_time( 'mysql', true ) ) );
+		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_seat_holds', Clock::mysql() ) );
+		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE status='active' AND expires_at<=%s", $wpdb->prefix . 'wpcap_reservations', Clock::mysql() ) );
 		$total = 0;
 		do {
 			$expired = (int) Orders::expire_holds( 500 );
@@ -257,7 +263,7 @@ final class Diagnostics {
 			$order_id = (int) $row->order_id;
 			$open = $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE job_type=%s AND status IN ('queued','running') AND payload=%s LIMIT 1", $wpdb->prefix . 'wpcap_jobs', Orders::ISSUE_JOB, wp_json_encode( array( 'order_id' => $order_id ) ) ) );
 			if ( $open ) { continue; }
-			if ( true === Jobs::enqueue( 'diagnostics-ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), Orders::ISSUE_JOB, array( 'order_id' => $order_id ) ) ) { ++$queued; }
+			if ( true === Jobs::enqueue( 'diagnostics-ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi', Clock::now() ), Orders::ISSUE_JOB, array( 'order_id' => $order_id ) ) ) { ++$queued; }
 		}
 		return $queued;
 	}
@@ -266,7 +272,7 @@ final class Diagnostics {
 	public static function repair_stale_claims() {
 		global $wpdb;
 		$requeued = 0;
-		$stale = gmdate( 'Y-m-d H:i:s', time() - Status::STALE_CLAIM_AFTER );
+		$stale = gmdate( 'Y-m-d H:i:s', Clock::now() - Status::STALE_CLAIM_AFTER );
 		foreach ( Status::queues() as $q ) {
 			if ( ! Status::table_exists( $q['table'] ) ) { continue; }
 			$t = $wpdb->prefix . $q['table'];
@@ -316,7 +322,7 @@ final class Diagnostics {
 		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) {
 			return new \WP_Error( 'wpcap_diag_refund_state', __( 'Die Erstattung wartet nicht (mehr) auf eine manuelle Prüfung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( 'completed' === $resolution ) {
 			// A provider reference turns it into "paid out, not booked": reconcile() books it exactly once.
 			$note = 'manual-review:' . ( '' !== $reference ? $reference : (string) $refund_id );

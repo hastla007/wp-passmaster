@@ -15,6 +15,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Health {
 	public static function register() {
 		add_filter( 'site_status_tests', array( __CLASS__, 'register_tests' ) );
@@ -49,11 +52,11 @@ final class Health {
 					$info = Credentials::describe_cert( $material[ $which ] );
 					if ( ! $info ) { continue; }
 					$date = gmdate( 'd.m.Y', $info['valid_to'] );
-					if ( $info['valid_to'] <= time() ) {
+					if ( $info['valid_to'] <= \PassCaptain\Clock::real() ) {
 						/* translators: 1: certificate name, 2: date */
 						$out[] = array( 'key' => 'apple_' . $which . '_expired', 'status' => 'critical', 'message' => sprintf( __( '%1$s ist am %2$s abgelaufen. Es werden keine Apple-Wallet-Pässe mehr erstellt oder aktualisiert, bis ein neues Zertifikat hinterlegt ist.', 'pass-captain' ), $label, $date ) );
-					} elseif ( $info['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS ) {
-						$days = max( 1, (int) ceil( ( $info['valid_to'] - time() ) / DAY_IN_SECONDS ) );
+					} elseif ( $info['valid_to'] < \PassCaptain\Clock::real() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS ) {
+						$days = max( 1, (int) ceil( ( $info['valid_to'] - \PassCaptain\Clock::real() ) / DAY_IN_SECONDS ) );
 						/* translators: 1: certificate name, 2: date, 3: number of days */
 						$out[] = array( 'key' => 'apple_' . $which . '_expiring', 'status' => 'recommended', 'message' => sprintf( _n( '%1$s läuft am %2$s ab (in %3$d Tag). Bitte rechtzeitig im Apple-Developer-Konto erneuern und hier hinterlegen; danach werden keine Apple-Wallet-Pässe mehr erstellt.', '%1$s läuft am %2$s ab (in %3$d Tagen). Bitte rechtzeitig im Apple-Developer-Konto erneuern und hier hinterlegen; danach werden keine Apple-Wallet-Pässe mehr erstellt.', $days, 'pass-captain' ), $label, $date, $days ) );
 					}

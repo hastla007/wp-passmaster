@@ -36,6 +36,9 @@ use PassCaptain\StateMachine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Service {
 	const PENDING = 'pending_payment';
 	const COMPLETED = 'completed';
@@ -187,7 +190,8 @@ final class Service {
 		if ( (int) $ticket->refunded || self::was_admitted( $ticket ) || 'valid' !== $ticket->status ) {
 			return self::error( 'wpcap_exchange_ticket_state', __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'pass-captain' ) );
 		}
-		if ( ! $target || 'active' !== $target->status || 'scheduled' !== $target->occurrence_status || 'published' !== $target->event_status ) {
+		// An add-on product (Sales\Addons) is no admission: a ticket is never exchanged into one.
+		if ( ! $target || 'active' !== $target->status || 'scheduled' !== $target->occurrence_status || 'published' !== $target->event_status || \PassCaptain\Sales\Addons::is_addon( $target ) ) {
 			return self::error( 'wpcap_exchange_target_unavailable', __( 'Die gewählte Ticketart ist nicht verfügbar.', 'pass-captain' ) );
 		}
 		if ( (int) $target->ticket_type_id === (int) $ticket->ticket_type_id ) {

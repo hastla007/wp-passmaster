@@ -37,19 +37,41 @@
 		}
 	}
 
+	// ISO 4217 minor units, the same lists as PHP PassCaptain\Money (tests/integration compares them). Used when
+	// the checkout configuration (WPCAP_CHECKOUT.money.decimals, filter wpcap_currency_decimals) is missing.
+	const ZERO_DECIMALS = ['BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF'];
+	const THREE_DECIMALS = ['BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'];
+
+	/** Decimals of the currency's minor unit (0 JPY, 2 EUR, 3 KWD) – never a fixed "/100". */
+	function decimals(currency) {
+		const code = String(currency || '').toUpperCase();
+		let configured;
+		try { configured = ((window.WPCAP_CHECKOUT || {}).money || {}).decimals; } catch (e) { configured = null; }
+		if (configured && Number.isInteger(configured[code])) return Math.max(0, Math.min(4, configured[code]));
+		if (ZERO_DECIMALS.indexOf(code) !== -1) return 0;
+		if (THREE_DECIMALS.indexOf(code) !== -1) return 3;
+		return 2;
+	}
+
+	/** Minor amount (integer) as a decimal number in the major unit, e.g. 2500 EUR → 25, 2500 JPY → 2500. */
+	function major(minor, currency) {
+		return (Math.round(Number(minor) || 0)) / Math.pow(10, decimals(currency));
+	}
+
 	/** Items of a checkout form with quantity > 0 (or all ticket types for view_item). */
 	function items(form, all) {
 		const out = [];
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const quantity = Number(qty.value) || 0;
 			if (!all && quantity < 1) return;
-			out.push({ item_id: String(qty.dataset.type), item_name: qty.dataset.name || '', price: (Number(qty.dataset.price) || 0) / 100, quantity: all ? 1 : quantity, currency: qty.dataset.currency || '' });
+			out.push({ item_id: String(qty.dataset.type), item_name: qty.dataset.name || '', price: major(qty.dataset.price, qty.dataset.currency), quantity: all ? 1 : quantity, currency: qty.dataset.currency || '' });
 		});
 		return out;
 	}
 
 	function total(list) {
-		return Math.round(list.reduce(function (sum, item) { return sum + item.price * item.quantity; }, 0) * 100) / 100;
+		const places = list.length ? decimals(list[0].currency) : 2;
+		return Number(list.reduce(function (sum, item) { return sum + item.price * item.quantity; }, 0).toFixed(places));
 	}
 
 	function fire(doc, event, list, extra) {
@@ -78,7 +100,7 @@
 			seen[qty.dataset.type] = now;
 			last.set(form, seen);
 			if (now === before) return;
-			const item = { item_id: String(qty.dataset.type), item_name: qty.dataset.name || '', price: (Number(qty.dataset.price) || 0) / 100, quantity: Math.abs(now - before), currency: qty.dataset.currency || '' };
+			const item = { item_id: String(qty.dataset.type), item_name: qty.dataset.name || '', price: major(qty.dataset.price, qty.dataset.currency), quantity: Math.abs(now - before), currency: qty.dataset.currency || '' };
 			fire(doc, now > before ? 'add_to_cart' : 'remove_from_cart', [item]);
 		});
 		doc.addEventListener('wpcap:checkout-payload', function (event) {
@@ -92,14 +114,14 @@
 			const order = detail.order || {};
 			const list = detail.form ? items(detail.form, false) : [];
 			const extra = { transaction_id: String(order.reference || '') };
-			if (typeof order.total_minor === 'number') extra.value = order.total_minor / 100;
+			if (typeof order.total_minor === 'number') extra.value = major(order.total_minor, order.currency || (list.length ? list[0].currency : ''));
 			if (order.currency) extra.currency = String(order.currency);
 			fire(doc, 'purchase', list, extra);
 		});
 	}
 
 	if (typeof module === 'object' && module && module.exports) {
-		module.exports = { init: init, clean: clean, captureAttribution: captureAttribution, items: items };
+		module.exports = { init: init, clean: clean, captureAttribution: captureAttribution, items: items, decimals: decimals, major: major, ZERO_DECIMALS: ZERO_DECIMALS, THREE_DECIMALS: THREE_DECIMALS };
 	} else {
 		init(window);
 	}

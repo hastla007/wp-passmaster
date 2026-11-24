@@ -1,6 +1,6 @@
 {
   "contract": "app",
-  "version": "1.1",
+  "version": "1.2",
   "description": "Mobile-App-API pass-captain/v1/app/… (Geräte-Bearer-Token). Requests sind Parameter mit Platzhaltern, Responses Shapes.",
   "endpoints": {
     "POST /app/pair": {
@@ -48,6 +48,12 @@
           "check_out": "bool",
           "areas": "bool",
           "attendee_name": "bool"
+        },
+        "?permissions": {
+          "check_in": "bool",
+          "redeem_passes": "bool",
+          "undo": "bool",
+          "check_out": "bool"
         },
         "server_time": "string"
       }

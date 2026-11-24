@@ -20,6 +20,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SalesModel {
 	const OWN_NAME = 'own_name';
 	const AGENT = 'agent';
@@ -316,6 +319,188 @@ final class SalesModel {
 			}
 		}
 		return true;
+	}
+
+	/* ------------------------------------------------------------------ Small-business seller (no VAT) */
+
+	/** @var array<int,int> Organizer (partner_id, 0 = none) of the events of the listing being rendered. */
+	private static $primed_partners = array();
+
+	/**
+	 * Loads the organizers of these events in one query for the cards of a listing; an empty list ends
+	 * the priming (PublicEvents::render_rows()), so later calls read the table again.
+	 *
+	 * @param int[]                $event_ids Events of the listing.
+	 * @param array<int,int>|null  $known     event_id => partner_id already read with the listing (no query).
+	 */
+	public static function prime_event_sellers( array $event_ids, $known = null ) {
+		global $wpdb;
+		self::$primed_partners = array();
+		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		if ( ! $event_ids ) { return; }
+		if ( is_array( $known ) ) {
+			foreach ( $event_ids as $event_id ) { self::$primed_partners[ $event_id ] = (int) ( $known[ $event_id ] ?? 0 ); }
+			return;
+		}
+		$map = array_fill_keys( $event_ids, 0 );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT event_id, partner_id FROM %i WHERE event_id IN (' . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_partner_events' ), $event_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholder list.
+		if ( ! is_array( $rows ) ) { return; } // Table missing or query failed: read per event as before.
+		foreach ( $rows as $row ) { $map[ (int) $row->event_id ] = (int) $row->partner_id; }
+		self::$primed_partners = $map;
+	}
+
+	/**
+	 * Seller responsible for the customer invoices of an event's tickets, with the rule of
+	 * order_context(): an agent organizer sells in its own name, everything else is sold by the platform
+	 * (own_name organizers and events without organizer).
+	 *
+	 * @return array{key:string,model:string,name:string,address:string,small_business:bool,partner_id:int}
+	 */
+	public static function event_seller( $event_id ) {
+		global $wpdb;
+		$event_id = absint( $event_id );
+		if ( array_key_exists( $event_id, self::$primed_partners ) ) {
+			$partner_id = self::$primed_partners[ $event_id ];
+		} else {
+			$partner_id = $event_id ? (int) $wpdb->get_var( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_partner_events', $event_id ) ) : 0;
+		}
+		$partner = $partner_id ? Repository::get( $partner_id ) : null;
+		if ( $partner && self::AGENT === self::model_of( $partner ) ) {
+			$seller = self::organizer_seller( $partner );
+			return array( 'key' => 'org-' . (int) $partner->partner_id, 'model' => self::AGENT, 'name' => (string) $seller['name'], 'address' => (string) $seller['address'], 'small_business' => (bool) $seller['small_business'], 'partner_id' => (int) $partner->partner_id );
+		}
+		$platform = Invoices::seller();
+		return array( 'key' => self::PLATFORM_KEY, 'model' => self::OWN_NAME, 'name' => self::seller_name( self::PLATFORM_KEY ), 'address' => (string) $platform['address'], 'small_business' => ! empty( $platform['small_business'] ), 'partner_id' => 0 );
+	}
+
+	/**
+	 * VAT rate checkout would apply to a ticket type today: a versioned tax profile (Sales\TaxProfiles,
+	 * also for the class "standard"), else a country profile of its tax class (Tax\Profiles), else the
+	 * type's own rate. Mirrors Orders::checkout_price_lines()/checkout_apply_taxes() for the own checkout.
+	 *
+	 * @param object      $type       Ticket type (tax_rate_bp, tax_class, occurrence_id).
+	 * @param object|null $occurrence Occurrence row (event_id, venue_country, starts_at).
+	 */
+	public static function effective_tax_rate_bp( $type, $occurrence, $now = '' ) {
+		$now = '' !== (string) $now ? (string) $now : \PassCaptain\Clock::mysql();
+		$line = $occurrence ? \PassCaptain\Sales\TaxProfiles::for_line( $type, $occurrence, $now ) : null;
+		if ( is_array( $line ) ) { return (int) $line['rate_bp']; }
+		return (int) \PassCaptain\Tax\Profiles::resolve( $type, $occurrence, $now, 'native' )['rate_bp'];
+	}
+
+	/**
+	 * Refusal when a ticket type would carry VAT although its seller is a small business (§ 19 UStG /
+	 * § 6 Abs. 1 Z 27 AT UStG: no VAT may be shown, § 14c UStG). Checked when a type is saved, so no
+	 * order is sold that could not be invoiced (Invoices refuses wpcap_invoice_small_business_vat).
+	 *
+	 * @param int $event_id     Event of the type.
+	 * @param int $form_rate_bp Rate entered for the type.
+	 * @param int $effective_bp Rate checkout would apply (effective_tax_rate_bp(); tax profiles), or null = form rate.
+	 * @return \WP_Error|null Error with data field `tax_rate` or `tax_class`.
+	 */
+	public static function small_business_type_error( $event_id, $form_rate_bp, $effective_bp = null ) {
+		$effective_bp = null === $effective_bp ? (int) $form_rate_bp : (int) $effective_bp;
+		if ( (int) $form_rate_bp <= 0 && $effective_bp <= 0 ) { return null; }
+		$seller = self::event_seller( $event_id );
+		if ( ! $seller['small_business'] ) { return null; }
+		if ( (int) $form_rate_bp > 0 ) {
+			$message = self::AGENT === $seller['model']
+				/* translators: %s: organizer */
+				? sprintf( __( 'Der Veranstalter „%s“ ist Kleinunternehmer und darf keine Umsatzsteuer ausweisen. Bitte trage 0 als Steuersatz ein.', 'pass-captain' ), $seller['name'] )
+				: __( 'Die Plattform ist als Kleinunternehmer eingestellt und darf keine Umsatzsteuer ausweisen. Bitte trage 0 als Steuersatz ein oder prüfe die Einstellung „Kleinunternehmer“ (Einstellungen → Rechnungssteller).', 'pass-captain' );
+			return new \WP_Error( 'wpcap_type_small_business_vat', $message, array( 'status' => 400, 'field' => 'tax_rate' ) );
+		}
+		/* translators: 1: tax rate in percent, 2: seller (organizer or platform) */
+		$message = sprintf( __( 'Für diese Ticketart gilt ein aktives Steuerprofil mit %1$s %%, der Rechnungssteller „%2$s“ ist aber Kleinunternehmer und darf keine Umsatzsteuer ausweisen. Bitte passe die Steuerklasse an oder lass das Steuerprofil prüfen.', 'pass-captain' ), \PassCaptain\Admin\Forms::percent_input( $effective_bp ), $seller['name'] );
+		return new \WP_Error( 'wpcap_type_small_business_vat', $message, array( 'status' => 400, 'field' => 'tax_class' ) );
+	}
+
+	/**
+	 * Checkout check (Orders::checkout_apply_taxes()): lines of a small-business seller that would carry
+	 * VAT. Lines are grouped by event; the service fee counts for every seller of the order.
+	 *
+	 * @param array $lines   Order lines (event_id, tax_minor, type->ticket_type_id).
+	 * @param int   $fee_tax VAT of the service fee lines.
+	 * @return array|null {seller, ticket_type_ids} of the first conflict, or null.
+	 */
+	public static function checkout_vat_conflict( array $lines, $fee_tax = 0 ) {
+		$sellers = array();
+		$conflict = null;
+		foreach ( $lines as $line ) {
+			$event_id = (int) ( $line['event_id'] ?? 0 );
+			if ( ! isset( $sellers[ $event_id ] ) ) { $sellers[ $event_id ] = self::event_seller( $event_id ); }
+			$seller = $sellers[ $event_id ];
+			if ( ! $seller['small_business'] ) { continue; }
+			if ( (int) ( $line['tax_minor'] ?? 0 ) > 0 || (int) $fee_tax > 0 ) {
+				$conflict = $conflict ?? array( 'seller' => $seller['key'], 'ticket_type_ids' => array() );
+				$conflict['ticket_type_ids'][] = (int) ( isset( $line['type'] ) && is_object( $line['type'] ) ? $line['type']->ticket_type_id : 0 );
+			}
+		}
+		return $conflict;
+	}
+
+	/**
+	 * Active ticket types of upcoming dates that carry VAT although their seller is a small business
+	 * (existing data from before the save check, or the setting/organizer flag changed later). Shown in
+	 * Site Health; prices are never changed automatically.
+	 *
+	 * @param int $limit Maximum rows.
+	 * @return array[] {ticket_type_id, event_id, event, ticket, starts_at, rate_bp, seller}
+	 */
+	public static function small_business_vat_types( $limit = 50 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$platform_small = ! empty( Invoices::seller()['small_business'] );
+		// Agent organizers that are small businesses; with a small-business platform also every other event.
+		$seller_sql = $platform_small
+			? "( pa.partner_id IS NULL OR COALESCE(pa.sales_model,'') <> 'agent' OR pa.small_business = 1 )"
+			: "( pa.sales_model = 'agent' AND pa.small_business = 1 )";
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.*, o.event_id, o.starts_at AS occ_starts_at, e.name AS event_name FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_partner_events pe ON pe.event_id=o.event_id LEFT JOIN {$p}wpcap_partners pa ON pa.partner_id=pe.partner_id WHERE tt.status='active' AND o.starts_at >= %s AND {$seller_sql} ORDER BY tt.tax_rate_bp > 0 DESC, o.starts_at, tt.ticket_type_id LIMIT 500", gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names and a fixed condition.
+		$out = array();
+		$now = \PassCaptain\Clock::mysql();
+		foreach ( (array) $rows as $row ) {
+			$rate = (int) $row->tax_rate_bp;
+			if ( $rate <= 0 ) {
+				$occurrence = \PassCaptain\Admin\Queries::occurrence( (int) $row->occurrence_id );
+				$rate = self::effective_tax_rate_bp( $row, $occurrence, $now );
+			}
+			if ( $rate <= 0 ) { continue; }
+			$out[] = array( 'ticket_type_id' => (int) $row->ticket_type_id, 'event_id' => (int) $row->event_id, 'event' => (string) $row->event_name, 'ticket' => (string) $row->name, 'starts_at' => (string) $row->occ_starts_at, 'rate_bp' => $rate, 'seller' => self::event_seller( (int) $row->event_id )['name'] );
+			if ( count( $out ) >= $limit ) { break; }
+		}
+		return $out;
+	}
+
+	/* ------------------------------------------------------------------ Contract partner (agent model) */
+
+	/**
+	 * Contract partner of the buyer in the agent model (Vermittler): the organizer with name and
+	 * address. Null in the own_name model and for platform events (nothing is shown there).
+	 *
+	 * @return array{name:string,address:string}|null
+	 */
+	public static function contract_partner_for_event( $event_id ) {
+		$seller = self::event_seller( $event_id );
+		return self::AGENT === $seller['model'] ? array( 'name' => $seller['name'], 'address' => $seller['address'] ) : null;
+	}
+
+	/**
+	 * Contract partner of an order in the agent model (current organizer data, as order_context()); null
+	 * for the own_name model, platform events and mixed orders.
+	 *
+	 * @return array{name:string,address:string}|null
+	 */
+	public static function contract_partner_for_order( $order_id ) {
+		$context = self::order_context( $order_id );
+		if ( is_wp_error( $context ) || self::AGENT !== $context['model'] ) { return null; }
+		return array( 'name' => (string) $context['seller']['name'], 'address' => (string) $context['seller']['address'] );
+	}
+
+	/** "Vertragspartner: Name, Straße, Ort" (address lines joined with commas). */
+	public static function contract_partner_line( array $partner ) {
+		$parts = array_filter( array_map( 'trim', array_merge( array( (string) $partner['name'] ), preg_split( '/\r\n|\r|\n/', (string) $partner['address'] ) ) ), static fn( $part ) => '' !== $part );
+		/* translators: %s: organizer name and address */
+		return sprintf( __( 'Vertragspartner: %s', 'pass-captain' ), implode( ', ', $parts ) );
 	}
 
 	/**

@@ -19,6 +19,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class RescheduleRefunds {
 	/** Whether the portal request is offered. */
 	public static function enabled() {
@@ -28,7 +31,7 @@ final class RescheduleRefunds {
 	/** Remembers that the occurrence was moved now (orders placed before may request a refund). */
 	public static function mark( $occurrence_id ) {
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'rescheduled_at' => current_time( 'mysql', true ) ), array( 'occurrence_id' => absint( $occurrence_id ) ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'rescheduled_at' => Clock::mysql() ), array( 'occurrence_id' => absint( $occurrence_id ) ) );
 	}
 
 	/** Deadline (UTC timestamp) for a request: new start minus the configured hours. */
@@ -37,14 +40,14 @@ final class RescheduleRefunds {
 		return $start ? $start - max( 0, (int) Settings::get( 'reschedule_refund_hours' ) ) * HOUR_IN_SECONDS : 0;
 	}
 
-	/** Deadline as local date/time of the occurrence ("d.m.Y H:i"). */
+	/** Deadline as local date/time of the occurrence (site date and time format, Frontend\Format). */
 	public static function deadline_label( $starts_at_utc, $timezone ) {
 		try {
 			$tz = new \DateTimeZone( (string) $timezone ?: 'UTC' );
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		return wp_date( 'd.m.Y H:i', self::deadline( $starts_at_utc ), $tz );
+		return wp_date( Frontend\Format::datetime_format(), self::deadline( $starts_at_utc ), $tz );
 	}
 
 	/**
@@ -77,7 +80,7 @@ final class RescheduleRefunds {
 		$p = $wpdb->prefix;
 		if ( ! self::enabled() || ! $order || 'paid' !== (string) $order->payment_status || 'woocommerce' === (string) $order->payment_provider ) { return array(); }
 		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' AND t.refunded=0 AND o.status='scheduled' AND o.rescheduled_at IS NOT NULL AND o.rescheduled_at>=%s ORDER BY t.ticket_id", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) $order->order_id, (string) $order->created_at ) );
-		$now = time();
+		$now = Clock::now();
 		return array_values( array_filter( $rows, static function ( $row ) use ( $now ) { return self::deadline( $row->starts_at ) > $now; } ) );
 	}
 
@@ -93,7 +96,7 @@ final class RescheduleRefunds {
 			return new \WP_Error( 'wpcap_reschedule_refund_unavailable', __( 'Für diese Bestellung kann derzeit keine Erstattung beantragt werden (keine verschobenen Termine oder die Frist ist abgelaufen).', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$ids = array_map( static function ( $row ) { return (int) $row->ticket_id; }, $tickets );
-		$result = Refunds::request( (int) $order->order_id, $ids, __( 'Erstattungsantrag nach Terminverschiebung (Bestellportal)', 'pass-captain' ), 'reschedule-' . implode( '-', $ids ), array( 'customer' => true ) );
+		$result = Refunds::request( (int) $order->order_id, $ids, __( 'Erstattungsantrag nach Terminverschiebung (Bestellportal)', 'pass-captain' ), 'reschedule-' . implode( '-', $ids ), array( 'customer' => true, 'service_fee' => 'refund' ) ); // A425: caused by the organizer's postponement.
 		if ( ! is_wp_error( $result ) ) {
 			Audit::record( 'reschedule_refund_requested', 'order', (int) $order->order_id, array( 'refund_id' => (int) ( $result['refund_id'] ?? 0 ), 'tickets' => count( $ids ) ) );
 		}

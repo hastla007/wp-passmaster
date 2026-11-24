@@ -24,6 +24,9 @@ use PassCaptain\Modules\Allocations as Module;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class BuyerLimits {
 	private static $messages = array();
 

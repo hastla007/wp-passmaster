@@ -9,6 +9,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 class AppleProvider implements WalletProvider {
 	const REST_BASE = 'wallet/apple';
 
@@ -293,8 +296,8 @@ class AppleProvider implements WalletProvider {
 			$sent[ $registration->push_token ] = $status;
 			if ( 410 === $status ) { Store::delete_push_token( $registration->push_token ); continue; }
 			if ( 403 === $status ) {
-				if ( (int) get_option( Service::APNS_ERROR_OPTION, 0 ) < time() - HOUR_IN_SECONDS ) {
-					update_option( Service::APNS_ERROR_OPTION, time(), false );
+				if ( (int) get_option( Service::APNS_ERROR_OPTION, 0 ) < \PassCaptain\Clock::real() - HOUR_IN_SECONDS ) {
+					update_option( Service::APNS_ERROR_OPTION, \PassCaptain\Clock::real(), false );
 					Service::log( 'apns_forbidden', 'APNs 403: certificate or pass type id rejected' );
 				}
 				continue;

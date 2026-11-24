@@ -63,6 +63,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * follow-up run is queued right away (Jobs\TimeBudget::continue_later) and starts with the step that
  * did not finish (option wpcap_retention_next_step), so later steps never starve. Each run records
  * the heartbeat "retention" (system status). Only counts are written to the audit log.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class Retention {
 	const HOOK = 'wpcap_privacy_retention';
@@ -81,7 +83,7 @@ final class Retention {
 	/** Registers the daily event (activation, upgrades and the self-healing check on init, Plugin::ensure_events()). */
 	public static function schedule() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
-			wp_schedule_event( time() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );
+			wp_schedule_event( \PassCaptain\Clock::real() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );
 		}
 	}
 
@@ -191,6 +193,58 @@ final class Retention {
 	}
 
 	/**
+	 * SET-PC-21: read-only overview "Was wird wann gelöscht" for the privacy tab of the settings page,
+	 * built from the effective periods (settings, then filters): list of
+	 * array( 'data' => label, 'when' => text, 'setting' => settings key or '' ).
+	 *
+	 * @return array<int, array{data: string, when: string, setting: string}>
+	 */
+	public static function overview() {
+		$days = static function ( $n, $after ) {
+			$n = (int) $n;
+			if ( $n <= 0 ) { return __( 'nie (wird aufbewahrt)', 'pass-captain' ); }
+			/* translators: 1: number of days, 2: reference point, e.g. "nach Ende des Termins" */
+			return sprintf( _n( '%1$d Tag %2$s', '%1$d Tage %2$s', $n, 'pass-captain' ), $n, $after );
+		};
+		$years = static function ( $n, $after ) {
+			$n = (int) $n;
+			if ( $n <= 0 ) { return __( 'nie (wird aufbewahrt)', 'pass-captain' ); }
+			/* translators: 1: number of years, 2: reference point */
+			return sprintf( _n( '%1$d Jahr %2$s', '%1$d Jahre %2$s', $n, 'pass-captain' ), $n, $after );
+		};
+		$event_end = __( 'nach Ende des Termins', 'pass-captain' );
+		$order = __( 'nach der Bestellung', 'pass-captain' );
+		$sent = __( 'nach dem Versand', 'pass-captain' );
+		$entry = __( 'nach dem Eintrag', 'pass-captain' );
+		$attendee = self::attendee_days();
+		$partner = self::days( 'partner_ticket_codes' );
+		$log = \PassCaptain\Log::retention_days();
+		$rows = array(
+			array( __( 'Teilnehmerangaben (Antworten auf Zusatzfelder)', 'pass-captain' ), $attendee > 0 ? $days( $attendee, $event_end ) : __( 'nach der Einstellung des jeweiligen Feldes (keine allgemeine Frist gesetzt)', 'pass-captain' ), 'attendee_retention_days' ),
+			array( __( 'Teilnehmername und -E-Mail an Tickets', 'pass-captain' ), $days( self::name_days(), $event_end ), 'attendee_retention_days' ),
+			array( __( 'Teilnehmerangaben unbezahlter Bestellungen', 'pass-captain' ), $days( self::days( 'unpaid_attendee_data' ), $order ), '' ),
+			array( __( 'E-Mail-Adresse und Rechnungsdaten nie bezahlter Bestellungen (pseudonymisiert)', 'pass-captain' ), $days( self::days( 'unpaid_customer_email' ), $order ), 'retention_unpaid_customer_email_days' ),
+			array( __( 'Käuferdaten in Bestellungen', 'pass-captain' ), $years( self::order_years(), __( 'nach Ende des Bestelljahres', 'pass-captain' ) ), 'retention_order_years' ),
+			array( __( 'Rechnungen und Rechnungskorrekturen', 'pass-captain' ), $years( self::financial_years(), __( 'nach Ende des Ausstellungsjahres', 'pass-captain' ) ), 'retention_financial_years' ),
+			array( __( 'Wartelisteneinträge (anonymisiert)', 'pass-captain' ), $days( self::days( 'waitlist' ), $event_end ), 'retention_waitlist_days' ),
+			array( __( 'Mitgliedspässe (anonymisiert)', 'pass-captain' ), $days( self::days( 'member_passes' ), __( 'nach Ablauf der Gültigkeit', 'pass-captain' ) ), 'retention_pass_days' ),
+			array( __( 'Ticketcodes von Partnerverkäufen', 'pass-captain' ), $partner > 0 ? $days( $partner, $event_end ) : __( 'direkt nach Ende des Termins', 'pass-captain' ), 'retention_partner_codes_days' ),
+			array( __( 'Nicht zustande gekommene oder stornierte Terminbuchungen', 'pass-captain' ), $days( self::days( 'service_holds' ), $entry ), '' ),
+			array( __( 'Inhalt und Empfänger versendeter Nachrichten', 'pass-captain' ), $days( self::days( 'message_content' ), $sent ), 'retention_message_content_days' ),
+			array( __( 'Versandprotokoll der Nachrichten', 'pass-captain' ), $days( self::days( 'message_rows' ), $sent ), 'retention_message_rows_days' ),
+			array( __( 'Text versendeter SMS', 'pass-captain' ), $days( self::days( 'sms_content' ), $sent ), '' ),
+			array( __( 'Personal und Gerät an Check-ins', 'pass-captain' ), $days( self::days( 'checkin_staff' ), __( 'nach dem Check-in', 'pass-captain' ) ), 'retention_checkin_staff_days' ),
+			array( __( 'Audit-Log', 'pass-captain' ), $days( self::days( 'audit_logs' ), $entry ), 'retention_audit_logs_days' ),
+			array( __( 'Herkunftsangaben einer Bestellung (Kampagne, verweisende Website)', 'pass-captain' ), $days( self::days( 'attribution' ), $order ), '' ),
+			/* translators: 1: period of the support log, 2: period of debug/info entries in days */
+			array( __( 'Support-Protokoll', 'pass-captain' ), sprintf( __( '%1$s; Einträge „debug“ und „info“ nach %2$d Tagen', 'pass-captain' ), $days( $log, $entry ), min( $log, \PassCaptain\Log::LOW_RETENTION_DAYS ) ), 'log_retention_days' ),
+			array( __( 'Zustellprotokoll der HTTP/JSON-Connectors', 'pass-captain' ), $days( \PassCaptain\Integrations\HttpJson\Endpoints::log_days(), __( 'nach der letzten Zustellung', 'pass-captain' ) ), 'connector_log_days' ),
+			array( __( 'Druckstapel und ihre PDF-Dateien', 'pass-captain' ), $days( \PassCaptain\Printing\BatchJob::keep_days(), __( 'nach der letzten Änderung', 'pass-captain' ) ), 'print_batch_keep_days' ),
+		);
+		return array_map( static fn( $r ) => array( 'data' => $r[0], 'when' => $r[1], 'setting' => $r[2] ), $rows );
+	}
+
+	/**
 	 * Runs all steps. Returns the counts per step.
 	 *
 	 * @param int|null $now    Reference time (UNIX, tests).
@@ -198,7 +252,7 @@ final class Retention {
 	 */
 	public static function run( $now = null, $budget = null ) {
 		// A continuation run (TimeBudget::continue_later) passes the argument "continue": not a timestamp.
-		$now = is_numeric( $now ) ? (int) $now : time();
+		$now = is_numeric( $now ) ? (int) $now : \PassCaptain\Clock::now();
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
@@ -257,7 +311,7 @@ final class Retention {
 	 * @return array Deleted rows per step plus `complete` (false: out of time, the next run continues).
 	 */
 	public static function housekeeping( $now = null, $budget = null ) {
-		$now = null === $now || '' === $now ? time() : (int) $now;
+		$now = null === $now || '' === $now ? \PassCaptain\Clock::now() : (int) $now;
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_cleanup_budget', self::HOUSEKEEPING_BUDGET ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		global $wpdb;
@@ -805,13 +859,13 @@ final class Retention {
 		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
 		$state = get_option( self::CHECKIN_STAFF_CURSOR, array() );
 		$state = is_array( $state ) ? $state : array();
-		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= time();
+		$full = (int) ( $state['full_at'] ?? 0 ) + self::CHECKIN_STAFF_FULL_PASS <= \PassCaptain\Clock::real();
 		$from = $full ? '' : (string) ( $state['at'] ?? '' );
 		// Check-ins are walked with a cursor; the admission tables below run every time (an up-to-date cursor must not
 		// skip them).
 		$total = 0;
 		if ( '' === $from || $from < $cutoff ) {
-			$cap = self::utc( min( $now, time() ) - $days * DAY_IN_SECONDS );
+			$cap = self::utc( min( $now, \PassCaptain\Clock::real() ) - $days * DAY_IN_SECONDS );
 			$last = '';
 			$rest = false;
 			$total += self::loop(
@@ -831,7 +885,7 @@ final class Retention {
 			);
 			// Everything before the cutoff is done unless the last batch was full (budget ran out).
 			$at = $rest ? $from : $cutoff;
-			$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? time() : (int) ( $state['full_at'] ?? 0 ) );
+			$state = array( 'at' => '' === $at ? '' : min( $at, $cap ), 'full_at' => $full ? \PassCaptain\Clock::real() : (int) ( $state['full_at'] ?? 0 ) );
 			update_option( self::CHECKIN_STAFF_CURSOR, $state, false );
 		}
 		// Admission entries and conflicts (staff user, device, resolution note) after the same period.

@@ -16,6 +16,9 @@ use PassCaptain\RateLimit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Api {
 	const NS = 'pass-captain/v1';
 	/** 1.2 (A687): /app/info, /app/scan/batch, version headers. */
@@ -111,7 +114,7 @@ final class Api {
 	 * so an app can check compatibility before pairing. Contains no data of the site's events.
 	 */
 	public static function info( \WP_REST_Request $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- REST callback signature.
-		return rest_ensure_response( array( 'api_version' => self::VERSION, 'core_version' => self::core_version(), 'min_app_version' => self::min_app_version(), 'features' => self::features(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::now() ) ) );
+		return rest_ensure_response( array( 'api_version' => self::VERSION, 'core_version' => self::core_version(), 'min_app_version' => self::min_app_version(), 'features' => self::features(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 	}
 
 	/**
@@ -160,7 +163,10 @@ final class Api {
 			'event_ids' => Devices::event_ids( $device ),
 			'area' => Devices::area_payload( Devices::area_id( $device ) ),
 			'features' => self::features(),
-			'server_time' => gmdate( 'c' ),
+			// What this device's user may do (capabilities: admission, pass redemption, undo are separate;
+			// check_out: the role rule checkout_roles).
+			'permissions' => array( 'check_in' => current_user_can( 'wpcap_checkin' ), 'redeem_passes' => current_user_can( \PassCaptain\Capabilities::REDEEM_PASSES ), 'undo' => current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ), 'check_out' => Checkin::checkout_allowed() ),
+			'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ),
 		) );
 	}
 

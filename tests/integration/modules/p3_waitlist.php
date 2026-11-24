@@ -159,8 +159,11 @@ $free_accept = Waitlists::accept_offer( $f2->waitlist_id, wl_token( 'wl-f2@examp
 check( 'accepting a free offer completes the order and issues tickets', ! is_wp_error( $free_accept ) && 'paid' === $free_accept['status'] && 1 === count( tickets( $f2->order_id, 'valid' ) ) && 'paid' === wl_entry( $type2, 'wl-f2@example.com' )->status );
 $rm = WaitlistAdmin::entry_action( array( 'op' => 'remove', 'event_id' => $event2, 'waitlist_id' => $f1->waitlist_id ) );
 check( 'staff can remove a waiting entry', ! is_wp_error( $rm ) && 'removed' === wl_entry( $type2, 'wl-f1@example.com' )->status );
+$wl_before = Waitlists::config();
 $saved = WaitlistAdmin::save_settings( array( 'auto_offers' => '1', 'offer_hours' => '999', 'max_offers_per_run' => '0' ) );
-check( 'settings are clamped (validity 1–336 h, 1–100 offers per run)', 336 === Waitlists::config()['offer_hours'] && 1 === Waitlists::config()['max_offers_per_run'] && 1 === Waitlists::config()['auto_offers'] );
+check( 'SET-PC-01: out-of-range settings are reported (validity 1–336 h, 1–100 offers per run) and nothing is stored', is_wp_error( $saved ) && false !== strpos( $saved->get_error_message(), '336' ) && false !== strpos( $saved->get_error_message(), '100' ) && $wl_before['offer_hours'] === Waitlists::config()['offer_hours'] );
+$saved = WaitlistAdmin::save_settings( array( 'auto_offers' => '1', 'offer_hours' => '336', 'max_offers_per_run' => '1' ) );
+check( 'valid settings are stored', ! is_wp_error( $saved ) && 336 === Waitlists::config()['offer_hours'] && 1 === Waitlists::config()['max_offers_per_run'] && 1 === Waitlists::config()['auto_offers'] );
 
 echo "Waitlist: max offers per run\n";
 $type3 = make_type( 3, 4, 500 );

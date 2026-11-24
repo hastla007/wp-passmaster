@@ -8,9 +8,13 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Admin\Forms;
 use PassCaptain\Webhooks\Dispatcher;
+use PassCaptain\Webhooks\RefundObject;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Webhooks {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-webhooks';
@@ -44,6 +48,13 @@ final class Webhooks {
 
 	public static function settings_defaults() {
 		return array( 'webhooks' => array( 'retention_days' => 30 ) );
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'webhooks' => array( 'type' => 'group', 'label' => __( 'Webhooks', 'pass-captain' ), 'help' => __( 'Wie lange Zustellprotokolle der Webhooks aufbewahrt werden.', 'pass-captain' ), 'page' => 'wpcap-webhooks', 'fields' => array( 'retention_days' => array( 'type' => 'int', 'min' => 1, 'max' => 365, 'label' => __( 'Abgeschlossene Zustellungen löschen nach (Tagen)', 'pass-captain' ) ) ) ),
+		);
 	}
 
 	public static function register_eraser( $erasers ) {
@@ -166,7 +177,7 @@ final class Webhooks {
 	 * – the refund per order, line and ticket (A675).
 	 */
 	private static function refund_object( $refund_id, $currency ) {
-		$r = \PassCaptain\Workflow\Events::refund( $refund_id );
+		$r = RefundObject::refund( $refund_id );
 		if ( ! $r ) { return array( 'id' => (int) $refund_id, 'amount_minor' => 0, 'currency' => $currency, 'ticket_ids' => array(), 'kind' => 'amount', 'source' => '', 'lines' => array() ); }
 		return array( 'id' => (int) $refund_id, 'amount_minor' => (int) $r['amount_minor'], 'currency' => $r['currency'], 'ticket_ids' => $r['ticket_ids'], 'kind' => $r['kind'], 'source' => $r['source'], 'lines' => $r['lines'] );
 	}
@@ -194,7 +205,7 @@ final class Webhooks {
 		if ( 0 === strpos( (string) $reason, 'native_refund_' ) ) { return 0; }
 		$o = self::order_object( $order_id );
 		if ( ! $o ) { return 0; }
-		$full = \PassCaptain\Workflow\Events::full_refund( $order_id, $reason );
+		$full = RefundObject::full_refund( $order_id, $reason );
 		$o[0]['refund'] = array( 'id' => null, 'source' => sanitize_key( (string) $reason ), 'full' => true, 'kind' => 'full', 'ticket_ids' => $full ? $full['ticket_ids'] : array(), 'lines' => $full ? $full['lines'] : array() );
 		return Dispatcher::emit( 'order.refunded', 'order-full|' . (int) $order_id, $o[0], $o[1] );
 	}
@@ -216,7 +227,7 @@ final class Webhooks {
 		$context = is_array( $context ) ? $context : array();
 		$checkin_id = absint( $context['checkin_id'] ?? 0 );
 		$checked_in = $t[0];
-		$checked_in['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$checked_in['checked_in_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
 		$checked_in['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
 		// Multi-entry tickets can be checked in repeatedly: each check-in (row) is its own event; the same
 		// check-in reported twice is one event (A675).
@@ -287,7 +298,7 @@ final class Webhooks {
 		if ( ! $t ) { return 0; }
 		$context = is_array( $context ) ? $context : array();
 		$checkin_id = absint( $context['checkin_id'] ?? 0 );
-		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
 		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
 		return Dispatcher::emit( 'ticket.checked_out', 'checkout|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $t[0], $t[1] );
 	}
@@ -389,9 +400,10 @@ final class Webhooks {
 				Dispatcher::delete_subscription( $id );
 				return array( 'deleted' => $id );
 			case 'settings':
-				$days = max( 1, min( 365, absint( $in['retention_days'] ?? 30 ) ) );
-				\PassCaptain\Settings::update( array( 'webhooks' => array( 'retention_days' => $days ) ) );
-				return array( 'retention_days' => $days );
+				$checked = \PassCaptain\SettingsSchema::check_group( 'webhooks', array( 'retention_days' => $in['retention_days'] ?? 30 ) ); // SET-PC-01
+				if ( is_wp_error( $checked ) ) { return $checked; }
+				\PassCaptain\Settings::update( array( 'webhooks' => $checked ) );
+				return array( 'retention_days' => $checked['retention_days'] );
 			case 'redeliver':
 				$r = Dispatcher::redeliver( $id );
 				return is_wp_error( $r ) ? $r : array( 'delivery_id' => $id );

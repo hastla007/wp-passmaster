@@ -20,6 +20,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class LegacyCopy {
 	/** Constants defined by both bootstraps. */
 	const CONSTANTS = array( 'WPCAP_VERSION', 'WPCAP_FILE', 'WPCAP_PATH', 'WPCAP_URL' );

@@ -12,6 +12,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ShiftPage {
 	public static function url( $tab, array $args = array() ) {
 		return Forms::page_url( Page::SLUG, array_merge( array( 'tab' => $tab ), $args ) );
@@ -211,7 +214,7 @@ final class ShiftPage {
 			foreach ( $payouts as $payout ) {
 				echo '<tr><td>' . esc_html( (string) $payout->receipt_number ) . '</td><td>' . esc_html( Service::method_label( $payout->method ) ) . '</td><td>' . esc_html( Scope::money( (int) $payout->amount_minor, $payout->currency ) ) . '</td><td>' . esc_html( Scope::local( $payout->created_at, $tz ) ) . '</td><td>';
 				if ( $can && 'open' === $shift->status ) {
-					Forms::open_form( 'wpcap_pos_pay_out', 'wpcap_pos_pay_out_' . (int) $payout->payout_id );
+					Forms::open_form( 'wpcap_pos_pay_out', 'wpcap_pos_pay_out_' . (int) $payout->payout_id, Page::ONLINE_ONLY );
 					Forms::hidden( 'shift_id', (int) $shift->session_id );
 					Forms::hidden( 'payout_id', (int) $payout->payout_id );
 					echo '<button class="button">' . esc_html__( 'Auszahlen', 'pass-captain' ) . '</button></form>';
@@ -484,7 +487,7 @@ final class ShiftPage {
 		\PassCaptain\Admin\Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + \PassCaptain\Admin\Queries::event_options( \PassCaptain\Admin\Queries::event_ids_for( array( Service::CAP ) ) ), $edit ? (int) $edit->event_id : 0, 'wpcap-reg-event' );
 		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-reg-currency">' . esc_html__( 'Währung', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-reg-currency" name="currency" size="4" maxlength="3" value="' . esc_attr( $edit ? $edit->currency : 'EUR' ) . '"></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Blindzählung', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="blind_count" value="1"' . ( ! $edit || (int) $edit->blind_count ? ' checked' : '' ) . '> ' . esc_html__( 'Soll-Bestand erst nach der Zählung anzeigen', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Gilt für Kassierkräfte. Personen mit Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer (sie können auch nachzählen); für eine echte Blindzählung sollte daher eine Person ohne diese Rechte zählen.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Blindzählung', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="blind_count" value="1"' . ( ( $edit ? (int) $edit->blind_count : \PassCaptain\Settings::get( 'boxoffice_blind_default', 1 ) ) ? ' checked' : '' ) . '> ' . esc_html__( 'Soll-Bestand erst nach der Zählung anzeigen', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Gilt für Kassierkräfte. Personen mit Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer (sie können auch nachzählen); für eine echte Blindzählung sollte daher eine Person ohne diese Rechte zählen.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Status', 'pass-captain' ) . '</th><td>';
 		Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'inactive' => __( 'Deaktiviert', 'pass-captain' ) ), $edit ? $edit->status : 'active' );
 		echo '</td></tr></tbody></table><p><button class="button button-primary">' . esc_html__( 'Speichern', 'pass-captain' ) . '</button></p></form>';

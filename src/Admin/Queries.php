@@ -14,6 +14,9 @@ use PassCaptain\Access;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Queries {
 	/** Whether the current user sees all events. */
 	public static function is_global_admin() {
@@ -183,11 +186,11 @@ final class Queries {
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in')", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 	}
 
-	/** Sold units of an occurrence (paid, not refunded) – same basis as the capacity checks in Orders. */
+	/** Sold units of an occurrence (paid, not refunded, without add-on products) – same basis as the capacity checks in Orders. */
 	public static function sold_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $occurrence_id ) ) );
+		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'" . \PassCaptain\Sales\Addons::not_addon_sql( 'tt' ), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment (add-on products use no seats).
 		/** Sold units shown for an occurrence; modules add units counted there (e.g. passes anchored elsewhere). */
 		return (int) apply_filters( 'wpcap_occurrence_sold', $sold, absint( $occurrence_id ) );
 	}
@@ -205,7 +208,7 @@ final class Queries {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$sold = array_fill_keys( $ids, 0 );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", $ids ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded'" . \PassCaptain\Sales\Addons::not_addon_sql( 'tt' ) . ' GROUP BY tt.occurrence_id', $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders and literal fragment.
 		foreach ( (array) $rows as $row ) { $sold[ (int) $row->occurrence_id ] = (int) $row->sold; }
 		foreach ( $sold as $id => $units ) {
 			/** See sold_for_occurrence(). */
@@ -317,27 +320,70 @@ final class Queries {
 		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE ticket_type_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_order_items', absint( $ticket_type_id ) ) );
 	}
 
+	/** Event states of the status views of the event list (A411). */
+	const EVENT_STATUSES = array( 'draft', 'published', 'cancelled' );
+
+	/**
+	 * ORDER BY of the event list (A411): name or status (indexed) in either direction, else newest first.
+	 *
+	 * @param array $view_args orderby (name|status), order (asc|desc).
+	 */
+	public static function events_order_sql( array $view_args ) {
+		$dir = 'desc' === strtolower( (string) ( $view_args['order'] ?? '' ) ) ? 'DESC' : 'ASC';
+		switch ( (string) ( $view_args['orderby'] ?? '' ) ) {
+			case 'name':
+				return "e.name {$dir}, e.event_id {$dir}";
+			case 'status':
+				return "e.status {$dir}, e.created_at DESC, e.event_id DESC";
+		}
+		return 'e.created_at DESC, e.event_id DESC';
+	}
+
+	/**
+	 * Number of events per state in the scope (status views of the event list, one indexed GROUP BY).
+	 *
+	 * @param int[]|null $event_ids Scope (null = all).
+	 * @return array<string,int> state => count, plus "all".
+	 */
+	public static function event_status_counts( $event_ids ) {
+		global $wpdb;
+		$where = '1=1' . self::scope_sql( $event_ids, 'e.event_id' );
+		$out = array_fill_keys( self::EVENT_STATUSES, 0 );
+		$all = 0;
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT e.status, COUNT(*) AS n FROM %i e WHERE {$where} GROUP BY e.status", $wpdb->prefix . 'wpcap_events' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope only.
+			$all += (int) $row->n;
+			if ( isset( $out[ (string) $row->status ] ) ) { $out[ (string) $row->status ] = (int) $row->n; }
+		}
+		return array( 'all' => $all ) + $out;
+	}
+
 	/**
 	 * Events overview: exactly one row per event with occurrence count and next upcoming occurrence.
 	 *
 	 * @param int[]|null $event_ids Scope (null = all).
+	 * @param array      $view_args A411 list table: status (view), orderby (name|status), order (asc|desc).
 	 * @return array{rows: object[], total: int}
 	 */
-	public static function events_overview( $event_ids, $page = 1, $per_page = 50 ) {
+	public static function events_overview( $event_ids, $page = 1, $per_page = 50, array $view_args = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		// The scope condition from scope_sql() lists integer event ids only (or is empty for all events).
 		$scope = self::scope_sql( $event_ids, 'e.event_id' );
 		$where = '1=1' . $scope;
+		// A411: status view (indexed column) and a whitelisted sort order of the list table.
+		$status = (string) ( $view_args['status'] ?? '' );
+		if ( in_array( $status, self::EVENT_STATUSES, true ) ) { $where .= " AND e.status='" . $status . "'"; }
+		$order_sql = self::events_order_sql( $view_args );
 		$now = \PassCaptain\Clock::mysql();
 		$offset = ( max( 1, (int) $page ) - 1 ) * $per_page;
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e WHERE {$where}", $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope only.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i e WHERE {$where}", $p . 'wpcap_events' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope and a whitelisted status only.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where: integer scope and a whitelisted status; $order_sql: fixed SQL from events_order_sql().
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT e.event_id,e.name,e.slug,e.status,e.created_at,
 				(SELECT COUNT(*) FROM %i oc WHERE oc.event_id=e.event_id) AS occurrence_count,
 				(SELECT o1.occurrence_id FROM %i o1 WHERE o1.event_id=e.event_id AND o1.status='scheduled' AND o1.starts_at >= %s ORDER BY o1.starts_at, o1.occurrence_id LIMIT 1) AS next_occurrence_id,
 				(SELECT o2.occurrence_id FROM %i o2 WHERE o2.event_id=e.event_id ORDER BY o2.starts_at DESC, o2.occurrence_id DESC LIMIT 1) AS last_occurrence_id
-			FROM %i e WHERE {$where} ORDER BY e.created_at DESC, e.event_id DESC LIMIT %d OFFSET %d",
+			FROM %i e WHERE {$where} ORDER BY {$order_sql} LIMIT %d OFFSET %d",
 			$p . 'wpcap_occurrences',
 			$p . 'wpcap_occurrences',
 			$now,
@@ -346,6 +392,7 @@ final class Queries {
 			$per_page,
 			$offset
 		) );
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$occ_ids = array();
 		foreach ( $rows as $row ) {
 			foreach ( array( 'next_occurrence_id', 'last_occurrence_id' ) as $col ) {
@@ -689,7 +736,8 @@ final class Queries {
 		if ( ! $tickets ) { return array(); }
 		$ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets );
 		$answers = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', array_merge( array( $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields' ), $ids ) ) ) as $answer ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT a.ticket_id,a.answer,f.field_key,f.label,f.field_type FROM %i a INNER JOIN %i f ON f.field_id=a.field_id WHERE a.ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY f.position,f.field_id', array_merge( array( $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields' ), $ids ) ) ) as $answer ) {
+			if ( ! \PassCaptain\Pii::can_view_answer( (string) $answer->field_key, true ) ) { continue; } // PASS-FE-05: rights per field (the data policy decides on all answers).
 			$value = 'checkbox' === $answer->field_type ? ( '1' === (string) $answer->answer ? __( 'Ja', 'pass-captain' ) : __( 'Nein', 'pass-captain' ) ) : $answer->answer;
 			$answers[ (int) $answer->ticket_id ][ $answer->label ] = $value;
 		}
@@ -749,7 +797,9 @@ final class Queries {
 		// A684: date and ticket type filters, sort order of the attendee management.
 		if ( ! empty( $filters['occurrence_id'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $filters['occurrence_id'] ); $needs_occ = true; }
 		if ( ! empty( $filters['ticket_type_id'] ) ) { $where .= ' AND t.ticket_type_id=%d'; $args[] = absint( $filters['ticket_type_id'] ); }
-		$orderby = self::ticket_order( (string) ( $filters['orderby'] ?? '' ) );
+		// PASS-FE-05: one ticket type by name over all dates (the types of each date are their own rows).
+		if ( empty( $filters['ticket_type_id'] ) && isset( $filters['type_name'] ) && '' !== (string) $filters['type_name'] ) { $where .= ' AND tt.name=%s'; $args[] = (string) $filters['type_name']; $needs_occ = true; }
+		$orderby = self::ticket_order( (string) ( $filters['orderby'] ?? '' ), (string) ( $filters['order'] ?? '' ) );
 		if ( false !== strpos( $orderby, 'o.' ) || false !== strpos( $orderby, 'tt.' ) ) { $needs_occ = true; }
 		$name_join = false !== strpos( $orderby, 'ta.' ) ? " LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id" : '';
 		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' );
@@ -783,16 +833,22 @@ final class Queries {
 			'date' => __( 'Nach Termin', 'pass-captain' ),
 			'type' => __( 'Nach Ticketart', 'pass-captain' ),
 			'name' => __( 'Nach Name', 'pass-captain' ),
+			'status' => __( 'Nach Status', 'pass-captain' ), // PASS-FE-05.
 		);
 	}
 
-	/** ORDER BY clause of a sort key (fixed SQL, unknown keys fall back to newest first). */
-	public static function ticket_order( $key ) {
+	/**
+	 * ORDER BY clause of a sort key (fixed SQL, unknown keys fall back to newest first). $order "desc"
+	 * reverses the date order (sortable column of the list table, A411); the other keys have a fixed direction.
+	 */
+	public static function ticket_order( $key, $order = '' ) {
 		$map = array(
 			'oldest' => 't.ticket_id ASC',
-			'date' => 'o.starts_at ASC, t.ticket_id ASC',
+			'date' => 'desc' === $order ? 'o.starts_at DESC, t.ticket_id DESC' : 'o.starts_at ASC, t.ticket_id ASC',
 			'type' => 'tt.name ASC, t.ticket_id ASC',
 			'name' => "COALESCE(NULLIF(ta.attendee_name,''),'~') ASC, t.ticket_id ASC",
+			// PASS-FE-05: status, within a status by date (several dates of an event) and ticket.
+			'status' => "FIELD(t.status,'valid','checked_in','revoked') ASC, t.status ASC, o.starts_at ASC, t.ticket_id ASC",
 		);
 		return $map[ $key ] ?? 't.ticket_id DESC';
 	}

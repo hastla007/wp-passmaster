@@ -32,6 +32,15 @@
  * Multi-entry tickets offline: local entry counters per hash (daily/multi_day once per service day,
  * multi_entry up to max_entries, reentry while not inside) from the device's own scan log.
  *
+ * Check-out ("Auslass"): a second scan direction, offered only when the package carries the check-out
+ * rules (`checkout`) and the device's user may check out (`permissions.check_out` of /app/me or the
+ * package). Online POST /app/scan/check-out; offline decided against the package and this device's own
+ * log and queued like an admission (direction "out" in /app/scan/sync). A ticket this device saw
+ * enter is checked out at once; any other known ticket is queued and the server decides at sync.
+ *
+ * Rights: "Rückgängig" is only offered with the undo right (`permissions.undo` of /app/me, else of the
+ * package; unknown = offered, the server decides).
+ *
  * Security: the API must be same-origin (also enforced by the page CSP). All server/package text is
  * rendered with textContent. Ticket codes are kept only until the scan is synced.
  */
@@ -73,6 +82,8 @@
 		serverCounts: {}, pendingIn: {}, // A546: occurrence_id -> {admitted, total, at} / unsynced offline admissions
 		scanHash: '', // A548: hash of the scan being shown (short code in the overlay)
 		undo: null, undoTimer: 0, // A547: current undo offer { key, started, occurrenceId, hash, area, publicId, open }
+		perms: {}, // rights of the device's user from GET /app/me ({undo, check_out}; missing = unknown)
+		mode: 'in', // scan direction: 'in' (admission) or 'out' (check-out)
 		forceFull: {} // occurrence_id -> true after a broken delta chain
 	};
 
@@ -276,6 +287,7 @@
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
 		already_inside: 'Bereits drinnen', area_full: 'Bereich voll', undone: 'Einlass zurückgenommen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
+		checked_out: 'Ausgecheckt', not_checked_in: 'Nicht eingecheckt', checkout_forbidden: 'Check-out nicht erlaubt',
 		invalid_code: 'Kein Ticketcode erkannt', invalid_signature: 'QR-Signatur ungültig', retry: 'Bitte erneut scannen', rate_limited: 'Zu viele Hilfscode-Eingaben'
 	};
 	function resultText(code) { return Object.prototype.hasOwnProperty.call(RESULT_TEXT, code) ? t(RESULT_TEXT[code]) : code; }
@@ -348,9 +360,11 @@
 		if (state.undo && state.undo.open) { display.resetTimer = setTimeout(resetResult, 5000); return; }
 		display.idle = true;
 		$('result').className = 'result idle';
-		$('result-title').textContent = t('Bereit');
+		$('result-title').textContent = idleTitle();
 		$('result-detail').textContent = '';
 	}
+	/** "Bereit", or "Bereit (Auslass)" while scanning check-outs. */
+	function idleTitle() { return 'out' === state.mode ? t('Bereit (Auslass)') : t('Bereit'); }
 	/** Back to "Bereit" (alias of resetResult() for older callers). */
 	function showIdle() { hideOverlay(); resetResult(); }
 	function showOverlay(kind, title, detail) {
@@ -395,7 +409,7 @@
 			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) : '';
 		}
 		if (!res.first_checked_in_at) { return ''; }
-		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.first_checked_in_by ? ' ' + t('durch %1', res.first_checked_in_by) : '') + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : ''); // A595: device or person
+		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at, res.timezone || zoneOf(state.selected))) + (res.first_checked_in_by ? ' ' + t('durch %1', res.first_checked_in_by) : '') + ((res.first_checked_in_area || res.last_checked_in_area) ? ' · ' + (res.first_checked_in_area || res.last_checked_in_area) : ''); // A595: device or person; entrance of the first admission
 	}
 	function onlineDetail(res) {
 		// A543: refusals carry the server's reason ("Code ersetzt: … übertragen …", "widerrufen: umgetauscht").
@@ -539,8 +553,10 @@
 		state.hw = {};
 		state.forceFull = {};
 		state.pendingCount = 0;
+		state.perms = {};
+		state.mode = 'in';
 		return Promise.all([
-			kvDel(['token', 'device_id', 'keys', 'qr_keys', 'clock_offset', 'server_time', 'hw']),
+			kvDel(['token', 'device_id', 'keys', 'qr_keys', 'clock_offset', 'server_time', 'hw', 'perms']),
 			idb('packages', 'readwrite', function (s) { s.clear(); }),
 			idb('log', 'readwrite', function (s) { s.clear(); })
 		]).catch(function () {});
@@ -912,6 +928,7 @@
 		} else {
 			$('area-wrap').hidden = true;
 		}
+		renderMode();
 		renderCounter();
 	}
 
@@ -937,24 +954,39 @@
 
 	/* ---------------- local entry counters ---------------- */
 
-	/** Local entry state of a hash on this device: { ins: [ms of admissions], inside: bool }. */
+	/** Local entry state of a hash on this device: { ins: [ms of admissions], outs: [ms of check-outs], inside: bool }. */
 	function localOf(occurrenceId, hash) {
 		var map = state.local[occurrenceId];
-		return (map && map.get(hkey(hash))) || { ins: [], inside: false };
+		var rec = (map && map.get(hkey(hash))) || { ins: [], outs: [], inside: false };
+		if (!rec.outs) { rec.outs = []; }
+		return rec;
+	}
+	function localRecord(occurrenceId, hash) {
+		if (!state.local[occurrenceId]) { state.local[occurrenceId] = new Map(); }
+		var rec = localOf(occurrenceId, hash);
+		state.local[occurrenceId].set(hkey(hash), rec);
+		return rec;
 	}
 	/** Counts an admission of this device (online or offline) at atMs. */
 	function noteLocal(occurrenceId, hash, atMs) {
-		if (!state.local[occurrenceId]) { state.local[occurrenceId] = new Map(); }
-		var key = hkey(hash);
-		var rec = state.local[occurrenceId].get(key) || { ins: [], inside: false };
+		var rec = localRecord(occurrenceId, hash);
 		rec.ins.push(isFinite(atMs) ? atMs : now());
 		rec.inside = true;
-		state.local[occurrenceId].set(key, rec);
 	}
-	/** Milliseconds since this device admitted the hash, when within RECENT_MS; otherwise -1. */
+	/** Records a check-out of this device (online or offline) at atMs: the ticket is outside now. */
+	function noteOut(occurrenceId, hash, atMs) {
+		var rec = localRecord(occurrenceId, hash);
+		rec.outs.push(isFinite(atMs) ? atMs : now());
+		rec.inside = false;
+	}
+	/**
+	 * Milliseconds since this device admitted the hash, when within RECENT_MS; otherwise -1 (also when
+	 * this device checked the ticket out after that admission: the guest left, it is no double scan).
+	 */
 	function recentLocal(occurrenceId, hash) {
-		var ins = localOf(occurrenceId, hash).ins;
-		if (!ins.length) { return -1; }
+		var local = localOf(occurrenceId, hash);
+		var ins = local.ins;
+		if (!ins.length || !local.inside) { return -1; }
 		var ago = now() - Math.max.apply(null, ins);
 		return ago >= 0 && ago < RECENT_MS ? ago : -1;
 	}
@@ -1015,8 +1047,10 @@
 		var admitted = state.admitted[occurrenceId];
 		var here = !!(admitted && (admitted.has(hkey(hash)) || admitted.has(hash)));
 		var blocked = '';
+		var reentry = false;
 		if (!multi && ('checked_in' === t.s || here)) {
-			blocked = 'already_checked_in';
+			blocked = reentryBlock(entry, type, hash);
+			reentry = '' === blocked;
 		} else if (multi) {
 			blocked = localLimit(entry, type, hash, atMs === undefined || atMs === null ? now() : atMs);
 		}
@@ -1028,7 +1062,109 @@
 		}
 		var area = entry.meta.device_area_id || state.areaId || 0;
 		if (type && type.areas.length && type.areas.indexOf(area) < 0) { return { ok: false, result: 'wrong_area', ticket: t, type: type }; }
-		return { ok: true, result: 'checked_in', ticket: t, type: type, multi: multi };
+		return { ok: true, result: 'checked_in', ticket: t, type: type, multi: multi, reentry: reentry };
+	}
+
+	/**
+	 * Re-entry of a used single-entry ticket offline (mirrors Checkin::reentry_block()): only with the
+	 * setting reentry_after_checkout (package `checkout`), only for ticket types without own admission
+	 * rule, and only when this device checked the ticket out after its last entry here. max_reentries
+	 * counts the entries this device knows (at least one). '' = re-entry allowed, otherwise the block code.
+	 * Entries and check-outs on other devices are only known to the server; it checks again at sync.
+	 */
+	function reentryBlock(entry, type, hash) {
+		var rules = entry.meta.checkout;
+		if (!rules || !rules.reentry_after_checkout || !type || false !== type.own_policy) { return 'already_checked_in'; }
+		var local = localOf(entry.record.occurrence_id, hash);
+		if (local.inside || !local.outs.length) { return 'already_checked_in'; }
+		var max = Number(rules.max_reentries) || 0;
+		return max > 0 && Math.max(local.ins.length, 1) - 1 >= max ? 'entry_limit_reached' : '';
+	}
+
+	/* ---------------- check-out (direction "out") ---------------- */
+
+	/** Verified meta of the selected occurrence's package, or null. */
+	function selectedMeta() {
+		var p = state.packages[state.selected];
+		return p && p.meta ? p.meta : null;
+	}
+	/**
+	 * A right of the device's user: the live value of GET /app/me first, else the one shipped in the
+	 * selected package, else fallback (unknown, e.g. an older server).
+	 */
+	function permission(name, fallback) {
+		if (state.perms && 'boolean' === typeof state.perms[name]) { return state.perms[name]; }
+		var meta = selectedMeta();
+		if (meta && meta.permissions && 'boolean' === typeof meta.permissions[name]) { return meta.permissions[name]; }
+		return fallback;
+	}
+	/** Undo is offered unless the server reported that the user lacks wpcap_undo_checkin. */
+	function canUndo() { return permission('undo', true); }
+	/**
+	 * Check-out needs the package's check-out rules (servers that know offline check-out ship them) and
+	 * the check-out right of the user (role rule checkout_roles); unknown = not offered.
+	 */
+	function canCheckOut() {
+		var meta = selectedMeta();
+		return !!(meta && meta.checkout && 'object' === typeof meta.checkout) && true === permission('check_out', false);
+	}
+	/** Stores the rights of GET /app/me (only boolean values; an older server sends fewer). */
+	function notePerms(res) {
+		var perms = {};
+		var given = res && res.permissions && 'object' === typeof res.permissions ? res.permissions : {};
+		['undo', 'check_out'].forEach(function (k) { if ('boolean' === typeof given[k]) { perms[k] = given[k]; } });
+		state.perms = perms;
+		renderMode();
+		return kvSet('perms', perms).catch(function () {});
+	}
+	/** A refusal of the server for a missing right: remembered, so the action is no longer offered. */
+	function denyPerm(name) {
+		state.perms = Object.assign({}, state.perms || {});
+		state.perms[name] = false;
+		kvSet('perms', state.perms).catch(function () {});
+		renderMode();
+		if ('undo' === name) { state.undo = null; renderUndo(); }
+	}
+	/** Shows the direction switch (Einlass / Auslass) when check-out is possible; falls back to admission otherwise. */
+	function renderMode() {
+		var allowed = canCheckOut();
+		if (!allowed && 'out' === state.mode) { state.mode = 'in'; if (display.idle) { resetResult(); } }
+		var wrap = $('mode-wrap');
+		if (!wrap) { return; }
+		wrap.hidden = !allowed;
+		if ($('mode-in')) { $('mode-in').setAttribute('aria-pressed', 'in' === state.mode ? 'true' : 'false'); }
+		if ($('mode-out')) { $('mode-out').setAttribute('aria-pressed', 'out' === state.mode ? 'true' : 'false'); }
+	}
+	function setMode(mode) {
+		state.mode = 'out' === mode && canCheckOut() ? 'out' : 'in';
+		renderMode();
+		if (display.idle) { resetResult(); }
+	}
+
+	/**
+	 * Offline decision of a check-out (mirrors Checkin::check_out() as far as it can be decided locally):
+	 * the right (checkout_roles), a known ticket of the package, the user's area binding (staff_area_ids)
+	 * and whether the ticket is inside. Inside is only known for entries on this device: a ticket this
+	 * device admitted (and did not check out since) is checked out at once (`confirmed`); a ticket this
+	 * device already checked out after its last entry here is refused (not_checked_in); any other known
+	 * ticket – also a revoked one, the online check-out lets a revoked ticket that is inside leave – is
+	 * queued unconfirmed and the server decides at sync (refused check-outs are no conflicts).
+	 */
+	function decideCheckout(entry, hash) {
+		var status = packageStatus(entry);
+		if (!status.ok) { return { ok: false, result: status.code }; }
+		if (!canCheckOut()) { return { ok: false, result: 'checkout_forbidden' }; }
+		var tk = entry.index.get(hash);
+		if (!tk) { return { ok: false, result: 'unknown' }; }
+		var type = null;
+		entry.meta.ticket_types.forEach(function (tt) { if (tt.id === tk.t) { type = tt; } });
+		var area = entry.meta.device_area_id || state.areaId || 0;
+		var staff = entry.meta.checkout && Array.isArray(entry.meta.checkout.staff_area_ids) ? entry.meta.checkout.staff_area_ids : [];
+		if (staff.length && staff.indexOf(area) < 0) { return { ok: false, result: 'wrong_area', ticket: tk, type: type }; }
+		var local = localOf(entry.record.occurrence_id, hash);
+		if (local.inside) { return { ok: true, result: 'checked_out', confirmed: true, ticket: tk, type: type }; }
+		if (local.outs.length) { return { ok: false, result: 'not_checked_in', here: true, ticket: tk, type: type }; }
+		return { ok: true, result: 'checked_out', confirmed: false, ticket: tk, type: type };
 	}
 
 	/**
@@ -1037,7 +1173,7 @@
 	 * hash, so QR codes of the old code are unknown/revoked here too). Returns decideOffline()'s shape plus
 	 * the matched hash.
 	 */
-	function decideSigned(entry, code, atMs) {
+	function decideSigned(entry, code, atMs, direction) {
 		var status = packageStatus(entry);
 		if (!status.ok) { return { ok: false, result: status.code, hash: '' }; }
 		var v = verifySignedQr(code, atMs, entry.meta.occurrence);
@@ -1045,7 +1181,7 @@
 		if (v.claims.o !== entry.record.occurrence_id) { return { ok: false, result: 'wrong_occurrence', hash: '' }; }
 		var hash = entry.prefix ? entry.prefix.get(v.claims.c) : '';
 		if (!hash) { return { ok: false, result: 'unknown', hash: '' }; }
-		var d = decideOffline(entry, hash);
+		var d = 'out' === direction ? decideCheckout(entry, hash) : decideOffline(entry, hash);
 		d.hash = hash;
 		return d;
 	}
@@ -1083,12 +1219,16 @@
 		var key = uuid();
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
-		return api('POST', 'scan/check-in', { code: help, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
+		// In check-out mode the help code checks the ticket out (the server resolves help codes there too).
+		var direction = 'out' === state.mode && canCheckOut() ? 'out' : 'in';
+		return api('POST', 'out' === direction ? 'scan/check-out' : 'scan/check-in', { code: help, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
 			var kind = classifyScan(res, null);
 			if ('warn' === kind) { systemWarning(res); return; }
+			if ('out' === direction && res && 'wpcap_checkout_forbidden' === res.code) { denyPerm('check_out'); showResult('bad', resultText('checkout_forbidden'), res.message || ''); return; }
 			showResult(kind, resultText(res.result), onlineDetail(res));
 			return sha256Hex('help:' + help).then(function (hash) {
-				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: !!res.ok, synced: 1 });
+				if ('out' === direction && res.ok) { noteOut(occurrenceId, hash, Date.parse(scannedAt)); }
+				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: direction, area_id: area, mode: 'online', decision: res.result, ok: !!res.ok, synced: 1 });
 			});
 		}, function (err) {
 			var kind = classifyScan(null, err || {});
@@ -1140,8 +1280,10 @@
 			var pre = verifySignedQr(code, null, entry.meta && entry.meta.occurrence);
 			if (pre.ok && pre.claims.o === occurrenceId) { signedHash = entry.prefix.get(pre.claims.c) || ''; }
 		}
+		var direction = 'out' === state.mode && canCheckOut() ? 'out' : 'in';
 		return (signedHash ? Promise.resolve(signedHash) : sha256Hex(code)).then(function (hash) {
 			state.scanHash = hash; // A548: short code in the full-screen result
+			if ('out' === direction) { return checkOutScan({ code: code, signed: signed, hash: hash, key: key, scannedAt: scannedAt, occurrenceId: occurrenceId, entry: entry, area: area }); }
 			/** Offline decision against the verified package (network errors, timeouts, outages). */
 			var decideLocally = function () {
 				var d = signed ? decideSigned(entry, code) : decideOffline(entry, hash);
@@ -1151,7 +1293,7 @@
 				var name = d.ticket && d.ticket.n ? d.ticket.n : '';
 				if (d.ok) {
 					markAdmitted(occurrenceId, hash, Date.parse(scannedAt));
-					showResult('ok', t('Einlass OK (offline)'), [typeName, name, hint, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
+					showResult('ok', t('Einlass OK (offline)'), [typeName, name, hint, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : '', d.reentry ? t('Wiedereinlass nach Check-out – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
 					offerUndo({ key: key, occurrenceId: occurrenceId, hash: hash, area: area });
 				} else {
 					showRejected(occurrenceId, hash, d.result, [typeName, name, t('offline')], d.recent === undefined ? -1 : d.recent);
@@ -1194,6 +1336,66 @@
 				return decideLocally();
 			});
 		}).then(renderLog).then(refreshCounts);
+	}
+
+	/**
+	 * Check-out of a scanned code (direction "out"): online POST /app/scan/check-out (same rules as the
+	 * web scanner: event/date scope, area binding, checkout_roles, ticket inside); on a network error,
+	 * timeout or outage decided offline (decideCheckout()) and queued for /app/scan/sync with
+	 * direction "out". Only accepted check-outs are logged as pending; the code is kept until uploaded.
+	 */
+	function checkOutScan(c) {
+		var hash = c.hash;
+		var decideLocally = function () {
+			var d = c.signed ? decideSigned(c.entry, c.code, null, 'out') : decideCheckout(c.entry, hash);
+			if (c.signed && d.hash) { hash = d.hash; }
+			var details = [d.type ? d.type.name : '', d.ticket && d.ticket.n ? d.ticket.n : ''];
+			if (d.ok) {
+				noteOut(c.occurrenceId, hash, Date.parse(c.scannedAt));
+				if (d.confirmed) {
+					showResult('ok', t('Ausgecheckt (offline)'), details.concat([t('offline')]).filter(Boolean).join(' · '));
+				} else {
+					showResult('warn', t('Check-out vorgemerkt'), details.concat([t('Prüfung beim Sync'), t('offline')]).filter(Boolean).join(' · '));
+				}
+			} else {
+				showResult('bad', resultText(d.result), details.concat([d.here ? t('Auf diesem Gerät bereits ausgecheckt') : '', t('offline')]).filter(Boolean).join(' · '));
+			}
+			return put('log', { key: c.key, occurrence_id: c.occurrenceId, hash: hash, code: d.ok ? c.code : '', scanned_at: c.scannedAt, direction: 'out', area_id: c.area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 });
+		};
+		var attempt = navigator.onLine !== false
+			? api('POST', 'scan/check-out', { code: c.code, idempotency_key: c.key, occurrence_id: c.occurrenceId, area_id: c.area }, null, 5000)
+			: Promise.reject({ network: true });
+		return attempt.then(function (res) {
+			if (res && false === res.ok && 'retry' === res.result) { return decideLocally(); }
+			var kind = classifyScan(res, null);
+			if ('warn' === kind) { systemWarning(res); return; }
+			var ok = 'ok' === kind;
+			if (ok) {
+				noteOut(c.occurrenceId, hash, Date.parse(c.scannedAt));
+				showResult('ok', resultText('checked_out'), onlineDetail(res));
+			} else if ('wpcap_checkout_forbidden' === res.code) {
+				// The role may no longer check out (checkout_roles): the switch is hidden from now on.
+				denyPerm('check_out');
+				showResult('bad', resultText('checkout_forbidden'), res.message || '');
+			} else {
+				showResult('bad', resultText(res.result), onlineDetail(res));
+			}
+			return put('log', { key: c.key, occurrence_id: c.occurrenceId, hash: hash, code: '', scanned_at: c.scannedAt, direction: 'out', area_id: c.area, mode: 'online', decision: String(res.result || 'error'), ok: ok, synced: 1 });
+		}, function (err) {
+			var kind = classifyScan(null, err || {});
+			if ('offline' !== kind) {
+				if (handleAuthError(err)) { return; }
+				if ('rate' === kind) { showResult('warn', resultText('rate_limited'), err.message); return; }
+				if ('bad' === kind) {
+					if (err.body && 'wpcap_checkout_forbidden' === err.body.code) { denyPerm('check_out'); showResult('bad', resultText('checkout_forbidden'), err.message); return; }
+					showResult('bad', t('Fehler'), err.message);
+					return;
+				}
+				systemWarning(err);
+				return;
+			}
+			return decideLocally();
+		});
 	}
 
 	/* ---------------- manual search (A544) ---------------- */
@@ -1350,10 +1552,29 @@
 	var UNDO_MS = 30000;
 	/** Reasons offered at the device (same as the web scanner); a typed reason is possible, too. */
 	var UNDO_REASONS = [t('Fehlscan (falsches Ticket gescannt)'), t('Doppelt gescannt'), t('Gast hat den Einlass nicht betreten'), t('Falscher Termin oder Bereich')];
+	/** Error code of the server when the user lacks the undo capability (HTTP 403). */
+	var UNDO_RIGHT_CODE = 'wpcap_undo_capability';
+	/**
+	 * Readable reason of a failed undo request: the server's message (HTTP 403 for a missing right
+	 * included), a fixed text for a 403 without a readable body (proxy, WAF), "online only" offline.
+	 */
+	function undoErrorText(err) {
+		if (!err || err.network) { return t('Nur online möglich.'); }
+		var body = err.body && !err.invalid ? err.body : {};
+		if (UNDO_RIGHT_CODE === body.code) { denyPerm('undo'); }
+		if ('string' === typeof body.message && body.message) { return body.message; }
+		if (403 === err.status) { return t('Du darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen.'); }
+		return err.message || '';
+	}
 	function undoSecondsLeft(started, at) { return Math.max(0, Math.ceil((started + UNDO_MS - at) / 1000)); }
 
-	/** Offers "Rückgängig" for 30 s after an admission of this device. */
+	/**
+	 * Offers "Rückgängig" for 30 s after an admission of this device – only when the device's user may
+	 * take admissions back (capability wpcap_undo_checkin, see canUndo()); also an offline admission that
+	 * is not uploaded yet is not discarded without the right.
+	 */
 	function offerUndo(offer) {
+		if (!canUndo()) { state.undo = null; renderUndo(); return; }
 		state.undo = { key: offer.key, started: Date.now(), occurrenceId: offer.occurrenceId, hash: offer.hash, area: offer.area || 0, publicId: offer.publicId || '', open: false };
 		var sel = $('undo-reason');
 		if (sel && !sel.options.length) {
@@ -1404,6 +1625,7 @@
 	function confirmUndo(reason) {
 		var u = state.undo;
 		if (!u) { return Promise.resolve(); }
+		if (!canUndo()) { state.undo = null; renderUndo(); return Promise.resolve(); }
 		$('undo-note').textContent = '';
 		if (!reason) { $('undo-note').textContent = t('Bitte einen Grund wählen oder eingeben.'); return Promise.resolve(); }
 		if (state.syncing) { $('undo-note').textContent = t('Synchronisierung läuft – bitte gleich erneut versuchen.'); return Promise.resolve(); }
@@ -1428,11 +1650,12 @@
 			if (!publicId) { showResult('bad', t('Rückgängig nicht möglich'), t('Nur online möglich.')); return null; }
 			return api('POST', 'scan/undo', { ticket_public_id: publicId, reason: reason, area_id: u.area, idempotency_key: u.key + ':undo' }, null, 8000).then(function (res) {
 				if (res && true === res.ok) { return done(entry, t('Das Ticket ist wieder gültig.')); }
+				if (res && UNDO_RIGHT_CODE === res.code) { denyPerm('undo'); }
 				showResult('bad', t('Rückgängig nicht möglich'), res && res.message ? res.message : '');
 				return null;
 			}, function (err) {
 				if (handleAuthError(err)) { return null; }
-				showResult('bad', t('Rückgängig nicht möglich'), err.network ? t('Nur online möglich.') : err.message);
+				showResult('bad', t('Rückgängig nicht möglich'), undoErrorText(err));
 				return null;
 			});
 		}).then(renderLog).then(function () { return refreshCounts(true); });
@@ -1482,8 +1705,10 @@
 			log.textContent = '';
 			entries.slice(0, 25).forEach(function (e) {
 				var li = el('li');
-				li.appendChild(el('span', fmtTime(e.scanned_at, zoneOf(e.occurrence_id)) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.decision)));
-				var tag = 'undone' === e.decision ? el('span', t('zurückgenommen'), 'tag warn') : !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', 'offline' === e.mode ? t('offline') : t('online'), 'tag');
+				li.appendChild(el('span', fmtTime(e.scanned_at, zoneOf(e.occurrence_id)) + ' · …' + e.hash.slice(-8) + ' · ' + ('out' === e.direction ? t('Auslass (Check-out)') + ': ' : '') + resultText(e.decision)));
+				// A queued check-out the server refused at sync (e.g. not inside) is no conflict, but shown.
+				var refusedOut = 'out' === e.direction && e.server && !e.server.ok && !e.server.conflict;
+				var tag = 'undone' === e.decision ? el('span', t('zurückgenommen'), 'tag warn') : !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : refusedOut ? el('span', t('Check-out abgelehnt: %s', resultText(e.server.result)), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', 'offline' === e.mode ? t('offline') : t('online'), 'tag');
 				li.appendChild(tag);
 				log.appendChild(li);
 			});
@@ -1516,6 +1741,9 @@
 				noteServerTime(serverMs, true);
 			}
 			return Promise.all([setKeys(res.keys), setQrKeys(res.qr_keys)]);
+		}).then(function () {
+			// Rights of the device's user (undo, check-out); an older server or an error keeps the last value.
+			return api('GET', 'me').then(notePerms, function (err) { if (isAuthError(err)) { throw err; } });
 		}).then(function () {
 			return api('GET', 'offline/occurrences');
 		}).then(function (res) {
@@ -1737,7 +1965,7 @@
 		['placeholder', 'title'].forEach(function (attr) {
 			Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-' + attr + ']'), function (n) { n.setAttribute(attr, t(source(n, 'data-i18n-' + attr, n.getAttribute(attr)))); });
 		});
-		if (display.idle) { $('result-title').textContent = t('Bereit'); }
+		if (display.idle) { $('result-title').textContent = idleTitle(); }
 		$('camera').textContent = camera.stream ? t('Kamera stoppen') : t('Kamera starten');
 		$('pending').textContent = t('%d offen', state.pendingCount);
 		renderSound();
@@ -1834,7 +2062,7 @@
 			var apiBase = param || (apiBaseOk(current) ? current : '') || legacy || deriveApi();
 			if (!apiBaseOk(apiBase)) { apiBase = deriveApi(); }
 			useSite(apiBase);
-			return Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys'), kvGet('server_time'), kvGet('hw')]);
+			return Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys'), kvGet('server_time'), kvGet('hw'), kvGet('perms')]);
 		}).then(function (v) {
 			// Stored translations first, so everything below (incl. package errors) is translated offline.
 			if (validI18n(v[7])) { state.i18n = v[7]; }
@@ -1846,11 +2074,14 @@
 			state.clockOffset = v[4] || 0;
 			state.serverTime = Number(v[9]) || 0;
 			state.hw = v[10] && typeof v[10] === 'object' ? v[10] : {};
+			state.perms = v[11] && typeof v[11] === 'object' ? v[11] : {};
 			if (v[0] !== state.api) { kvSet('api', state.api); }
 			v[5].forEach(loadPackage);
-			// Local entry counters from this device's scan log (admissions of the last day, pending ones always).
+			// Local entry counters from this device's scan log (admissions of the last day, pending ones always)
+			// and the check-outs of this device (inside / outside).
 			v[6].slice().sort(function (a, b) { return a.scanned_at < b.scanned_at ? -1 : 1; }).forEach(function (e) {
 				if (e.ok && 'out' !== e.direction) { markAdmitted(e.occurrence_id, e.hash, Date.parse(e.scanned_at)); }
+				if (e.ok && 'out' === e.direction) { noteOut(e.occurrence_id, e.hash, Date.parse(e.scanned_at)); }
 			});
 			if (param) { history.replaceState(null, '', location.pathname); }
 			showView();
@@ -1899,6 +2130,8 @@
 		on('undo-reason', 'change', function (ev) { $('undo-other').hidden = '__other' !== ev.target.value; });
 		on('undo-confirm', 'click', function () { confirmUndo(undoReason()); });
 		on('undo-cancel', 'click', function () { state.undo = null; renderUndo(); });
+		on('mode-in', 'click', function () { setMode('in'); });
+		on('mode-out', 'click', function () { setMode('out'); });
 		renderSound();
 		$('manual').addEventListener('submit', function (ev) {
 			ev.preventDefault();
@@ -1931,7 +2164,7 @@
 	}) : {};
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { apiBaseOk: apiBaseOk, validApiBase: validApiBase, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, signedCode: signedCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, serviceDay: serviceDay, beep: beep, showIdle: showIdle, toggleTorch: toggleTorch, setupTrack: setupTrack, refreshPackage: refreshPackage, t: t, fmtTime: fmtTime, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, state: publicState, syncNow: syncNow, refreshAll: refreshAll, pruneExpired: pruneExpired, pruneLog: pruneLog, qrWindow: qrWindow, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult, holdTimes: holdTimes, shortCode: shortCode, showResult: showResult };
+	window.wpcapOffline = { apiBaseOk: apiBaseOk, validApiBase: validApiBase, pair: pair, storeName: function () { return dbName; }, normalizeCode: normalizeCode, scanCode: scanCode, signedCode: signedCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, serviceDay: serviceDay, beep: beep, showIdle: showIdle, toggleTorch: toggleTorch, setupTrack: setupTrack, refreshPackage: refreshPackage, t: t, fmtTime: fmtTime, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, state: publicState, syncNow: syncNow, refreshAll: refreshAll, pruneExpired: pruneExpired, pruneLog: pruneLog, qrWindow: qrWindow, startCamera: startCamera, stopCamera: stopCamera, camera: camera, undoSecondsLeft: undoSecondsLeft, offerUndo: offerUndo, confirmUndo: confirmUndo, localCounts: localCounts, counterValues: counterValues, refreshCounts: refreshCounts, searchPackage: searchPackage, searchTickets: searchTickets, checkInResult: checkInResult, holdTimes: holdTimes, shortCode: shortCode, showResult: showResult, decideCheckout: decideCheckout, canUndo: canUndo, canCheckOut: canCheckOut, setMode: setMode, notePerms: notePerms };
 
 	boot();
 }());

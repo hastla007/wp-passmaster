@@ -16,6 +16,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Calendar {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-calendar';
@@ -33,7 +36,15 @@ final class Calendar {
 	public static function settings_defaults() {
 		return array(
 			// Array setting: kept out of the generic settings form (which truncates text fields).
-			'calendar' => array( 'checkout_url' => '', 'attach_ics' => 1 ),
+			// SET-PC-36: first_weekday 0 = Sunday … 6 = Saturday (1 = Monday, the previous fixed start).
+			'calendar' => array( 'checkout_url' => '', 'attach_ics' => 1, 'first_weekday' => 1 ),
+		);
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'calendar' => array( 'type' => 'group', 'label' => __( 'Kalender', 'pass-captain' ), 'help' => __( 'Ziel des Kauf-Links in Kalendereinträgen, ob Bestätigungsmails einen Kalendereintrag (ICS) enthalten, und mit welchem Wochentag die Monatsansicht beginnt.', 'pass-captain' ), 'page' => 'wpcap-calendar', 'fields' => array( 'checkout_url' => array( 'type' => 'url', 'label' => __( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) ), 'first_weekday' => array( 'type' => 'int', 'min' => 0, 'max' => 6, 'label' => __( 'Erster Wochentag der Monatsansicht', 'pass-captain' ) ) ) ),
 		);
 	}
 
@@ -290,9 +301,9 @@ final class Calendar {
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
-		$dt->setTimezone( $tz );
-		return $dt->format( $format );
+		$ts = strtotime( $row->starts_at . ' UTC' );
+		// wp_date(): month and weekday names of the site's date format in the active language.
+		return false === $ts ? (string) $row->starts_at : wp_date( $format, $ts, $tz );
 	}
 
 	/** Link of a calendar entry: checkout URL, else the single-occurrence view on this page (rendered above the calendar). */
@@ -343,13 +354,13 @@ final class Calendar {
 		foreach ( $rows as $row ) {
 			$iso = self::local( $row, 'c' );
 			$cancelled = 'cancelled' === $row->status;
-			$out .= '<li class="wpcap-cal-item' . ( $cancelled ? ' wpcap-cal-cancelled' : '' ) . '"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, 'd.m.Y H:i' ) . ' ' . $row->timezone ) . '</time> ';
+			$out .= '<li class="wpcap-cal-item' . ( $cancelled ? ' wpcap-cal-cancelled' : '' ) . '"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, \PassCaptain\Frontend\Format::datetime_format() ) . ' ' . $row->timezone ) . '</time> ';
 			$out .= $cancelled ? '<span class="wpcap-cal-link">' . esc_html( $row->event_name ) . '</span>' : '<a class="wpcap-cal-link" href="' . esc_url( self::link_for( $row ) ) . '">' . esc_html( $row->event_name ) . '</a>';
 			if ( '' !== (string) $row->location ) { $out .= ' <span class="wpcap-cal-location">' . esc_html( $row->location ) . '</span>'; }
 			$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() );
 			// A393: the accessible name starts with the visible link text and names the event and date.
 			/* translators: 1: visible link text "Zum Kalender (.ics)", 2: event name, 3: date */
-			$ics_label = sprintf( __( '%1$s: %2$s am %3$s', 'pass-captain' ), __( 'Zum Kalender (.ics)', 'pass-captain' ), $row->event_name, self::local( $row, 'd.m.Y' ) );
+			$ics_label = sprintf( __( '%1$s: %2$s am %3$s', 'pass-captain' ), __( 'Zum Kalender (.ics)', 'pass-captain' ), $row->event_name, self::local( $row, \PassCaptain\Frontend\Format::date_format() ) );
 			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( $ics_label ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'pass-captain' ) . '</a>';
 			$out .= '</li>';
 		}
@@ -372,7 +383,7 @@ final class Calendar {
 	 */
 	public static function time_label( $row, ?\DateTimeZone $site = null ) {
 		$site = $site ? $site : self::site_timezone();
-		$time = self::local( $row, 'H:i' );
+		$time = self::local( $row, \PassCaptain\Frontend\Format::time_format() );
 		$at = new \DateTime( (string) $row->starts_at, new \DateTimeZone( 'UTC' ) );
 		$own = (int) self::local( $row, 'Z' );
 		return $own === $site->getOffset( $at ) ? $time : $time . ' ' . self::local( $row, 'T' );
@@ -394,7 +405,7 @@ final class Calendar {
 	 */
 	public static function render_month( $month = '', $event_id = 0, $wrapper = '', $instance = 1 ) {
 		$tz = self::site_timezone();
-		$now = new \DateTime( 'now', $tz );
+		$now = ( new \DateTime( '@' . \PassCaptain\Clock::now() ) )->setTimezone( $tz );
 		$current = $now->format( 'Y-m' );
 		$today = $now->format( 'Y-m-d' );
 		if ( ! preg_match( '/^(\d{4})-(0[1-9]|1[0-2])$/', (string) $month ) ) { $month = $current; }
@@ -417,6 +428,9 @@ final class Calendar {
 		$badges = $rows ? self::badges_for( $rows ) : array();
 		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
 		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
+		// SET-PC-36: columns start with the configured weekday ($days is Monday-first; first_weekday 0 = Sunday).
+		$start = ( self::first_weekday() + 6 ) % 7;
+		$days = array_merge( array_slice( $days, $start ), array_slice( $days, 0, $start ) );
 		$short = array_map( static function ( $day ) { return function_exists( 'mb_substr' ) ? mb_substr( $day, 0, 2 ) : substr( $day, 0, 2 ); }, $days );
 		$title = $months[ (int) $first->format( 'n' ) ] . ' ' . $first->format( 'Y' );
 		$instance = max( 1, (int) $instance );
@@ -437,7 +451,7 @@ final class Calendar {
 		}
 		$out .= '</tr></thead><tbody><tr>';
 		$agenda = '';
-		$offset = (int) $first->format( 'N' ) - 1;
+		$offset = ( (int) $first->format( 'N' ) - 1 - $start + 7 ) % 7;
 		for ( $i = 0; $i < $offset; $i++ ) { $out .= '<td class="wpcap-cal-empty" aria-hidden="true"></td>'; }
 		$count = (int) $first->format( 't' );
 		for ( $d = 1; $d <= $count; $d++ ) {
@@ -452,7 +466,7 @@ final class Calendar {
 					$visible = self::time_label( $row, $tz ) . ' ' . $row->event_name;
 					$text = esc_html( $visible );
 					// A393: the accessible name starts with the visible text (WCAG 2.5.3) and adds the date.
-					$entries .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
+					$entries .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $visible . ', ' . self::local( $row, \PassCaptain\Frontend\Format::date_format() ) ) . '">' . $text . '</a>';
 					$entries .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}
 				$entries .= '</ul>';
@@ -473,6 +487,17 @@ final class Calendar {
 		return $out . '</div>';
 	}
 
+	/** SET-PC-36: first weekday of the month view (0 = Sunday … 6 = Saturday; default Monday). */
+	public static function first_weekday() {
+		$day = ( (array) Settings::get( 'calendar' ) )['first_weekday'] ?? 1;
+		return is_numeric( $day ) && (int) $day >= 0 && (int) $day <= 6 ? (int) $day : 1;
+	}
+
+	/** Weekday names for the setting, 0 = Sunday. */
+	public static function weekday_labels() {
+		return array( __( 'Sonntag', 'pass-captain' ), __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ) );
+	}
+
 	/* ------------------------------------------------------------------ Admin */
 
 	public static function save( array $in ) {
@@ -481,7 +506,10 @@ final class Calendar {
 		if ( '' !== $url && ! preg_match( '#^https?://#i', $url ) ) {
 			return Forms::error( 'wpcap_calendar_url', __( 'Bitte eine vollständige URL angeben.', 'pass-captain' ) );
 		}
-		$values = array( 'checkout_url' => $url, 'attach_ics' => Forms::flag( $in, 'attach_ics' ) ? 1 : 0 );
+		// SET-PC-36: checked by the settings register (reported, not corrected).
+		$checked = \PassCaptain\SettingsSchema::check_group( 'calendar', array( 'first_weekday' => $in['first_weekday'] ?? '' ) );
+		if ( is_wp_error( $checked ) ) { return $checked; }
+		$values = array( 'checkout_url' => $url, 'attach_ics' => Forms::flag( $in, 'attach_ics' ) ? 1 : 0, 'first_weekday' => (int) $checked['first_weekday'] );
 		Settings::update( array( 'calendar' => $values ) );
 		return array( 'saved' => $values );
 	}
@@ -501,6 +529,9 @@ final class Calendar {
 		echo '<table class="form-table"><tbody>';
 		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html( sprintf( /* translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID} */ __( 'Kalendereinträge verlinken auf den Termin auf dieser Seite (?wpcap_occurrence=…, Anker %s). Leer: die veröffentlichte Seite mit dem Event-Shortcode bzw. -Block wird automatisch verwendet; ohne eine solche Seite öffnet der Kalender den Termin auf der Kalenderseite selbst.', 'pass-captain' ), '#wpcap-occ-{' . _x( 'Termin-ID', 'placeholder name for the numeric occurrence ID in an anchor', 'pass-captain' ) . '}' ) ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Ticket-E-Mail', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="attach_ics" value="1"' . checked( ! empty( $s['attach_ics'] ), true, false ) . '> ' . esc_html__( 'Kalenderdatei (.ics) je Termin anhängen', 'pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-cal-weekday">' . esc_html__( 'Erster Wochentag der Monatsansicht', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'first_weekday', self::weekday_labels(), (string) self::first_weekday(), 'wpcap-cal-weekday' );
+		echo '<p class="description">' . esc_html__( 'Mit diesem Tag beginnt jede Woche im Monatskalender (Standard Montag).', 'pass-captain' ) . '</p></td></tr>';
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form></div>';

@@ -23,6 +23,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Statement {
 	private static function pct( $amount, $bp ) {
 		return (int) round( (int) $amount * (int) $bp / 10000 );

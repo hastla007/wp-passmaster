@@ -1,10 +1,10 @@
 <?php
 /**
  * Events of the review participation contract (A667, A669): maps the core hooks to outbox events of
- * Review\Contract (Workflow\Outbox::record()) – after the commit, idempotent, without personal data.
+ * Review\Contract (Suite\Outbox::record()) – after the commit, idempotent, without personal data.
  *
  * - experience_completed: first valid admission of a ticket (wpcap_ticket_checked_in) or an allowed
- *   attendance confirmation (wpcap_attendance_confirmed, command attendance.confirm, A676). Only for
+ *   attendance confirmation (wpcap_attendance_confirmed, wpcap_confirm_attendance()). Only for
  *   paid, not refunded tickets of dates and events that are not cancelled. One per completion cycle:
  *   a new cycle starts only after the admission was undone (experience_excluded check_in_undone).
  * - experience_excluded per ticket: check_in_undone (no valid admission left), refunded, revoked,
@@ -18,12 +18,15 @@
 
 namespace PassCaptain\Review;
 
-use PassCaptain\Workflow\Outbox;
+use PassCaptain\Suite\Outbox;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Events {
-	/** After the core, module and workflow listeners of the same hooks. */
+	/** After the core and module listeners of the same hooks. */
 	const PRIORITY = 62;
 	const NO_SHOW_GRACE_HOURS = 6;
 	const NO_SHOW_WINDOW_DAYS = 14;
@@ -147,10 +150,10 @@ final class Events {
 		return self::complete( $ticket_id, 'check_in', sanitize_key( (string) ( $context['source'] ?? 'web' ) ) );
 	}
 
-	/** wpcap_attendance_confirmed: an explicitly allowed attendance confirmation (A676). */
+	/** wpcap_attendance_confirmed: an explicitly allowed attendance confirmation (wpcap_confirm_attendance()). */
 	public static function confirmed( $ticket_id, $context = array() ) {
 		$context = is_array( $context ) ? $context : array();
-		return self::complete( $ticket_id, 'confirmed', sanitize_key( (string) ( $context['source'] ?? 'command' ) ) );
+		return self::complete( $ticket_id, 'confirmed', sanitize_key( (string) ( $context['source'] ?? 'api' ) ) );
 	}
 
 	private static function complete( $ticket_id, $method, $source ) {
@@ -240,6 +243,15 @@ final class Events {
 	/* ------------------------------------------------------------------ No-show (cron) */
 
 	/**
+	 * Hours after the end of a date before a missing admission counts as no-show (A669): setting
+	 * review_no_show_grace_hours (SET-PC-21, default 6), filter wpcap_review_no_show_grace_hours keeps precedence.
+	 */
+	public static function no_show_grace_hours() {
+		$setting = max( 0, min( 168, (int) \PassCaptain\Settings::get( 'review_no_show_grace_hours', self::NO_SHOW_GRACE_HOURS ) ) );
+		return max( 0, (int) apply_filters( 'wpcap_review_no_show_grace_hours', $setting ) );
+	}
+
+	/**
 	 * experience_excluded no_show for valid event tickets without a valid admission, once the date has
 	 * ended (plus grace). Tickets already recorded are skipped in SQL (event id computed with SHA2).
 	 *
@@ -250,8 +262,7 @@ final class Events {
 		if ( ! Outbox::ready() || ! Outbox::multi_ready() ) { return 0; }
 		$p = $wpdb->prefix;
 		$now = \PassCaptain\Clock::now();
-		/** Hours after the end of a date before a missing admission counts as no-show (A669). */
-		$grace = max( 0, (int) apply_filters( 'wpcap_review_no_show_grace_hours', self::NO_SHOW_GRACE_HOURS ) );
+		$grace = self::no_show_grace_hours();
 		$until = gmdate( 'Y-m-d H:i:s', $now - $grace * HOUR_IN_SECONDS );
 		$from = gmdate( 'Y-m-d H:i:s', $now - self::NO_SHOW_WINDOW_DAYS * DAY_IN_SECONDS );
 		$ids = $wpdb->get_col( $wpdb->prepare(

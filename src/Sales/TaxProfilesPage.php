@@ -14,6 +14,9 @@ use PassCaptain\Billing;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TaxProfilesPage {
 	const SLUG = 'wpcap-tax-profiles';
 	const ACTION = 'wpcap_tax_profile_action';

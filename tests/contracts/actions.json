@@ -1,0 +1,98 @@
+{
+    "contract": "actions",
+    "version": "1.0.0",
+    "description": "Öffentliche Aktionsfunktionen (PC-7, PassCaptain\\Api\\Actions, wpcap_resend_ticket_mail() …): request = Argumente der Funktion (? = optional; args = Optionen im letzten Array-Argument), response = Antwort bei Erfolg. Fehler sind WP_Error mit status (400, 403, 404, 409, 503).",
+    "endpoints": {
+        "resend_ticket_mail": {
+            "direction": "inbound",
+            "request": {
+                "order": "int|string",
+                "?args": {
+                    "?new_codes": "bool",
+                    "?user_id": "int",
+                    "?idempotency_key": "string"
+                }
+            },
+            "response": {
+                "action": "string",
+                "replayed": "bool",
+                "order_id": "string",
+                "status": "string",
+                "codes": "string"
+            }
+        },
+        "revoke_ticket": {
+            "direction": "inbound",
+            "request": {
+                "ticket": "int|string",
+                "reason": "string",
+                "?args": {
+                    "?user_id": "int",
+                    "?idempotency_key": "string"
+                }
+            },
+            "response": {
+                "action": "string",
+                "replayed": "bool",
+                "ticket_id": "string",
+                "status": "string"
+            }
+        },
+        "cancel_event": {
+            "direction": "inbound",
+            "request": {
+                "event_id": "int",
+                "reason": "string",
+                "?args": {
+                    "?user_id": "int",
+                    "?idempotency_key": "string"
+                }
+            },
+            "response": {
+                "action": "string",
+                "replayed": "bool",
+                "event_id": "int",
+                "status": "string",
+                "run_status": "string",
+                "complete": "bool"
+            }
+        },
+        "reschedule_occurrence": {
+            "direction": "inbound",
+            "request": {
+                "occurrence_id": "int",
+                "starts_at": "string",
+                "?ends_at": "string|null",
+                "?args": {
+                    "?user_id": "int",
+                    "?idempotency_key": "string"
+                }
+            },
+            "response": {
+                "action": "string",
+                "replayed": "bool",
+                "occurrence_id": "int",
+                "status": "string",
+                "starts_at": "string"
+            }
+        },
+        "confirm_attendance": {
+            "direction": "inbound",
+            "request": {
+                "ticket": "int|string",
+                "?method": "string",
+                "?args": {
+                    "?user_id": "int",
+                    "?idempotency_key": "string"
+                }
+            },
+            "response": {
+                "action": "string",
+                "replayed": "bool",
+                "ticket_id": "string",
+                "status": "string",
+                "method": "string"
+            }
+        }
+    }
+}

@@ -10,10 +10,12 @@
 use PassCaptain\Settings;
 use PassCaptain\Sms\Service;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Sms::class ); // SMS hooks (sms.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $a416_sid = 'AC' . str_repeat( 'c3', 16 );
-Settings::update( array( 'twilio_account_sid' => $a416_sid, 'twilio_auth_token' => 'a416-token', 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => 'twilio', 'twilio_from' => '+4915100000416', 'default_country_code' => '+49', 'budget_monthly' => 0 ) ) ) );
+Settings::update( array( 'twilio_account_sid' => $a416_sid, 'twilio_auth_token' => 'a416-token', 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => 'twilio', 'twilio_from' => '+4915100000416', 'default_country_code' => '+49', 'budget_monthly' => 0, 'verify_phone' => 0 ) ) ) );
 // Earlier files may leave due messages behind; they must not consume the scripted responses.
 $wpdb->query( "UPDATE {$p}wpcap_sms_messages SET status='skipped' WHERE status IN ('queued','sending','unknown','held')" );
 

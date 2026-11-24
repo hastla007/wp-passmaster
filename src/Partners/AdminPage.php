@@ -14,6 +14,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminPage {
 	const CAP = 'manage_options';
 	const PAGE = 'wpcap-partners';
@@ -124,9 +127,12 @@ final class AdminPage {
 			case 'settings':
 				$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'settlement_prefix', 10 ) );
 				$self_billing = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'self_billing_prefix', 10 ) );
-				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => max( 1, min( 100000, Forms::int( $in, 'rate_limit', 120 ) ) ), 'write_rate_limit' => max( 1, min( 100000, Forms::int( $in, 'write_rate_limit', 30 ) ) ) );
-				Settings::update( array( 'partners' => $values, 'partner_negative_balance' => Forms::choice( $in, 'partner_negative_balance', array( 'carry', 'invoice' ), 'carry' ) ) );
-				return $values;
+				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => $in['rate_limit'] ?? 120, 'write_rate_limit' => $in['write_rate_limit'] ?? 30 );
+				// SET-PC-01: limits and the choice are checked by the settings register (reported, not clamped).
+				$checked = \PassCaptain\SettingsSchema::check_many( array( 'partners' => $values, 'partner_negative_balance' => $in['partner_negative_balance'] ?? 'carry' ) );
+				if ( is_wp_error( $checked ) ) { return $checked; }
+				Settings::update( $checked );
+				return $checked['partners'];
 			case 'save_price':
 				$raw = trim( (string) ( is_scalar( $in['price'] ?? '' ) ? $in['price'] : '' ) );
 				$price = '' === $raw ? null : Forms::parse_money( $raw, 2 );
@@ -339,7 +345,7 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-pa-refund">' . esc_html__( 'Bei Erstattungen', 'pass-captain' ) . '</label></th><td>';
 		Forms::select( 'refund_policy', Repository::refund_policy_labels(), $v( 'refund_policy', 'reverse_all' ), 'wpcap-pa-refund' );
 		echo '</td></tr>';
-		$field( 'settlement_start', __( 'Abrechnung ab (Bestelldatum)', 'pass-captain' ), $partner && $partner->settlement_start ? substr( $partner->settlement_start, 0, 10 ) : gmdate( 'Y-m-01' ), 'date' );
+		$field( 'settlement_start', __( 'Abrechnung ab (Bestelldatum)', 'pass-captain' ), $partner && $partner->settlement_start ? substr( $partner->settlement_start, 0, 10 ) : gmdate( 'Y-m-01', \PassCaptain\Clock::now() ), 'date' );
 		$area( 'notes', __( 'Interne Notizen', 'pass-captain' ), $v( 'notes' ) );
 		echo '</tbody></table>';
 		self::render_sales_fields( $partner, $field );
@@ -468,7 +474,7 @@ final class AdminPage {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$out = array( 'occurrences' => array(), 'types' => array(), 'holds' => array() );
-		$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name,tt.ticket_type_id,tt.name AS type_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 1000", $since ) );
 		foreach ( (array) $rows as $row ) {
 			$occ = $row->name . ' – ' . \PassCaptain\Orders::format_start( $row->starts_at, $row->timezone );
@@ -540,8 +546,8 @@ final class AdminPage {
 		submit_button( __( 'Speichern', 'pass-captain' ), 'secondary', 'submit', false );
 		echo '</p></form>';
 
-		$period = (string) Forms::query_arg( 'statement_period', gmdate( 'Y-m', strtotime( 'first day of last month' ) ) );
-		if ( ! Settlements::valid_period( $period ) ) { $period = gmdate( 'Y-m' ); }
+		$period = (string) Forms::query_arg( 'statement_period', gmdate( 'Y-m', strtotime( 'first day of last month', \PassCaptain\Clock::now() ) ) );
+		if ( ! Settlements::valid_period( $period ) ) { $period = gmdate( 'Y-m', \PassCaptain\Clock::now() ); }
 		$t = Statement::compute( $partner, $period )['totals'];
 		echo '<h2>' . esc_html__( 'Wiederverkäufer-Abrechnung (API-Verkäufe)', 'pass-captain' ) . '</h2>';
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><input type="hidden" name="partner_id" value="' . (int) $pid . '"><label>' . esc_html__( 'Monat', 'pass-captain' ) . ' <input type="month" name="statement_period" value="' . esc_attr( $period ) . '"></label> ';
@@ -592,7 +598,7 @@ final class AdminPage {
 		$field( 'invoice_prefix', __( 'Präfix für Rechnungsnummern des Veranstalters', 'pass-captain' ), $v( 'invoice_prefix' ), 'text', 'maxlength="10" pattern="[A-Za-z0-9]{0,10}" style="width:8em"' );
 		echo '<tr><th scope="row">' . esc_html__( 'Kleinunternehmer', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="small_business" value="1"' . checked( '1' === $v( 'small_business', '0' ), true, false ) . '> ' . esc_html__( 'Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)', 'pass-captain' ) . '</label></td></tr>';
 		$field( 'small_business_note', __( 'Hinweistext Kleinunternehmer', 'pass-captain' ), $v( 'small_business_note' ), 'text', 'maxlength="255" placeholder="' . esc_attr( SalesModel::default_small_business_note() ) . '"' );
-		echo '</tbody></table><p class="description">' . esc_html__( 'Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis.', 'pass-captain' ) . '</p>';
+		echo '</tbody></table><p class="description">' . esc_html( sprintf( /* translators: %s: prefix pattern with the placeholder name in braces, e.g. V{ID} */ __( 'Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird %s verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis.', 'pass-captain' ), 'V{' . _x( 'ID', 'placeholder name for the numeric organizer ID in the invoice prefix', 'pass-captain' ) . '}' ) ) . '</p>';
 	}
 
 	private static function render_keys( $partner ) {
@@ -615,7 +621,7 @@ final class AdminPage {
 				$key_types = Keys::restricted_types( $k );
 				if ( $key_types ) { $limits[] = __( 'Ticketarten:', 'pass-captain' ) . ' ' . implode( ', ', $key_types ); }
 				if ( (int) ( $k->write_rate_limit ?? 0 ) ) { $limits[] = sprintf( /* translators: %d: limit */ __( '%d Verkäufe/Min.', 'pass-captain' ), (int) $k->write_rate_limit ); }
-				$expired = $k->expires_at && $k->expires_at <= current_time( 'mysql', true );
+				$expired = $k->expires_at && $k->expires_at <= \PassCaptain\Clock::mysql();
 				$status = $k->revoked_at ? __( 'widerrufen', 'pass-captain' ) : ( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'aktiv', 'pass-captain' ) );
 				echo '<tr><td><code>' . esc_html( Keys::TOKEN_PREFIX . $k->public_prefix . '_…' ) . '</code>' . ( '' !== $k->label ? '<br>' . esc_html( $k->label ) : '' ) . '</td><td>' . esc_html( str_replace( ',', ', ', $k->scopes ) ) . '</td><td>' . esc_html( implode( ' · ', $limits ) ) . '</td><td>' . esc_html( Forms::datetime( $k->last_used_at, $tz, false ) ) . '</td><td>' . esc_html( $status ) . '</td><td>';
 				if ( ! $k->revoked_at ) { self::button( 'revoke_key', array( 'id' => (int) $k->key_id, 'partner_id' => (int) $partner->partner_id ), __( 'Widerrufen', 'pass-captain' ), __( 'Key sofort widerrufen?', 'pass-captain' ) ); }
@@ -667,7 +673,7 @@ final class AdminPage {
 				Forms::hidden( 'do', 'create_settlement' );
 				echo '<p><label for="wpcap-st-partner">' . esc_html__( 'Veranstalter', 'pass-captain' ) . '</label> ';
 				Forms::select( 'partner_id', $partners, 0, 'wpcap-st-partner' );
-				echo ' <label for="wpcap-st-period">' . esc_html__( 'Monat', 'pass-captain' ) . '</label> <input type="month" id="wpcap-st-period" name="period" required value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of last month' ) ) ) . '"> ';
+				echo ' <label for="wpcap-st-period">' . esc_html__( 'Monat', 'pass-captain' ) . '</label> <input type="month" id="wpcap-st-period" name="period" required value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of last month', \PassCaptain\Clock::now() ) ) ) . '"> ';
 				submit_button( __( 'Entwurf erstellen', 'pass-captain' ), 'secondary', 'submit', false );
 				echo '</p></form>';
 				echo '<p class="description">' . esc_html__( 'Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnungen sind unveränderlich; spätere Erstattungen oder Nachzahlungen erscheinen in der nächsten Periode als Korrektur.', 'pass-captain' ) . '</p>';

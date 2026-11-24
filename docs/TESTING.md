@@ -84,11 +84,35 @@ gesetzt ist); `WPCAP_TEST_SKIP='<Regex>'` lässt Module aus. Gemeinsame Stubs un
 `http_*`, Stripe/PayPal-Anfragen), `fixtures_admin.php` (Redirect/Die als Ausnahme, Testbenutzer,
 `admin_paid_order()`), `fixtures_mobile.php` (`WP_REST_Response`, `rest_url()`, `app_call()`,
 `ticket_code_for()`) jeweils an der Stelle ihrer Kerndatei, `fixtures_wp.php` (Template-Stubs wie `esc_url()`,
-`selected()`, `submit_button()`) und `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) vor der ersten
-Moduldatei. Wer eine Hilfsfunktion in mehreren Modulen braucht, legt sie dort ab statt in einem Modul. Noch
-modulgebunden sind u. a. `wpb_*` (`boxoffice.php`), `sp_*` (`series_pricing.php`), `woo_t_*`
-(`woocommerce.php`) und `q1_*` (`zz_a277.php`); manche Module setzen außerdem Zustand anderer Module voraus
-(registrierte Module, Einstellungen).
+`selected()`, `submit_button()`), `fixtures_modules.php` (`ex_*`, `adm_*`, `svc_*`) und `wp_stubs.php`
+(WordPress-Stubs: `WP_REST_Server`, `register_rest_route()`, `check_ajax_referer()`, `wp_send_json_*()` mit
+`Wpmt_Json_Response`, `add_shortcode()`, `wp_enqueue_*()`, `wp_timezone_string()`, Nonces, User-Meta,
+`bloginfo()`) vor der ersten Moduldatei; jeder Stub ist die Definition, die das erste Modul des Gesamtlaufs
+hatte, und wird nur angelegt, wenn er fehlt. Stubs, auf deren Fehlen das Plugin mit `function_exists()`
+reagiert, werden nicht global geladen, sondern nur von den Modulen, die sie brauchen: `wp_cron_stubs.php`
+(`wp_next_scheduled()`, `wp_schedule_single_event()`) und `wc_orders_stub.php` (`wc_get_orders()`).
+Hilfsfunktionen, die mehrere Module nutzen (`wpb_*`, `sp_*`, `woo_t_*` mit den WooCommerce-Testklassen,
+`q1_*`, `mollie_*`, `off_pair()`, `w9_*`, `svc_setup()`, `svc_supp_gateway()` u. a.), liegen in
+`fixtures_shared.php`, der Test-Fiskaladapter in `fixtures_fiscal.php`; die Module laden sie mit
+`require_once`. Wer eine Hilfsfunktion in mehreren Modulen braucht, legt sie dort ab statt in einem Modul;
+`modules/zz_helpers_guard.php` schlägt fehl, wenn ein Modul eine Hilfsfunktion aufruft, die nur ein anderes
+Modul definiert (keine Ausnahmen mehr).
+
+Zustand, den ein Modul von früheren Modulen erbt, holt es selbst nach, ohne den Gesamtlauf zu verändern:
+`wpcap_test_ensure_registered( <Klasse> )` ruft `register()` eines Moduls nur auf, wenn kein früheres Modul es
+registriert hat (Mollie, SMS, Kasse, Fiskalisierung, Umtausch, Pässe, Services, Sicherheitsrichtlinie …),
+`wpb_cash_ready()` bestätigt die zertifizierte Kasse (Bar/Karte an der Kasse), `wpcap_test_ensure_row()` legt
+eine Platzhalterzeile an, wenn eine Prüfung „Funktion in Benutzung“ voraussetzt. Prüfung der Isolation:
+
+```bash
+WPCAP_TEST_PREFIX=wpx1_ tests/integration/run-each.sh -j 4          # jedes Modul einzeln (mit Kerndateien)
+WPCAP_TEST_PREFIX=wpx1_ tests/integration/run-each.sh 'zz_a1'       # nur passende Module
+```
+
+Jeder parallele Job nutzt ein eigenes Tabellenpräfix (`<Präfix>j<N>_`); am Ende stehen die einzeln
+fehlschlagenden Module mit ihrem Log (`WPCAP_EACH_LOGS`, sonst ein temporäres Verzeichnis). Dauer mit `-j 4`
+etwa 30–60 Minuten. Stand 24.11.2026: alle 522 Module laufen einzeln grün; einzige Ausnahme sind die vier
+INT-8-Prüfungen in `zzzzzz_y6_integrations.php`, die lokal unter PHP 8.3 auch im Gesamtlauf fehlschlagen.
 
 Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
 der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).
@@ -277,7 +301,7 @@ nicht – kein Code (Zeichenketten, Klassen- oder Funktionsnamen; Kommentare zä
 anderes Plugin (`Requires Plugins`). Danach laufen die Kernabläufe ohne Add-on und **ohne Netzwerk** (jede
 ausgehende Anfrage wird über `pre_http_request` protokolliert und abgelehnt): kostenloser und kostenpflichtiger
 Checkout, Zahlungsbestätigung mit Ticketausgabe, Mail und PDF, Übertragung, Erstattung, Check-in, Terminänderung,
-Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Workflow-Outbox (ohne Provider). Der Test verlangt, dass
+Event-Absage, Jobs, Nachrichten-Queue, Webhooks und Review-Outbox (ohne Provider). Der Test verlangt, dass
 dabei keine einzige HTTP-Anfrage entsteht – also auch keine an einen Lizenzserver.
 
 ## Kein Lizenz- oder Updater-Code im Kern (A661)
@@ -631,6 +655,13 @@ Automatische Prüfungen ersetzen keine Screenreader-Tests ([ACCESSIBILITY.md](AC
 Playwright + `node:test`, Screenshots nur bei Fehlschlag (`tests/e2e/artifacts/`). `helper.php` legt
 serverseitig Kopplungscodes, Zuweisungen und Termine an; `mu-plugin/wpcap-e2e.php` bietet nur auf der Testseite
 eine Fake-Zahlungsseite (Cookie `wpcap_e2e=1`).
+Seit 24.11.2026 hat das Bestellformular einen Bot-Schutz (Mindest-Ausfüllzeit 3 Sekunden). Das mu-plugin setzt
+`checkout_min_fill_seconds` für Web-Anfragen der Testseite auf 0; ein Browser mit Cookie `wpcap_e2e_guard=1` bekommt
+die echte Schwelle (Test des Hinweises „zu schnell“). `helper.php` kennt außerdem `checkin`, `paid-order`, `refunds`,
+`booking` und `seated`. Unter realen Bedingungen (320 px, Tastatur, langsames Netz, offline, Dunkelmodus) prüfen
+`conditions.test.js` und `conditions-widgets.test.js` alle Käufer-Widgets; `offline-checkout.test.js` und
+`flows.test.js` decken Check-out offline, Erstattung bis ins Portal und Umbuchung einer Servicebuchung ab
+(Stand 24.11.2026: Chromium 33 bestanden, 1 übersprungen ohne `WPCAP_WOO_ZIP`, etwa 72 s).
 
 ```bash
 tests/e2e/run.sh                                        # startet die Testseite selbst

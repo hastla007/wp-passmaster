@@ -67,7 +67,18 @@ final class Service {
 	public static function fiscal_block() {
 		$country = \PassCaptain\Partners\SalesModel::platform_seller()['country'];
 		if ( ! in_array( $country, array( 'DE', 'AT' ), true ) || Settings::get( 'boxoffice_cash_confirmed' ) ) { return false; }
-		return ! apply_filters( 'wpcap_boxoffice_fiscal_ready', self::pos_fiscalization_ready(), $country );
+		return ! self::fiscal_ready( $country );
+	}
+
+	/**
+	 * Whether a fiscal integration signs the box office receipts (filter `wpcap_boxoffice_fiscal_ready`,
+	 * default pos_fiscalization_ready()). Also hides the "keine Registrierkasse" notice (A257).
+	 *
+	 * @param string|null $country Platform seller country; null = read it.
+	 */
+	public static function fiscal_ready( $country = null ) {
+		$country = null === $country ? (string) \PassCaptain\Partners\SalesModel::platform_seller()['country'] : (string) $country;
+		return (bool) apply_filters( 'wpcap_boxoffice_fiscal_ready', self::pos_fiscalization_ready(), $country );
 	}
 
 	/**
@@ -80,7 +91,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$suppress = $wpdb->suppress_errors( true );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$ready = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i fp INNER JOIN %i s ON s.seller_id=fp.seller_id AND s.status='active' AND s.country_code=fp.country_code WHERE fp.channel='pos' AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) LIMIT 1", $p . 'wpcap_fiscal_profiles', $p . 'wpcap_legal_sellers', $now, $now ) );
 		$wpdb->suppress_errors( $suppress );
 		return $ready;
@@ -455,7 +466,7 @@ final class Service {
 			'occurrence_id' => $occurrence_id,
 			'cashier_id' => get_current_user_id(),
 			'status' => 'pending',
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => \PassCaptain\Clock::mysql(),
 		);
 		$saved = $resume ? 1 : $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
 		if ( false === $saved && ! self::sale_by_key( $key_hash ) && \PassCaptain\Modules\BoxOffice::migrate() ) {
@@ -575,7 +586,7 @@ final class Service {
 			'occurrence_id' => absint( $occurrence_id ),
 			'cashier_id' => get_current_user_id(),
 			'status' => 'pending',
-			'created_at' => current_time( 'mysql', true ),
+			'created_at' => \PassCaptain\Clock::mysql(),
 		) );
 		if ( false === $saved ) {
 			$existing = self::sale_by_key( $key_hash );
@@ -592,7 +603,8 @@ final class Service {
 		if ( ! $order || 'paid' !== $order->payment_status || 'complete' !== $order->status ) { return false; }
 		// Exchange supplement: money only, its ticket is issued on the original order.
 		if ( \PassCaptain\Exchange\Service::is_supplement( (int) $order_id ) ) { return true; }
-		$expected = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity),0) FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
+		// Add-on products (Sales\Addons) get no tickets: only main ticket lines are expected.
+		$expected = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi' . Orders::addon_free_join() . ' WHERE oi.order_id=%d', $p . 'wpcap_order_items', $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join.
 		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d', $p . 'wpcap_tickets', $order_id ) ); };
 		if ( $count() < $expected ) { Orders::issue_and_email( $order_id ); }
 		return $expected > 0 && $count() >= $expected;
@@ -696,7 +708,7 @@ final class Service {
 		$device = self::device_of( $sale );
 		if ( ! $order || ! $device ) { return self::fail_device( $sale, 'failed', __( 'Das Kartenterminal ist nicht mehr verfügbar.', 'pass-captain' ) ); }
 		if ( (int) $order->total_minor <= 0 ) { return self::fail_device( $sale, 'failed', __( 'Für einen Betrag von 0,00 bitte „Freikarte“ wählen.', 'pass-captain' ) ); }
-		$claimed = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_status' => 'pending', 'device_started_at' => current_time( 'mysql', true ) ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => '' ) );
+		$claimed = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'device_status' => 'pending', 'device_started_at' => \PassCaptain\Clock::real_mysql() ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending', 'device_status' => '' ) );
 		if ( ! $claimed ) {
 			$fresh = self::sale( $sale->sale_id );
 			if ( $fresh && 'pending' === $fresh->status && 'pending' === $fresh->device_status ) { return array( 'sale' => $fresh, 'reused' => true, 'device_pending' => true ); }
@@ -874,7 +886,7 @@ final class Service {
 	/** Seconds since the terminal payment was started. */
 	private static function device_elapsed( $sale ) {
 		$started = $sale->device_started_at ? strtotime( $sale->device_started_at . ' UTC' ) : false;
-		return false === $started ? 0 : max( 0, time() - $started );
+		return false === $started ? 0 : max( 0, \PassCaptain\Clock::real() - $started );
 	}
 
 	/**
@@ -1126,7 +1138,7 @@ final class Service {
 		if ( ! $locked || ! in_array( $locked->status, array( 'completed', 'storno_pending' ), true ) ) { $wpdb->query( 'COMMIT' ); return; }
 		$number = $movement && $movement->receipt_number ? $movement->receipt_number : Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return; }
-		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'voided', 'storno_refund_id' => (int) $refund_id, 'storno_receipt_number' => $number, 'voided_at' => current_time( 'mysql', true ), 'voided_by' => get_current_user_id() ), array( 'sale_id' => (int) $sale->sale_id ) );
+		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'voided', 'storno_refund_id' => (int) $refund_id, 'storno_receipt_number' => $number, 'voided_at' => \PassCaptain\Clock::mysql(), 'voided_by' => get_current_user_id() ), array( 'sale_id' => (int) $sale->sale_id ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'pos_storno', 'order', (int) $refund['order_id'], array( 'sale_id' => (int) $sale->sale_id, 'refund_id' => (int) $refund_id, 'receipt' => $number, 'movement_id' => $movement ? (int) $movement->movement_id : 0 ) );
 	}
@@ -1213,8 +1225,24 @@ final class Service {
 		);
 	}
 
+	/** SET-PC-39: receipt language (setting boxoffice_receipt_locale; '' = language of the screen). */
+	public static function receipt_locale() {
+		return \PassCaptain\Mail\Mailer::normalize_locale( trim( (string) Settings::get( 'boxoffice_receipt_locale', '' ) ) );
+	}
+
+	/** Runs $render in the receipt language (SET-PC-39). */
+	public static function in_receipt_locale( callable $render ) {
+		$locale = self::receipt_locale();
+		return '' !== $locale ? \PassCaptain\Mail\Mailer::with_locale( $locale, $render ) : $render();
+	}
+
 	/** 80 mm thermal printer friendly receipt (HTML, auto print). $storno prints the storno receipt. */
 	public static function receipt_html( $sale_id, $storno = false ) {
+		return (string) self::in_receipt_locale( static function () use ( $sale_id, $storno ) { return self::render_receipt_html( $sale_id, $storno ); } );
+	}
+
+	/** receipt_html() in the current language. */
+	private static function render_receipt_html( $sale_id, $storno ) {
 		$r = self::receipt( $sale_id );
 		if ( ! $r ) { return ''; }
 		$storno = $storno && '' !== $r['storno_number'];

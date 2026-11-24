@@ -15,6 +15,9 @@ namespace PassCaptain\Jobs;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TimeBudget {
 	/** Default seconds of queue work per cron hook (filter: wpcap_cron_time_budget). */
 	const DEFAULT_SECONDS = 20;
@@ -81,7 +84,7 @@ final class TimeBudget {
 			return true;
 		}
 		if ( function_exists( 'wp_schedule_single_event' ) && function_exists( 'wp_next_scheduled' ) ) {
-			if ( ! wp_next_scheduled( $hook, $args ) ) { wp_schedule_single_event( time(), $hook, $args ); }
+			if ( ! wp_next_scheduled( $hook, $args ) ) { wp_schedule_single_event( \PassCaptain\Clock::real(), $hook, $args ); }
 			return true;
 		}
 		return false;
@@ -156,7 +159,7 @@ final class TimeBudget {
 			}
 		}
 		$reason = \PassCaptain\Text::cut( \PassCaptain\Security\Redact::text( '' !== $reason ? $reason : 'Worker stopped while processing (fatal error or time limit).' ), 190 );
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		foreach ( self::$claims as $key => $claim ) {
 			list( $table, $column, $id, $claimed, $release, $final, $max, $retry ) = $claim;
 			$extra = (array) ( $claim[8] ?? array() );

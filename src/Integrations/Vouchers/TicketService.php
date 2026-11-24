@@ -27,6 +27,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class TicketService {
 	const FILTER = 'wp_pass_captain_ticket_service_v1';
 	const VERSION = 1;
@@ -153,6 +156,17 @@ final class TicketService {
 			}
 		}
 		$purpose = Checkout::purpose( $source, array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id, 'quantity' => $quantity ) );
+		// A single-purpose voucher sold with another VAT rate or in another country than this ticket is taxed in
+		// is redeemed as a multi-purpose voucher (Checkout::effective_purpose()).
+		global $wpdb;
+		$type_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $type_id ) );
+		if ( $type_row ) {
+			$resolved = \PassCaptain\Tax\Profiles::resolve( $type_row, null, '', 'voucher' );
+			list( $purpose, $purpose_changed ) = Checkout::effective_purpose( $purpose, $source, array( array( 'rate_bp' => (int) $resolved['rate_bp'], 'country' => (string) $resolved['country'] ) ), array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id ) );
+			if ( '' !== $purpose_changed ) {
+				$source['purpose_changed'] = $purpose_changed;
+			}
+		}
 		$value = self::voucher_value( $source );
 		$internal = array(
 			'external' => true,
@@ -169,6 +183,7 @@ final class TicketService {
 			}
 		} else {
 			// Single-purpose: VAT was paid when the voucher was sold, the redemption is not taxed again.
+			// Promotion code: free tickets.
 			$internal['unit_prices'] = array( $type_id => 0 );
 			$internal['line_totals'] = array( $type_id => 0 );
 			$internal['line_taxes'] = array( $type_id => 0 );
@@ -243,10 +258,10 @@ final class TicketService {
 				'event_id' => (int) $row->event_id,
 				'occurrence_id' => (int) $row->occurrence_id,
 				/* translators: 1: date, 2: ticket type */
-				'date_label' => sprintf( __( '%1$s – %2$s', 'pass-captain' ), $local->format( 'd.m.Y H:i' ), $row->name ),
+				'date_label' => sprintf( __( '%1$s – %2$s', 'pass-captain' ), wp_date( \PassCaptain\Frontend\Format::datetime_format(), $local->getTimestamp(), $tz ), $row->name ),
 				'name' => (string) $row->name,
 				/* translators: 1: event, 2: date, 3: ticket type */
-				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'pass-captain' ), $row->event_name, $local->format( 'd.m.Y H:i' ), $row->name ),
+				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'pass-captain' ), $row->event_name, wp_date( \PassCaptain\Frontend\Format::datetime_format(), $local->getTimestamp(), $tz ), $row->name ),
 				'event' => (string) $row->event_name,
 				'starts_at' => (string) $row->starts_at,
 				'currency' => (string) $row->currency,
@@ -361,6 +376,7 @@ final class TicketService {
 		$snapshot = array(
 			'code_hint' => mb_substr( sanitize_text_field( (string) ( $source['code_hint'] ?? '' ) ), -4 ),
 			'purpose' => $purpose,
+			'purpose_changed' => sanitize_key( (string) ( $source['purpose_changed'] ?? '' ) ),
 			'status' => 'external',
 			'source' => array(
 				'provider' => sanitize_key( (string) ( $source['provider'] ?? '' ) ),
@@ -386,13 +402,16 @@ final class TicketService {
 
 	/**
 	 * Value of an exchange order for organizer settlements: the full gross amount for multi-purpose vouchers
-	 * (also on the order lines), the stored voucher value for single-purpose vouchers (lines are 0).
+	 * (also on the order lines), the stored voucher value for single-purpose vouchers (lines are 0), 0 for
+	 * promotion codes (free tickets, no claim against a voucher seller).
 	 */
 	public static function settlement_value_minor( $order_id ) {
 		$order = Orders::get( absint( $order_id ) );
 		if ( ! $order || empty( $order->voucher_snapshot ) ) { return 0; }
 		$snapshot = (array) json_decode( (string) $order->voucher_snapshot, true );
-		if ( Checkout::PURPOSE_MULTI === Checkout::snapshot_purpose( $snapshot ) ) { return Checkout::gross_minor( $order ); }
+		$purpose = Checkout::snapshot_purpose( $snapshot );
+		if ( Checkout::PURPOSE_MULTI === $purpose ) { return Checkout::gross_minor( $order ); }
+		if ( Checkout::PURPOSE_DISCOUNT === $purpose ) { return 0; }
 		return (int) ( $snapshot['face_value_minor'] ?? 0 );
 	}
 

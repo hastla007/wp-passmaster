@@ -16,6 +16,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ZReport {
 	/** Columns that make up the hash of a Z report (in this order). */
 	const HASHED = array( 'register_id', 'z_number', 'shift_id', 'source', 'currency', 'opened_at', 'closed_at', 'opened_by', 'closed_by', 'net_total_minor', 'grand_total_minor', 'counted_cash_minor', 'expected_cash_minor', 'cash_difference_minor', 'counted_card_minor', 'expected_card_minor', 'card_difference_minor', 'difference_reason', 'totals', 'prev_hash' );
@@ -427,6 +430,11 @@ final class ZReport {
 	 * number, reference to the sale receipt, refunded tickets, VAT per rate, method, register/shift.
 	 */
 	public static function payout_receipt_html( $mv ) {
+		return (string) Service::in_receipt_locale( static function () use ( $mv ) { return self::render_payout_receipt_html( $mv ); } ); // SET-PC-39
+	}
+
+	/** payout_receipt_html() in the current language. */
+	private static function render_payout_receipt_html( $mv ) {
 		global $wpdb;
 		$sale = Service::sale( $mv->sale_id );
 		$cur = $mv->currency;

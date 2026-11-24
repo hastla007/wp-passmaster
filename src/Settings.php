@@ -45,6 +45,7 @@ final class Settings {
 		self::$defaults = null;
 		self::$all = null;
 		if ( class_exists( Terms::class, false ) ) { Terms::flush(); }
+		if ( class_exists( SettingsSchema::class, false ) ) { SettingsSchema::flush(); }
 	}
 
 	/** Invalidates the per-request cache when translations change. */
@@ -69,6 +70,8 @@ final class Settings {
 			'manual_cutoff_hours'       => 0,
 			// A634: unpaid bank transfer orders hold at most this share of a ticket type / date (0 = no bound).
 			'manual_hold_max_percent'   => 50,
+			// Absolute bound per event for tickets held by unpaid bank transfer orders (0 = off, the former behaviour).
+			'manual_hold_max_event_tickets' => 0,
 			// No payment method by default (A265): manual payment needs a bank account or instructions first.
 			// Installs from before schema 3.10.9 keep 'manual' (Installer::pin_legacy_manual_provider()).
 			'enabled_providers'         => array(),
@@ -94,6 +97,17 @@ final class Settings {
 			// A425: presale/service fee of the own online checkout (gross, minor units; 0 = off).
 			'service_fee_ticket_minor'  => 0,
 			'service_fee_order_minor'   => 0,
+			// Owner decision 23.11.2026: tax of the fee 'ticket' (like its ticket line, ancillary service) or
+			// 'own' (tax class of the tax profiles; rate fallback when no active profile matches, '' = ticket rate).
+			'service_fee_tax'           => 'ticket',
+			'service_fee_tax_class'     => 'service',
+			'service_fee_tax_rate'      => '',
+			// Owner decision 23.11.2026: refunds the buyer asked for (not caused by a cancellation) keep the fee
+			// ('retain') or refund it ('refund'); organizer cancellations always refund it.
+			'service_fee_refund'        => 'retain',
+			// Owner decision 23.11.2026: the fee is the operator's revenue; on = it counts as organizer revenue in
+			// partner settlements (and in the deal basis of the settlement sheet).
+			'service_fee_to_partner'    => 0,
 			// Postponed occurrence: buyers may request a refund in the order portal (with approval) until
 			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
 			'reschedule_refund_request' => 1,
@@ -138,11 +152,58 @@ final class Settings {
 			// A380: chart of accounts of the DATEV booking batch (skr03|skr04) and an optional own money account.
 			'datev_chart'               => 'skr03',
 			'datev_contra_account'      => '',
+			// SET-PC-37: own accounts per VAT rate (revenue, bu_keys, revenue_default) and money account per payment
+			// provider (contra_by_provider); empty = the accounts of the chart (former behaviour).
+			'datev_accounts'            => array(),
+			// SET-PC-15: service date of invoice lines without an occurrence: 'none' (no date, former behaviour),
+			// 'payment' (payment date), 'valid_from' (start of validity), 'period' (validity period).
+			'invoice_service_date_fallback' => 'none',
+			// SET-PC-03: number patterns per document kind (defaults = the former format PREFIX-YYYY-000123, yearly).
+			'invoice_number_pattern'    => '{prefix}-{year}-{number}',
+			'invoice_number_digits'     => 6,
+			'invoice_number_start'      => 0,
+			'invoice_number_yearly'     => 1,
+			'credit_number_pattern'     => '{prefix}-{year}-{number}',
+			'credit_number_digits'      => 6,
+			'credit_number_start'       => 0,
+			'credit_number_yearly'      => 1,
+			'receipt_number_pattern'    => '{prefix}-{year}-{number}',
+			'receipt_number_digits'     => 6,
+			'receipt_number_start'      => 0,
+			'receipt_number_yearly'     => 1,
+			'settlement_number_pattern' => '{prefix}-{year}-{number}',
+			'settlement_number_digits'  => 6,
+			'settlement_number_start'   => 0,
+			'settlement_number_yearly'  => 1,
+			'self_billing_number_pattern' => '{prefix}-{year}-{number}',
+			'self_billing_number_digits' => 6,
+			'self_billing_number_start' => 0,
+			'self_billing_number_yearly' => 1,
+			// SET-PC-18: minimum age rule. default_min_age pre-fills new ticket types (0 = none); min_age_checkbox
+			// makes the buyer confirm the age in the own checkout when a line has a minimum age; the label text
+			// ('' = built-in text) has translations per language in legal_texts.
+			'default_min_age'           => 0,
+			'min_age_checkbox'          => 0,
+			'min_age_notice_text'       => '',
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
 			// A327: support log also stores debug entries (ends 24 h after switching on; constant WPCAP_DEBUG overrides).
 			'debug_logging'             => 0,
+			// SET-PC-20: buyer rules (defaults = the former fixed values; the filters of the same name keep precedence).
+			'order_access_days'         => 30,
+			'payment_resume_link'       => 'show',
+			'max_attendee_name_changes' => 3,
+			'max_holder_changes'        => 1,
+			'max_line_quantity'         => 100,
+			'manual_open_orders_per_email' => 2,
+			// SET-PC-21: logs and periods (defaults = the former fixed values; filters keep precedence).
+			'log_retention_days'        => 30,
+			'log_min_level'             => 'info',
+			'connector_log_days'        => 30,
+			'print_batch_keep_days'     => 7,
+			'review_no_show_grace_hours' => 6,
+			'offline_default_hours'     => 12,
 			'scanner_show_attendee'     => 0,
 			// A690: terms for the people a ticket is for ('' = Teilnehmende, guests, visitors, custom) and own lines "Alt = Neu".
 			'attendee_terms'            => '',
@@ -188,6 +249,38 @@ final class Settings {
 			'occurrence_default_duration_hours' => 6,
 			// A296: mail_from_name / mail_reply_to above ('' = seller name or site name / admin e-mail).
 			'mail_rate_per_minute'      => 0,
+			// SET-PC-08: offered currencies ('' = built-in list) and the currency of new prices.
+			'currencies'                => '',
+			'default_currency'          => 'EUR',
+			// SET-PC-19: imprint and privacy page ('' privacy = WordPress privacy page, '' imprint = no link).
+			'imprint_url'               => '',
+			'privacy_url'               => '',
+			// SET-PC-24: countries offered in the billing address ('' = built-in list) and the optional region field.
+			'billing_countries'         => '',
+			'billing_region_field'      => 0,
+			// SET-PC-29: WooCommerce (0 = automatic hold: core hold, at least WooCommerce "hold stock").
+			'woo_hold_minutes'          => 0,
+			'woo_issue_on_completed_gateways' => 'cod',
+			'woo_collect_attendees'     => 'fields',
+			// SET-PC-40: payment method rules, one per line ("stripe | events=1,2 | min=10 | max=500 | countries=DE,AT").
+			'payment_rules'             => '',
+			// SET-PC-45: ticket prices entered gross (default) or net; buyers always see gross prices.
+			'price_entry'               => 'gross',
+			// SET-PC-36: date/time format of mails, tickets and documents in the site language ('' = WordPress setting).
+			'document_date_format'      => '',
+			'document_time_format'      => '',
+			// SET-PC-38: rate limits for operators (per hour); the settings register sets safe lower bounds.
+			'rate_checkout_ip_per_hour' => 30,
+			'rate_checkout_email_per_hour' => 8,
+			'rate_checkout_unpaid_per_network' => 10,
+			'rate_waitlist_ip_per_hour' => 60,
+			'rate_waitlist_email_per_hour' => 5,
+			'rate_portal_resend_per_hour' => 3,
+			'rate_portal_assign_per_hour' => 20,
+			'rate_portal_pdf_per_hour'  => 20,
+			// Bot check of the public checkout form (honeypot + minimum fill time; only requests of the plugin's own form).
+			'checkout_bot_check'        => 1,
+			'checkout_min_fill_seconds' => 3,
 		);
 	}
 
@@ -250,28 +343,58 @@ final class Settings {
 		// Plaintext / "pcv1:" values from before the store would otherwise be dropped below without being moved.
 		self::migrate_secrets_to_store();
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
+		$secret_changes = array(); // SET-PC-13: logged as "changed"/"removed", never with a value.
 		foreach ( Secrets::KEYS as $key ) {
 			if ( array_key_exists( $key, $values ) ) {
+				$secret_changes[ $key ] = ! is_scalar( $values[ $key ] ) || '' === (string) $values[ $key ];
 				Secrets::set( $key, is_scalar( $values[ $key ] ) ? (string) $values[ $key ] : '' );
 				unset( $values[ $key ] );
 			}
 		}
 		foreach ( self::secret_keys() as $key ) {
+			if ( array_key_exists( $key, $values ) && ! isset( $secret_changes[ $key ] ) ) { $secret_changes[ $key ] = ! is_string( $values[ $key ] ) || '' === $values[ $key ]; }
 			if ( isset( $values[ $key ] ) && is_string( $values[ $key ] ) && '' !== $values[ $key ] ) {
 				$values[ $key ] = Security\Vault::encrypt( $values[ $key ], $key );
 			}
 		}
 		$stored = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
-		$merged = array_merge( $stored, $values );
+		// SET-PC-11: persist only keys that are stored or saved now, so reset keys keep following their defaults.
+		$raw = get_option( self::OPTION, array() );
+		$raw = is_array( $raw ) ? array_diff_key( $raw, array_flip( Secrets::KEYS ) ) : array();
+		$merged = array_merge( $raw, $values );
 		$merged['delete_data_on_uninstall'] = 0; // Never in the old key (see UNINSTALL_POLICY).
 		update_option( self::OPTION, $merged, true ); // Autoloaded (PERF-11): read on every request; no plaintext secrets inside.
 		self::$all = null;
 		Security\Redact::reset();
 		PageCache::settings_changed( $stored, $values ); // A446: legal texts are part of every listing.
+		if ( class_exists( SettingsManager::class ) ) { SettingsManager::log_update( $stored, $values, $secret_changes ); } // SET-PC-13
 		// A568: every wording that comes into force is archived (append-only) for later proof.
 		if ( array_intersect_key( $values, array_flip( array_merge( self::LEGAL_KEYS, array( 'legal_texts' ) ) ) ) ) {
 			LegalVersions::archive_all();
 		}
+	}
+
+	/**
+	 * Removes stored values so their defaults apply again (SET-PC-11). Secrets are never removed here.
+	 *
+	 * @param string[] $keys     Keys to remove.
+	 * @param array    $defaults key => default, only for the change log.
+	 */
+	public static function forget( array $keys, array $defaults = array() ) {
+		$keys = array_values( array_diff( array_map( 'strval', $keys ), self::secret_keys(), array( 'delete_data_on_uninstall' ) ) );
+		// The derived client_ip_header follows trusted_proxy_header (otherwise the old header would stay trusted).
+		if ( in_array( 'trusted_proxy_header', $keys, true ) ) { $keys[] = 'client_ip_header'; }
+		$stored = get_option( self::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		$before = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
+		$after = array_diff_key( $stored, array_flip( $keys ) );
+		if ( $after === $stored ) { return; }
+		update_option( self::OPTION, $after, true );
+		self::$all = null;
+		Security\Redact::reset();
+		PageCache::settings_changed( $before, array_intersect_key( $defaults, array_flip( $keys ) ) );
+		SettingsManager::log_update( $before, array_intersect_key( self::all(), array_flip( $keys ) ) );
+		if ( array_intersect( $keys, array_merge( self::LEGAL_KEYS, array( 'legal_texts' ) ) ) ) { LegalVersions::archive_all(); }
 	}
 
 	/** Option holding "pcv1:" values that could not be decrypted while moving them into Secrets (ciphertext only). */
@@ -424,6 +547,12 @@ final class Settings {
 	const LEGAL_KEYS = array( 'terms_text', 'consumer_info_text' );
 
 	/**
+	 * Texts with translations per language in legal_texts: the legal texts (versioned with each order,
+	 * LEGAL_KEYS) plus short checkout texts that are not part of the contract version (SET-PC-18).
+	 */
+	const TEXT_KEYS = array( 'terms_text', 'consumer_info_text', 'min_age_notice_text' );
+
+	/**
 	 * Locale of the default-language legal texts (the plain terms_text / consumer_info_text keys):
 	 * Polylang's or WPML's default language, otherwise the site locale. Filter: wpcap_legal_default_locale.
 	 */
@@ -477,7 +606,7 @@ final class Settings {
 		foreach ( (array) self::get( 'legal_texts' ) as $locale => $texts ) {
 			$locale = Mail\Mailer::normalize_locale( (string) $locale );
 			if ( '' === $locale || ! is_array( $texts ) ) { continue; }
-			foreach ( self::LEGAL_KEYS as $key ) {
+			foreach ( self::TEXT_KEYS as $key ) {
 				if ( isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) && '' !== trim( (string) $texts[ $key ] ) ) { $out[ $locale ][ $key ] = (string) $texts[ $key ]; }
 			}
 		}
@@ -513,10 +642,27 @@ final class Settings {
 	 * @param string|null $locale Buyer locale; null = determine_locale().
 	 */
 	public static function legal_text( $key, $locale = null ) {
-		if ( ! in_array( $key, self::LEGAL_KEYS, true ) ) { return ''; }
+		if ( ! in_array( $key, self::TEXT_KEYS, true ) ) { return ''; }
 		$source = self::legal_source_locale( $key, $locale );
 		if ( $source === self::legal_default_locale() ) { return (string) self::get( $key ); }
 		return self::legal_translations()[ $source ][ $key ] ?? (string) self::get( $key );
+	}
+
+	/**
+	 * SET-PC-18: label of the age confirmation in the checkout for a buyer locale: the text of that language
+	 * (legal_texts, fallback as legal_text()), else the built-in text in the current language. {min_age} is
+	 * replaced by the highest minimum age of the lines.
+	 *
+	 * @param int         $min_age Highest minimum age of the checkout lines.
+	 * @param string|null $locale  Buyer locale; null = determine_locale().
+	 */
+	public static function min_age_notice( $min_age, $locale = null ) {
+		$text = trim( wp_strip_all_tags( self::legal_text( 'min_age_notice_text', $locale ) ) );
+		if ( '' === $text ) {
+			/* translators: keep the placeholder {min_age} (minimum age in years) */
+			$text = __( 'Ich bestätige, dass alle Personen, für die ich Tickets kaufe, mindestens {min_age} Jahre alt sind.', 'pass-captain' );
+		}
+		return str_replace( '{min_age}', (string) max( 0, (int) $min_age ), $text );
 	}
 
 	/**

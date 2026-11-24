@@ -46,6 +46,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CapacityCounters {
 	const OPTION = 'wpcap_capacity_counters';
 	const HOOK = 'wpcap_reconcile_capacity';
@@ -79,7 +82,7 @@ final class CapacityCounters {
 	/** Schedules the reconcile cron (every five minutes, `wpcap_five_minutes` from Communications). */
 	public static function schedule() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
-			wp_schedule_event( time() + 120, 'wpcap_five_minutes', self::HOOK );
+			wp_schedule_event( Clock::real() + 120, 'wpcap_five_minutes', self::HOOK );
 		}
 	}
 
@@ -144,7 +147,7 @@ final class CapacityCounters {
 	}
 
 	private static function set_state( $state ) {
-		update_option( self::OPTION, array( 'state' => (string) $state, 'since' => time() ) );
+		update_option( self::OPTION, array( 'state' => (string) $state, 'since' => Clock::real() ) );
 	}
 
 	/**
@@ -199,7 +202,7 @@ final class CapacityCounters {
 	 * @param string $reason upgrade | rollback | manual.
 	 */
 	public static function start_rebuild( $reason = 'manual' ) {
-		update_option( self::REBUILD_OPTION, array( 'cursor' => 0, 'reason' => (string) $reason, 'started' => time() ), false );
+		update_option( self::REBUILD_OPTION, array( 'cursor' => 0, 'reason' => (string) $reason, 'started' => Clock::real() ), false );
 		self::set_state( 'building' );
 		Audit::record( 'capacity_counters_rebuild_started', 'system', 0, array( 'reason' => (string) $reason ) );
 	}
@@ -260,7 +263,7 @@ final class CapacityCounters {
 		}
 		delete_option( self::REBUILD_OPTION );
 		self::set_state( 'verifying' );
-		Audit::record( 'capacity_counters_rebuilt', 'system', 0, array( 'reason' => (string) ( $job['reason'] ?? '' ), 'seconds' => max( 0, time() - (int) ( $job['started'] ?? time() ) ) ) );
+		Audit::record( 'capacity_counters_rebuilt', 'system', 0, array( 'reason' => (string) ( $job['reason'] ?? '' ), 'seconds' => max( 0, Clock::real() - (int) ( $job['started'] ?? Clock::real() ) ) ) );
 		return true;
 	}
 
@@ -670,7 +673,7 @@ final class CapacityCounters {
 		// Every cron query is an index range (A430): orders by `updated`, active holds by `expiry`,
 		// holds that still count by `counted_type` (ticket_type_id,counted_qty) – never the history
 		// of converted/expired holds.
-		$since = gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', Clock::now() - 2 * DAY_IN_SECONDS );
 		$scope = self::reconcile_scope( $all );
 		$candidates = static function () use ( $wpdb, $p, $limit, $all, $since, $scope ) {
 			if ( $all ) {
@@ -734,7 +737,7 @@ final class CapacityCounters {
 		if ( 'verifying' === self::state() ) {
 			if ( $drift ) {
 				self::set_state( 'verifying' );
-			} elseif ( time() - (int) ( $option['since'] ?? 0 ) >= (int) apply_filters( 'wpcap_capacity_verify_after', self::VERIFY_AFTER ) ) {
+			} elseif ( Clock::real() - (int) ( $option['since'] ?? 0 ) >= (int) apply_filters( 'wpcap_capacity_verify_after', self::VERIFY_AFTER ) ) {
 				self::set_state( 'ready' );
 				Audit::record( 'capacity_counters_ready', 'system', 0, array() );
 			}
@@ -753,7 +756,7 @@ final class CapacityCounters {
 	private static function reconcile_scope( $all ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$where = $all ? '' : $wpdb->prepare( ' WHERE ' . Occurrence::end_sql( 'oc' ) . ' >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+		$where = $all ? '' : $wpdb->prepare( ' WHERE ' . Occurrence::end_sql( 'oc' ) . ' >= %s', gmdate( 'Y-m-d H:i:s', Clock::now() - DAY_IN_SECONDS ) );
 		$occurrences = array();
 		foreach ( (array) $wpdb->get_results( "SELECT oc.occurrence_id,oc.sold_qty,oc.held_qty FROM {$p}wpcap_occurrences oc$where" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 			$occurrences[ (int) $row->occurrence_id ] = $row;

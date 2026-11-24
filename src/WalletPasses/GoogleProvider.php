@@ -10,6 +10,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 class GoogleProvider implements WalletProvider {
 	const API = 'https://walletobjects.googleapis.com/walletobjects/v1/';
 	/** Hosts a service account token_uri may point to (OutboundHttp policy). */
@@ -213,7 +216,7 @@ class GoogleProvider implements WalletProvider {
 			'iss' => $account['client_email'],
 			'aud' => 'google',
 			'typ' => 'savetowallet',
-			'iat' => time(),
+			'iat' => \PassCaptain\Clock::real(),
 			'origins' => array( home_url( '/' ) ),
 			'payload' => $payload,
 		);
@@ -383,7 +386,7 @@ class GoogleProvider implements WalletProvider {
 		$cache_key = self::token_cache_key( $account );
 		$cached = get_transient( $cache_key );
 		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
-		$now = time();
+		$now = \PassCaptain\Clock::real();
 		$assertion = Jwt::sign( array( 'iss' => $account['client_email'], 'scope' => self::SCOPE, 'aud' => $account['token_uri'], 'iat' => $now, 'exp' => $now + 3600 ), $account['private_key'] );
 		// token_uri comes from the uploaded service account JSON: only Google's token endpoints (A202).
 		$res = \PassCaptain\OutboundHttp::request( $account['token_uri'], array( 'method' => 'POST', 'timeout' => \PassCaptain\Config::get( 'http_timeout' ), 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ), array( 'context' => 'wallet_google', 'hosts' => self::TOKEN_HOSTS, 'max_bytes' => 65536 ) );

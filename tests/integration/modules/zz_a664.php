@@ -7,7 +7,7 @@
  * Static part: the shipped core does not know the add-on (no class, function, slug or "Requires Plugins"
  * dependency on it) and contains no licence host. Runtime part: with every outgoing HTTP request blocked
  * and recorded, checkout (free and paid), payment, issuance with mail and PDF, transfer, check-in,
- * refund, occurrence change, event cancellation, cron work (jobs, messages, webhooks, workflow outbox)
+ * refund, occurrence change, event cancellation, cron work (jobs, messages, webhooks, review outbox)
  * succeed and not a single request leaves the site.
  */
 
@@ -45,8 +45,8 @@ add_filter( 'pre_http_request', static function ( $pre, $args, $url ) use ( &$a6
 	$a664_requests[] = $url;
 	return new WP_Error( 'http_request_failed', 'A664: no network' );
 }, 1, 3 );
-PassCaptain\Workflow\Events::register();
-unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Workflow\Contract::FILTER ] );
+PassCaptain\Review\Events::register();
+unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Review\Contract::FILTER ] );
 $GLOBALS['wpcap_test_transients'] = array();
 PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0 ) );
 
@@ -76,11 +76,11 @@ do_action( 'wpcap_occurrence_changed', $a664_occ, array( 'location' => array( 'A
 $a664_event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$a664_occ" );
 $a664_cancel = Orders::cancel_event( $a664_event );
 $a664_ok['event cancellation'] = ! is_wp_error( $a664_cancel ) && 'cancelled' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_events WHERE event_id=$a664_event" );
-// Background work of the core: jobs, message queue, webhooks (none subscribed here), workflow outbox (no provider).
+// Background work of the core: jobs, message queue, webhooks (none subscribed here), review outbox (no provider).
 PassCaptain\Jobs::process_due();
 PassCaptain\Communications::process_due();
 PassCaptain\Webhooks\Dispatcher::process();
-$a664_ok['workflow outbox is filled and waits without a provider (no delivery attempt)'] = 0 === PassCaptain\Workflow\Outbox::deliver() && (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . PassCaptain\Workflow\Outbox::table() . " WHERE status='pending'" ) > 0;
+$a664_ok['review outbox is filled and waits without a provider (no delivery attempt)'] = 0 === PassCaptain\Suite\Outbox::deliver() && (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . PassCaptain\Suite\Outbox::table() . " WHERE contract='review' AND status='pending'" ) > 0;
 foreach ( $a664_ok as $a664_name => $a664_result ) { check( "A664: without add-on and network – $a664_name", $a664_result ); }
 check( 'A664: not a single outgoing HTTP request (in particular none to a licence server)' . ( $a664_requests ? ' – ' . implode( ', ', array_slice( $a664_requests, 0, 3 ) ) : '' ), ! $a664_requests && ! $GLOBALS['wpcap_test_http_requests'] );
 

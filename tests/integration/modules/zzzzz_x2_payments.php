@@ -15,6 +15,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Jobs;
 use PassCaptain\Localization;
 use PassCaptain\Orders;

@@ -19,6 +19,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminPage {
 	const SLUG = 'wpcap-allocations';
 	const CAP = 'wpcap_manage_events';
@@ -124,11 +127,13 @@ final class AdminPage {
 		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
 		$before = Module::config();
 		$new = array(
-			'auto_release_hours' => min( 8760, Forms::int( $in, 'auto_release_hours' ) ),
+			'auto_release_hours' => $in['auto_release_hours'] ?? 0,
 			'buyer_limit_by_user' => Forms::flag( $in, 'buyer_limit_by_user' ) ? 1 : 0,
 			'buyer_limit_strip_plus' => Forms::flag( $in, 'buyer_limit_strip_plus' ) ? 1 : 0,
 			'buyer_limit_gmail_dots' => Forms::flag( $in, 'buyer_limit_gmail_dots' ) ? 1 : 0,
 		);
+		$new = \PassCaptain\SettingsSchema::check_group( 'allocations', $new ); // SET-PC-01: reported, not clamped.
+		if ( is_wp_error( $new ) ) { return $new; }
 		Settings::update( array( 'allocations' => $new ) );
 		if ( (int) $before['buyer_limit_strip_plus'] !== $new['buyer_limit_strip_plus'] || (int) $before['buyer_limit_gmail_dots'] !== $new['buyer_limit_gmail_dots'] ) {
 			// A484: other buyer keys from now on – merge the existing orders into the rows of the new keys.
@@ -209,7 +214,7 @@ final class AdminPage {
 		echo '<p>' . esc_html__( 'Kontingente halten Plätze für Künstler, Sponsoren, Presse oder Technik zurück. Sie sind im freien Verkauf (Website, WooCommerce, Warteliste) nicht buchbar; Abendkasse, Gästeliste und Admin können sie nutzen. Sperren (z. B. Technik) blockieren Plätze dauerhaft.', 'pass-captain' ) . '</p>';
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name AS event_name,(SELECT COUNT(*) FROM " . Holds::table( 'holds' ) . " h WHERE h.occurrence_id=o.occurrence_id AND h.status='active') AS holds FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at LIMIT 100",
-			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
+			gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - DAY_IN_SECONDS )
 		) );
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Event', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Beginn', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kapazität', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktive Kontingente', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( (array) $rows as $row ) {

@@ -9,75 +9,13 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\UserAccess;
 
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
 
-/** Test user with roles and WP_User::has_cap() semantics (role capabilities + user capabilities). */
-final class Q1_User {
-	const ROLE_CAPS = array(
-		'subscriber' => array(),
-		'customer' => array(),
-		'wpcap_checkin_staff' => array( 'wpcap_checkin' ),
-		'wpcap_event_manager' => array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports' ),
-		'wpcap_partner' => array( 'wpcap_checkin', 'wpcap_view_reports' ),
-		'administrator' => array( 'manage_options', 'wpcap_manage_events', 'wpcap_checkin', 'wpcap_view_reports' ),
-	);
-	public array $caps = array();
-	public string $display_name = 'Q1';
-	public function __construct( public int $ID, public array $roles, public string $user_login = '', public string $user_email = '' ) {
-		$this->user_login = $this->user_login ?: 'q1-' . $ID;
-		$this->user_email = $this->user_email ?: 'q1-' . $ID . '@example.com';
-	}
-	public function add_cap( $cap ) { $this->caps[ $cap ] = true; }
-	public function remove_cap( $cap ) { unset( $this->caps[ $cap ] ); }
-	public function has_cap( $cap ) {
-		if ( ! empty( $this->caps[ $cap ] ) ) { return true; }
-		foreach ( $this->roles as $role ) { if ( in_array( $cap, self::ROLE_CAPS[ $role ] ?? array(), true ) ) { return true; } }
-		return false;
-	}
-	/** Like WP_User::set_role(): replaces the roles and fires set_user_role. */
-	public function set_role( $role ) {
-		$old = $this->roles;
-		$this->roles = array( $role );
-		do_action( 'set_user_role', $this->ID, $role, $old );
-	}
-	public function remove_role( $role ) {
-		$this->roles = array_values( array_diff( $this->roles, array( $role ) ) );
-		do_action( 'remove_user_role', $this->ID, $role );
-	}
-}
-function q1_user( $id, array $roles ) {
-	$user = new Q1_User( $id, $roles );
-	$GLOBALS['wpcap_test_users'][] = $user;
-	return $user;
-}
-function q1_event() {
-	global $wpdb;
-	return (int) $wpdb->get_var( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=" . make_type( 5 ) );
-}
-function q1_staff( $user_id ) {
-	global $wpdb;
-	return $wpdb->get_col( "SELECT CONCAT(event_id,':',capability) FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=" . (int) $user_id . ' ORDER BY event_id,capability' );
-}
-function q1_device( $user_id ) {
-	global $wpdb;
-	$now = gmdate( 'Y-m-d H:i:s' );
-	$wpdb->insert( "{$wpdb->prefix}wpcap_scanner_devices", array( 'public_id' => bin2hex( random_bytes( 16 ) ), 'user_id' => $user_id, 'secret_hash' => hash( 'sha256', random_bytes( 16 ) ), 'event_ids' => '[]', 'created_at' => $now, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ) ) );
-	$device = (int) $wpdb->insert_id;
-	if ( ! $device ) { echo '  device insert failed: ' . $wpdb->last_error . "\n"; }
-	$wpdb->insert( "{$wpdb->prefix}wpcap_device_pairings", array( 'code_hash' => hash( 'sha256', uniqid( '', true ) ), 'user_id' => $user_id, 'event_ids' => '[]', 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + 600 ), 'created_at' => $now ) );
-	return $device;
-}
-function q1_device_revoked( $device_id ) {
-	global $wpdb;
-	return null !== $wpdb->get_var( "SELECT revoked_at FROM {$wpdb->prefix}wpcap_scanner_devices WHERE device_id=" . (int) $device_id );
-}
-function q1_open_pairings( $user_id ) {
-	global $wpdb;
-	return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_device_pairings WHERE used_at IS NULL AND user_id=" . (int) $user_id );
-}
 
 UserAccess::register();
 

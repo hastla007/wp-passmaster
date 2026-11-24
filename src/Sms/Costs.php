@@ -19,6 +19,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Costs {
 	/** Option remembering which budget notices were sent this month ("Y-m|warn,stop"). */
 	const NOTICE_OPTION = 'wpcap_sms_budget_notices';
@@ -128,7 +131,7 @@ final class Costs {
 
 	/** First second of the UTC month of a timestamp, and of the following month. */
 	private static function month_bounds( $month = '' ) {
-		$start = preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ? $month . '-01 00:00:00' : gmdate( 'Y-m-01 00:00:00' );
+		$start = preg_match( '/^\d{4}-\d{2}$/', (string) $month ) ? $month . '-01 00:00:00' : gmdate( 'Y-m-01 00:00:00', \PassCaptain\Clock::now() );
 		$next = gmdate( 'Y-m-01 00:00:00', strtotime( $start . ' UTC +1 month' ) );
 		return array( $start, $next );
 	}
@@ -157,7 +160,7 @@ final class Costs {
 		$spent = self::month_spent();
 		$percent = $budget > 0 ? (int) floor( $spent / $budget * 100 ) : 0;
 		return array(
-			'month' => gmdate( 'Y-m' ),
+			'month' => gmdate( 'Y-m', \PassCaptain\Clock::now() ),
 			'currency' => self::currency(),
 			'budget' => $budget,
 			'spent' => $spent,
@@ -212,7 +215,7 @@ final class Costs {
 	public static function report( $months = 12 ) {
 		global $wpdb;
 		if ( ! Service::ready() ) { return array(); }
-		$since = gmdate( 'Y-m-01 00:00:00', strtotime( gmdate( 'Y-m-01' ) . ' UTC -' . max( 0, (int) $months - 1 ) . ' months' ) );
+		$since = gmdate( 'Y-m-01 00:00:00', strtotime( gmdate( 'Y-m-01', \PassCaptain\Clock::now() ) . ' UTC -' . max( 0, (int) $months - 1 ) . ' months' ) );
 		return $wpdb->get_results( $wpdb->prepare(
 			"SELECT DATE_FORMAT(sent_at,'%%Y-%%m') AS month, cost_currency AS currency, COUNT(*) AS messages, SUM(segments) AS segments, COALESCE(SUM(cost),0) AS cost, COALESCE(SUM(CASE WHEN cost_source='provider' THEN cost END),0) AS provider_cost, SUM(cost IS NULL) AS unpriced FROM {$wpdb->prefix}wpcap_sms_messages WHERE sent_at>=%s GROUP BY month, cost_currency ORDER BY month DESC, cost_currency",
 			$since

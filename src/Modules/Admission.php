@@ -16,6 +16,9 @@ use PassCaptain\Admission\RulesPage;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Admission {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
@@ -139,6 +142,13 @@ final class Admission {
 	public static function settings_defaults() {
 		// Array setting: kept out of the generic settings form; edited on "Einlassregeln".
 		return array( 'admission' => array( 'offline_max_age_hours' => 12 ) );
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'admission' => array( 'type' => 'group', 'label' => __( 'Offline-Einlass', 'pass-captain' ), 'help' => __( 'Einstellungen des Offline-Scanners, z. B. wie alt die Ticketliste auf dem Gerät höchstens sein darf.', 'pass-captain' ), 'page' => 'wpcap-admission', 'fields' => array( 'offline_max_age_hours' => array( 'type' => 'int', 'min' => 0, 'max' => 168, 'label' => __( 'Gerätezeit von Offline-Scans höchstens so viele Stunden zurück berücksichtigen (ältere werden zum Zeitpunkt des Uploads geprüft)', 'pass-captain' ) ) ) ),
+		);
 	}
 
 	public static function admin_pages() {

@@ -240,3 +240,87 @@ test('no terminal payment on the page (default): no polling, the sale form behav
 	assert.equal(env.document.querySelectorAll('input[name="method"]').length, 3);
 	assert.equal(fetch.calls.length, 0);
 });
+
+/*
+ * A527 / E-13: offline guard. Page like BoxOffice\Page with the sale form, a storno form (ONLINE_ONLY) and
+ * an unrelated search form; texts from window.wpcapPosOffline.
+ */
+function offlinePos(opts) {
+	opts = opts || {};
+	return load('assets/boxoffice/pos.js', {
+		window: { wpcapPos: { changeLabel: 'Rückgeld:', availabilityUrl: '/avail' }, wpcapPosOffline: { offline: 'Keine Netzverbindung.', online: 'Wieder online.', blocked: 'Gesperrt' } },
+		navigator: { onLine: opts.onLine !== false },
+		fetch: opts.fetch,
+		setup(doc, h) {
+			doc.body.appendChild(h('div.wrap.wpcap-pos', [
+				h('h1', 'Kasse'),
+				h('nav.nav-tab-wrapper', [h('a.nav-tab', 'Verkauf')]),
+				h('form#wpcap-pos-form', { 'data-wpcap-pos-online': '1' }, [
+					h('table', [h('tbody', [h('tr', { 'data-type': '1', 'data-price': '2500', 'data-name': 'Standard', 'data-fields': '[]' }, [h('td.wpcap-pos-avail', '∞'), h('td', [h('input.wpcap-pos-qty', { type: 'number', value: '0' })])])])]),
+					h('label', [h('input', { type: 'radio', name: 'method', value: 'cash' }), 'Bar']),
+					h('input', { type: 'text', name: 'tendered' }),
+					h('strong#wpcap-pos-total'), h('span#wpcap-pos-change'), h('div#wpcap-pos-attendees'),
+					h('button#sell', 'Verkauf buchen'),
+				]),
+				h('form#storno', { 'data-wpcap-pos-online': '1' }, [h('input', { type: 'text', name: 'reason' }), h('button#storno-btn.button-link-delete', 'Stornieren'), h('button#already', { type: 'submit', disabled: '' }, 'Schon gesperrt')]),
+				h('form#search', [h('button#search-btn', 'Suchen')]),
+			]));
+		},
+	});
+}
+
+test('offline guard: online page load changes nothing', () => {
+	const env = offlinePos();
+	assert.equal(env.document.getElementById('wpcap-pos-offline'), null, 'no banner while online');
+	assert.equal(env.document.getElementById('sell').disabled, false);
+	assert.equal(env.document.getElementById('storno-btn').disabled, false);
+});
+
+test('offline guard: going offline shows the banner and disables sale and storno submits; back online re-enables them', () => {
+	const env = offlinePos();
+	env.navigator.onLine = false;
+	env.window.dispatchEvent(new Event('offline'));
+	const banner = env.document.getElementById('wpcap-pos-offline');
+	assert.ok(banner, 'banner rendered');
+	assert.equal(banner.hidden, false);
+	assert.equal(banner.getAttribute('role'), 'alert');
+	assert.ok(banner.classList.contains('notice-error'));
+	assert.equal(banner.textContent, 'Keine Netzverbindung.');
+	assert.equal(env.document.querySelector('.nav-tab-wrapper').nextElementSibling, banner, 'banner sits below the tabs');
+	const sell = env.document.getElementById('sell');
+	const storno = env.document.getElementById('storno-btn');
+	assert.equal(sell.disabled, true);
+	assert.equal(storno.disabled, true);
+	assert.equal(sell.getAttribute('aria-describedby'), 'wpcap-pos-offline');
+	assert.equal(sell.getAttribute('title'), 'Gesperrt');
+	assert.equal(env.document.getElementById('search-btn').disabled, false, 'forms without the marker are left alone');
+
+	env.navigator.onLine = true;
+	env.window.dispatchEvent(new Event('online'));
+	assert.equal(sell.disabled, false);
+	assert.equal(storno.disabled, false);
+	assert.equal(sell.getAttribute('aria-describedby'), null);
+	assert.equal(env.document.getElementById('already').disabled, true, 'a button the page disabled stays disabled');
+	assert.equal(banner.textContent, 'Wieder online.');
+	assert.equal(banner.getAttribute('role'), 'status');
+	assert.ok(banner.classList.contains('notice-success'));
+});
+
+test('offline guard: offline at page load blocks submits, never queues the sale, and a later online submit still goes through', async () => {
+	const fetch = mockFetch(() => ({ json: {} }));
+	const env = offlinePos({ onLine: false, fetch });
+	assert.equal(env.document.getElementById('sell').disabled, true);
+	const form = env.document.getElementById('wpcap-pos-form');
+	const blocked = new Event('submit', { bubbles: true, cancelable: true });
+	form.dispatchEvent(blocked);
+	assert.equal(blocked.defaultPrevented, true, 'submit stopped while offline');
+	assert.equal(env.document.activeElement, env.document.getElementById('wpcap-pos-offline'), 'banner focused');
+	await flush();
+	assert.equal(fetch.calls.length, 0, 'nothing sent in the background');
+	assert.equal(env.localStorage.length, 0, 'nothing stored for later');
+	env.navigator.onLine = true;
+	env.window.dispatchEvent(new Event('online'));
+	const ok = new Event('submit', { bubbles: true, cancelable: true });
+	form.dispatchEvent(ok);
+	assert.equal(ok.defaultPrevented, false, 'the blocked attempt did not trip the double-submit guard');
+});

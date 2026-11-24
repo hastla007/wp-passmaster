@@ -18,6 +18,9 @@ use PassCaptain\Operations\SiteHealth;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OperationsPage {
 	/** Former slug of this screen (kept for bookmarks and links; redirects to the merged screen). */
 	const SLUG = 'wpcap-operations';
@@ -132,6 +135,8 @@ final class OperationsPage {
 		SuiteStatus::render(); // A670/A678: suite contracts, providers, last delivery, errors, fallback.
 		self::render_log();
 		self::render_unresolved_refunds();
+		self::render_voucher_reconciliation();
+		ManualHoldsRelease::render();
 		self::render_doctor();
 		$labels = Queues::labels();
 		foreach ( Queues::available() as $queue => $def ) {
@@ -232,6 +237,46 @@ final class OperationsPage {
 			echo '<td>' . esc_html( Forms::datetime( (string) $row['updated_at'], wp_timezone_string(), false ) ) . '</td><td>';
 			OrdersPage::render_refund_resolution( $row, 'operations' );
 			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+
+	/**
+	 * Section "Gutschein-Abgleich" (Integrations\Vouchers\ReconciliationReport): voucher snapshots of the orders
+	 * (reserved, committed, released, refunded) against the order state, open voucher reversals and –
+	 * when available – Voucher Captain's state. Runs on request (?wpcap_voucher_recon=1), read-only.
+	 * Hidden on sites that never used vouchers.
+	 */
+	public static function render_voucher_reconciliation() {
+		global $wpdb;
+		$used = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM %i WHERE voucher_snapshot IS NOT NULL AND voucher_snapshot<>'' LIMIT 1", $wpdb->prefix . 'wpcap_orders' ) );
+		if ( ! $used && ! \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) { return; }
+		echo '<h2 id="wpcap-voucher-recon">' . esc_html__( 'Gutschein-Abgleich', 'pass-captain' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Vergleicht die in Bestellungen gespeicherten Gutschein-Einlösungen (reserviert, belastet, freigegeben, zurückgebucht) mit dem Bestellstatus und zeigt offene Gutschein-Rückbuchungen. Der Stand in Voucher Captain wird nur verglichen, wenn Voucher Captain ihn bereitstellt; sonst siehst du die Abweichungskandidaten aus Pass-Captain-Sicht. Die Prüfung ändert nichts.', 'pass-captain' ) . '</p>';
+		if ( empty( $_GET['wpcap_voucher_recon'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- read-only view.
+			echo '<p><a class="button" href="' . esc_url( self::url( array( 'wpcap_voucher_recon' => 1 ) ) . '#wpcap-voucher-recon' ) . '">' . esc_html__( 'Abgleich ausführen', 'pass-captain' ) . '</a></p>';
+			return;
+		}
+		$report = \PassCaptain\Integrations\Vouchers\ReconciliationReport::report();
+		/* translators: 1: number of orders checked, 2: maximum */
+		echo '<p>' . esc_html( sprintf( __( '%1$d Bestellungen mit Gutschein geprüft (höchstens die neuesten %2$d).', 'pass-captain' ), $report['checked'], $report['limit'] ) ) . ' ';
+		echo esc_html( $report['provider'] ? __( 'Stand in Voucher Captain: verglichen.', 'pass-captain' ) : __( 'Stand in Voucher Captain: nicht verfügbar, nur Pass-Captain-Sicht.', 'pass-captain' ) ) . '</p>';
+		echo '<table class="widefat striped" style="max-width:40em"><thead><tr><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Anzahl', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Eingelöst', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Zurückgebucht', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $report['summary'] as $status => $sum ) {
+			echo '<tr><td><code>' . esc_html( '' !== (string) $status ? (string) $status : '–' ) . '</code></td><td>' . esc_html( number_format_i18n( $sum['count'] ) ) . '</td><td>' . esc_html( number_format_i18n( $sum['amount_minor'] ) ) . '</td><td>' . esc_html( number_format_i18n( $sum['refunded_minor'] ) ) . '</td></tr>';
+		}
+		echo '</tbody></table><p class="description">' . esc_html__( 'Beträge in der kleinsten Währungseinheit, über alle Währungen summiert.', 'pass-captain' ) . '</p>';
+		if ( ! $report['issues'] ) {
+			echo '<p>' . esc_html__( 'Keine Abweichungen gefunden.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		$labels = \PassCaptain\Integrations\Vouchers\ReconciliationReport::labels();
+		echo '<table class="widefat striped wpcap-voucher-recon"><thead><tr><th scope="col">' . esc_html__( 'Abweichung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gutschein', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Hinweis', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( array_slice( $report['issues'], 0, 200 ) as $issue ) {
+			echo '<tr data-code="' . esc_attr( $issue['code'] ) . '"><td>' . esc_html( $labels[ $issue['code'] ] ?? $issue['code'] ) . '</td>';
+			echo '<td><a href="' . esc_url( OrdersPage::order_url( $issue['order_id'] ) ) . '">' . esc_html( \PassCaptain\Frontend\Format::order_reference( $issue['public_id'] ) ) . '</a></td>';
+			echo '<td><code>' . esc_html( $issue['status'] ) . '</code> ' . esc_html( Forms::money( $issue['amount_minor'], $issue['currency'] ) ) . '</td>';
+			echo '<td>' . esc_html( $issue['detail'] ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}

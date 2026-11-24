@@ -9,6 +9,9 @@ namespace PassCaptain\BoxOffice;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Cash {
 	/** Notes and coins in minor units (EUR and CHF style); highest first. */
 	public static function denominations( $currency = 'EUR' ) {
@@ -79,4 +82,26 @@ final class Cash {
 		if ( (int) $amount_minor < 0 ) { return new \WP_Error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ); }
 		return array( (int) $amount_minor, array() );
 	}
+
+	/**
+	 * SET-PC-39 "Zählpflicht": with the setting boxoffice_count_mode = denominations a counted amount
+	 * above 0 must come with a denomination count. True when the count is acceptable.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function check_mode( $amount_minor, array $denominations ) {
+		if ( 'denominations' !== (string) \PassCaptain\Settings::get( 'boxoffice_count_mode', 'amount' ) || (int) $amount_minor <= 0 || $denominations ) { return true; }
+		return new \WP_Error( 'wpcap_pos_denominations_required', __( 'Bitte nach Scheinen und Münzen zählen (Stückelung); ein Gesamtbetrag allein reicht an dieser Kasse nicht.', 'pass-captain' ) );
+	}
+
+	/** SET-PC-39: largest difference (minor units) that needs no reason (setting, default 0). */
+	public static function tolerance() {
+		return max( 0, (int) \PassCaptain\Settings::get( 'boxoffice_difference_tolerance_minor', 0 ) );
+	}
+
+	/** SET-PC-39: whether a difference needs a reason (more than the tolerance; null = not counted). */
+	public static function needs_reason( $difference_minor ) {
+		return null !== $difference_minor && abs( (int) $difference_minor ) > self::tolerance();
+	}
+
 }

@@ -104,6 +104,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 
 	console.log('Checkout: dynamic attendee fields and native validation');
 	await page.goto(fx.events_url, { waitUntil: 'load' });
+	const checkoutLoadedAt = Date.now(); // Bot check (FormGuard): the form must not be sent within checkout_min_fill_seconds (3 s).
 	await page.evaluate((id) => { document.querySelector(`.wpcap-qty[data-type="${id}"]`).closest('article').setAttribute('data-a11y-scope', '1'); }, stdId);
 	f = await tabUntil(page, scope, (s) => s.field === freeId);
 	check('free ticket quantity is reachable', !!f);
@@ -174,6 +175,8 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	}
 	const button = await tabUntil(page, scope, (s) => s.tag === 'button[submit]', 40);
 	check('Tab reaches the submit button after the form fields', !!button);
+	// A person needs more than 3 seconds for this form; wait like one instead of disabling the bot check.
+	await page.waitForTimeout(Math.max(0, 3500 - (Date.now() - checkoutLoadedAt)));
 	await page.keyboard.press('Enter');
 	await page.waitForFunction(() => !!document.querySelector('.wpcap-confirmation, .wpcap-error-summary'), null, { timeout: 15000 }).catch(() => {});
 	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); const e = document.querySelector('.wpcap-error-summary'); return { text: p ? p.textContent.trim() : (e ? 'ERROR: ' + e.textContent.trim() : ''), focused: !!p && document.activeElement === p }; });

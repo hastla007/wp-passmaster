@@ -16,6 +16,9 @@ use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Status {
 	/** A due item waiting longer than this (seconds) counts as overdue: the worker is not keeping up. */
 	const OVERDUE_AFTER = 30 * MINUTE_IN_SECONDS;
@@ -62,7 +65,7 @@ final class Status {
 	public static function flush_cache() { self::$tables = array(); }
 
 	private static function gmt( $offset_seconds = 0, $now = null ) {
-		return gmdate( 'Y-m-d H:i:s', ( $now ?? time() ) - (int) $offset_seconds );
+		return gmdate( 'Y-m-d H:i:s', ( $now ?? \PassCaptain\Clock::real() ) - (int) $offset_seconds );
 	}
 
 	/**
@@ -137,7 +140,7 @@ final class Status {
 			$result = \PassCaptain\Webhooks\Dispatcher::redeliver( $id );
 			if ( is_wp_error( $result ) ) { return $result; }
 		} else {
-			$now = current_time( 'mysql', true );
+			$now = \PassCaptain\Clock::mysql();
 			$data = array( 'status' => $q['ready'], 'attempts' => 0, $q['due'] => $now, 'locked_at' => null );
 			if ( $q['updated'] ) { $data[ $q['updated'] ] = $now; }
 			$changed = $wpdb->update( $t, $data, array( $q['id'] => $id, 'status' => $q['failed'] ) );
@@ -204,7 +207,7 @@ final class Status {
 		$t = $wpdb->prefix . $q['table'];
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $t WHERE {$q['id']}=%d", $id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$data = array( 'status' => $q['discarded'], 'locked_at' => null );
-		if ( $q['updated'] ) { $data[ $q['updated'] ] = current_time( 'mysql', true ); }
+		if ( $q['updated'] ) { $data[ $q['updated'] ] = \PassCaptain\Clock::mysql(); }
 		$changed = $row && $q['failed'] === $row->status ? $wpdb->update( $t, $data, array( $q['id'] => $id, 'status' => $q['failed'] ) ) : 0;
 		if ( 1 !== (int) $changed ) {
 			return new \WP_Error( 'wpcap_ops_state', __( 'Der Eintrag ist nicht (mehr) fehlgeschlagen und wurde nicht verändert.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -238,7 +241,7 @@ final class Status {
 	 * @return array[] {hook, label, next_run, last_beat, processed, state: ok|warning|error, message}
 	 */
 	public static function cron_health( $now = null, $next_runs = null, $cron_disabled = null ) {
-		$now = $now ?? time();
+		$now = $now ?? \PassCaptain\Clock::real();
 		$cron_disabled = null === $cron_disabled ? self::cron_disabled() : (bool) $cron_disabled;
 		$rows = array();
 		foreach ( self::cron_hooks() as $hook => list( $label, $interval, $worker ) ) {
@@ -326,7 +329,7 @@ final class Status {
 		}
 		// Server isolation other than REPEATABLE READ (the plugin's inventory transactions force it themselves).
 		$issues = array_merge( $issues, \PassCaptain\DbSession::status_issues() );
-		// QR encoder (bacon/bacon-qr-code, not namespace-prefixed): another plugin may have loaded its own copy first.
+		// QR encoder (namespace-prefixed bacon/bacon-qr-code, A103): missing, or loaded from outside this plugin (second copy).
 		$foreign = \PassCaptain\QrCode::foreign_encoder();
 		$qr_ok   = (bool) \PassCaptain\QrCode::matrix( 'pass-captain' );
 		if ( '' !== $foreign || ! $qr_ok ) {

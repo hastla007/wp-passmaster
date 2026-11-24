@@ -17,6 +17,9 @@ namespace PassCaptain\Operations;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Monitor {
 	const HEARTBEAT_OPTION = 'wpcap_ops_heartbeat';
 	const MAIL_OPTION = 'wpcap_ops_mail_failures';
@@ -45,7 +48,7 @@ final class Monitor {
 	public static function heartbeat( $hook = null, $now = null ) {
 		$hook = null === $hook ? ( function_exists( 'current_filter' ) ? (string) current_filter() : '' ) : (string) $hook;
 		if ( ! in_array( $hook, self::HEARTBEAT_HOOKS, true ) ) { return; }
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$beats = get_option( self::HEARTBEAT_OPTION, array() );
 		$beats = is_array( $beats ) ? $beats : array();
 		if ( isset( $beats[ $hook ] ) && $now - (int) $beats[ $hook ] < 60 ) { return; }
@@ -104,7 +107,7 @@ final class Monitor {
 
 	/** Stores one mail failure (type and code sanitised, error text masked). */
 	public static function record_mail_failure( $type, $code, $message = '', $now = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$list = self::mail_failures_raw();
 		$list[] = array(
 			't'     => $now,
@@ -112,7 +115,7 @@ final class Monitor {
 			'code'  => substr( sanitize_key( (string) $code ), 0, 64 ),
 			'error' => Queues::safe_error( (string) $message ),
 		);
-		$cutoff = time() - self::MAIL_KEEP_DAYS * DAY_IN_SECONDS;
+		$cutoff = \PassCaptain\Clock::real() - self::MAIL_KEEP_DAYS * DAY_IN_SECONDS;
 		$list = array_values( array_filter( $list, static fn( $e ) => (int) $e['t'] >= $cutoff ) );
 		update_option( self::MAIL_OPTION, array_slice( $list, -self::MAIL_MAX ), false );
 	}
@@ -135,7 +138,7 @@ final class Monitor {
 	 * @param string $reference Support log reference ('' = none).
 	 */
 	public static function record_provider_failure( $option, $provider, $kind, $code, $message = '', $reference = '', $now = null ) {
-		$now = null === $now ? time() : (int) $now;
+		$now = null === $now ? \PassCaptain\Clock::real() : (int) $now;
 		$list = self::raw( $option );
 		$entry = array(
 			't'        => $now,

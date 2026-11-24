@@ -20,6 +20,9 @@ use PassCaptain\Security\StepUp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AuditLogPage {
 	const SLUG = 'wpcap-audit-log';
 	const CAP = 'wpcap_view_audit';
@@ -168,7 +171,7 @@ final class AuditLogPage {
 		if ( is_wp_error( $check ) ) { return $check; }
 		$total = (int) self::query( $filters, 1, 1 )['total'];
 		Audit::record( 'audit_log_exported', 'audit', 0, array_merge( array_filter( $filters ), array( 'rows' => $total ) ) );
-		$filename = 'pass-captain-audit-' . gmdate( 'Ymd-His' ) . '.csv';
+		$filename = 'pass-captain-audit-' . gmdate( 'Ymd-His', \PassCaptain\Clock::now() ) . '.csv';
 		// $stream: rows as a generator for Scope::send_csv() (the admin download); else the CSV string.
 		return $stream ? array( 'filename' => $filename, 'rows' => self::csv_row_stream( $filters ) ) : array( 'filename' => $filename, 'csv' => Scope::csv( self::csv_rows( $filters ) ) );
 	}
@@ -227,6 +230,8 @@ final class AuditLogPage {
 			'order_link_requested' => __( 'Bestelllink angefordert', 'pass-captain' ),
 			'external_payment_confirmed' => __( 'Zahlung bestätigt', 'pass-captain' ),
 			'manual_payment_confirmed' => __( 'Überweisung als bezahlt markiert', 'pass-captain' ),
+			'manual_hold_released' => __( 'Offene Überweisung vorzeitig freigegeben', 'pass-captain' ),
+			'manual_holds_bulk_release' => __( 'Offene Überweisungen gesammelt freigegeben', 'pass-captain' ),
 			'payment_unallocated' => __( 'Zahlung ohne freies Kontingent', 'pass-captain' ),
 			'payment_for_closed_order' => __( 'Zahlung für geschlossene Bestellung', 'pass-captain' ),
 			'payment_amount_mismatch' => __( 'Zahlungsbetrag weicht ab', 'pass-captain' ),

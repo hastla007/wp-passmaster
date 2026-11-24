@@ -19,6 +19,9 @@ use PassCaptain\Waitlists;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class WaitlistsPage {
 	/** Former slug of this screen (kept for bookmarks and links; redirects to the merged screen). */
 	const SLUG = 'wpcap-waitlists';

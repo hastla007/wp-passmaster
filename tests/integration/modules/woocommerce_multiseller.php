@@ -11,6 +11,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\Invoices;
 use PassCaptain\Orders;
 use PassCaptain\Partners\Repository as MsPartners;
@@ -22,9 +24,7 @@ use PassCaptain\Integrations\WooCommerce\SellerSplit;
 global $wpdb;
 $p = $wpdb->prefix;
 
-if ( ! class_exists( '\\Automattic\\WooCommerce\\StoreApi\\Exceptions\\RouteException' ) ) {
-	eval( 'namespace Automattic\\WooCommerce\\StoreApi\\Exceptions; class RouteException extends \\Exception { public $error_code; public $status; public function __construct( $error_code, $message, $status = 400 ) { parent::__construct( $message ); $this->error_code = $error_code; $this->status = $status; } }' );
-}
+wpcap_test_route_exception(); // WooCommerce Store API exception class (lib/fixtures_shared.php).
 class Wpcap_Ms_Item {
 	use Test_Meta;
 	public function __construct( public int $id, public string $kind, public string $total, public string $tax = '0' ) { $GLOBALS['wpcap_test_items'][ $id ] = $this; }
@@ -37,31 +37,10 @@ class Wpcap_Ms_Item {
 class Wpcap_Ms_Order extends Wpcap_Test_Woo_Order {
 	public function add_meta_data( $k, $v, $unique = false ) { $this->meta[ $k ] = array_merge( (array) ( $this->meta[ $k ] ?? array() ), array( $v ) ); }
 }
-class Wpcap_Ms_Cart { public array $cart_contents = array(); public function get_cart() { return $this->cart_contents; } }
-class Wpcap_Ms_WC { public $cart; public $session; public bool $store_api = false; public function is_store_api_request() { return $this->store_api; } }
-class Wpcap_Ms_Errors { public array $errors = array(); public function add( $code, $message ) { $this->errors[ $code ] = $message; } }
 if ( ! function_exists( 'WC' ) ) {
 	function WC() { return $GLOBALS['wpcap_test_wc']; }
 }
-if ( ! function_exists( 'wc_get_orders' ) ) {
-	// First definition wins for the whole run: also serves later modules (meta_query EXISTS + limit for
-	// MetaCleanup in zz_a196/zz_a284).
-	function wc_get_orders( $args = array() ) {
-		$out = array();
-		foreach ( $GLOBALS['wpcap_test_orders'] ?? array() as $order ) {
-			if ( isset( $args['meta_key'] ) ) {
-				if ( in_array( (string) ( $args['meta_value'] ?? '' ), array_map( 'strval', (array) ( $order->meta[ $args['meta_key'] ] ?? array() ) ), true ) ) { return array( $order ); }
-				continue;
-			}
-			foreach ( (array) ( $args['meta_query'] ?? array() ) as $clause ) {
-				if ( is_array( $clause ) && 'EXISTS' === ( $clause['compare'] ?? '' ) && '' === (string) $order->get_meta( $clause['key'], true ) ) { continue 2; }
-			}
-			$out[] = $order;
-			if ( count( $out ) >= (int) ( $args['limit'] ?? 10 ) ) { break; }
-		}
-		return $out;
-	}
-}
+require_once dirname( __DIR__ ) . '/lib/wc_orders_stub.php'; // wc_get_orders() over the test orders.
 if ( ! function_exists( 'number_format_i18n' ) ) {
 	function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ',', '.' ); }
 }

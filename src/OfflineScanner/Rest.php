@@ -20,6 +20,9 @@ use PassCaptain\Security\SignedQr;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Rest {
 	public static function routes() {
 		$auth = array( Api::class, 'authenticate' );
@@ -66,7 +69,7 @@ final class Rest {
 	}
 
 	public static function keys( \WP_REST_Request $request ) {
-		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'server_time' => gmdate( 'c' ) ) );
+		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 	}
 
 	/**
@@ -97,7 +100,7 @@ final class Rest {
 				'rules' => array( 'max_offline_hours' => $rules['max_offline_hours'], 'duplicate_policy' => $rules['duplicate_policy'], 'attendee_names' => Rules::attendee_names( $rules ) ),
 			);
 		}
-		return rest_ensure_response( array( 'occurrences' => $out, 'device_id' => (string) $device->public_id, 'server_time' => gmdate( 'c' ) ) );
+		return rest_ensure_response( array( 'occurrences' => $out, 'device_id' => (string) $device->public_id, 'server_time' => gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 	}
 
 	/**

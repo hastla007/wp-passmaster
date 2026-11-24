@@ -9,6 +9,8 @@
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\RateLimit;
 
 $q1r_saved_remote = $_SERVER['REMOTE_ADDR'] ?? null;

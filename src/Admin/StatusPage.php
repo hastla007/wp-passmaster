@@ -20,6 +20,9 @@ use PassCaptain\Ops\Status;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class StatusPage {
 	const SLUG = 'wpcap-status';
 	const CAP = 'manage_options';
@@ -36,7 +39,7 @@ final class StatusPage {
 			'wpcap_ops_refund_resolve' => array( self::class, 'handle_refund_resolve' ),
 			'wpcap_ops_schema_retry'   => array( self::class, 'handle_schema_retry' ),
 			'wpcap_ops_payment_case'   => array( self::class, 'handle_payment_case' ),
-		);
+		) + ManualHoldsRelease::handlers();
 	}
 
 	/** Hooks of the page that are not admin-post handlers (called from Menu::register()). */
@@ -254,6 +257,7 @@ final class StatusPage {
 		self::render_alerts();
 		self::render_cron();
 		self::render_queues();
+		ManualHoldsRelease::render_summary(); // Link to the bulk release of open bank transfers (tab "Betrieb").
 		self::render_failed();
 		self::render_refunds();
 		self::render_payment_cases();

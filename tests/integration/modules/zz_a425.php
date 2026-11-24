@@ -84,12 +84,12 @@ check( 'A425: invoice has the fee positions', 3 === count( $a425_lines ) && fals
 check( 'A425: invoice lines add up to the invoice total and VAT', $a425_invoice && 5500 === (int) $a425_invoice->total_minor && 5500 === array_sum( array_map( static fn( $l ) => (int) $l->total_minor, $a425_lines ) ) && (int) $a425_invoice->tax_minor === array_sum( array_map( static fn( $l ) => (int) $l->tax_minor, $a425_lines ) ) );
 
 // Refunds: one ticket takes its per-ticket fee, the last one the rest (per-order fee).
-$a425_r1 = Refunds::request( $a425_id, array( (int) $a425_tickets[0]->ticket_id ), 'Storno', 'a425-r1' );
+$a425_r1 = Refunds::request( $a425_id, array( (int) $a425_tickets[0]->ticket_id ), 'Storno', 'a425-r1', array( 'service_fee' => 'refund' ) );
 $a425_r1_row = is_array( $a425_r1 ) ? Refunds::get( (int) $a425_r1['refund_id'] ) : null;
 check( 'A425: a ticket refund includes its per-ticket fee (2500 + 150)', $a425_r1_row && 2650 === (int) $a425_r1_row['amount_minor'] && Orders::gross_tax( 2650, 2000 ) === (int) $a425_r1_row['tax_minor'] );
 $a425_cn1 = Invoices::credit_note_for_refund( (int) $a425_r1['refund_id'] );
 check( 'A425: the correction document matches the refund', is_array( $a425_cn1 ) && 2650 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT total_minor FROM {$p}wpcap_credit_notes WHERE refund_id=%d", (int) $a425_r1['refund_id'] ) ) );
-$a425_r2 = Refunds::request( $a425_id, array(), 'Storno', 'a425-r2' );
+$a425_r2 = Refunds::request( $a425_id, array(), 'Storno', 'a425-r2', array( 'service_fee' => 'refund' ) );
 $a425_r2_row = is_array( $a425_r2 ) ? Refunds::get( (int) $a425_r2['refund_id'] ) : null;
 $a425_after = Orders::get( $a425_id );
 check( 'A425: the last ticket takes the per-ticket and per-order fee; the order is fully refunded', $a425_r2_row && 2850 === (int) $a425_r2_row['amount_minor'] && 5500 === (int) $a425_after->refunded_minor );
@@ -128,7 +128,7 @@ check( 'A425: the report reconciles with fee lines', array() === PassCaptain\Rep
 // Checkout display: data attributes and the estimate text.
 $a425_tpl = (string) file_get_contents( WPCAP_PATH . 'templates/event-card.php' );
 $a425_js = (string) file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
-check( 'A425: event card exposes the fee (data-fee, data-order-fee, "zzgl. … Servicegebühr")', false !== strpos( $a425_tpl, 'data-fee=' ) && false !== strpos( $a425_tpl, 'data-order-fee=' ) && false !== strpos( $a425_tpl, 'zzgl. %s Servicegebühr' ) );
+check( 'A425: event card exposes the fee (data-fee, data-order-fee, fee notes; zz_a425_display.php checks the rendered card)', false !== strpos( $a425_tpl, 'data-fee=' ) && false !== strpos( $a425_tpl, 'data-order-fee=' ) && false !== strpos( $a425_tpl, 'ServiceFee::included_note(' ) && false !== strpos( $a425_tpl, 'ServiceFee::order_note(' ) );
 check( 'A425: checkout estimate adds the fee', false !== strpos( $a425_js, 'dataset.orderFee' ) && false !== strpos( $a425_js, 't.estimateFee' ) );
 check( 'A425: per_ticket() follows the type, then the setting', 99 === ServiceFee::per_ticket( (object) array( 'price_minor' => 1, 'service_fee_minor' => 99 ) ) && 150 === ServiceFee::per_ticket( (object) array( 'price_minor' => 1, 'service_fee_minor' => null ) ) && 0 === ServiceFee::per_ticket( (object) array( 'price_minor' => 0, 'service_fee_minor' => null ) ) );
 

@@ -37,11 +37,14 @@ use PassCaptain\Security\OutboundHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CheckoutThrottle {
 	/** Option: last checkout that looked like an unconfigured proxy (array kind, time; not autoloaded). */
 	const SEEN_OPTION = 'wpcap_proxy_suspect_seen';
 
-	/** Holds per network + e-mail and hour. */
+	/** Holds per network + e-mail and hour (default of the setting rate_checkout_email_per_hour, SET-PC-38). */
 	const EMAIL_LIMIT = 8;
 
 	/** Ranges of a reverse proxy / load balancer in front of the site (private, loopback, CGNAT, link-local). */
@@ -94,15 +97,16 @@ final class CheckoutThrottle {
 		$suspect = self::proxy_suspect();
 		if ( '' !== $suspect ) { self::remember( $suspect ); }
 		$factor = 'header' === $suspect ? max( 1, (int) apply_filters( 'wpcap_checkout_proxy_limit_factor', 10 ) ) : 1;
-		$ip_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ), $factor );
+		$ip_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_ip_limit', RateLimit::configured( 'rate_checkout_ip_per_hour' ) ) ), $factor );
 		$attempt_factor = max( 1, (int) apply_filters( 'wpcap_checkout_attempt_factor', 4 ) );
-		$unpaid_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', 10 ) ), $factor );
+		$unpaid_limit = self::times( max( 1, (int) apply_filters( 'wpcap_checkout_unpaid_per_network', RateLimit::configured( 'rate_checkout_unpaid_per_network' ) ) ), $factor );
+		$email_limit = RateLimit::configured( 'rate_checkout_email_per_hour' ); // SET-PC-38 (default EMAIL_LIMIT)
 		$per_network = 'private' !== $suspect;
 		$net_hash = Orders::rate_hash( $network );
 		$buyer_hash = Orders::rate_hash( $network . '|' . $buyer );
 		// Attempts (never taken back).
 		$attempts_ok = ( ! $per_network || RateLimit::hit( 'wpcap_checkout_try_ip_' . $net_hash, self::times( $ip_limit, $attempt_factor ), HOUR_IN_SECONDS ) )
-			&& RateLimit::hit( 'wpcap_checkout_try_' . $buyer_hash, self::EMAIL_LIMIT * $attempt_factor, HOUR_IN_SECONDS );
+			&& RateLimit::hit( 'wpcap_checkout_try_' . $buyer_hash, self::times( $email_limit, $attempt_factor ), HOUR_IN_SECONDS );
 		$counters = array();
 		if ( $per_network ) {
 			$counters['hold'] = array( 'wpcap_checkout_ip_' . $net_hash, $ip_limit, HOUR_IN_SECONDS );
@@ -115,7 +119,7 @@ final class CheckoutThrottle {
 			}
 			$counters['unpaid'] = array( 'wpcap_checkout_unpaid_' . $net_hash, $unpaid_limit, max( 1, min( 60, (int) $hold_minutes ) ) * MINUTE_IN_SECONDS );
 		}
-		$counters['email'] = array( 'wpcap_checkout_' . $buyer_hash, self::EMAIL_LIMIT, HOUR_IN_SECONDS );
+		$counters['email'] = array( 'wpcap_checkout_' . $buyer_hash, $email_limit, HOUR_IN_SECONDS );
 		$counted = array();
 		$refused = ! $attempts_ok;
 		foreach ( $counters as $name => $counter ) {
@@ -161,8 +165,8 @@ final class CheckoutThrottle {
 	/** Notes a suspicious request for the system status (written at most once a day). */
 	private static function remember( $kind ) {
 		$seen = get_option( self::SEEN_OPTION );
-		if ( is_array( $seen ) && ( $seen['kind'] ?? '' ) === $kind && (int) ( $seen['time'] ?? 0 ) > time() - DAY_IN_SECONDS ) { return; }
-		update_option( self::SEEN_OPTION, array( 'kind' => $kind, 'time' => time() ), false );
+		if ( is_array( $seen ) && ( $seen['kind'] ?? '' ) === $kind && (int) ( $seen['time'] ?? 0 ) > \PassCaptain\Clock::real() - DAY_IN_SECONDS ) { return; }
+		update_option( self::SEEN_OPTION, array( 'kind' => $kind, 'time' => \PassCaptain\Clock::real() ), false );
 	}
 
 	/**
@@ -176,7 +180,7 @@ final class CheckoutThrottle {
 		$kind = self::proxy_suspect();
 		if ( '' === $kind ) {
 			$seen = get_option( self::SEEN_OPTION );
-			$kind = is_array( $seen ) && (int) ( $seen['time'] ?? 0 ) > time() - 7 * DAY_IN_SECONDS ? (string) ( $seen['kind'] ?? '' ) : '';
+			$kind = is_array( $seen ) && (int) ( $seen['time'] ?? 0 ) > \PassCaptain\Clock::real() - 7 * DAY_IN_SECONDS ? (string) ( $seen['kind'] ?? '' ) : '';
 		}
 		if ( '' === $kind ) { return null; }
 		return array(

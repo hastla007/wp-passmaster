@@ -13,6 +13,9 @@ use PassCaptain\Wallet\ProviderInterface;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 interface WalletProvider extends ProviderInterface {
 	/** Short provider key ("apple", "google"). */
 	public function id();

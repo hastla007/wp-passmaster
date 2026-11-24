@@ -7,18 +7,12 @@
  * Included from run.php (uses check()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Capabilities;
 
 echo "A372: uninstall removes module capabilities\n";
 
-/** Runs uninstall.php in a child process; returns the decoded end state. */
-function x2_uninstall_run( array $config ) {
-	$cmd = 'X2U_PREFIX=' . escapeshellarg( $GLOBALS['wpdb']->prefix . 'u2_' ) . ' X2U_CONFIG=' . escapeshellarg( json_encode( $config ) ) . ' ' . escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __DIR__ . '/zz_x2_uninstall/child.php' ) . ' 2>&1';
-	$raw = (string) shell_exec( $cmd );
-	$out = json_decode( $raw, true );
-	if ( ! is_array( $out ) ) { echo '  (uninstall child: ' . substr( $raw, 0, 400 ) . ")\n"; }
-	return is_array( $out ) ? $out : array();
-}
 
 $x2_a372_all = Capabilities::all();
 $x2_a372 = x2_uninstall_run( array(

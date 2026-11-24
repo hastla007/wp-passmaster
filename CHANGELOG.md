@@ -1,5 +1,142 @@
 # Änderungsprotokoll
 
+## 1.7.0 – 2026-11-23
+
+### Wichtige Verhaltensänderungen beim Update
+- **Rechte für Einlass, Einlösen und Rücknahme getrennt:** Check-in zurücknehmen (`wpcap_undo_checkin`) und Pässe einlösen (`wpcap_redeem_passes`) sind eigene Capabilities. Beim Update erhalten alle Rollen mit `wpcap_checkin` beide Rechte einmalig; danach bleibt ein Entzug bestehen.
+- **Bot-Schutz im Bestellformular** ist standardmäßig an (Fangfeld, Mindest-Ausfüllzeit 3 Sekunden). Er gilt nur für das eigene Formular der Eventseiten; REST-Integrationen, Partner-API, WooCommerce und Kasse sind nicht betroffen.
+- **Überweisung** wird im Formular nicht mehr angeboten, sobald der bestehende Anteil offener Überweisungen eines Termins (A634, Standard 50 %) erreicht ist; bisher lehnte erst der Checkout ab.
+- **Kundentexte in der Du-Form:** auch der Vorschlag für die Datenschutzerklärung; das Rechnungslabel heißt neutral „Bestell-/Referenznummer des Leistungsempfängers“.
+- **Datenbankschema 3.18.4:** Erstattungen speichern erstattete und einbehaltene Servicegebühr mit USt (`fee_minor`, `fee_tax_minor`, `fee_kept_minor`, `fee_kept_tax_minor`).
+- **PC-7:** Kein eigener Workflow-Vertrag mehr im Kern (Entscheidung vom 23.11.2026, Suite-Entscheidungen D13/D10): Filter `wp_pass_captain_workflow_provider_v1`, Workflow-Outbox, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain entfallen; Pass Captain versendet alle Mails selbst. Workflow Captain nutzt die `wpcap_*`-Actions, die Lesefassade `wpcap_get_*_state()` und die neuen Aktionsfunktionen. Die Outbox (`Suite\Outbox`) dient nur noch dem Review-Vertrag; ihre Hooks heißen `wpcap_outbox_*` statt `wpcap_workflow_*`. Ein Wächtertest verhindert die Rückkehr. Der Vertrag wurde nie genutzt und war nur in 1.6.0 veröffentlicht; deshalb bleibt `WPCAP_CONTRACT_VERSION` bei 1.4.0 (Ausnahme von der Regel „Entfernen = neue erste Stelle“, dokumentiert in docs/EXTENSIONS.md).
+- **PC-9:** `wpcap_event_cancelled` feuert jetzt einmal je Absage, nachdem alle Termine abgesagt und alle Tickets widerrufen sind (Argumente `int $event_id, array $context`); bisher direkt nach dem Commit, bevor die Tickets widerrufen waren.
+- **SET-PC-01:** Gespeicherte Einstellungen außerhalb der erlaubten Grenzen oder mit unbekanntem Auswahlwert werden nicht mehr stillschweigend gekappt bzw. ersetzt: Die Einstellungsseite meldet den Fehler und behält den bisherigen Wert.
+
+### Bestellportal und Selbstbedienung
+- Admin: Käufer-E-Mail einer Bestellung ändern (Grund Pflicht, protokolliert, alle bisherigen Bestelllinks werden ungültig, Tickets unter der alten Adresse gehen mit); „Bestelllink erneut senden“ auch für offene und erstattete Bestellungen. Hook `wpcap_order_email_changed`.
+- Öffentliches Formular „Tickets/Bestelllink anfordern“ (`/?wpcap_order_link=1`, REST `POST /orders/link-request`): gleiche Antwort für jede Adresse, Limits je Besucher und Adresse, neue Mailvorlage `order_links`. Abgelaufene oder ungültige Bestelllinks zeigen eine Hilfeseite mit diesem Formular.
+- Bestellportal: Termine der Bestellung als .ics-Datei. Datumsangaben für Käufer im Datums-/Zeitformat der Website.
+
+### Einlass
+- Doppelscan zeigt Zeitpunkt, Eingang und Personal des Ersteinlasses und – mit der Einstellung „Teilnehmernamen anzeigen“ – den Namen. `/app/me` meldet die Rechte der Person (`permissions`).
+
+### Überweisung und Schutz vor Inventar-Blockade
+- Optionale Obergrenze offener Überweisungs-Reservierungen je Veranstaltung (`manual_hold_max_event_tickets`, Standard aus).
+- Bot-Schutz im Bestellformular (`checkout_bot_check`, `checkout_min_fill_seconds`).
+- Systemstatus → Betrieb: offene Überweisungsbestellungen gesammelt freigeben (wirkt wie Ablauf der Reservierung, auditiert).
+
+### Verträge und Länderprofile (Prüfrunde P3/P5/P6)
+- Länderprofile DE/AT/CH schlagen zusätzlich Datums-/Zeitformat und Montag als ersten Wochentag vor.
+- Öffentliche Schnittstelle 1.3: `POST /orders/link-request` und optionaler Checkout-Parameter `form_guard`; Offline-Vertrag 1.1 (eigene Minor-Version); App-Vertrag in Doku und Fixture auf 1.2.
+- Länderprofile schlagen Währungen vor (CH: CHF, EUR weiter angeboten, Rechnungsadresse ab 400 CHF); rechtlich relevante Werte sind in der Vorschau nicht vorausgewählt.
+- Zahlungsart-Regeln: neue Bedingung `currency=`; Länderbedingungen greifen nur mit bekanntem Rechnungsland.
+- Nettopreise werden auch beim Anlegen eines Events und beim CSV-Import mit dem Steuerprofil umgerechnet; Beträge in Einstellungswerkzeugen und Gutschein-Abgleich formatiert.
+- Barrierefreiheit der Seite „Bestelllink anfordern“, Pluralformen bei der Freigabe offener Überweisungen, Datumsformat der Website im Einstellungsverlauf.
+
+### Einlass offline
+- Offline-Scanner: „Rückgängig“ erscheint nur noch mit dem Recht `wpcap_undo_checkin`; eine Ablehnung des Servers wird lesbar angezeigt.
+- Offline-Scanner: Check-out (Auslass) auch offline – mit denselben Regeln wie online (Rolle, Bereich, drinnen), synchronisiert über den bestehenden Sammelupload; nicht offline entscheidbare Fälle entscheidet der Server beim Sync. `/app/me` meldet `permissions.check_out`; das Prüfpaket enthält `permissions`, `checkout` und `ticket_types[].own_policy` (abwärtskompatibel).
+
+### Admin-Listen
+- Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
+
+### Einstellungen: Nummernkreise, Leistungsdatum, Mindestalter, DATEV
+- Nummernkreise je Belegart (Rechnung, Korrektur, Kassenbon, Partner-Abrechnung, Gutschrift): Muster, Stellen, Startnummer (nur nach oben, Sprünge protokolliert), Neubeginn je Jahr; Filter `wp_pass_captain_invoice_number_v1`. Nummern bleiben lückenlos und werden nie doppelt vergeben, auch beim Wechsel zwischen fortlaufendem und jährlichem Zähler.
+- Leistungsdatum für Positionen ohne Termin wählbar; Mindestalter als Regel mit Altersbestätigung im eigenen Checkout und Text je Sprache; DATEV-Konten als Tabelle je Steuersatz und Zahlungsart. Standardwerte = bisheriges Verhalten.
+- Wechsel vom fortlaufenden zurück zum jährlichen Zähler vergibt keine Rechnungsnummer doppelt: eine fortlaufende Nummer hebt auch den Jahreszähler ihres Jahres an.
+
+### Zusatzprodukte (Schema 3.18.5)
+- Ticketart-Art „Zusatzprodukt“ (Parken, Merch …): nur zusammen mit einem Ticket desselben Termins, optional höchstens n je Ticket, ohne Ticket/QR, ohne Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt; `GET /events` liefert `kind` und `addon_max_per_ticket`.
+- Die Eventliste bleibt bei fester Abfragezahl: Veranstalter für den Vertragspartner-Hinweis und Plätze ohne Zusatzprodukte kommen aus gemeinsamen Abfragen statt je Karte.
+
+### Teilnehmerverwaltung
+- Filter „Ticketart über alle Termine“ und Sortierung nach Status in der Ticketliste; die Teilnehmer-CSV übernimmt Ticketart- und Statusfilter.
+- Datenschutz: Rechte je Teilnehmerfeld per Filter `wpcap_pii_can_view_answer`; E-Mail- und Namensspalten der vollen Teilnehmerliste folgen der PII-Matrix.
+- WooCommerce: In „Mein Konto“ lässt sich der Link zur Bestellverwaltung per E-Mail anfordern.
+
+### Einwilligungen
+- Eine gemeinsame Karte in der Bestellübersicht; protokollierte Einwilligungsfelder (Typ „Einwilligung“) erscheinen im Bestelldetail mit „Widerruf erfassen“ und im Einwilligungs-CSV des Events; die Ticketseite zeigt sie nicht mehr als Textfeld.
+
+### Kasse
+- Hinweis „keine Registrierkasse“ verschwindet bei eingerichteter Fiskalisierung (A257).
+- Ohne Netz: Hinweis und gesperrte Verkaufs-, Storno- und Auszahlungsknöpfe, keine Offline-Verkäufe (A527, E-13).
+- Z-Bericht mit Abschnitt „Fiskalisierung“; optionaler Schichtabschluss beim Fiskal-Anbieter (Einstellung `boxoffice_fiscal_closing`, Standard aus; `ClosingAdapterInterface`).
+
+### Tickets und Connectoren
+- Tickets: Admin-Aktion „Inhaber ändern“ (wie eine Übertragung: neuer Code, Grund Pflicht, Audit; Hook/Webhook mit `source` `admin`).
+- Teilnehmerliste als CSV über alle Termine eines Events; Bestellportal: Wallet-Buttons je Ticket.
+- Connector-Vertrag 1.2.0: zusätzlich `ticket_checked_out`, `event_cancelled`, `attendance_confirmed`, `ticket_transferred`.
+
+### Verkaufsmodelle
+- Kleinunternehmer als Rechnungssteller (Plattform oder Veranstalter im Vermittlermodell): Ticketarten mit Steuersatz > 0 % werden beim Speichern (Event-Formular, Event anlegen, CSV-Import) abgelehnt, der Checkout lehnt Bestellungen mit USt ab (`small_business_vat`); bestehende Ticketarten zeigt der Website-Zustand.
+- Vermittlermodell: „Vertragspartner: Veranstalter, Anschrift“ im Checkout, im Bestellportal und in Ticket- und Zugangsmail (Platzhalter `{contract_partner}`).
+
+### Browser-Fehler und Tests
+- Bestellportal und Warteliste zeigen offline ihre eigene Fehlermeldung statt „Failed to fetch“.
+- Saalplan-Zoom zeigte „%%“; Saalplan und Datumsauswahl des Web-Scanners machen die Seite bei 320 px nicht mehr breiter.
+- E2E-Tests unter realen Bedingungen für alle Käufer-Widgets sowie Check-out offline, Erstattung und Umbuchung einer Servicebuchung.
+
+### Code, Build und Lieferkette
+- Intern: `Orders` in Teilklassen zerlegt (Verfügbarkeit, Teilnehmerangaben, Kapazität; keine Verhaltensänderung).
+- Übersetzung: Platzhalternamen in Hilfetexten separat übersetzbar.
+- Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
+- CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
+- Checkout (`Orders::create`) und die Tabellen-Anweisungen des Installers in kleinere Methoden aufgeteilt, ohne Verhaltensänderung (A401).
+- Klassen außerhalb der öffentlichen API sind als `@internal` markiert (A402); jedes Testmodul läuft auch einzeln (`tests/integration/run-each.sh`).
+- Form-Captain-Aktionen prüfen die Berechtigung vor Nonce und Suche.
+- Geschäftsregeln lesen die Zeit durchgängig über `Clock` (Filter `wpcap_now`), Infrastruktur explizit über `Clock::real()`; die Ausnahmeliste des Zeit-Wächters schrumpft von 85 auf 50 Dateien, jede mit Begründung; auch Datumsformatierungen lesen „jetzt“ nicht mehr implizit.
+
+### Gutscheine
+- Der Gutschein-Snapshot einer Bestellung wird nur noch mit Versionsprüfung geändert; eine späte Zahlung während der Freigabe belastet den Gutschein genau einmal.
+- Systemstatus → Betrieb: „Gutschein-Abgleich“ zeigt Abweichungskandidaten aus Pass-Captain-Sicht; optionaler Filter `wpcap_voucher_reconcile_states` für den Vergleich mit Voucher Captain.
+
+### Einstellungs-Register (SET-PC-01)
+- Neue Klasse `PassCaptain\SettingsSchema`: beschreibt jeden Wert aus `Settings::defaults()` (Typ, Standard, Grenzen, Seite, Beschriftung, Hilfetext, Rechtsprüfung, geheim, landabhängig) und prüft Werte mit `validate()`. Module liefern ihre Beschreibung über `settings_schema()`; Add-ons über den Filter `wp_pass_captain_settings_schema_v1` (nur neue Schlüssel).
+- Hilfetexte an allen Feldern der Einstellungsseite (SET-PC-28); IBAN (Prüfziffer) und BIC werden geprüft.
+- Modulseiten (Warteliste, Umtausch, Kontingente, Offline-Einlass, Webhooks, Partner, SMS, Erinnerungen, Kasse) prüfen über das Register und melden Fehler, statt Zahlen zu kappen.
+
+### Werkzeuge für Einstellungen (SET-PC-02, -10, -11, -12, -13, -32)
+- Neuer Reiter „Werkzeuge“ auf der Einstellungsseite: Übersicht „Alle Einstellungen“ mit Suche, Wert, Standard und Herkunft; Zurücksetzen je Feld, Abschnitt, Modulseite oder gesamt (mit Bestätigung, ohne Geheimnisse und Deinstallations-Wahl); Export und Import als JSON mit Vorschau (alles oder nichts, ohne Geheimnisse, mit E-Mail-Vorlagen); Verlauf mit alten und neuen Werten.
+- Änderungsprotokoll: jede Änderung einer Einstellung wird mit Quelle (Einstellungsseite, Modulseite, WP-CLI, Import, Länderprofil, Zurücksetzen, REST-API, Programmcode) und alt/neu protokolliert; Geheimnisse nie, lange Texte als Prüfsumme.
+- Länderprofile DE, AT, CH, EU und OTHER als Vorschlag mit Vorher/Nachher und Auswahl je Wert; alle Profile sind als „Rechts- und Steuerprüfung vor dem Verkaufsstart“ bzw. „nicht geprüft“ gekennzeichnet. Filter `wp_pass_captain_country_presets_v1`.
+- Währung als Einstellung (SET-PC-08): „Standardwährung“ und „Angebotene Währungen“; neue Ticketarten, Kassen, Rabattcodes, Partnerpreise, Pässe und SMS-Kosten übernehmen die Standardwährung statt fest EUR. Der Filter `wp_pass_captain_currencies_v1` hat weiter Vorrang.
+- Anrede (SET-PC-09): Alle deutschen Texte nutzen „du“; neue Sprachdatei „Deutsch (Sie)“ (`de_DE_formal`) mit förmlicher Anrede, wählbar in der Käufer-Sprachauswahl. Der Datenschutz-Vorschlag ist jetzt ebenfalls in der Du-Form.
+- Impressum und Datenschutzerklärung (SET-PC-19): eigene Adressen in den Rechtstexten, Links im Checkout und in der E-Mail-Fußzeile, Platzhalter `{imprint_url}` und `{privacy_url}`. Die Links in Mail-Fußzeile, Ticket-PDF und Ticketseite erscheinen erst, wenn eine der beiden Adressen eingetragen ist; bestehende Installationen behalten ihre Fußzeilen.
+- Pro-Hinweiszeilen (SET-PC-06): Grundlage für graue, ausblendbare Textzeilen am Ende der Reiter; die Liste ist leer, bis eine Pro-Funktion verkauft wird.
+- Rechnungsadresse (SET-PC-24): Länderliste als Einstellung, optionales Feld „Region / Bundesland“, Verkäuferland als Auswahl.
+- WooCommerce (SET-PC-29): Reservierungszeit, Ausstellen bei „Abgeschlossen“ je Zahlungsart und Teilnehmerdaten im Woo-Checkout als Einstellungen; Filter behalten Vorrang.
+- Zahlungsarten nach Regel (SET-PC-40): je Zahlungsart Event, Mindest-/Höchstbetrag und Rechnungsländer; Filter `wp_pass_captain_payment_rules_v1`. Die Regeln gelten auch für Nachzahlungen bei Umbuchungen von Servicebuchungen; eine Betragsgrenze, die in der Währung der Bestellung nicht lesbar ist, lässt die Regel nicht greifen.
+- Bedienbarkeit (SET-PC-44): Hilfetexte und Fehlermeldungen sind mit den Feldern verknüpft, nach dem Speichern erscheint eine Fehlerliste mit Sprungmarken.
+- Netto-Eingabe (SET-PC-45): Ticketpreise können netto eingetragen werden; gespeichert und angezeigt wird weiter der Bruttopreis.
+- Geschäftsregeln als Einstellungen (SET-PC-20): Gültigkeit des persönlichen Bestelllinks, Link „Zahlung fortsetzen“, höchstens Namensänderungen und Inhaberwechsel je Ticket, Höchstmenge je Bestellposition, offene Überweisungsbestellungen je E-Mail-Adresse.
+- Protokolle und Fristen (SET-PC-21): Aufbewahrung und Stufe des Support-Protokolls, Connector-Protokoll, Druckstapel, No-Show-Kulanz für Bewertungsanfragen, Standard-Paketdauer des Offline-Scanners, Sperrfrist der Warteliste vor Verkaufsende; neue Übersicht „Was wird wann gelöscht“ im Reiter Datenschutz.
+- Website-Zustand empfiehlt eine Löschfrist für Teilnehmerdaten, solange keine gesetzt ist (SET-PC-47); die Vorgabe bleibt „keine allgemeine Frist“.
+- Alle neuen Einstellungen starten mit dem bisherigen festen Wert; vorhandene Filter haben weiter Vorrang.
+- Ticket-PDF (SET-PC-33): Logo und Fußzeile je Sprache unter „Druck & Listen“, je Event übersteuerbar; Impressum- und Datenschutz-Link in der PDF-Fußzeile und auf der Ticketseite (abschaltbar).
+- Erinnerungen je Event ein-/ausschalten und mit eigenen Zeitpunkten (SET-PC-34).
+- Kalender und Dokumente (SET-PC-36): erster Wochentag der Monatsansicht, eigenes Datums- und Zeitformat für E-Mails, Tickets und Belege.
+- Ratenlimits für Checkout, Warteliste und Bestellportal als Einstellungen mit festen Untergrenzen (SET-PC-38).
+- Kasse (SET-PC-39): Differenz-Toleranz, Zählpflicht nach Stückelung, Sprache der Kassenbons, Blindzählung als Standard für neue Kassen.
+- WP-CLI `wp pass-captain settings list|get|set|reset|export|import|preset`; `delete_data_on_uninstall` lässt sich nur mit `--confirm=LÖSCHEN` einschalten.
+
+### Servicegebühr (A425, Entscheidungen vom 23.11.2026)
+- **Preisangabe:** Die Gebühr je Ticket ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen (PAngV § 3, AT PrAG): Eventkarte und Eventseite („inkl. … Servicegebühr“), „ab …“-Preis, Live-Stand, Preismeldungen, JSON-LD und REST `/events` (neu `service_fee_minor`, `display_price_minor`, `order_fee_minor`; Vertrag `public` 1.2). Die Gebühr je Bestellung steht als „zzgl. … Bearbeitungsgebühr je Bestellung“ daneben und ist in jeder Summe vor dem Bestellbutton enthalten. Filter `wpcap_service_fee_shown`.
+- **Steuer:** neue Einstellung „Steuer der Servicegebühr“ – „wie das Ticket (Nebenleistung)“ (Standard, bisheriges Verhalten) oder „eigenes Steuerprofil“; Rechnung, Rechnungskorrektur, Fiskalbeleg und Bericht folgen der Gebührenzeile. Filter `wpcap_service_fee_tax`.
+- **Erstattung:** Absage durch den Veranstalter (auch Terminverschiebung) erstattet die Gebühr immer; Erstattungen auf Käuferwunsch folgen der neuen Einstellung „Servicegebühr bei Erstattung auf Käuferwunsch“ (Standard „einbehalten“), das Team wählt je Erstattung, das Bestellportal nennt eine einbehaltene Gebühr. Filter `wpcap_service_fee_refund_rule`.
+- **Partnerabrechnung:** Die Gebühr ist Umsatz des Betreibers (keine Provision, keine Auszahlung) und wird getrennt ausgewiesen; neue Einstellung „Servicegebühr an Partner weitergeben“ (Standard aus). Der Verkaufsbericht nennt erstattete und einbehaltene Gebühren je Währung.
+
+### Gutscheine
+- Einzweckgutscheine gelten nur für Ticketpositionen mit der USt ihres Verkaufs (Satz und Land, Filter `wpcap_voucher_tax_country`), sonst werden sie als Mehrzweckgutschein gebucht; Rabattcodes sind eine eigene Art „discount“ (Preisnachlass statt Zahlungsmittel).
+- Versionierte Lese-API für den Abgleich mit dem Gutscheinsystem: `Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, Erweiterungsvertrag 1.4.0).
+
+### Schnittstellen für Connectoren und Workflow (Vertrag 1.4.0)
+- **PASS-E17-01:** Lesedienst `wpcap_get_ticket_details()` / `wpcap_get_order_ticket_details()` (Termin, Event, Inhaber, Check-ins; E-Mail des Inhabers nur mit Capability `wpcap_read_holder_email`), Protokolleintrag `wpcap_connector_audit()`, Freigabe `wpcap_set_connector_enabled()` / `wpcap_is_connector_enabled()` statt Optionsschreiben.
+- **PC-7:** Öffentliche Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()` und `wpcap_confirm_attendance()` (Vertrag `actions` 1.0.0): Rechteprüfung für den aktuellen oder einen genannten Benutzer, regulärer Kerndienst, Audit-Eintrag, optionaler Idempotency-Key.
+- **PC-8:** docs/EXTENSIONS.md: eine Bedeutung je Vertragsversion (1.2.0 = Leistungsdatum der Rechnungs-API, 1.3.0 = Lesefassade).
+
+### CI
+- Push-Läufe nur auf `main`, Branches über ihren Pull Request; überholte PR-Läufe werden abgebrochen; Dependabot täglich 05:00 (Europe/Vienna) mit gruppierten Updates.
+
 ## 1.6.0 – 2026-11-23
 
 Version 1.6.0 ist die erste veröffentlichte Version nach 1.4.0: Die als 1.5.0 vorbereiteten Änderungen (Abschnitt unten) wurden nicht einzeln veröffentlicht und sind vollständig enthalten (Entscheidung der Inhaberin vom 23.11.2026).

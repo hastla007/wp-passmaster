@@ -6,6 +6,8 @@
  * Included from run.php (uses check(), make_type(), tickets()).
  */
 // phpcs:ignoreFile
+
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
 use PassCaptain\Billing;
 use PassCaptain\Invoices;
 use PassCaptain\Orders;
@@ -45,9 +47,6 @@ function bb_token( $public_id ) {
 		if ( preg_match( '/wpcap_order=' . preg_quote( $public_id, '/' ) . '&wpcap_access=([a-f0-9]{64})/', $mail['body'], $m ) ) { return $m[1]; }
 	}
 	return '';
-}
-function bb_billing( array $override = array() ) {
-	return array_merge( array( 'enabled' => true, 'company' => 'Muster GmbH', 'first_name' => 'Erika', 'last_name' => 'Muster', 'street' => 'Ringstraße 1/3', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT', 'vat_id' => 'ATU 1234 5678', 'po_number' => 'PO-4711' ), $override );
 }
 function bb_order( $type, $email, $billing, $qty = 1 ) {
 	wpcap_test_reset_transients();
@@ -133,7 +132,7 @@ $snap = json_decode( (string) $wpdb->get_var( "SELECT buyer_snapshot FROM {$p}wp
 check( 'buyer snapshot contains company, name, address, VAT ID and PO number', 'Muster GmbH' === $snap['company'] && 'Erika Muster' === $snap['name'] && 'Ringstraße 1/3' === $snap['street'] && '1010' === $snap['postcode'] && 'Wien' === $snap['city'] && 'AT' === $snap['country'] && 'Österreich' === $snap['country_name'] && 'ATU12345678' === $snap['vat_id'] && 'PO-4711' === $snap['po_number'] && 'b2b@example.com' === $snap['email'] && isset( $snap['seller'] ) );
 $html = Invoices::render_html( $inv['invoice_id'] );
 check( 'HTML invoice: recipient block with company, name, address, country', 1 === preg_match( '#<div class="buyer"><strong>Rechnungsempfänger:</strong>\s*Muster GmbH\nErika Muster\nRingstraße 1/3\n1010 Wien\nÖsterreich\n#u', $html ) );
-check( 'HTML invoice: VAT ID, buyer reference and e-mail in the recipient block', false !== strpos( $html, 'UID des Leistungsempfängers: ATU12345678' ) && false !== strpos( $html, 'Ihre Bestell-/Referenznummer: PO-4711' ) && false !== strpos( $html, "PO-4711\nb2b@example.com</div>" ) );
+check( 'HTML invoice: VAT ID, buyer reference and e-mail in the recipient block', false !== strpos( $html, 'UID des Leistungsempfängers: ATU12345678' ) && false !== strpos( $html, 'Bestell-/Referenznummer des Leistungsempfängers: PO-4711' ) && false !== strpos( $html, "PO-4711\nb2b@example.com</div>" ) );
 check( 'HTML invoice: no reverse-charge note', false === strpos( $html, 'Steuerschuldnerschaft' ) && false === strpos( $html, 'Reverse' ) );
 $pdf = InvoicePdf::render( $inv['invoice_id'] );
 check( 'PDF invoice: recipient block rendered', false !== strpos( wpcap_pdf_plain( $pdf ), '(Muster GmbH) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(Erika Muster) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(1010 Wien) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), 'ATU12345678) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), 'PO-4711) Tj' ) && false !== strpos( wpcap_pdf_plain( $pdf ), '(b2b@example.com) Tj' ) );

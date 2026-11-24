@@ -19,6 +19,9 @@ namespace PassCaptain\OfflineScanner;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class I18n {
 	/** Format version of the table (lets the app ignore incompatible cached tables). */
 	const VERSION = 1;
@@ -260,6 +263,22 @@ final class I18n {
 			'Rückgängig nicht möglich' => __( 'Rückgängig nicht möglich', 'pass-captain' ),
 			'Das Ticket ist wieder gültig.' => __( 'Das Ticket ist wieder gültig.', 'pass-captain' ),
 			'zurückgenommen' => __( 'zurückgenommen', 'pass-captain' ),
+			'Du darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen.' => __( 'Du darfst keine Check-ins zurücknehmen. Bitte die Einlassleitung fragen.', 'pass-captain' ),
+			// Check-out (direction "out").
+			'Scan-Richtung' => __( 'Scan-Richtung', 'pass-captain' ),
+			'Einlass' => _x( 'Einlass', 'scanner direction: entry (opposite of exit)', 'pass-captain' ),
+			'Auslass (Check-out)' => __( 'Auslass (Check-out)', 'pass-captain' ),
+			'Bereit (Auslass)' => __( 'Bereit (Auslass)', 'pass-captain' ),
+			'Ausgecheckt' => __( 'Ausgecheckt', 'pass-captain' ),
+			'Ausgecheckt (offline)' => __( 'Ausgecheckt (offline)', 'pass-captain' ),
+			'Nicht eingecheckt' => __( 'Nicht eingecheckt', 'pass-captain' ),
+			'Check-out nicht erlaubt' => __( 'Check-out nicht erlaubt', 'pass-captain' ),
+			'Check-out vorgemerkt' => __( 'Check-out vorgemerkt', 'pass-captain' ),
+			'Prüfung beim Sync' => __( 'Prüfung beim Sync', 'pass-captain' ),
+			'Auf diesem Gerät bereits ausgecheckt' => __( 'Auf diesem Gerät bereits ausgecheckt', 'pass-captain' ),
+			'Wiedereinlass nach Check-out – Prüfung beim Sync' => __( 'Wiedereinlass nach Check-out – Prüfung beim Sync', 'pass-captain' ),
+			/* translators: %s: reason the server gave for refusing an offline check-out (e.g. "Nicht eingecheckt") */
+			'Check-out abgelehnt: %s' => __( 'Check-out abgelehnt: %s', 'pass-captain' ),
 		);
 	}
 

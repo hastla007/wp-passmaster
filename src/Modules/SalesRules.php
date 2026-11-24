@@ -16,6 +16,9 @@ use PassCaptain\Sales\TaxProfilesPage;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SalesRules {
 	private static $registered = false;
 
@@ -31,6 +34,13 @@ final class SalesRules {
 		// Cap of the total order reduction (price rules + campaign codes) in basis points of the
 		// value at stored prices; 0 = no cap (Campaigns::calculate()).
 		return array( 'max_total_discount_bp' => 0 );
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'max_total_discount_bp' => array( 'type' => 'int', 'label' => __( 'Höchster Gesamtrabatt (Basispunkte)', 'pass-captain' ), 'help' => __( 'Obergrenze für die Summe aller Rabatte einer Bestellung in Basispunkten (10000 = 100 %).', 'pass-captain' ), 'page' => 'wpcap-sales-rules', 'min' => 0, 'max' => 10000 ),
+		);
 	}
 
 	public static function admin_pages() {

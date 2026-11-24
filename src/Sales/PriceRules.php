@@ -28,6 +28,9 @@ use PassCaptain\Series\Pricing as Engine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class PriceRules {
 	const CAP = 'wpcap_manage_events';
 
@@ -124,8 +127,8 @@ final class PriceRules {
 		}
 		$ref = $wpdb->get_row( $wpdb->prepare( "SELECT o.timezone,tt.currency FROM {$p}wpcap_occurrences o LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE o.event_id=%d" . ( $occurrence_id ? ' AND o.occurrence_id=' . $occurrence_id : '' ) . ' ORDER BY o.starts_at,tt.ticket_type_id LIMIT 1', $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer appended.
 		$timezone = $type ? (string) $type->timezone : (string) ( $ref->timezone ?? 'UTC' );
-		$currency = $type ? (string) $type->currency : (string) ( $ref->currency ?? 'EUR' );
-		$rule = Engine::normalize( $in, $timezone ?: 'UTC', $currency ?: 'EUR' );
+		$currency = $type ? (string) $type->currency : (string) ( $ref->currency ?? \PassCaptain\Localization::default_currency() );
+		$rule = Engine::normalize( $in, $timezone ?: 'UTC', $currency ?: \PassCaptain\Localization::default_currency() );
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$now = \PassCaptain\Clock::mysql();
 		$ok = $wpdb->insert( "{$p}wpcap_price_rules", $rule + array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );

@@ -22,6 +22,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Pass Captain connector for Form Captain.
+ *
+ * @internal Not part of the public add-on API (A402): may change in any release.
  */
 final class Connector implements ConnectorInterface {
 	const KEY    = 'pass_captain';

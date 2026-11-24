@@ -8,6 +8,9 @@ use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FiskalyUnifiedAdapter implements AdapterInterface {
 	public function id() { return 'fiskaly_sign_unified'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
@@ -27,7 +30,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 		// The Unified API's idempotency retention is time-limited. Never replay creation
 		// requests once the original snapshot is too old to guarantee deduplication.
 		$created = strtotime( (string) ( $document['created_at'] ?? '' ) . ' UTC' );
-		if ( ! $created || $created < time() - ( 20 * HOUR_IN_SECONDS ) ) {
+		if ( ! $created || $created < \PassCaptain\Clock::real() - ( 20 * HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'fiskaly_unified_reconciliation_required', __( 'Der fiskaly Unified-Vorgang ist älter als das sichere Wiederholungsfenster. Bitte im fiskaly Dashboard abgleichen, bevor erneut signiert wird.', 'pass-captain' ) );
 		}
 		return self::submitted( $this->submit( $document, $seller, $configuration ) );

@@ -8,6 +8,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Page {
 	const SLUG = 'wpcap-reports';
 
@@ -157,6 +160,10 @@ final class Page {
 			// Guest list comps (GuestLists module): shown separately, not part of sales/revenue.
 			__( 'Freikarten (nicht im Umsatz)', 'pass-captain' ) => (string) (int) ( $report['comps']['tickets'] ?? 0 ),
 		);
+		if ( (int) ( $t['addons'] ?? 0 ) > 0 ) {
+			// Sales\Addons: units of add-on products (parking, merchandise …), not counted as tickets; their amounts are part of the gross sales.
+			$summary = array_slice( $summary, 0, 1, true ) + array( __( 'Verkaufte Zusatzprodukte', 'pass-captain' ) => (string) (int) $t['addons'] ) + $summary;
+		}
 		foreach ( (array) ( $report['service_fees'] ?? array() ) as $fee_currency => $fee ) {
 			// A425: service fees are part of the gross sales above.
 			/* translators: %s: VAT amount */
@@ -164,6 +171,12 @@ final class Page {
 			/* translators: %s: currency code */
 			$fee_label = sprintf( __( 'davon Servicegebühren (%s)', 'pass-captain' ), $fee_currency );
 			$summary[ $fee_label ] = Scope::money( (int) $fee['gross'], (string) $fee_currency ) . ' (' . $fee_tax . ')';
+			if ( (int) ( $fee['refunded'] ?? 0 ) || (int) ( $fee['kept'] ?? 0 ) ) {
+				/* translators: %s: currency code */
+				$refund_label = sprintf( __( 'Servicegebühren bei Erstattungen (%s)', 'pass-captain' ), $fee_currency );
+				/* translators: 1: service fees refunded, 2: service fees kept */
+				$summary[ $refund_label ] = sprintf( __( 'erstattet %1$s, einbehalten %2$s', 'pass-captain' ), Scope::money( (int) $fee['refunded'], (string) $fee_currency ), Scope::money( (int) $fee['kept'], (string) $fee_currency ) );
+			}
 		}
 		$summary = self::metrics( $summary, $report, $filters );
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }

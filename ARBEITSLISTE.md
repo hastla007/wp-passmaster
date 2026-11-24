@@ -231,7 +231,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - src/Mail/Templates.php:41 Standard 'format' => 'text'
 - [x] **A102** Mehrdeutige/fehlende Ortszeiten bei Zeitumstellung anzeigen — _OFFEN_ (TODO L417; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Forms.php:135 verschiebt Zeiten in DST-Lücke still
-- [ ] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L421; Architektur und Wartbarkeit (noch offen))
+- [x] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L421; Architektur und Wartbarkeit (noch offen)) *Erledigt 24.11.2026 (siehe TODO.md).*
   - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert
 - [x] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L422; Architektur und Wartbarkeit (noch offen))
   - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
@@ -278,7 +278,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen
 - [x] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
   - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
-- [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit)
+- [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit) *24.11.2026: Code-Teil erledigt (E2E Check-out offline mit Konflikt, Erstattung bis ins Portal, Umbuchung einer Servicebuchung); offen bleiben PSP-Sandbox und echte Hardware.*
   - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs
 - [x] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
   - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
@@ -319,7 +319,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
 - [x] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
-- [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+- [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen) *24.11.2026: Code-Teil erledigt (E2E Check-out offline mit Konflikt, Erstattung bis ins Portal, Umbuchung einer Servicebuchung); offen bleiben PSP-Sandbox und echte Hardware.*
   - Einzeltests vorhanden (tests/integration/modules, tests/load); keine Slot-Kollisionstests, kein realer POS, Mock-WP statt echter Installation
 - [x] **A143** Rollen inkl. Partner/Leistungserbringer definieren — _TEILWEISE_ (TODO L147; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Installer.php:849-856 alle Rollen bis auf Leistungserbringer; wpcap_partner ist Veranstalter, keine Rolle für Servicepartner
@@ -721,7 +721,7 @@ Gesamt: 262 Aufgaben.
   - assets/offline-scanner/app.css:8, 34: --warn/--ok für Text abdunkeln
 - [x] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L666; Audit Runde 4)
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
-- [ ] **A321** [WICHTIG] *Teilweise erledigt 23.11.: tests/e2e/conditions.test.js; weitere Widgets offen.* A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4)
+- [x] **A321** [WICHTIG] *Teilweise erledigt 23.11.: tests/e2e/conditions.test.js; weitere Widgets offen.* A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - tests/a11y/run.js, keyboard.js: Kalender, Saalplan, Portal-Dialoge, PWA, Kasse, Mobile/Reflow 320 px/400 %, Dark Mode, RTL, Live-Regionen, Nicht-JSON-Fehler, Tastatur-Scanner, bfcache, mehrere Shortcodes
 - [x] **A322** [WICHTIG] Checkout-Fehler ohne Spur verschluckt — _R2 Support_ (TODO L668; Audit Runde 4)
   - src/Orders.php:319–347 (catch Throwable): Zentrales Fehlerprotokoll (Klasse, Code, Datei:Zeile, last_error) + Fehler-ID für Käufer
@@ -892,7 +892,7 @@ Gesamt: 262 Aufgaben.
 - [x] **A400** [OPTIMIERUNG] Admin-Alarme per direktem wp_mail an admin_email — _R2 Support_ (TODO L746; Audit Runde 4)
   - src/Payments/Webhooks.php:238, Orders.php:1076, Refunds.php:131/135/220, u. a. (12 Stellen): Alerts::raise() mit Empfänger-Filter, Mailer, dauerhaftem Admin-Hinweis
   - Erledigt: `src/Alerts.php` – alle 20 direkten `wp_mail( admin_email )`-Stellen plus Fiskal-, SMS-Budget- und Service-Personal-Empfänger laufen über `Alerts::raise()`/`recipients()`; Einstellung „Betriebsalarme an“ (`alert_email`), Filter `wpcap_alert_recipients`/`wpcap_alert_send`, Action `wpcap_alert`, Absender über `Mailer::send_plain`, die letzten 30 Alarme im Systemstatus; Test zz_a400 (inkl. Quellscan: kein `wp_mail( get_option( 'admin_email' ) …` mehr).
-- [ ] **A401** [OPTIMIERUNG] *Teilweise erledigt 23.11.: register_routes und install aufgeteilt; Orders::create offen.* Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4)
+- [x] **A401** [OPTIMIERUNG] *Teilweise erledigt 23.11.: register_routes und install aufgeteilt; Orders::create offen.* Riesenmethoden (Installer::install ~810, Orders::create ~344, register_routes ~222 Zeilen) — _R2 Support_ (TODO L747; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - src/Installer.php:17, Orders.php:23, Rest/Controller.php:20: Schema je Modul auslagern, Routen je Ressource, create() zerlegen
 - [ ] **A402** [OPTIMIERUNG] Statische Klassen, keine definierte öffentliche API — _R2 Support_ (TODO L748; Audit Runde 4)
   - 206/224 Klassen: Fassade PassCaptain\Api mit @api/SemVer, Rest @internal
@@ -916,7 +916,7 @@ Gesamt: 262 Aufgaben.
   - templates/event-card.php:169: „Kostenlos anmelden“, „kostenlos“
 - [x] **A410** [OPTIMIERUNG] Wartelisten-Anmeldung nennt keine Frist; max vom ersten Typ — _R2 UX_ (TODO L756; Audit Runde 4)
   - templates/event-card.php:177/190: offer_hours einsetzen, max per JS
-- [ ] **A411** [OPTIMIERUNG] *Teilweise erledigt 23.11.: Bestellliste als WP_List_Table erledigt; Tickets und Events offen.* Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4)
+- [x] **A411** [OPTIMIERUNG] *Teilweise erledigt 23.11.: Bestellliste als WP_List_Table erledigt; Tickets und Events offen.* Listen ohne WP_List_Table (Bulk, Sortierung, Views, Bildschirmoptionen) — _R2 UX_ (TODO L757; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - src/Admin/OrdersPage.php:257/289, TicketsPage.php:207, EventsPage.php:732: WP_List_Table, Bulk „Zahlung bestätigen“, Leerzustand mit „Filter zurücksetzen“
 - [x] **A412** [OPTIMIERUNG] Umtausch-Verlauf in UTC, Rohwerte — _R2 UX_ (TODO L758; Audit Runde 4)
   - src/Exchange/AdminPage.php:138: Website-Zeitzone, Kanal übersetzen, order_reference
@@ -1476,13 +1476,13 @@ Abgleich mit Code und Doku; bereits vorhandene Teile und Doppelungen (PASS-FE-06
 - [x] **A670** [OPTIMIERUNG] Status „Vertrag verfügbar/inkompatibel“ für Suite-Plugins im Admin (ohne Entitlement im Kern) — _Konzept 15.11._ (TODO L996; Konzept/Roadmap 2026-11-15)
 - [x] **A671** [OPTIMIERUNG] E2E-Matrix Ticketkauf → Check-in → Review-Anfrage samt Ausschlüssen (mit Stub-Review-Plugin) — _Konzept 15.11._ (TODO L998; Konzept/Roadmap 2026-11-15)
 - [x] **A672** [WICHTIG] Form-Captain-Adapter: Formular je Event auswählen/einbetten, explizite Übergabe freigegebener Felder, nie Buchung/Zahlung (inaktiv ohne Plugin) — _Konzept 15.11._ (TODO L991; Konzept/Roadmap 2026-11-15)
-- [x] **A673** [WICHTIG] Workflow-Providervertrag v1 in Contracts (SemVer, Envelope, Feld-Allowlist, Capability, Fehlercodes, Deprecation) — _Konzept 15.11._ (TODO L1003; Konzept/Roadmap 2026-11-15)
-- [x] **A674** [WICHTIG] Fehlende Post-Commit-Ereignisse: ticket.transferred, ticket.checked_out, event.cancelled, occurrence.changed, attendance.confirmed, refund.reversed; Schema-Version je Envelope — _Konzept 15.11._ (TODO L1004; Konzept/Roadmap 2026-11-15)
-- [x] **A675** [OPTIMIERUNG] Refund-Semantik je Zeile/Ticket, Storno-Ereignis, Outbox unabhängig von Webhook-Abos — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15)
-- [x] **A676** [WICHTIG] v1-Commands (Mail erneut senden, Ticket widerrufen, Event absagen/verschieben, Teilnahme bestätigen) mit Capability, Allowlist, Idempotency-Key, Audit — _Konzept 15.11._ (TODO L1006; Konzept/Roadmap 2026-11-15)
-- [x] **A677** [OPTIMIERUNG] Übergabe optionaler Erinnerungen/Mails an Workflow Captain je Mailtyp, protokolliert, nativer Fallback — _Konzept 15.11._ (TODO L1007; Konzept/Roadmap 2026-11-15)
-- [x] **A678** [OPTIMIERUNG] Adminstatus für Providerverträge, letzte Ereignisannahme, Fehler, Fallback — _Konzept 15.11._ (TODO L1008; Konzept/Roadmap 2026-11-15)
-- [x] **A679** [OPTIMIERUNG] Vertragsfixtures und E2E für Workflow (PII-Redaction, Replay, Duplikate, Workflow fehlt) — _Konzept 15.11._ (TODO L1009; Konzept/Roadmap 2026-11-15)
+- [x] **A673** [WICHTIG] Workflow-Providervertrag v1 in Contracts (SemVer, Envelope, Feld-Allowlist, Capability, Fehlercodes, Deprecation) — _Konzept 15.11._ (TODO L1003; Konzept/Roadmap 2026-11-15) — _abgelöst durch PC-7 (23.11.2026): Workflow-Providervertrag entfernt_
+- [x] **A674** [WICHTIG] Fehlende Post-Commit-Ereignisse: ticket.transferred, ticket.checked_out, event.cancelled, occurrence.changed, attendance.confirmed, refund.reversed; Schema-Version je Envelope — _Konzept 15.11._ (TODO L1004; Konzept/Roadmap 2026-11-15) — _abgelöst durch PC-7 (23.11.2026): Ereignisse bleiben nur als Webhooks und wpcap_*-Actions_
+- [x] **A675** [OPTIMIERUNG] Refund-Semantik je Zeile/Ticket, Storno-Ereignis, Outbox unabhängig von Webhook-Abos — _Konzept 15.11._ (TODO L1005; Konzept/Roadmap 2026-11-15) — _abgelöst durch PC-7 (23.11.2026): Outbox dient nur noch dem Review-Vertrag_
+- [x] **A676** [WICHTIG] v1-Commands (Mail erneut senden, Ticket widerrufen, Event absagen/verschieben, Teilnahme bestätigen) mit Capability, Allowlist, Idempotency-Key, Audit — _Konzept 15.11._ (TODO L1006; Konzept/Roadmap 2026-11-15) — _ersetzt durch die öffentlichen Aktionsfunktionen (PC-7, 23.11.2026)_
+- [x] **A677** [OPTIMIERUNG] Übergabe optionaler Erinnerungen/Mails an Workflow Captain je Mailtyp, protokolliert, nativer Fallback — _Konzept 15.11._ (TODO L1007; Konzept/Roadmap 2026-11-15) — _abgelöst durch PC-7 (23.11.2026): Pass Captain versendet alle Mails selbst_
+- [x] **A678** [OPTIMIERUNG] Adminstatus für Providerverträge, letzte Ereignisannahme, Fehler, Fallback — _Konzept 15.11._ (TODO L1008; Konzept/Roadmap 2026-11-15) — _durch PC-7 (23.11.2026) auf Review-Vertrag und Connector-Status reduziert_
+- [x] **A679** [OPTIMIERUNG] Vertragsfixtures und E2E für Workflow (PII-Redaction, Replay, Duplikate, Workflow fehlt) — _Konzept 15.11._ (TODO L1009; Konzept/Roadmap 2026-11-15) — _abgelöst durch PC-7 (23.11.2026): Fixtures entfernt, Wächtertest zz_pc7_guard_
 - [x] **A680** [WICHTIG] Teilnehmerfelder: Typen Auswahl, Mehrfachauswahl, Telefon, Datum; Hilfetext; Ebene Bestellung; Versionierung — _Konzept 15.11._ (TODO L1018; Konzept/Roadmap 2026-11-15)
 - [x] **A681** [OPTIMIERUNG] Woo-Checkouts: unbekannte/nicht freigegebene Teilnehmerfelder ablehnen statt still verwerfen, Fehlerpfade testen — _Konzept 15.11._ (TODO L1019; Konzept/Roadmap 2026-11-15)
 - [x] **A682** [OPTIMIERUNG] Fehlende Teilnehmerangaben vor Versand gezielt nachfordern (Mail, Anzeige je Ticket) — _Konzept 15.11._ (TODO L1020; Konzept/Roadmap 2026-11-15)

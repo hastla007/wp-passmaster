@@ -11,6 +11,9 @@ namespace PassCaptain\WalletPasses;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Store {
 	/** 32 byte secretbox key from WPCAP_WALLET_ENCRYPTION_KEY or the WordPress auth salt. */
 	public static function key() {

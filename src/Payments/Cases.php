@@ -22,6 +22,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Cases {
 	const JOB = 'payment_case_refund';
 	const KINDS = array( 'paid_for_closed_order', 'double_payment', 'refund_failed' );

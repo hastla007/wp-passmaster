@@ -21,6 +21,9 @@ use PassCaptain\Plugin as Y6Plugin;
 use PassCaptain\QrCode as Y6Qr;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+require_once dirname( __DIR__ ) . '/lib/wp_cron_stubs.php';
+require_once dirname( __DIR__ ) . '/lib/wc_orders_stub.php'; // wc_get_orders() (woocommerce_multiseller.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 $y6_root = dirname( __DIR__, 3 ) . '/';
@@ -90,7 +93,7 @@ if ( ! class_exists( '\\Endroid\\QrCode\\Builder\\Builder' ) ) {
 	eval( 'namespace Endroid\\QrCode\\Builder; class Builder { public function __construct( ...$a ) { throw new \\Error( "endroid 4.x API" ); } }' );
 	eval( 'namespace Endroid\\QrCode\\Writer; class SvgWriter { public function __construct( ...$a ) { throw new \\Error( "endroid 4.x API" ); } }' );
 }
-$y6_has_bacon = class_exists( '\\BaconQrCode\\Encoder\\Encoder' );
+$y6_has_bacon = class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder' );
 $y6_uri = Y6Qr::data_uri( 'PC1.y6-ticket-payload' );
 $y6_svg = 0 === strpos( $y6_uri, 'data:image/svg+xml;base64,' ) ? base64_decode( substr( $y6_uri, 26 ) ) : '';
 $y6_matrix = Y6Qr::matrix( 'PC1.y6-ticket-payload' );
@@ -100,7 +103,7 @@ check( 'INT-2: SVG viewBox is the matrix plus the quiet zone', $y6_matrix && fal
 check( 'INT-2: PDF and SVG share one matrix (TicketPdf::qr_matrix delegates)', PassCaptain\TicketPdf::qr_matrix( 'abc' ) === Y6Qr::matrix( 'abc' ) && array() === Y6Qr::matrix( '' ) );
 check( 'INT-2: the device pairing QR uses the same renderer', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Admin/DevicesPage.php' ), 'QrCode::data_uri( $pairing[\'qr_payload\'] )' ) );
 $y6_composer = json_decode( (string) file_get_contents( WPCAP_PATH . 'composer.json' ), true );
-check( 'PERF-12: endroid/qr-code is no longer a dependency, Bacon is required directly', ! isset( $y6_composer['require']['endroid/qr-code'] ) && isset( $y6_composer['require']['bacon/bacon-qr-code'] ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'src/QrCode.php' ), 'Endroid\\QrCode\\Builder' ) );
+check( 'PERF-12: endroid/qr-code is no longer a dependency, Bacon is bundled namespace-prefixed (A103)', ! isset( $y6_composer['require']['endroid/qr-code'] ) && ! isset( $y6_composer['require-dev']['endroid/qr-code'] ) && in_array( 'bacon/bacon-qr-code', $y6_composer['extra']['strauss']['packages'] ?? array(), true ) && false === strpos( (string) file_get_contents( WPCAP_PATH . 'src/QrCode.php' ), 'Endroid\\QrCode\\Builder' ) );
 check( 'PERF-12: own vendor Bacon is not reported as foreign; the status page checks it', '' === Y6Qr::foreign_encoder() && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Ops/Status.php' ), 'QrCode::foreign_encoder()' ) );
 
 /* ------------------------------------------------------------------ INT-3 */

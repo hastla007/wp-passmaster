@@ -268,6 +268,20 @@
 		const label = free ? button.dataset.labelFree : button.dataset.labelPaid;
 		if (button.textContent !== label) button.textContent = label;
 	}
+	// A425: " inkl. 3,00 € Servicegebühr, inkl. 2,00 € Bearbeitungsgebühr je Bestellung" for the estimate.
+	function feeNote(form, currency) {
+		const parts = [];
+		const ticketFee = Number(form.dataset.ticketFeeEstimate) || 0;
+		const orderFee = Number(form.dataset.orderFeeEstimate) || 0;
+		if (ticketFee > 0) parts.push((t.estimateFee || '%s').replace('%s', money(ticketFee, currency)));
+		if (orderFee > 0) parts.push((t.estimateOrderFee || t.estimateFee || '%s').replace('%s', money(orderFee, currency)));
+		return parts.length ? ' ' + parts.join(', ') : '';
+	}
+	// A425: price text of a ticket type as shown (ticket price plus its per-ticket service fee).
+	function shownPrice(qty, unit) {
+		const minor = Number(unit) || 0;
+		return minor === 0 ? priceText(0, qty.dataset.currency) : money(minor + (Number(qty.dataset.fee) || 0), qty.dataset.currency);
+	}
 	// Display only: the server recalculates every price at checkout.
 	function renderEstimate(form) {
 		syncSubmitLabel(form);
@@ -276,20 +290,25 @@
 		let total = 0;
 		let currency = '';
 		// A425: service fee (display only; data-fee per paid ticket, data-order-fee once per paid order).
-		let fee = 0;
+		// The per-ticket fee is part of the shown ticket price, the per-order fee is added once; every
+		// total before the order button includes both (PAngV/PrAG) and names them.
+		let ticketFee = 0;
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
 			const n = Math.max(0, Number(qty.value) || 0);
 			const price = Number(qty.dataset.price) || 0;
 			total += n * price;
-			if (price > 0) fee += n * (Number(qty.dataset.fee) || 0);
+			if (price > 0) ticketFee += n * (Number(qty.dataset.fee) || 0);
 			if (n) currency = qty.dataset.currency || currency;
 		});
 		const typesBox = form.querySelector('.wpcap-types');
-		if (total > 0 && typesBox) fee += Number(typesBox.dataset.orderFee) || 0;
-		if (total <= 0) fee = 0;
+		let orderFee = total > 0 && typesBox ? Number(typesBox.dataset.orderFee) || 0 : 0;
+		if (total <= 0) { ticketFee = 0; orderFee = 0; }
+		const fee = ticketFee + orderFee;
 		total += fee;
 		form.dataset.feeEstimate = String(fee);
-		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, currency)) : '') : '';
+		form.dataset.ticketFeeEstimate = String(ticketFee);
+		form.dataset.orderFeeEstimate = String(orderFee);
+		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) + feeNote(form, currency) : '';
 		// A602: the sum next to the order button (visual only; the estimate above is the live region).
 		const near = form.querySelector('.wpcap-submit-total');
 		if (near) near.textContent = total > 0 ? fill(t.submitTotal || '%s', [money(total, currency)]) : '';
@@ -319,7 +338,7 @@
 				if (code.value.trim() !== value) return; // Changed meanwhile.
 				if (r.ok && box) {
 					const fee = Number(form.dataset.feeEstimate) || 0;
-					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor + fee, d.currency), money(d.discount_minor, d.currency), money(d.total_minor + fee, d.currency)]) + (fee > 0 ? ' ' + (t.estimateFee || '%s').replace('%s', money(fee, d.currency)) : '');
+					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor + fee, d.currency), money(d.discount_minor, d.currency), money(d.total_minor + fee, d.currency)]) + feeNote(form, d.currency);
 				} else if (409 === r.status && box && !single) {
 					box.textContent = (t.estimate || '%s').replace('%s', money(total, d.currency || '')) + ' ' + (t.codeInvalid || '');
 				}
@@ -343,7 +362,8 @@
 		const limit = box ? parseInt(box.dataset.maxTotal, 10) || 0 : 0;
 		if (!limit) return Infinity;
 		let others = 0;
-		form.querySelectorAll('.wpcap-qty').forEach(function (qty) { if (qty !== input) others += Math.max(0, Number(qty.value) || 0); });
+		if (input.dataset.kind === 'addon') return Infinity; // Add-on products do not count towards the ticket total.
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) { if (qty !== input && qty.dataset.kind !== 'addon') others += Math.max(0, Number(qty.value) || 0); });
 		return Math.max(0, limit - others);
 	}
 	function syncSteppers(form) {
@@ -588,7 +608,8 @@
 		qtys.forEach(function (qty) {
 			const n = Number(qty.value) || 0;
 			if (n > Number(qty.max) || n < 0) errors.push({ input: qty, message: fill(t.errTooMany || '%1$s: max %2$d', [qty.dataset.name, Number(qty.max)]) });
-			if (n > 0) selected += n;
+			// Add-on products (data-kind="addon") need a ticket and do not count towards the ticket total.
+			if (n > 0 && qty.dataset.kind !== 'addon') selected += n;
 		});
 		if (!selected && qtys.length) errors.push({ input: qtys[0], message: t.selectTickets || 'Select tickets.' });
 		const types = form.querySelector('.wpcap-types');
@@ -638,8 +659,13 @@
 		if (!state || (info.reason !== 'occurrence_changed' && info.reason !== 'price_changed')) return;
 		if (typeof state.revision === 'number') form.dataset.revision = String(state.revision);
 		const prices = state.prices || {};
+		const formatted = state.prices_formatted || {};
 		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
-			if (Object.prototype.hasOwnProperty.call(prices, qty.dataset.type)) qty.dataset.price = String(prices[qty.dataset.type]);
+			if (!Object.prototype.hasOwnProperty.call(prices, qty.dataset.type)) return;
+			qty.dataset.price = String(prices[qty.dataset.type]);
+			// A425: the price next to the type follows too (server text incl. the per-ticket service fee).
+			const text = typeof formatted[qty.dataset.type] === 'string' ? formatted[qty.dataset.type] : shownPrice(qty, prices[qty.dataset.type]);
+			setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), Number(prices[qty.dataset.type]) === 0 ? priceText(0, qty.dataset.currency) : text);
 		});
 		const card = form.closest('.wpcap-event');
 		const time = card && card.querySelector('.wpcap-fact-date time');
@@ -928,6 +954,8 @@
 			campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
 			provider: provider ? provider.value : 'manual',
 			accept_terms: terms ? terms.checked : false,
+			// SET-PC-18: age confirmation (only on cards with a minimum age; the server checks the ordered lines).
+			confirm_age: !!(form.querySelector('[name="confirm_age"]') && form.querySelector('[name="confirm_age"]').checked),
 			terms_version: termsVersion ? termsVersion.value : '',
 			locale: formLocale ? formLocale.value : '',
 			buyer_locale: buyerLocale ? buyerLocale.value : '',
@@ -947,6 +975,10 @@
 		// A554: Stripe/PayPal/Mollie send the buyer back to this page (the server accepts only URLs of this site).
 		body.return_url = String(window.location.href || '').split('#')[0];
 		body.return_to = body.return_url; // Older servers read return_to.
+		// Bot check: the invisible trap field and the time since the form was shown; only forms that carry
+		// the trap field send it (switched off on the server: no field). Not part of the attempt fingerprint.
+		const trap = form.querySelector('[name="wpcap_hp"]');
+		if (trap) body.form_guard = { hp: String(trap.value || ''), ms: Math.max(0, Math.round(clock() - (shownAt.has(form) ? shownAt.get(form) : -1e9))) };
 		// Disabling the focused button drops keyboard focus to <body>; remember it to restore it afterwards.
 		const hadFocus = document.activeElement === button;
 		button.disabled = true;
@@ -1035,7 +1067,8 @@
 			if (row && Number.isInteger(row.unit_minor)) {
 				qty.dataset.price = String(row.unit_minor);
 				// A458: the price next to the ticket type is the new one too, not only the estimate.
-				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.unit_minor === 0 ? priceText(0, qty.dataset.currency) : (row.formatted || money(row.unit_minor, qty.dataset.currency)));
+				// A425: the server's text includes the per-ticket service fee; without it the form adds data-fee.
+				setText(typeRow(qty) && typeRow(qty).querySelector('.wpcap-type-price'), row.unit_minor === 0 ? priceText(0, qty.dataset.currency) : (row.formatted || shownPrice(qty, row.unit_minor)));
 			}
 		});
 		renderEstimate(form);
@@ -1147,7 +1180,8 @@
 			if ((Number(qty.value) || 0) > max) qty.value = String(max);
 			// Without a payment provider only paid types are closed; free tickets need none.
 			qty.disabled = max < 1 || !onSale || (noPayment && (Number(qty.dataset.price) || 0) > 0);
-			if (max > 0) open = true;
+			// Add-on products (data-kind="addon") alone keep nothing open: they need a ticket.
+			if (max > 0 && qty.dataset.kind !== 'addon') open = true;
 			if (max > 0 && (Number(qty.dataset.price) || 0) > 0) paidOpen = true;
 			if (max > 0 && !((Number(qty.dataset.price) || 0) > 0)) freeOpen = true;
 			const wrap = typeRow(qty);
@@ -1309,7 +1343,8 @@
 		p.appendChild(el('strong', {}, entry.reference));
 		p.appendChild(document.createTextNode(parts[1] || ''));
 		notice.appendChild(p);
-		notice.appendChild(el('a', { href: entry.redirect, class: 'wp-element-button wpcap-resume-payment' }, t.resumePayment || 'Continue payment'));
+		// SET-PC-20: an empty text means the shop does not offer "Zahlung fortsetzen".
+		if (t.resumePayment !== '') notice.appendChild(el('a', { href: entry.redirect, class: 'wp-element-button wpcap-resume-payment' }, t.resumePayment || 'Continue payment'));
 		notice.appendChild(el('p', { class: 'wpcap-hint' }, t.pendingHint || ''));
 		form.insertBefore(notice, form.firstChild);
 	}
@@ -1371,6 +1406,9 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ occurrence_id: Number(form.dataset.occurrence), ticket_type_id: Number(form.elements.ticket_type_id.value), quantity: Number(form.elements.quantity.value || 1), email: email.value })
+			}).catch(function () {
+				// No connection: our own text instead of the browser's ("Failed to fetch", "Load failed").
+				throw new Error(t.waitlistFailed || 'Failed.');
 			});
 			var data = {};
 			try { data = await response.json(); } catch (e) { data = {}; }
@@ -1396,6 +1434,9 @@
 	// builders): window.WPCAP.init(root), the event "wpcap:init" ({ detail: { root } }) or, without
 	// either, a MutationObserver on the page. Each form is set up once.
 	const initialised = new WeakMap();
+	// Bot check (Security\FormGuard): when each checkout form was set up, for the minimum fill time.
+	const shownAt = new WeakMap();
+	function clock() { return window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now(); }
 	function within(root, selector) {
 		const out = [];
 		if (!root) return out;
@@ -1409,6 +1450,7 @@
 		const waitlists = within(root, '.wpcap-waitlist-form').filter(function (form) { return !initialised.has(form); });
 		forms.forEach(function (form) {
 			initialised.set(form, true);
+			shownAt.set(form, clock());
 			form.querySelectorAll('.wpcap-qty').forEach(enhanceQty);
 			syncSteppers(form);
 			form.querySelectorAll('[name="email"]').forEach(emailHintBox);

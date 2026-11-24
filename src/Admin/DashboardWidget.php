@@ -14,6 +14,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class DashboardWidget {
 	const ID = 'wpcap_overview_widget';
 
@@ -46,8 +49,9 @@ final class DashboardWidget {
 		$p = $wpdb->prefix;
 		$now = \PassCaptain\Clock::mysql();
 		$tz = new \DateTimeZone( \PassCaptain\Reports\Scope::site_timezone() );
-		$today_start = ( new \DateTimeImmutable( 'today', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
-		$week_start = ( new \DateTimeImmutable( 'today -6 days', $tz ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$today_local = ( new \DateTimeImmutable( '@' . \PassCaptain\Clock::now() ) )->setTimezone( $tz )->setTime( 0, 0 );
+		$today_start = $today_local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$week_start = $today_local->modify( '-6 days' )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		// Payment date when the column exists (A613), otherwise the order date.
 		$date = Orders::schema_at_least( '3.18.1' ) ? 'COALESCE(paid_at,created_at)' : 'created_at';
 		$sales = array( 'today' => array(), 'week' => array() );

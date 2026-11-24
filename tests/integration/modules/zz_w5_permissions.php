@@ -40,6 +40,7 @@ $pm_registrars = array(
 	'src/PortalSelfService.php' => array( \PassCaptain\PortalSelfService::class, 'register_routes' ),
 	'src/ScannerDesk.php' => array( \PassCaptain\ScannerDesk::class, 'routes' ),
 	'src/TicketRecovery.php' => array( \PassCaptain\TicketRecovery::class, 'register_routes' ),
+	'src/OrderLinkRequest.php' => array( \PassCaptain\OrderLinkRequest::class, 'register_routes' ),
 );
 
 /*
@@ -61,6 +62,7 @@ $pm_routes = array(
 	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})' => 'token:order access token (64 hex) required',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer' => 'token:order access token required',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend' => 'token:order access token required',
+	'POST pass-captain/v1/orders/link-request' => 'public:order link request by e-mail; same answer for every address, rate limited per client and silently per address, links only to the order address',
 	'POST pass-captain/v1/tickets/recover' => 'public:A622 ticket link recovery; same answer for every address, rate limited, only a single-use confirmation link to the holder address',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request' => 'token:order access token required; postponement refund request, always pending staff approval',
 	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign' => 'token:order access token required',
@@ -206,13 +208,13 @@ $pm_admin = array(
 	'wpcap_save_occurrence' => 'wpcap_manage_events', 'wpcap_cancel_occurrence' => 'wpcap_manage_events', 'wpcap_save_ticket_type' => 'wpcap_manage_events',
 	'wpcap_save_participant_field' => 'wpcap_manage_events', 'wpcap_participant_field_status' => 'wpcap_manage_events',
 	'wpcap_assign_staff' => 'wpcap_manage_events', 'wpcap_remove_staff' => 'wpcap_manage_events',
-	'wpcap_confirm_payment' => 'wpcap_manage_orders', 'wpcap_cancel_order' => 'wpcap_manage_orders', 'wpcap_resend_tickets' => 'wpcap_manage_orders', 'wpcap_send_order_link' => 'wpcap_manage_orders',
+	'wpcap_confirm_payment' => 'wpcap_manage_orders', 'wpcap_cancel_order' => 'wpcap_manage_orders', 'wpcap_resend_tickets' => 'wpcap_manage_orders', 'wpcap_send_order_link' => 'wpcap_manage_orders', 'wpcap_change_buyer_email' => 'wpcap_manage_orders',
 	'wpcap_refund_order' => 'wpcap_refund', 'wpcap_approve_refund' => 'wpcap_approve_refunds', 'wpcap_reject_refund' => 'wpcap_approve_refunds',
 	// R7: complimentary tickets, duplicate, CSV import/exports.
 	'wpcap_orders_csv' => 'wpcap_manage_orders', 'wpcap_issue_comps' => 'wpcap_manage_orders', 'wpcap_duplicate_event' => 'wpcap_manage_events',
 	'wpcap_duplicate_occurrence' => 'wpcap_manage_events', 'wpcap_import_events' => 'wpcap_manage_events', 'wpcap_campaign_codes_csv' => 'wpcap_manage_events',
-	'wpcap_revoke_ticket' => 'wpcap_manage_orders', 'wpcap_undo_checkin' => 'wpcap_checkin', 'wpcap_reissue_ticket' => 'wpcap_manage_orders',
-	'wpcap_save_settings' => 'manage_options', 'wpcap_create_pairing' => 'wpcap_checkin', 'wpcap_revoke_device' => 'wpcap_checkin',
+	'wpcap_revoke_ticket' => 'wpcap_manage_orders', 'wpcap_undo_checkin' => 'wpcap_checkin', 'wpcap_reissue_ticket' => 'wpcap_manage_orders', 'wpcap_change_holder' => 'wpcap_manage_orders',
+	'wpcap_save_settings' => 'manage_options', 'wpcap_settings_export' => 'manage_options', 'wpcap_settings_import' => 'manage_options', 'wpcap_settings_reset' => 'manage_options', 'wpcap_settings_preset' => 'manage_options', 'wpcap_pro_hint_hide' => 'manage_options', 'wpcap_print_ticket_pdf' => 'manage_options', 'wpcap_reminders_event_save' => 'manage_options', 'wpcap_create_pairing' => 'wpcap_checkin', 'wpcap_revoke_device' => 'wpcap_checkin',
 	'wpcap_api_key_action' => 'wpcap_manage_events', 'wpcap_service_action' => 'wpcap_manage_events', 'wpcap_waitlist_action' => 'wpcap_manage_events',
 	'wpcap_waitlist_export' => 'wpcap_manage_events', 'wpcap_campaign_action' => 'wpcap_manage_events', 'wpcap_membership_action' => 'wpcap_manage_orders',
 	'wpcap_admission_save_policy' => 'wpcap_manage_events', 'wpcap_admission_save_area' => 'wpcap_manage_events', 'wpcap_admission_area_status' => 'wpcap_manage_events',
@@ -266,8 +268,8 @@ $pm_admin = array(
 	'wpcap_create_scanner_page' => 'publish_pages', 'wpcap_test_provider_connection' => 'manage_options', 'wpcap_campaign_create' => 'wpcap_manage_events',
 	'wpcap_campaign_status' => 'wpcap_manage_events', 'wpcap_member_pass' => 'wpcap_manage_orders', 'wpcap_tax_profile_save' => 'wpcap_view_finance',
 	'wpcap_tax_profile_activate' => 'wpcap_view_finance', 'wpcap_tax_profile_retire' => 'wpcap_view_finance', 'wpcap_getting_started' => 'manage_options',
-	'wpcap_create_sales_page' => 'manage_options', 'wpcap_operations_action' => 'manage_options', 'wpcap_doctor_repair' => 'manage_options',
-	'wpcap_workflow_mail_handoff' => 'manage_options', 'wpcap_developer_key_create' => 'manage_options', 'wpcap_developer_key_update' => 'manage_options',
+	'wpcap_create_sales_page' => 'manage_options', 'wpcap_operations_action' => 'manage_options', 'wpcap_doctor_repair' => 'manage_options', 'wpcap_release_manual_holds' => 'manage_options',
+	'wpcap_developer_key_create' => 'manage_options', 'wpcap_developer_key_update' => 'manage_options',
 	'wpcap_developer_key_revoke' => 'manage_options', 'wpcap_service_resource_save' => 'wpcap_manage_events', 'wpcap_service_resource_delete' => 'wpcap_manage_events',
 	'wpcap_service_slot_save' => 'wpcap_manage_events', 'wpcap_service_slot_delete' => 'wpcap_manage_events', 'wpcap_service_slots_generate' => 'wpcap_manage_events',
 	'wpcap_service_provider_save' => 'wpcap_manage_events', 'wpcap_service_resource_providers' => 'wpcap_manage_events', 'wpcap_service_booking_action' => 'wpcap_manage_events',

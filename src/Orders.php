@@ -1,5 +1,12 @@
 <?php
-/** Order, inventory hold and ticket issuance services. */
+/**
+ * Order, inventory hold and ticket issuance services.
+ *
+ * Facade with stable static signatures (add-on contract). Cohesive parts live in @internal classes under
+ * src/Orders/ and are reached only through thin delegators here: PortalAccess (order portal link),
+ * CheckoutState (phases of create_attempt()), Availability (availability memo/cache/computation),
+ * Attendees (attendee validation and storage), Capacity (capacity check under row locks).
+ */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -76,86 +83,125 @@ final class Orders {
 
 	/** One checkout attempt (see create()); $attempt > 0 is an internal retry after a busy database. */
 	private static function create_attempt( $payload, array $internal, $attempt ) {
-		global $wpdb;
-		$payload = is_array( $payload ) ? $payload : array();
-		$email = Http::email( $payload['email'] ?? '' );
-		$lines = $payload['items'] ?? array();
-		if ( Http::email_too_long( $email ) ) {
+		// A401: the phases of a checkout attempt, in the former order; Orders\CheckoutState carries the values between them.
+		$s = self::checkout_state( $payload, $internal, $attempt );
+		if ( ! $s instanceof Orders\CheckoutState ) { return $s; }
+		// Checks before the transaction: the first one that has a result (error or reused order) ends the attempt.
+		$early = self::checkout_existing_order( $s )
+			?? self::checkout_clean_lines( $s )
+			?? self::checkout_age_confirmation( $s )
+			?? self::checkout_buyer_checks( $s )
+			?? self::checkout_prepare_transaction( $s );
+		if ( null !== $early ) { return $early; }
+		self::begin();
+		try {
+			self::checkout_lock_rows( $s );
+			self::checkout_reserve( $s );
+			self::checkout_price_lines( $s );
+			self::checkout_apply_campaigns( $s );
+			self::checkout_apply_taxes( $s );
+			self::checkout_insert_order( $s );
+			self::checkout_insert_lines( $s );
+			self::checkout_commit( $s );
+		} catch ( \Throwable $error ) {
+			$failed = self::checkout_failed( $s, $error );
+			if ( null !== $failed ) { return $failed; }
+		}
+		Sales\BuyerLimits::release( $s->buyer_locks );
+		return self::checkout_completed( $s );
+	}
+
+	/** A401: create_attempt() part: request input, idempotency key, channel options, legal texts and trusted prices. Returns the state, or a WP_Error to return as is. */
+	private static function checkout_state( $payload, array $internal, $attempt ) {
+		$s = new Orders\CheckoutState();
+		$s->payload = $payload;
+		$s->internal = $internal;
+		$s->attempt = $attempt;
+		$s->payload = is_array( $s->payload ) ? $s->payload : array();
+		$s->email = Http::email( $s->payload['email'] ?? '' );
+		$s->lines = $s->payload['items'] ?? array();
+		if ( Http::email_too_long( $s->email ) ) {
 			// A493: refused at the entrance (400) instead of failing at the varchar(190) column (503 db_busy).
 			return new \WP_Error( 'wpcap_invalid_checkout', self::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'email' ) );
 		}
-		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
+		if ( ! is_email( $s->email ) || ! is_array( $s->lines ) || empty( $s->lines ) || count( $s->lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// customer_email is varchar(190): a longer address passes is_email() but would fail the order insert.
-		if ( strlen( $email ) > self::EMAIL_MAX_LENGTH ) {
+		if ( strlen( $s->email ) > self::EMAIL_MAX_LENGTH ) {
 			return self::email_too_long( 'email' );
 		}
 
-		$key = \PassCaptain\Text::cut( sanitize_text_field( Http::str( $payload['idempotency_key'] ?? '' ) ), 191 );
-		if ( '' === $key ) {
-			$key = wp_generate_uuid4();
+		$s->key = \PassCaptain\Text::cut( sanitize_text_field( Http::str( $s->payload['idempotency_key'] ?? '' ) ), 191 );
+		if ( '' === $s->key ) {
+			$s->key = wp_generate_uuid4();
 		}
-		$namespace = sanitize_key( $internal['key_namespace'] ?? '' );
+		$s->namespace = sanitize_key( $s->internal['key_namespace'] ?? '' );
 		// Channel keys use a keyed hash so a public caller can never claim a POS/WooCommerce key.
-		$key_hash = '' === $namespace ? hash( 'sha256', $key ) : hash_hmac( 'sha256', $key, 'wpcap-channel-' . $namespace );
+		$s->key_hash = '' === $s->namespace ? hash( 'sha256', $s->key ) : hash_hmac( 'sha256', $s->key, 'wpcap-channel-' . $s->namespace );
 		// Trusted adapter options (e.g. WooCommerce): the external system owns price and payment.
-		$external = ! empty( $internal['external'] );
-		$comp = ! $external && ! empty( $internal['comp'] );
-		if ( $comp ) {
-			$internal['payment_provider'] = 'comp';
-			$internal['source'] = 'comp';
-			$internal['skip_rate_limit'] = true;
-			$internal['skip_buyer_limits'] = true;
-			$internal['allow_door_sales'] = true;
-			$payload['campaign_codes'] = array();
+		$s->external = ! empty( $s->internal['external'] );
+		$s->comp = ! $s->external && ! empty( $s->internal['comp'] );
+		if ( $s->comp ) {
+			$s->internal['payment_provider'] = 'comp';
+			$s->internal['source'] = 'comp';
+			$s->internal['skip_rate_limit'] = true;
+			$s->internal['skip_buyer_limits'] = true;
+			$s->internal['allow_door_sales'] = true;
+			$s->payload['campaign_codes'] = array();
 			// Own keyed idempotency namespace: a public caller can never claim a guest-list key.
-			$namespace = 'comp';
-			$key_hash = hash_hmac( 'sha256', $key, 'wpcap-channel-comp' );
+			$s->namespace = 'comp';
+			$s->key_hash = hash_hmac( 'sha256', $s->key, 'wpcap-channel-comp' );
 		}
-		$hold_minutes = max( 1, absint( $internal['hold_minutes'] ?? Settings::get( 'hold_minutes' ) ?? self::HOLD_MINUTES ) );
-		$line_taxes = ( $external && is_array( $internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $internal['line_taxes'] ) : array();
-		$payment_provider = sanitize_key( $internal['payment_provider'] ?? ( $external ? ( $internal['source'] ?? 'external' ) : 'manual' ) );
-		if ( ! $external && ! $comp && Settings::get( 'require_terms' ) && ! Http::accepted( $payload['accept_terms'] ?? null ) ) {
+		$s->hold_minutes = max( 1, absint( $s->internal['hold_minutes'] ?? Settings::get( 'hold_minutes' ) ?? self::HOLD_MINUTES ) );
+		$s->line_taxes = ( $s->external && is_array( $s->internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $s->internal['line_taxes'] ) : array();
+		$s->payment_provider = sanitize_key( $s->internal['payment_provider'] ?? ( $s->external ? ( $s->internal['source'] ?? 'external' ) : 'manual' ) );
+		if ( ! $s->external && ! $s->comp && Settings::get( 'require_terms' ) && ! Http::accepted( $s->payload['accept_terms'] ?? null ) ) {
 			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// Buyer language: the locale the checkout form was rendered in (legal texts, mails), else the request locale.
 		// W9: an explicit buyer language is only taken when the site offers it (Localization::order_locale()).
 		// A165: the legal texts are those of the language the form was shown in ("locale"); the buyer may
 		// choose another language for e-mails, tickets and the portal ("buyer_locale", Frontend\Language).
-		$legal_locale = Mail\Mailer::normalize_locale( Localization::order_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' ) );
-		if ( '' === $legal_locale ) { $legal_locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
-		$order_locale = $external ? $legal_locale : Mail\Mailer::normalize_locale( Frontend\Language::order_locale( $payload ) );
-		if ( '' === $order_locale ) { $order_locale = $legal_locale; }
-		$terms_version = $external ? '' : Settings::terms_version( $legal_locale );
-		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
+		$s->legal_locale = Mail\Mailer::normalize_locale( Localization::order_locale( is_string( $s->payload['locale'] ?? null ) ? $s->payload['locale'] : '' ) );
+		if ( '' === $s->legal_locale ) { $s->legal_locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
+		$s->order_locale = $s->external ? $s->legal_locale : Mail\Mailer::normalize_locale( Frontend\Language::order_locale( $s->payload ) );
+		if ( '' === $s->order_locale ) { $s->order_locale = $s->legal_locale; }
+		$s->terms_version = $s->external ? '' : Settings::terms_version( $s->legal_locale );
+		$s->unit_prices = ( $s->external && is_array( $s->internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $s->internal['unit_prices'] ) : array();
 		// Exact gross line totals from the external system (unit prices may not divide evenly).
-		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
-		$external_currency = $external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $internal['currency'] ?? '' ) ) ) : '';
+		$s->line_totals = ( $s->external && is_array( $s->internal['line_totals'] ?? null ) ) ? array_map( 'absint', $s->internal['line_totals'] ) : array();
+		$s->external_currency = $s->external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $s->internal['currency'] ?? '' ) ) ) : '';
 		// An internal retry was already counted (and admitted by the checkout gate) as one request.
-		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] ) || $attempt > 0;
+		$s->skip_rate_limit = $s->external || ! empty( $s->internal['skip_rate_limit'] ) || $s->attempt > 0;
 		// A576: unit prices the buyer was shown (type_id => minor units). Only an upper bound: a price that
 		// rose since the page was rendered is refused (409 price_changed); a lower one is charged as is.
-		$expected_prices = array();
-		if ( ! $external && is_array( $payload['expected_prices'] ?? null ) ) {
-			foreach ( $payload['expected_prices'] as $expected_type => $expected_minor ) {
+		$s->expected_prices = array();
+		if ( ! $s->external && is_array( $s->payload['expected_prices'] ?? null ) ) {
+			foreach ( $s->payload['expected_prices'] as $expected_type => $expected_minor ) {
 				$expected_type = Http::positive_int( $expected_type );
 				if ( $expected_type && ( is_int( $expected_minor ) || ( is_string( $expected_minor ) && ctype_digit( $expected_minor ) ) ) ) {
-					$expected_prices[ $expected_type ] = (int) $expected_minor;
+					$s->expected_prices[ $expected_type ] = (int) $expected_minor;
 				}
 			}
 		}
-		$changed_prices = array();
+		$s->changed_prices = array();
+		return $s;
+	}
+
+	/** A401: create_attempt() part: an order that already has this idempotency key, and the shown version of the legal texts. Returns the result to return, or null to go on. */
+	private static function checkout_existing_order( Orders\CheckoutState $s ) {
+		global $wpdb;
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		// A420: a public checkout key belongs to exactly one cart (schema 3.10.25; '' before the upgrade).
-		$request_hash = ! $external && '' === $namespace && Log::has_column( 'wpcap_orders', 'request_hash' ) ? self::request_hash( $email, $lines, $payload ) : '';
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
+		$s->request_hash = ! $s->external && '' === $s->namespace && Log::has_column( 'wpcap_orders', 'request_hash' ) ? self::request_hash( $s->email, $s->lines, $s->payload ) : '';
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key = %s', $orders_table, $s->key_hash ) );
 		if ( '' !== $wpdb->last_error ) {
 			// Unknown whether an order with this key exists: never create a second one.
 			return Errors::busy();
 		}
 		if ( $existing ) {
-			if ( '' !== $request_hash && '' !== (string) ( $existing->request_hash ?? '' ) && ! hash_equals( (string) $existing->request_hash, $request_hash ) ) {
+			if ( '' !== $s->request_hash && '' !== (string) ( $existing->request_hash ?? '' ) && ! hash_equals( (string) $existing->request_hash, $s->request_hash ) ) {
 				return self::key_reused_error();
 			}
 			return self::reused_result( $existing );
@@ -163,498 +209,587 @@ final class Orders {
 		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
 		// data.terms_version is the current version; the checkout script then reloads the texts in place
 		// (GET /checkout/options), because a cached page would show the old ones again (A457).
-		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
-		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
-			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409, 'terms_version' => $terms_version, 'locale' => $legal_locale ) );
+		$shown_version = is_string( $s->payload['terms_version'] ?? null ) ? $s->payload['terms_version'] : '';
+		if ( ! $s->external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $s->terms_version ) {
+			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409, 'terms_version' => $s->terms_version, 'locale' => $s->legal_locale ) );
 		}
 		// A568: the wording behind the stored version stays provable (archive, append-only).
-		if ( '' !== $terms_version ) { LegalVersions::archive( $legal_locale ); }
+		if ( '' !== $s->terms_version ) { LegalVersions::archive( $s->legal_locale ); }
+		return null;
+	}
 
+	/** A401: create_attempt() part: ticket lines (quantities summed per type) and the state the buyer saw. WP_Error, or null to go on. */
+	private static function checkout_clean_lines( Orders\CheckoutState $s ) {
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
 		// only an absolute safety cap against absurd quantities before any row is locked.
-		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
-		$clean_lines = array();
-		$shown_state = array();
-		foreach ( $lines as $line ) {
+		$line_cap = self::max_line_quantity();
+		$s->clean_lines = array();
+		$s->shown_state = array();
+		foreach ( $s->lines as $line ) {
 			// Strict: booleans, negatives, fractions and arrays are invalid (absint() would turn -2 into 2).
 			$type_id = is_array( $line ) ? Http::positive_int( $line['ticket_type_id'] ?? 0 ) : 0;
 			$quantity = is_array( $line ) ? Http::positive_int( $line['quantity'] ?? 0 ) : 0;
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
-			$clean_lines[ $type_id ] = ( $clean_lines[ $type_id ] ?? 0 ) + $quantity;
-			if ( $clean_lines[ $type_id ] > $line_cap ) {
+			$s->clean_lines[ $type_id ] = ( $s->clean_lines[ $type_id ] ?? 0 ) + $quantity;
+			if ( $s->clean_lines[ $type_id ] > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			// A560: the state the buyer saw (occurrence revision, displayed unit price); optional.
-			if ( ! $external ) {
+			if ( ! $s->external ) {
 				foreach ( array( 'occurrence_revision' => 'revision', 'expected_price_minor' => 'price' ) as $field => $slot ) {
-					if ( isset( $line[ $field ] ) && is_scalar( $line[ $field ] ) && preg_match( '/^\d{1,12}$/', (string) $line[ $field ] ) ) { $shown_state[ $type_id ][ $slot ] = (int) $line[ $field ]; }
+					if ( isset( $line[ $field ] ) && is_scalar( $line[ $field ] ) && preg_match( '/^\d{1,12}$/', (string) $line[ $field ] ) ) { $s->shown_state[ $type_id ][ $slot ] = (int) $line[ $field ]; }
 				}
 			}
 		}
+		return null;
+	}
+
+	/** A401: create_attempt() part: checkout gate, attendees, consents, billing data and add-on vetoes. WP_Error, or null to go on. */
+	/**
+	 * SET-PC-18: with the setting min_age_checkbox the buyer of the own online checkout confirms the minimum
+	 * age when a line has one (payload confirm_age). Channels with their own namespace (box office, waitlist
+	 * offers), trusted adapters and guest lists are not asked. WP_Error, or null to go on.
+	 */
+	private static function checkout_age_confirmation( Orders\CheckoutState $s ) {
+		if ( $s->external || $s->comp || '' !== $s->namespace ) { return null; }
+		$min_age = AdmissionChecks::confirmation_age( array_keys( $s->clean_lines ) );
+		if ( $min_age < 1 || Http::accepted( $s->payload['confirm_age'] ?? null ) ) { return null; }
+		/* translators: %d: minimum age in years */
+		return new \WP_Error( 'wpcap_age_confirmation_required', sprintf( __( 'Bitte bestätige, dass alle Ticketinhaber mindestens %d Jahre alt sind.', 'pass-captain' ), $min_age ), array( 'status' => 400, 'min_age' => $min_age ) );
+	}
+
+	private static function checkout_buyer_checks( Orders\CheckoutState $s ) {
 		// Add-on gate (e.g. virtual waiting room) for public checkouts only: not for channels with their own
 		// namespace (box office, waitlist offers) or trusted adapters (WooCommerce, vouchers). Sales\CheckoutGate.
-		if ( ! $external && '' === $namespace && 0 === $attempt ) {
-			$gate = Sales\CheckoutGate::check( array( 'source' => $internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $clean_lines, 'email' => $email, 'idempotency_key' => $key, 'request' => $internal['request'] ?? null ) );
+		if ( ! $s->external && '' === $s->namespace && 0 === $s->attempt ) {
+			$gate = Sales\CheckoutGate::check( array( 'source' => $s->internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $s->clean_lines, 'email' => $s->email, 'idempotency_key' => $s->key, 'request' => $s->internal['request'] ?? null ) );
 			if ( is_wp_error( $gate ) ) { return $gate; }
 		}
 		// A552: "same as buyer" per ticket takes the buyer address and the billing name (if given).
-		$buyer_billing = is_array( $internal['billing'] ?? null ) ? $internal['billing'] : ( is_array( $payload['billing'] ?? null ) ? $payload['billing'] : array() );
-		$buyer = array( 'email' => $email, 'name' => trim( Http::str( $buyer_billing['first_name'] ?? '' ) . ' ' . Http::str( $buyer_billing['last_name'] ?? '' ) ) );
-		$attendees = self::validate_attendees(
-			$clean_lines,
-			$payload['attendees'] ?? array(),
+		$buyer_billing = is_array( $s->internal['billing'] ?? null ) ? $s->internal['billing'] : ( is_array( $s->payload['billing'] ?? null ) ? $s->payload['billing'] : array() );
+		$buyer = array( 'email' => $s->email, 'name' => trim( Http::str( $buyer_billing['first_name'] ?? '' ) . ' ' . Http::str( $buyer_billing['last_name'] ?? '' ) ) );
+		$s->attendees = self::validate_attendees(
+			$s->clean_lines,
+			$s->payload['attendees'] ?? array(),
 			array(
-				'defer_required' => ! empty( $internal['defer_attendees'] ),
-				'allow_missing' => $comp || ( $external && ! empty( $internal['attendees_deferred'] ) ),
-				'skip_required' => $comp,
+				'defer_required' => ! empty( $s->internal['defer_attendees'] ),
+				'allow_missing' => $s->comp || ( $s->external && ! empty( $s->internal['attendees_deferred'] ) ),
+				'skip_required' => $s->comp,
 				'buyer' => $buyer,
-				'strict' => ! empty( $internal['strict_attendees'] ),
+				'strict' => ! empty( $s->internal['strict_attendees'] ),
 			)
 		);
-		if ( is_wp_error( $attendees ) ) { return $attendees; }
+		if ( is_wp_error( $s->attendees ) ) { return $s->attendees; }
 		// Consent proof (A116): text version shown, time, source, locale; recorded at issuance.
-		$consent_source = Consents::source_for_channel( $internal['source'] ?? $namespace );
-		$attendees = Consents::annotate( $attendees, $consent_source, $legal_locale, 'checkout' === $consent_source && ! $external ? Consents::ip_hash( self::client_ip() ) : '' );
+		$consent_source = Consents::source_for_channel( $s->internal['source'] ?? $s->namespace );
+		$s->attendees = Consents::annotate( $s->attendees, $consent_source, $s->legal_locale, 'checkout' === $consent_source && ! $s->external ? Consents::ip_hash( self::client_ip() ) : '' );
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
-		// their own checkout already validated as $internal['billing']; customer input is validated here.
-		$billing = ( $external && is_array( $internal['billing'] ?? null ) ) ? Billing::sanitize( $internal['billing'] ) : Billing::validate( $payload['billing'] ?? null );
-		if ( is_wp_error( $billing ) ) { return $billing; }
-		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
+		// their own checkout already validated as $s->internal['billing']; customer input is validated here.
+		$s->billing = ( $s->external && is_array( $s->internal['billing'] ?? null ) ) ? Billing::sanitize( $s->internal['billing'] ) : Billing::validate( $s->payload['billing'] ?? null );
+		if ( is_wp_error( $s->billing ) ) { return $s->billing; }
+		$s->billing = $s->billing && ! Billing::is_empty( $s->billing ) ? $s->billing : array();
 		// A331: own checkout rules of add-ons/modules, before anything is locked or written.
-		$veto = self::checkout_veto( $email, $clean_lines, $payload, $internal, $namespace, $external );
+		$veto = self::checkout_veto( $s->email, $s->clean_lines, $s->payload, $s->internal, $s->namespace, $s->external );
 		if ( is_wp_error( $veto ) ) { return $veto; }
+		return null;
+	}
 
+	/** A401: create_attempt() part: rate limit, buyer limit locks and channel flags, before the transaction starts. WP_Error, or null to go on. */
+	private static function checkout_prepare_transaction( Orders\CheckoutState $s ) {
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses: per client network (IPv6 /64)
 		// and per network + normalised e-mail; a checkout that creates no order is taken back (Sales\CheckoutThrottle).
-		$throttle = null;
-		if ( ! $skip_rate_limit ) {
-			$throttle = Sales\CheckoutThrottle::check( $email, $hold_minutes );
-			if ( is_wp_error( $throttle ) ) { return $throttle; }
+		$s->throttle = null;
+		if ( ! $s->skip_rate_limit ) {
+			$s->throttle = Sales\CheckoutThrottle::check( $s->email, $s->hold_minutes );
+			if ( is_wp_error( $s->throttle ) ) { return $s->throttle; }
 		}
-
-		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
-		$occ_table = $wpdb->prefix . 'wpcap_occurrences';
-		$reservations_table = $wpdb->prefix . 'wpcap_reservations';
-		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
-		$items_table = $wpdb->prefix . 'wpcap_order_items';
-		$event_table = $wpdb->prefix . 'wpcap_events';
-		$now = Clock::mysql();
-		$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
-		$custom_error = null;
+		$s->now = Clock::mysql();
+		$s->door_sale = ! empty( $s->internal['allow_door_sales'] ) || 'pos' === $s->namespace;
+		$s->custom_error = null;
 		// Logged-in customer of a native checkout (buyer limits per account; never staff/adapter orders).
-		$customer_user_id = ( $external || $door_sale || '' !== $namespace || ! empty( $internal['source'] ) ) ? 0 : absint( get_current_user_id() );
+		$s->customer_user_id = ( $s->external || $s->door_sale || '' !== $s->namespace || ! empty( $s->internal['source'] ) ) ? 0 : absint( get_current_user_id() );
 		// Buyer limits across orders (Sales\BuyerLimits): orders of the same buyer are serialised by a
 		// lock taken before the transaction starts, so its snapshot contains all their committed orders.
-		$check_buyer_limits = ! $door_sale && empty( $internal['skip_buyer_limits'] ) && Sales\BuyerLimits::relevant( array_keys( $clean_lines ) );
-		$buyer_locks = array();
-		if ( $check_buyer_limits ) {
-			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
-			if ( false === $buyer_locks ) {
-				Sales\CheckoutThrottle::refund( $throttle );
+		$s->check_buyer_limits = ! $s->door_sale && empty( $s->internal['skip_buyer_limits'] ) && Sales\BuyerLimits::relevant( array_keys( $s->clean_lines ) );
+		$s->buyer_locks = array();
+		if ( $s->check_buyer_limits ) {
+			$s->buyer_locks = Sales\BuyerLimits::acquire( $s->email, $s->customer_user_id );
+			if ( false === $s->buyer_locks ) {
+				Sales\CheckoutThrottle::refund( $s->throttle );
 				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'retry_after' => self::RETRY_AFTER_SECONDS ) );
 			}
 		}
-		$entered_codes = Sales\Visibility::input_codes( is_array( $payload['campaign_codes'] ?? null ) ? $payload['campaign_codes'] : array() );
-		$public_checkout = ! $external && '' === $namespace;
+		$s->entered_codes = Sales\Visibility::input_codes( is_array( $s->payload['campaign_codes'] ?? null ) ? $s->payload['campaign_codes'] : array() );
+		$s->public_checkout = ! $s->external && '' === $s->namespace;
 		// A425: the service fee applies to the own online ticket checkout only (no staff, adapter, comp,
 		// waitlist or service booking channel). The column check runs before the transaction starts.
-		$fee_channel = $public_checkout && ! $comp && ! $door_sale && empty( $internal['source'] ) && empty( $internal['skip_rate_limit'] ) && ServiceFee::ready();
-		$service_fee = null;
-		$commit_unknown = false;
-		self::begin();
-		try {
-			ksort( $clean_lines, SORT_NUMERIC );
-			// Lock phase (locking reads only, so the transaction's consistent snapshot is taken after
-			// every lock is held): ticket types by id, then their occurrences by id, then module
-			// resources via `wpcap_reserve_capacity`. Late payment recovery uses the same order.
-			$types = array();
-			foreach ( $clean_lines as $type_id => $quantity ) {
-				$type = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id = %d FOR UPDATE', $types_table, $type_id ) );
-				// A failed lock (deadlock, lock wait timeout, lost connection) is no "unavailable".
-				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
-				if ( ! $type || 'active' !== $type->status ) {
-					throw new \RuntimeException( 'ticket_type_unavailable' );
-				}
-				if ( ! $comp && $quantity > (int) $type->max_per_order ) {
-					throw new \RuntimeException( 'quantity_limit' );
-				}
-				$types[ $type_id ] = $type;
-			}
-			// Hidden / code-only ticket types (Sales\Visibility): the public checkout needs an unlock code; other
-			// channels are trusted. The type's own code list is checked here (no query in the lock phase); a
-			// type unlocked by a campaign code is checked after Campaigns::calculate() (locked campaign rows).
-			$locked_types = array();
-			if ( $public_checkout ) {
-				foreach ( $types as $type_id => $type ) {
-					$visibility = Sales\Visibility::of( $type );
-					if ( 'hidden' === $visibility ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
-					if ( 'code' === $visibility && ! array_intersect( $entered_codes, Sales\Visibility::codes( $type ) ) ) { $locked_types[ $type_id ] = true; }
-				}
-			}
-			$occurrence_ids = array_unique( array_map( static function ( $type ) { return (int) $type->occurrence_id; }, $types ) );
-			sort( $occurrence_ids, SORT_NUMERIC );
-			$occurrences = array();
-			foreach ( $occurrence_ids as $occurrence_id ) {
-				$occurrences[ $occurrence_id ] = $wpdb->get_row( $wpdb->prepare(
-					'SELECT o.*,e.name AS event_name,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE', $occ_table, $event_table,
-					$occurrence_id
-				) );
-				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
-			}
-			$currency = '';
-			foreach ( $types as $type_id => $type ) {
-				$occurrence = $occurrences[ (int) $type->occurrence_id ];
-				// Door sales (box office) may sell after the start and outside the online sales window,
-				// but never for an occurrence that has ended. Online sales end at the start, or – with a
-				// sales_end after the start (multi-day occurrences) – at that sales_end, never after the
-				// effective end (Occurrence, A535).
-				$closed = $occurrence && ( $door_sale ? Occurrence::is_over( $occurrence ) : Occurrence::online_sales_over( $occurrence, $type ) );
-				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || $closed ) {
-					throw new \RuntimeException( 'occurrence_unavailable' );
-				}
-				if ( ! $door_sale && ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) ) {
-					throw new \RuntimeException( 'sales_closed' );
-				}
-				if ( isset( $shown_state[ $type_id ] ) ) {
-					// A560: checked under the occurrence lock, so a reschedule cannot slip in between.
-					$custom_error = self::shown_state_error( $shown_state[ $type_id ], $type, $occurrence, $now );
-					if ( $custom_error ) { throw new \RuntimeException( (string) $custom_error->get_error_data()['reason'] ); }
-				}
-				if ( $external && 3 === strlen( $external_currency ) ) {
-					$currency = $external_currency;
-				} elseif ( '' === $currency ) {
-					$currency = $type->currency;
-				} elseif ( $currency !== $type->currency ) {
-					throw new \RuntimeException( 'mixed_currency' );
-				}
-			}
-			$capacity_context = array( 'phase' => 'create', 'order_id' => 0, 'types' => $types, 'occurrences' => $occurrences, 'now' => $now, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'email' => $email, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'internal' => $internal );
-			$reserve_error = self::reserve_capacity( $clean_lines, $capacity_context );
-			if ( $reserve_error ) {
-				$custom_error = $reserve_error;
-				throw new \RuntimeException( $reserve_error->get_error_code() );
-			}
-			if ( $check_buyer_limits ) {
-				$limit_error = Sales\BuyerLimits::check( $clean_lines, $types, $occurrences, $email, $customer_user_id, $now );
-				if ( $limit_error ) {
-					$custom_error = $limit_error;
-					throw new \RuntimeException( 'buyer_limit' );
-				}
-			}
+		$s->fee_channel = $s->public_checkout && ! $s->comp && ! $s->door_sale && empty( $s->internal['source'] ) && empty( $s->internal['skip_rate_limit'] ) && ServiceFee::ready();
+		$s->service_fee = null;
+		$s->commit_unknown = false;
+		return null;
+	}
 
-			$selected = array();
-			$total = 0;
-			$price_rules = array();
-			$occurrence_demand = array();
-			foreach ( $clean_lines as $type_id => $quantity ) {
-				$type = $types[ $type_id ];
-				$occurrence = $occurrences[ (int) $type->occurrence_id ];
-				// Expired holds are ignored by the capacity check (expires_at > now) and marked by the
-				// cleanup job; updating them here took gap locks that deadlocked concurrent checkouts.
-				// Every statement is checked: after a deadlock or lock wait timeout MariaDB rolls the
-				// transaction back (releasing the capacity locks) and later statements would autocommit.
-				// Several ticket types of one occurrence: its capacity is checked for their sum.
-				$occurrence_demand[ (int) $occurrence->occurrence_id ] = ( $occurrence_demand[ (int) $occurrence->occurrence_id ] ?? 0 ) + $quantity;
-				$capacity_error = self::capacity_error( $type, $occurrence, $quantity, 0, $occurrence_demand[ (int) $occurrence->occurrence_id ] );
-				if ( $capacity_error ) {
-					throw new \RuntimeException( $capacity_error );
-				}
-				// Price precedence: an explicit trusted unit price (adapters/staff, e.g. WooCommerce or
-				// free box office sales) wins; otherwise the stored price passes through the
-				// server-side `wpcap_ticket_unit_price` filter. Client input never reaches either.
-				$base_price = (int) $type->price_minor;
-				$price_rule = null;
-				if ( $comp ) {
-					$unit_price = 0;
-				} elseif ( array_key_exists( $type_id, $unit_prices ) ) {
-					$unit_price = (int) $unit_prices[ $type_id ];
-				} else {
-					$unit_price = self::unit_price( $type, $occurrence, $quantity, array( 'now' => $now, 'source' => $capacity_context['source'], 'phase' => 'create' ) );
-					if ( $unit_price !== (int) $type->price_minor ) {
-						$price_rules[ $type_id ] = array( 'base_minor' => (int) $type->price_minor, 'unit_minor' => $unit_price );
-					}
-					// Automatic price rule (Sales\PriceRules) frozen with the line: rule, explanation, prices.
-					$price_rule = Sales\PriceRules::applied( $type_id );
-					// A576: never charge more than the buyer was shown (early bird ended, demand tier, cached page).
-					if ( isset( $expected_prices[ $type_id ] ) && $unit_price > $expected_prices[ $type_id ] ) {
-						$changed_prices[ $type_id ] = array( 'shown_minor' => $expected_prices[ $type_id ], 'unit_minor' => $unit_price, 'formatted' => Frontend\Format::money( $unit_price, $type->currency ), 'name' => (string) $type->name );
-					}
-				}
-				// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
-				$tax_profile = ( $comp || array_key_exists( $type_id, $line_taxes ) ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $now );
-				$type->price_minor = $unit_price;
-				$line_total = array_key_exists( $type_id, $line_totals ) ? (int) $line_totals[ $type_id ] : $unit_price * $quantity;
-				$total += $line_total;
-				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total, 'base_minor' => $base_price, 'price_rule' => $price_rule, 'tax_profile' => $tax_profile );
+	/** A401: create_attempt() part (transaction): locks the ticket types and their dates and checks that they are on sale. */
+	private static function checkout_lock_rows( Orders\CheckoutState $s ) {
+		global $wpdb;
+		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
+		$occ_table = $wpdb->prefix . 'wpcap_occurrences';
+		$event_table = $wpdb->prefix . 'wpcap_events';
+		ksort( $s->clean_lines, SORT_NUMERIC );
+		// Lock phase (locking reads only, so the transaction's consistent snapshot is taken after
+		// every lock is held): ticket types by id, then their occurrences by id, then module
+		// resources via `wpcap_reserve_capacity`. Late payment recovery uses the same order.
+		$s->types = array();
+		foreach ( $s->clean_lines as $type_id => $quantity ) {
+			$type = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id = %d FOR UPDATE', $types_table, $type_id ) );
+			// A failed lock (deadlock, lock wait timeout, lost connection) is no "unavailable".
+			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
+			if ( ! $type || 'active' !== $type->status ) {
+				throw new \RuntimeException( 'ticket_type_unavailable' );
 			}
-			if ( $changed_prices ) {
-				$custom_error = self::price_changed_error( $changed_prices );
-				throw new \RuntimeException( 'price_changed' );
+			if ( ! $s->comp && $quantity > (int) $type->max_per_order ) {
+				throw new \RuntimeException( 'quantity_limit' );
 			}
-			$subtotal = $total;
-			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
-			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
-			// Pure unlock codes (code list of a selected type) are no discount codes.
-			$unlock_only = $public_checkout ? Sales\Visibility::unlock_only_codes( array_keys( $occurrences ), $entered_codes ) : array();
-			if ( $unlock_only ) {
-				$campaign_codes = array_values( array_filter( $campaign_codes, static function ( $code ) use ( $unlock_only ) { return ! in_array( Campaigns::normalize_code( $code ), $unlock_only, true ); } ) );
+			$s->types[ $type_id ] = $type;
+		}
+		// Add-on products (Sales\Addons) only with a main ticket of the same occurrence, at most n per ticket.
+		$addon_error = Sales\Addons::checkout_error( $s->clean_lines, $s->types );
+		if ( '' !== $addon_error ) { throw new \RuntimeException( $addon_error ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
+		// Hidden / code-only ticket types (Sales\Visibility): the public checkout needs an unlock code; other
+		// channels are trusted. The type's own code list is checked here (no query in the lock phase); a
+		// type unlocked by a campaign code is checked after Campaigns::calculate() (locked campaign rows).
+		$s->locked_types = array();
+		if ( $s->public_checkout ) {
+			foreach ( $s->types as $type_id => $type ) {
+				$visibility = Sales\Visibility::of( $type );
+				if ( 'hidden' === $visibility ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
+				if ( 'code' === $visibility && ! array_intersect( $s->entered_codes, Sales\Visibility::codes( $type ) ) ) { $s->locked_types[ $type_id ] = true; }
 			}
-			// Automatic campaigns (no code) only for orders that pay the core price, never for adapters or comps.
-			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency, array( 'auto' => ! $external && ! $comp, 'email' => $email ) );
-			if ( is_wp_error( $adjustments ) ) {
-				// Stacking rules (combinable, maximum discount, minimum quantity, per-buyer limit) explain themselves; other errors stay generic.
-				if ( in_array( $adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount', 'wpcap_campaign_min_quantity', 'wpcap_campaign_buyer_limit' ), true ) ) {
-					$custom_error = $adjustments;
-					throw new \RuntimeException( $adjustments->get_error_code() );
-				}
-				throw new \RuntimeException( 'campaign_invalid' );
+		}
+		$s->occurrence_ids = array_unique( array_map( static function ( $type ) { return (int) $type->occurrence_id; }, $s->types ) );
+		sort( $s->occurrence_ids, SORT_NUMERIC );
+		$s->occurrences = array();
+		foreach ( $s->occurrence_ids as $occurrence_id ) {
+			$s->occurrences[ $occurrence_id ] = $wpdb->get_row( $wpdb->prepare(
+				'SELECT o.*,e.name AS event_name,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE', $occ_table, $event_table,
+				$occurrence_id
+			) );
+			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
+		}
+		$s->currency = '';
+		foreach ( $s->types as $type_id => $type ) {
+			$occurrence = $s->occurrences[ (int) $type->occurrence_id ];
+			// Door sales (box office) may sell after the start and outside the online sales window,
+			// but never for an occurrence that has ended. Online sales end at the start, or – with a
+			// sales_end after the start (multi-day occurrences) – at that sales_end, never after the
+			// effective end (Occurrence, A535).
+			$closed = $occurrence && ( $s->door_sale ? Occurrence::is_over( $occurrence ) : Occurrence::online_sales_over( $occurrence, $type ) );
+			if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || $closed ) {
+				throw new \RuntimeException( 'occurrence_unavailable' );
 			}
-			foreach ( $adjustments as $adjustment ) {
-				if ( empty( $adjustment['auto'] ) ) { unset( $locked_types[ (int) $adjustment['campaign']->ticket_type_id ] ); }
+			if ( ! $s->door_sale && ( ( $type->sales_start && $type->sales_start > $s->now ) || ( $type->sales_end && $type->sales_end < $s->now ) ) ) {
+				throw new \RuntimeException( 'sales_closed' );
 			}
-			if ( $locked_types ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
-			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
-			$total = max( 0, $subtotal - $discount );
-			// Trusted channels (box office "invoice", partner API) ask for the same rule via require_billing.
-			if ( ( ! $external || ! empty( $internal['require_billing'] ) ) && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
-			// Free order without a payment method (REST checkout, free_only): refused as soon as anything is to pay (time-dependent price).
-			if ( ! empty( $internal['free_only'] ) && $total > 0 ) {
-				$custom_error = new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
-				throw new \RuntimeException( 'provider_unavailable' );
+			if ( isset( $s->shown_state[ $type_id ] ) ) {
+				// A560: checked under the occurrence lock, so a reschedule cannot slip in between.
+				$s->custom_error = self::shown_state_error( $s->shown_state[ $type_id ], $type, $occurrence, $s->now );
+				if ( $s->custom_error ) { throw new \RuntimeException( (string) $s->custom_error->get_error_data()['reason'] ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
 			}
-			// A634: unpaid bank transfer orders of the public checkout (payment method chosen by the buyer, no
-			// trusted channel) hold their units for days; together they may hold at most a share of each
-			// ticket type and date. Checked under the type/occurrence locks above, so concurrent checkouts
-			// cannot exceed it together. Staff channels (admin holds, box office, partners) are not limited.
-			if ( 'manual' === $payment_provider && isset( $internal['payment_provider'] ) && ! $external && ! $comp && ! $skip_rate_limit && '' === $namespace && $total > 0 ) {
-				$manual_error = self::manual_hold_error( $clean_lines, $types, $occurrences, $now );
-				if ( '' !== $manual_error ) { throw new \RuntimeException( $manual_error ); }
+			if ( $s->external && 3 === strlen( $s->external_currency ) ) {
+				$s->currency = $s->external_currency;
+			} elseif ( '' === $s->currency ) {
+				$s->currency = $type->currency;
+			} elseif ( $s->currency !== $type->currency ) {
+				throw new \RuntimeException( 'mixed_currency' );
 			}
-			// Allocate each campaign's discount to the lines it applies to (proportionally, exact to the
-			// minor unit; Campaigns::calculate()) and compute VAT per line on the discounted gross amount.
-			// The per-line discounts are kept in the price snapshot and on the order line (A007), so
-			// invoices and refunds use the same split.
-			$line_discounts = self::line_discounts( $selected, $adjustments );
-			$tax_total = 0;
-			foreach ( $selected as $index => $line ) {
-				$line_discount = min( (int) $line['line_total'], max( 0, (int) ( $line_discounts[ $index ] ?? 0 ) ) );
-				$selected[ $index ]['discount_minor'] = $line_discount;
-				$type_id_for_tax = (int) $line['type']->ticket_type_id;
-				// A115: rate from the active country tax profile (venue country, tax class, sale date) or
-				// the ticket type's own rate; a VAT amount fixed by the channel keeps the type's rate.
-				$tax_occurrence = $occurrences[ (int) $line['type']->occurrence_id ] ?? null;
-				// A versioned profile of Sales\TaxProfiles (event country, date of supply) wins; it is mirrored
-				// into the Tax\Profiles line columns so both views of the line agree.
-				if ( array_key_exists( $type_id_for_tax, $line_taxes ) ) {
-					$tax_info = array( 'rate_bp' => (int) ( $line['type']->tax_rate_bp ?? 0 ), 'source' => Tax\Profiles::SOURCE_EXTERNAL, 'profile_id' => 0, 'version' => '', 'country' => Tax\Profiles::venue_country( $tax_occurrence ) );
-				} elseif ( $line['tax_profile'] ) {
-					$tax_info = array( 'rate_bp' => (int) $line['tax_profile']['rate_bp'], 'source' => Tax\Profiles::SOURCE_PROFILE, 'profile_id' => (int) $line['tax_profile']['tax_profile_id'], 'version' => (string) ( $line['tax_profile']['snapshot']['version'] ?? '' ), 'country' => (string) ( $line['tax_profile']['snapshot']['country'] ?? Tax\Profiles::venue_country( $tax_occurrence ) ) );
-				} else {
-					$tax_info = Tax\Profiles::resolve( $line['type'], $tax_occurrence, $now, $capacity_context['source'] );
-				}
-				$rate = (int) $tax_info['rate_bp'];
-				$selected[ $index ]['tax_rate_bp'] = $rate;
-				$selected[ $index ]['tax_info'] = $tax_info;
-				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
-				$tax_total += $selected[ $index ]['tax_minor'];
-			}
-			// A425: presale/service fee (off by default): own order lines with the VAT rate of their ticket
-			// line, never discounted; the order subtotal and total include it, the snapshot freezes it.
-			$service_fee = $fee_channel ? ServiceFee::for_order( $selected, $total, array( 'currency' => $currency, 'email' => $email ) ) : null;
-			if ( $service_fee ) {
-				$subtotal += (int) $service_fee['total_minor'];
-				$total += (int) $service_fee['total_minor'];
-				$tax_total += (int) $service_fee['tax_minor'];
-				if ( ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
-			}
-			$snapshot = array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) );
-			if ( $discount ) {
-				$snapshot['line_discounts'] = array();
-				foreach ( $selected as $index => $line ) { $snapshot['line_discounts'][ (int) $line['type']->ticket_type_id ] = (int) $line_discounts[ $index ]; }
-			}
-			if ( $price_rules ) {
-				// Lines whose unit price was changed by `wpcap_ticket_unit_price` (e.g. series price tiers).
-				$snapshot['unit_price_adjustments'] = $price_rules;
-			}
-			if ( $service_fee ) { $snapshot['service_fee'] = $service_fee['snapshot']; }
-			$price_snapshot = wp_json_encode( $snapshot );
+		}
+	}
 
-			if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
-			$public_id = bin2hex( random_bytes( 16 ) );
-			$access_token = bin2hex( random_bytes( 32 ) );
-			$order_row = array(
-				'public_id' => $public_id,
-				'idempotency_key' => $key_hash,
-				'customer_email' => $email,
-				'access_token_hash' => hash( 'sha256', $access_token ),
-				'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ),
-				'status' => ( $total || $external ) ? 'pending_payment' : 'complete',
-				'payment_status' => ( $total || $external ) ? 'pending' : 'paid',
-				'currency' => $currency,
-				'total_minor' => $total,
-				'subtotal_minor' => $subtotal,
-				'discount_minor' => $discount,
-				'price_snapshot' => $price_snapshot,
-				'tax_minor' => $tax_total,
-				'payment_provider' => $payment_provider,
-				'terms_version' => $comp ? '' : $terms_version,
-				'locale' => $order_locale, // Buyer's explicit language choice (W9) or request locale.
-				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
-				'created_at' => $now,
-				'updated_at' => $now,
+	/** A401: create_attempt() part (transaction): module capacity (`wpcap_reserve_capacity`) and buyer limits. */
+	private static function checkout_reserve( Orders\CheckoutState $s ) {
+		$s->capacity_context = array( 'phase' => 'create', 'order_id' => 0, 'types' => $s->types, 'occurrences' => $s->occurrences, 'now' => $s->now, 'source' => sanitize_key( $s->internal['source'] ?? ( '' !== $s->namespace ? $s->namespace : 'native' ) ), 'email' => $s->email, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'internal' => $s->internal );
+		$reserve_error = self::reserve_capacity( $s->clean_lines, $s->capacity_context );
+		if ( $reserve_error ) {
+			$s->custom_error = $reserve_error;
+			throw new \RuntimeException( $reserve_error->get_error_code() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
+		}
+		if ( $s->check_buyer_limits ) {
+			$limit_error = Sales\BuyerLimits::check( $s->clean_lines, $s->types, $s->occurrences, $s->email, $s->customer_user_id, $s->now );
+			if ( $limit_error ) {
+				$s->custom_error = $limit_error;
+				throw new \RuntimeException( 'buyer_limit' );
+			}
+		}
+	}
+
+	/** A401: create_attempt() part (transaction): capacity per line and unit prices (trusted price, price filter and rules, shown prices). */
+	private static function checkout_price_lines( Orders\CheckoutState $s ) {
+		$s->selected = array();
+		$s->total = 0;
+		$s->price_rules = array();
+		$occurrence_demand = array();
+		foreach ( $s->clean_lines as $type_id => $quantity ) {
+			$type = $s->types[ $type_id ];
+			$occurrence = $s->occurrences[ (int) $type->occurrence_id ];
+			// Expired holds are ignored by the capacity check (expires_at > now) and marked by the
+			// cleanup job; updating them here took gap locks that deadlocked concurrent checkouts.
+			// Every statement is checked: after a deadlock or lock wait timeout MariaDB rolls the
+			// transaction back (releasing the capacity locks) and later statements would autocommit.
+			// Several ticket types of one occurrence: its capacity is checked for their sum (add-ons use no seats).
+			$occurrence_demand[ (int) $occurrence->occurrence_id ] = ( $occurrence_demand[ (int) $occurrence->occurrence_id ] ?? 0 ) + ( Sales\Addons::is_addon( $type ) ? 0 : $quantity );
+			$capacity_error = self::capacity_error( $type, $occurrence, $quantity, 0, $occurrence_demand[ (int) $occurrence->occurrence_id ] );
+			if ( $capacity_error ) {
+				throw new \RuntimeException( $capacity_error ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
+			}
+			// Price precedence: an explicit trusted unit price (adapters/staff, e.g. WooCommerce or
+			// free box office sales) wins; otherwise the stored price passes through the
+			// server-side `wpcap_ticket_unit_price` filter. Client input never reaches either.
+			$base_price = (int) $type->price_minor;
+			$price_rule = null;
+			if ( $s->comp ) {
+				$unit_price = 0;
+			} elseif ( array_key_exists( $type_id, $s->unit_prices ) ) {
+				$unit_price = (int) $s->unit_prices[ $type_id ];
+			} else {
+				$unit_price = self::unit_price( $type, $occurrence, $quantity, array( 'now' => $s->now, 'source' => $s->capacity_context['source'], 'phase' => 'create' ) );
+				if ( $unit_price !== (int) $type->price_minor ) {
+					$s->price_rules[ $type_id ] = array( 'base_minor' => (int) $type->price_minor, 'unit_minor' => $unit_price );
+				}
+				// Automatic price rule (Sales\PriceRules) frozen with the line: rule, explanation, prices.
+				$price_rule = Sales\PriceRules::applied( $type_id );
+				// A576: never charge more than the buyer was shown (early bird ended, demand tier, cached page).
+				if ( isset( $s->expected_prices[ $type_id ] ) && $unit_price > $s->expected_prices[ $type_id ] ) {
+					$s->changed_prices[ $type_id ] = array( 'shown_minor' => $s->expected_prices[ $type_id ], 'unit_minor' => $unit_price, 'formatted' => Frontend\Format::money( ServiceFee::shown_unit( $type, $unit_price ), $type->currency ), 'name' => (string) $type->name );
+				}
+			}
+			// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
+			$tax_profile = ( $s->comp || array_key_exists( $type_id, $s->line_taxes ) ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $s->now );
+			$type->price_minor = $unit_price;
+			$line_total = array_key_exists( $type_id, $s->line_totals ) ? (int) $s->line_totals[ $type_id ] : $unit_price * $quantity;
+			$s->total += $line_total;
+			$s->selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total, 'base_minor' => $base_price, 'price_rule' => $price_rule, 'tax_profile' => $tax_profile );
+		}
+		if ( $s->changed_prices ) {
+			$s->custom_error = self::price_changed_error( $s->changed_prices );
+			throw new \RuntimeException( 'price_changed' );
+		}
+	}
+
+	/** A401: create_attempt() part (transaction): campaigns and unlock codes, discount, billing requirement, free-only and bank transfer hold limits. */
+	private static function checkout_apply_campaigns( Orders\CheckoutState $s ) {
+		$s->subtotal = $s->total;
+		$campaign_codes = $s->external ? array() : ( $s->payload['campaign_codes'] ?? array() );
+		if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
+		// Pure unlock codes (code list of a selected type) are no discount codes.
+		$unlock_only = $s->public_checkout ? Sales\Visibility::unlock_only_codes( array_keys( $s->occurrences ), $s->entered_codes ) : array();
+		if ( $unlock_only ) {
+			$campaign_codes = array_values( array_filter( $campaign_codes, static function ( $code ) use ( $unlock_only ) { return ! in_array( Campaigns::normalize_code( $code ), $unlock_only, true ); } ) );
+		}
+		// Automatic campaigns (no code) only for orders that pay the core price, never for adapters or comps.
+		$s->adjustments = Campaigns::calculate( $s->selected, $campaign_codes, $s->currency, array( 'auto' => ! $s->external && ! $s->comp, 'email' => $s->email ) );
+		if ( is_wp_error( $s->adjustments ) ) {
+			// Stacking rules (combinable, maximum discount, minimum quantity, per-buyer limit) explain themselves; other errors stay generic.
+			if ( in_array( $s->adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount', 'wpcap_campaign_min_quantity', 'wpcap_campaign_buyer_limit' ), true ) ) {
+				$s->custom_error = $s->adjustments;
+				throw new \RuntimeException( $s->adjustments->get_error_code() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
+			}
+			throw new \RuntimeException( 'campaign_invalid' );
+		}
+		foreach ( $s->adjustments as $adjustment ) {
+			if ( empty( $adjustment['auto'] ) ) { unset( $s->locked_types[ (int) $adjustment['campaign']->ticket_type_id ] ); }
+		}
+		if ( $s->locked_types ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
+		$s->discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $s->adjustments ) );
+		$s->total = max( 0, $s->subtotal - $s->discount );
+		// Trusted channels (box office "invoice", partner API) ask for the same rule via require_billing.
+		if ( ( ! $s->external || ! empty( $s->internal['require_billing'] ) ) && ! $s->billing && Billing::required_for( $s->total, $s->currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+		// Free order without a payment method (REST checkout, free_only): refused as soon as anything is to pay (time-dependent price).
+		if ( ! empty( $s->internal['free_only'] ) && $s->total > 0 ) {
+			$s->custom_error = new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
+			throw new \RuntimeException( 'provider_unavailable' );
+		}
+		// A634: unpaid bank transfer orders of the public checkout (payment method chosen by the buyer, no
+		// trusted channel) hold their units for days; together they may hold at most a share of each
+		// ticket type and date. Checked under the type/occurrence locks above, so concurrent checkouts
+		// cannot exceed it together. Staff channels (admin holds, box office, partners) are not limited.
+		if ( 'manual' === $s->payment_provider && isset( $s->internal['payment_provider'] ) && ! $s->external && ! $s->comp && ! $s->skip_rate_limit && '' === $s->namespace && $s->total > 0 ) {
+			$manual_error = self::manual_hold_error( $s->clean_lines, $s->types, $s->occurrences, $s->now );
+			if ( '' !== $manual_error ) { throw new \RuntimeException( $manual_error ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
+		}
+	}
+
+	/** A401: create_attempt() part (transaction): discount split, VAT per line and the service fee. */
+	private static function checkout_apply_taxes( Orders\CheckoutState $s ) {
+		// Allocate each campaign's discount to the lines it applies to (proportionally, exact to the
+		// minor unit; Campaigns::calculate()) and compute VAT per line on the discounted gross amount.
+		// The per-line discounts are kept in the price snapshot and on the order line (A007), so
+		// invoices and refunds use the same split.
+		$s->line_discounts = self::line_discounts( $s->selected, $s->adjustments );
+		$s->tax_total = 0;
+		foreach ( $s->selected as $index => $line ) {
+			$line_discount = min( (int) $line['line_total'], max( 0, (int) ( $s->line_discounts[ $index ] ?? 0 ) ) );
+			$s->selected[ $index ]['discount_minor'] = $line_discount;
+			$type_id_for_tax = (int) $line['type']->ticket_type_id;
+			// A115: rate from the active country tax profile (venue country, tax class, sale date) or
+			// the ticket type's own rate; a VAT amount fixed by the channel keeps the type's rate.
+			$tax_occurrence = $s->occurrences[ (int) $line['type']->occurrence_id ] ?? null;
+			// A versioned profile of Sales\TaxProfiles (event country, date of supply) wins; it is mirrored
+			// into the Tax\Profiles line columns so both views of the line agree.
+			if ( array_key_exists( $type_id_for_tax, $s->line_taxes ) ) {
+				$tax_info = array( 'rate_bp' => (int) ( $line['type']->tax_rate_bp ?? 0 ), 'source' => Tax\Profiles::SOURCE_EXTERNAL, 'profile_id' => 0, 'version' => '', 'country' => Tax\Profiles::venue_country( $tax_occurrence ) );
+			} elseif ( $line['tax_profile'] ) {
+				$tax_info = array( 'rate_bp' => (int) $line['tax_profile']['rate_bp'], 'source' => Tax\Profiles::SOURCE_PROFILE, 'profile_id' => (int) $line['tax_profile']['tax_profile_id'], 'version' => (string) ( $line['tax_profile']['snapshot']['version'] ?? '' ), 'country' => (string) ( $line['tax_profile']['snapshot']['country'] ?? Tax\Profiles::venue_country( $tax_occurrence ) ) );
+			} else {
+				$tax_info = Tax\Profiles::resolve( $line['type'], $tax_occurrence, $s->now, $s->capacity_context['source'] );
+			}
+			$rate = (int) $tax_info['rate_bp'];
+			$s->selected[ $index ]['tax_rate_bp'] = $rate;
+			$s->selected[ $index ]['tax_info'] = $tax_info;
+			$s->selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $s->line_taxes ) ? (int) $s->line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
+			$s->tax_total += $s->selected[ $index ]['tax_minor'];
+		}
+		// A425: presale/service fee (off by default): own order lines with the VAT rate of their ticket
+		// line, never discounted; the order subtotal and total include it, the snapshot freezes it.
+		$s->service_fee = $s->fee_channel ? ServiceFee::for_order( $s->selected, $s->total, array( 'currency' => $s->currency, 'email' => $s->email, 'occurrences' => $s->occurrences, 'now' => $s->now, 'source' => (string) $s->capacity_context['source'] ) ) : null;
+		if ( $s->service_fee ) {
+			$s->subtotal += (int) $s->service_fee['total_minor'];
+			$s->total += (int) $s->service_fee['total_minor'];
+			$s->tax_total += (int) $s->service_fee['tax_minor'];
+			if ( ! $s->billing && Billing::required_for( $s->total, $s->currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+		}
+		// A small-business seller (platform setting or agent organizer) must not sell with VAT: such an
+		// order could never be invoiced (Partners\SalesModel::validate_agent_invoice(), § 14c UStG). Orders
+		// of external systems (WooCommerce, adapters) are already paid there and keep their tax.
+		if ( ! $s->external ) {
+			$conflict = Partners\SalesModel::checkout_vat_conflict( $s->selected, $s->service_fee ? (int) $s->service_fee['tax_minor'] : 0 );
+			if ( $conflict ) {
+				Log::warning( 'checkout', 'Checkout refused: VAT on tickets of a small-business seller', array( 'seller' => $conflict['seller'], 'ticket_type_ids' => array_slice( $conflict['ticket_type_ids'], 0, 20 ) ) );
+				throw new \RuntimeException( 'small_business_vat' );
+			}
+		}
+	}
+
+	/** A401: create_attempt() part (transaction): JSON price snapshot of the order. */
+	private static function checkout_price_snapshot( Orders\CheckoutState $s ) {
+		$snapshot = array( 'currency' => $s->currency, 'subtotal_minor' => $s->subtotal, 'discount_minor' => $s->discount, 'total_minor' => $s->total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $s->adjustments ) );
+		if ( $s->discount ) {
+			$snapshot['line_discounts'] = array();
+			foreach ( $s->selected as $index => $line ) { $snapshot['line_discounts'][ (int) $line['type']->ticket_type_id ] = (int) $s->line_discounts[ $index ]; }
+		}
+		if ( $s->price_rules ) {
+			// Lines whose unit price was changed by `wpcap_ticket_unit_price` (e.g. series price tiers).
+			$snapshot['unit_price_adjustments'] = $s->price_rules;
+		}
+		if ( $s->service_fee ) { $snapshot['service_fee'] = $s->service_fee['snapshot']; }
+		return wp_json_encode( $snapshot );
+	}
+
+	/** A401: create_attempt() part (transaction): inserts the order row. */
+	private static function checkout_insert_order( Orders\CheckoutState $s ) {
+		global $wpdb;
+		$orders_table = $wpdb->prefix . 'wpcap_orders';
+		$price_snapshot = self::checkout_price_snapshot( $s );
+
+		if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
+		$s->public_id = bin2hex( random_bytes( 16 ) );
+		$s->access_token = bin2hex( random_bytes( 32 ) );
+		$order_row = array(
+			'public_id' => $s->public_id,
+			'idempotency_key' => $s->key_hash,
+			'customer_email' => $s->email,
+			'access_token_hash' => hash( 'sha256', $s->access_token ),
+			'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ),
+			'status' => ( $s->total || $s->external ) ? 'pending_payment' : 'complete',
+			'payment_status' => ( $s->total || $s->external ) ? 'pending' : 'paid',
+			'currency' => $s->currency,
+			'total_minor' => $s->total,
+			'subtotal_minor' => $s->subtotal,
+			'discount_minor' => $s->discount,
+			'price_snapshot' => $price_snapshot,
+			'tax_minor' => $s->tax_total,
+			'payment_provider' => $s->payment_provider,
+			'terms_version' => $s->comp ? '' : $s->terms_version,
+			'locale' => $s->order_locale, // Buyer's explicit language choice (W9) or request locale.
+			'attendee_data' => $s->attendees ? wp_json_encode( $s->attendees ) : null,
+			'created_at' => $s->now,
+			'updated_at' => $s->now,
+		);
+		// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
+		if ( $s->billing ) { $order_row['billing'] = wp_json_encode( $s->billing ); }
+		if ( $s->customer_user_id ) { $order_row['customer_user_id'] = $s->customer_user_id; }
+		// Marketing attribution of public checkouts (assets/tracking.js; Privacy\Retention clears it).
+		$attribution = $s->public_checkout ? self::attribution( $s->payload['attribution'] ?? null ) : '';
+		if ( '' !== $attribution ) { $order_row['attribution'] = $attribution; }
+		// Optional buyer name (checkout field "Dein Name"); only once the column exists (DB 3.17.5).
+		$buyer_name = is_scalar( $s->payload['buyer_name'] ?? '' ) ? mb_substr( sanitize_text_field( (string) ( $s->payload['buyer_name'] ?? '' ) ), 0, 190 ) : '';
+		if ( '' !== $buyer_name && self::schema_at_least( '3.17.5' ) ) { $order_row['customer_name'] = $buyer_name; }
+		// Fingerprint of the attempt (Orders::request_fingerprint()); a retry with the same key is compared against it.
+		// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
+		if ( ! empty( $s->internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $s->internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $s->internal['request_fingerprint']; }
+		if ( '' !== $s->request_hash ) { $order_row['request_hash'] = $s->request_hash; }
+		// A613: a free order is paid when it is created (column of schema 3.18.1; deferred upgrades omit it).
+		if ( ! ( $s->total || $s->external ) && self::schema_at_least( '3.18.1' ) ) { $order_row['paid_at'] = $s->now; }
+		$inserted = $wpdb->insert( $orders_table, $order_row );
+		if ( ! $inserted ) {
+			// Only a duplicate idempotency key is a lost race; anything else is a transient error.
+			throw new \RuntimeException( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ? 'order_insert_failed' : 'db_busy' );
+		}
+		$s->order_id = (int) $wpdb->insert_id;
+	}
+
+	/** A401: create_attempt() part (transaction): order lines, holds, service fee lines and capacity counters. */
+	private static function checkout_insert_lines( Orders\CheckoutState $s ) {
+		global $wpdb;
+		$reservations_table = $wpdb->prefix . 'wpcap_reservations';
+		$items_table = $wpdb->prefix . 'wpcap_order_items';
+		// Capacity counters (see CapacityCounters): the new lines/holds are inserted with their
+		// counted units and the counters change in this transaction, under the capacity locks.
+		$counted = CapacityCounters::maintained();
+		$pending_order = $s->total || $s->external;
+		$deltas = array();
+		$occurrence_of = array();
+		foreach ( $s->selected as $line ) {
+			$type_id = (int) $line['type']->ticket_type_id;
+			$item = array(
+				'order_id' => $s->order_id,
+				'ticket_type_id' => $type_id,
+				'quantity' => (int) $line['quantity'],
+				'unit_price_minor' => (int) $line['type']->price_minor,
+				'line_total_minor' => (int) $line['line_total'],
+				'tax_rate_bp' => (int) $line['tax_rate_bp'],
+				'tax_minor' => (int) $line['tax_minor'],
 			);
-			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
-			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
-			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
-			// Marketing attribution of public checkouts (assets/tracking.js; Privacy\Retention clears it).
-			$attribution = $public_checkout ? self::attribution( $payload['attribution'] ?? null ) : '';
-			if ( '' !== $attribution ) { $order_row['attribution'] = $attribution; }
-			// Optional buyer name (checkout field "Dein Name"); only once the column exists (DB 3.17.5).
-			$buyer_name = is_scalar( $payload['buyer_name'] ?? '' ) ? mb_substr( sanitize_text_field( (string) ( $payload['buyer_name'] ?? '' ) ), 0, 190 ) : '';
-			if ( '' !== $buyer_name && self::schema_at_least( '3.17.5' ) ) { $order_row['customer_name'] = $buyer_name; }
-			// Fingerprint of the attempt (Orders::request_fingerprint()); a retry with the same key is compared against it.
-			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
-			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
-			if ( '' !== $request_hash ) { $order_row['request_hash'] = $request_hash; }
-			// A613: a free order is paid when it is created (column of schema 3.18.1; deferred upgrades omit it).
-			if ( ! ( $total || $external ) && self::schema_at_least( '3.18.1' ) ) { $order_row['paid_at'] = $now; }
-			$inserted = $wpdb->insert( $orders_table, $order_row );
-			if ( ! $inserted ) {
-				// Only a duplicate idempotency key is a lost race; anything else is a transient error.
-				throw new \RuntimeException( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ? 'order_insert_failed' : 'db_busy' );
+			// Line snapshot: applied tax profile version and price rule (written only when present).
+			$line_snapshot = array_filter( array( 'tax' => $line['tax_profile']['snapshot'] ?? null, 'price' => $line['price_rule'] ) );
+			if ( $counted ) { $item['counted_qty'] = $pending_order ? 0 : (int) $line['quantity']; }
+			if ( OrderLines::ready() ) { $item['discount_minor'] = (int) ( $line['discount_minor'] ?? 0 ); }
+			$item += Tax\Profiles::line_columns( $line['tax_info'] );
+			if ( $line['tax_profile'] ) { $item['tax_profile_id'] = (int) $line['tax_profile']['tax_profile_id']; }
+			if ( $line_snapshot ) { $item['line_snapshot'] = wp_json_encode( $line_snapshot ); }
+			$wpdb->insert( $items_table, $item );
+			if ( '' !== $wpdb->last_error ) {
+				throw new \RuntimeException( 'db_busy' );
 			}
-			$order_id = (int) $wpdb->insert_id;
-			// Capacity counters (see CapacityCounters): the new lines/holds are inserted with their
-			// counted units and the counters change in this transaction, under the capacity locks.
-			$counted = CapacityCounters::maintained();
-			$pending_order = $total || $external;
-			$deltas = array();
-			$occurrence_of = array();
-			foreach ( $selected as $line ) {
-				$type_id = (int) $line['type']->ticket_type_id;
-				$item = array(
-					'order_id' => $order_id,
+			if ( $pending_order ) {
+				$hold = array(
+					'order_id' => $s->order_id,
 					'ticket_type_id' => $type_id,
 					'quantity' => (int) $line['quantity'],
-					'unit_price_minor' => (int) $line['type']->price_minor,
-					'line_total_minor' => (int) $line['line_total'],
-					'tax_rate_bp' => (int) $line['tax_rate_bp'],
-					'tax_minor' => (int) $line['tax_minor'],
+					'expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + $s->hold_minutes * MINUTE_IN_SECONDS ),
+					'status' => 'active',
 				);
-				// Line snapshot: applied tax profile version and price rule (written only when present).
-				$line_snapshot = array_filter( array( 'tax' => $line['tax_profile']['snapshot'] ?? null, 'price' => $line['price_rule'] ) );
-				if ( $counted ) { $item['counted_qty'] = $pending_order ? 0 : (int) $line['quantity']; }
-				if ( OrderLines::ready() ) { $item['discount_minor'] = (int) ( $line['discount_minor'] ?? 0 ); }
-				$item += Tax\Profiles::line_columns( $line['tax_info'] );
-				if ( $line['tax_profile'] ) { $item['tax_profile_id'] = (int) $line['tax_profile']['tax_profile_id']; }
-				if ( $line_snapshot ) { $item['line_snapshot'] = wp_json_encode( $line_snapshot ); }
-				$wpdb->insert( $items_table, $item );
+				if ( $counted ) { $hold['counted_qty'] = (int) $line['quantity']; }
+				$wpdb->insert( $reservations_table, $hold );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'db_busy' );
 				}
-				if ( $pending_order ) {
-					$hold = array(
-						'order_id' => $order_id,
-						'ticket_type_id' => $type_id,
-						'quantity' => (int) $line['quantity'],
-						'expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + $hold_minutes * MINUTE_IN_SECONDS ),
-						'status' => 'active',
-					);
-					if ( $counted ) { $hold['counted_qty'] = (int) $line['quantity']; }
-					$wpdb->insert( $reservations_table, $hold );
-					if ( '' !== $wpdb->last_error ) {
-						throw new \RuntimeException( 'db_busy' );
-					}
-				}
-				$unit = $pending_order ? 'held' : 'sold';
-				$deltas[ $type_id ][ $unit ] = ( $deltas[ $type_id ][ $unit ] ?? 0 ) + (int) $line['quantity'];
-				$occurrence_of[ $type_id ] = (int) $line['type']->occurrence_id;
 			}
-			foreach ( $service_fee ? $service_fee['lines'] : array() as $fee_line ) {
-				// A425: fee line next to its ticket line: quantity 0 = no admission and no inventory.
-				$parent = $selected[ $fee_line['index'] ];
-				$item = array(
-					'order_id' => $order_id,
-					'ticket_type_id' => (int) $parent['type']->ticket_type_id,
-					'quantity' => 0,
-					'unit_price_minor' => (int) $fee_line['unit_minor'],
-					'line_total_minor' => (int) $fee_line['total_minor'],
-					'tax_rate_bp' => (int) $fee_line['rate_bp'],
-					'tax_minor' => (int) $fee_line['tax_minor'],
-					'discount_minor' => 0,
-					'fee_kind' => (string) $fee_line['kind'],
-				);
-				if ( $counted ) { $item['counted_qty'] = 0; }
-				$item += Tax\Profiles::line_columns( $parent['tax_info'] );
-				if ( $parent['tax_profile'] ) { $item['tax_profile_id'] = (int) $parent['tax_profile']['tax_profile_id']; }
-				$wpdb->insert( $items_table, $item );
-				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
-			}
-			if ( $counted && ! CapacityCounters::add( $deltas, $occurrence_of ) ) {
-				throw new \RuntimeException( 'db_busy' );
-			}
-			/**
-			 * Inside the order transaction (rows of ticket types/occurrences are locked). Modules may
-			 * reserve further resources here (e.g. seats). Throw a \RuntimeException with a code to abort;
-			 * map the code to a message via `wpcap_checkout_error_messages`.
-			 */
-			do_action( 'wpcap_order_creating', $order_id, $selected, $payload, $internal );
-			$redeemed = Campaigns::redeem( $adjustments, $order_id );
-			if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'wpcap_campaign_use_failed' === $redeemed->get_error_code() ? 'db_busy' : 'campaign_redeem_failed' ); }
-			// A failure from here on may hide a commit (reply lost, reconnect): checked below. A
-			// "successful" COMMIT that wpdb re-ran on a new session after a reconnect committed
-			// nothing, so the order row is looked up once (primary key).
-			if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) || ! self::order_committed( $order_id, $key_hash ) ) {
-				$commit_unknown = true;
-				throw new \RuntimeException( 'db_busy' );
-			}
-		} catch ( \Throwable $error ) {
-			// The server error is gone after ROLLBACK: classify it first (deadlock/lock wait timeout = busy;
-			// support log, A322).
-			$db_error = (string) $wpdb->last_error;
-			// After a lost connection wpdb reconnects and runs the remaining statements outside the
-			// transaction (autocommit) while the earlier ones were rolled back (A183). If the order row
-			// exists, the connection was lost before its insert, so every later write (each one checked)
-			// was committed: the order is complete. Otherwise the rows written after the loss are removed.
-			$lost = ! empty( $order_id ) && false === self::in_transaction();
-			$wpdb->query( 'ROLLBACK' );
-			if ( ! ( $lost && $commit_unknown && self::order_committed( $order_id, $key_hash ) ) ) {
-				Sales\BuyerLimits::release( $buyer_locks );
-				Sales\CheckoutThrottle::refund( $throttle ); // No order: sold-out and other failed attempts do not use up the limit.
-				if ( $lost ) { self::discard_lost_order( $order_id, $key_hash, $occurrence_ids ?? array() ); }
-				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash, $error, array( 'db_error' => $db_error, 'lost_connection' => $lost, 'commit_unknown' => $commit_unknown, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'provider' => sanitize_key( (string) ( $internal['payment_provider'] ?? '' ) ), 'ticket_type_ids' => array_slice( array_keys( $clean_lines ), 0, 20 ), 'request_hash' => $request_hash ) );
-			}
+			$unit = $pending_order ? 'held' : 'sold';
+			$deltas[ $type_id ][ $unit ] = ( $deltas[ $type_id ][ $unit ] ?? 0 ) + (int) $line['quantity'];
+			$occurrence_of[ $type_id ] = (int) $line['type']->occurrence_id;
 		}
-		Sales\BuyerLimits::release( $buyer_locks );
+		foreach ( $s->service_fee ? $s->service_fee['lines'] : array() as $fee_line ) {
+			// A425: fee line next to its ticket line: quantity 0 = no admission and no inventory.
+			$parent = $s->selected[ $fee_line['index'] ];
+			$item = array(
+				'order_id' => $s->order_id,
+				'ticket_type_id' => (int) $parent['type']->ticket_type_id,
+				'quantity' => 0,
+				'unit_price_minor' => (int) $fee_line['unit_minor'],
+				'line_total_minor' => (int) $fee_line['total_minor'],
+				'tax_rate_bp' => (int) $fee_line['rate_bp'],
+				'tax_minor' => (int) $fee_line['tax_minor'],
+				'discount_minor' => 0,
+				'fee_kind' => (string) $fee_line['kind'],
+			);
+			if ( $counted ) { $item['counted_qty'] = 0; }
+			// Tax like the ticket line, or the fee's own tax profile (setting service_fee_tax).
+			$fee_tax_profile = array_key_exists( 'tax_info', $fee_line ) ? $fee_line['tax_profile'] : $parent['tax_profile'];
+			$item += Tax\Profiles::line_columns( array_key_exists( 'tax_info', $fee_line ) ? $fee_line['tax_info'] : $parent['tax_info'] );
+			if ( $fee_tax_profile ) {
+				$item['tax_profile_id'] = (int) $fee_tax_profile['tax_profile_id'];
+				if ( array_key_exists( 'tax_info', $fee_line ) && ! empty( $fee_tax_profile['snapshot'] ) ) { $item['line_snapshot'] = wp_json_encode( array( 'tax' => $fee_tax_profile['snapshot'] ) ); }
+			}
+			$wpdb->insert( $items_table, $item );
+			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
+		}
+		if ( $counted && ! CapacityCounters::add( $deltas, $occurrence_of ) ) {
+			throw new \RuntimeException( 'db_busy' );
+		}
+	}
 
-		$pending = $total || $external;
-		if ( $throttle ) { Sales\CheckoutThrottle::record( $throttle, $pending ); }
+	/** A401: create_attempt() part (transaction): `wpcap_order_creating`, campaign redemption and COMMIT. */
+	private static function checkout_commit( Orders\CheckoutState $s ) {
+		global $wpdb;
+		/**
+		 * Inside the order transaction (rows of ticket types/occurrences are locked). Modules may
+		 * reserve further resources here (e.g. seats). Throw a \RuntimeException with a code to abort;
+		 * map the code to a message via `wpcap_checkout_error_messages`.
+		 */
+		do_action( 'wpcap_order_creating', $s->order_id, $s->selected, $s->payload, $s->internal );
+		$redeemed = Campaigns::redeem( $s->adjustments, $s->order_id );
+		if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'wpcap_campaign_use_failed' === $redeemed->get_error_code() ? 'db_busy' : 'campaign_redeem_failed' ); }
+		// A failure from here on may hide a commit (reply lost, reconnect): checked below. A
+		// "successful" COMMIT that wpdb re-ran on a new session after a reconnect committed
+		// nothing, so the order row is looked up once (primary key).
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) || ! self::order_committed( $s->order_id, $s->key_hash ) ) {
+			$s->commit_unknown = true;
+			throw new \RuntimeException( 'db_busy' );
+		}
+	}
+
+	/** A401: create_attempt() part: a failed transaction is rolled back and classified. The error to return, or null when the order was committed after all (lost connection). */
+	private static function checkout_failed( Orders\CheckoutState $s, \Throwable $error ) {
+		global $wpdb;
+		// The server error is gone after ROLLBACK: classify it first (deadlock/lock wait timeout = busy;
+		// support log, A322).
+		$db_error = (string) $wpdb->last_error;
+		// After a lost connection wpdb reconnects and runs the remaining statements outside the
+		// transaction (autocommit) while the earlier ones were rolled back (A183). If the order row
+		// exists, the connection was lost before its insert, so every later write (each one checked)
+		// was committed: the order is complete. Otherwise the rows written after the loss are removed.
+		$lost = ! empty( $s->order_id ) && false === self::in_transaction();
+		$wpdb->query( 'ROLLBACK' );
+		if ( ! ( $lost && $s->commit_unknown && self::order_committed( $s->order_id, $s->key_hash ) ) ) {
+			Sales\BuyerLimits::release( $s->buyer_locks );
+			Sales\CheckoutThrottle::refund( $s->throttle ); // No order: sold-out and other failed attempts do not use up the limit.
+			if ( $lost ) { self::discard_lost_order( $s->order_id, $s->key_hash, $s->occurrence_ids ?? array() ); }
+			return self::checkout_error( $error->getMessage(), $s->custom_error, $s->key_hash, $error, array( 'db_error' => $db_error, 'lost_connection' => $lost, 'commit_unknown' => $s->commit_unknown, 'source' => sanitize_key( $s->internal['source'] ?? ( '' !== $s->namespace ? $s->namespace : 'native' ) ), 'provider' => sanitize_key( (string) ( $s->internal['payment_provider'] ?? '' ) ), 'ticket_type_ids' => array_slice( array_keys( $s->clean_lines ), 0, 20 ), 'request_hash' => $s->request_hash ) );
+		}
+		return null;
+	}
+
+	/** A401: create_attempt() part: the committed order (`wpcap_order_created`, free order issuance, access link, audit) and the result. */
+	private static function checkout_completed( Orders\CheckoutState $s ) {
+		global $wpdb;
+		$pending = $s->total || $s->external;
+		if ( $s->throttle ) { Sales\CheckoutThrottle::record( $s->throttle, $pending ); }
 		/**
 		 * A331: the order is committed (fires once per new order, never for a reused idempotency key),
 		 * before the payment of a free order and before any mail. Handlers must not throw.
 		 */
-		do_action( 'wpcap_order_created', $order_id, array( 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'external' => $external, 'pending_payment' => (bool) $pending, 'total_minor' => (int) $total, 'currency' => (string) $currency ) );
+		do_action( 'wpcap_order_created', $s->order_id, array( 'source' => sanitize_key( $s->internal['source'] ?? ( '' !== $s->namespace ? $s->namespace : 'native' ) ), 'external' => $s->external, 'pending_payment' => (bool) $pending, 'total_minor' => (int) $s->total, 'currency' => (string) $s->currency ) );
 		$issued = null;
 		if ( ! $pending ) {
-			Campaigns::commit_for_order( $order_id );
+			Campaigns::commit_for_order( $s->order_id );
 			// Same order as for paid orders (confirm_external_payment): wpcap_order_paid before the
 			// issuance (e.g. seat recovery), wpcap_tickets_issued after it.
-			do_action( 'wpcap_order_paid', $order_id );
-			$issued = self::issue_and_email( $order_id );
+			do_action( 'wpcap_order_paid', $s->order_id );
+			$issued = self::issue_and_email( $s->order_id );
 		}
 		// A424: the link lasts until some time after the order's last date, not only 30 days from the purchase.
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET access_expires_at=%s WHERE order_id=%d AND access_expires_at<%s", self::access_until( $order_id ), $order_id, self::access_until( $order_id ) ) );
-		if ( ! $external ) {
-			self::send_order_access_link( $email, $public_id, $access_token );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET access_expires_at=%s WHERE order_id=%d AND access_expires_at<%s", self::access_until( $s->order_id ), $s->order_id, self::access_until( $s->order_id ) ) );
+		if ( ! $s->external ) {
+			self::send_order_access_link( $s->email, $s->public_id, $s->access_token );
 		}
-		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
+		Audit::record( 'order_created', 'order', $s->order_id, array( 'total_minor' => $s->total, 'currency' => $s->currency, 'source' => sanitize_key( $s->internal['source'] ?? 'native' ) ) );
 		if ( is_wp_error( $issued ) ) {
 			// The free order exists, its tickets do not yet: a retry with the same key issues them.
 			return $issued;
 		}
-		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'service_fee_minor' => $service_fee ? (int) $service_fee['total_minor'] : 0, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+		return array( 'order_id' => $s->order_id, 'public_id' => $s->public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $s->subtotal, 'discount_minor' => $s->discount, 'service_fee_minor' => $s->service_fee ? (int) $s->service_fee['total_minor'] : 0, 'total_minor' => $s->total, 'currency' => $s->currency, 'hold_minutes' => $pending ? $s->hold_minutes : 0 );
 	}
 
 	/**
@@ -788,25 +923,7 @@ final class Orders {
 
 	/** Stores attendee name/e-mail and custom field answers for one ticket. */
 	private static function store_attendee( $ticket_id, $order, array $attendee ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		// Stored attendee data of orders from before the entrance checks (A492/A493) may hold values that do
-		// not fit the columns: they are dropped/shortened instead of blocking the issuance for good.
-		$name = mb_substr( sanitize_text_field( Http::str( $attendee['name'] ?? '' ) ), 0, 190 );
-		$email = Http::email( $attendee['email'] ?? '' );
-		$email = Http::valid_email( $email ) ? $email : '';
-		if ( $name || '' !== $email ) {
-			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, $email, $name, $now ) ) ) { return false; }
-			if ( '' !== $email && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
-				return false;
-			}
-		}
-		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
-			if ( ! ParticipantFields::save_answer( $ticket_id, $field_id, (string) $value, $now ) ) { return false; }
-		}
-		Consents::record_checkout( $ticket_id, $order, $attendee );
-		return '' === $wpdb->last_error;
+		return Orders\Attendees::store( $ticket_id, $order, $attendee );
 	}
 
 	/** Tickets per bulk revoke statement (IN list size). */
@@ -963,157 +1080,12 @@ final class Orders {
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
 	public static function validate_attendees( array $lines, $attendees, $options = array(), $skip_required = false ) {
-		global $wpdb;
-		if ( ! is_array( $options ) ) {
-			$options = array( 'allow_missing' => (bool) $options, 'skip_required' => (bool) $skip_required );
-		}
-		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
-		$out = array();
-		$skip_consent = ! empty( $options['skip_consent'] ) && Consents::ready();
-		$defer_required = ! empty( $options['defer_required'] );
-		$allow_missing = ! empty( $options['allow_missing'] );
-		$skip_required_fields = $defer_required || ! empty( $options['skip_required'] );
-		// A681: strict channels (WooCommerce) refuse what they cannot store instead of dropping it silently.
-		$strict = ! empty( $options['strict'] );
-		$buyer = is_array( $options['buyer'] ?? null ) ? $options['buyer'] : array();
-		$name_modes = self::schema_at_least( '3.17.5' ); // attendee_name column of ticket types (DB 3.17.5).
-		$known_types = array_map( 'intval', array_keys( $lines ) );
-		if ( $strict ) {
-			foreach ( $attendees as $index => $entry ) {
-				if ( ! is_array( $entry ) || ! in_array( absint( $entry['ticket_type_id'] ?? 0 ), $known_types, true ) ) {
-					return new \WP_Error( 'wpcap_attendees_invalid', __( 'Angaben zu Teilnehmenden passen nicht zu den bestellten Tickets.', 'pass-captain' ), array( 'status' => 400, 'index' => (int) $index, 'reason' => 'unknown_ticket_type' ) );
-				}
-			}
-		}
-		foreach ( $lines as $type_id => $quantity ) {
-			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . ",status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d" . ( $strict ? '' : " AND status='active'" ) . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
-			// Inactive fields are only read to tell "no longer offered" from "unknown" (A681).
-			$inactive = array();
-			// A683: fields locked for self-service are neither validated nor returned (stored value stays).
-			$locked = array_map( 'strval', (array) ( $options['locked'] ?? array() ) );
-			foreach ( $fields as $k => $field ) {
-				if ( 'active' !== $field->status ) { $inactive[] = (string) $field->field_key; unset( $fields[ $k ] ); }
-				elseif ( in_array( (string) $field->field_key, $locked, true ) ) { unset( $fields[ $k ] ); }
-			}
-			$fields = array_values( $fields );
-			// Name per ticket: off (not asked, not stored), optional (default) or required (ticket type option).
-			$name_mode = $name_modes ? self::attendee_name_mode( $wpdb->get_var( $wpdb->prepare( 'SELECT attendee_name FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $type_id ) ) ) : 'optional';
-			// Corrections of answers alone (ticket page, assignment) leave the name as it is: skip_name.
-			$name_required = ! $defer_required && empty( $options['skip_name'] ) && ( 'required' === $name_mode || ParticipantFields::name_required( $type_id ) );
-			$given = array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } );
-			// Position of each entry in the submitted list: error data names the attendee (A551).
-			$given_index = array_keys( $given );
-			$given = array_values( $given );
-			$where = static function ( $i, $field = null ) use ( $type_id, $given_index ) {
-				$data = array( 'status' => 400, 'ticket_type_id' => (int) $type_id, 'position' => (int) $i );
-				if ( isset( $given_index[ $i ] ) ) { $data['index'] = (int) $given_index[ $i ]; }
-				if ( $field ) { $data['field_key'] = is_object( $field ) ? (string) $field->field_key : (string) $field; }
-				return $data;
-			};
-			if ( count( $given ) > $quantity ) {
-				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), $where( (int) $quantity ) );
-			}
-			if ( $strict ) {
-				$keys = array_map( static function ( $f ) { return (string) $f->field_key; }, $fields );
-				foreach ( $given as $i => $entry ) {
-					$sent = is_array( $entry['answers'] ?? null ) ? array_keys( $entry['answers'] ) : array();
-					foreach ( array_diff( array_map( 'strval', $sent ), $keys ) as $unknown ) {
-						$closed = in_array( $unknown, $inactive, true );
-						return new \WP_Error(
-							'wpcap_attendee_field_unknown',
-							$closed ? __( 'Ein Teilnehmerfeld wird nicht mehr abgefragt. Bitte lade die Seite neu und prüfe die Angaben.', 'pass-captain' ) : __( 'Die Angaben zu Teilnehmenden enthalten ein unbekanntes Feld. Bitte lade die Seite neu.', 'pass-captain' ),
-							$where( $i, sanitize_key( $unknown ) ) + array( 'reason' => $closed ? 'field_inactive' : 'field_unknown' )
-						);
-					}
-				}
-			}
-			// A680: order-level fields are asked once per order and ticket type (first entry of the type).
-			$order_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' === ParticipantFields::scope( $f ); } ) );
-			$ticket_fields = array_values( array_filter( $fields, static function ( $f ) { return 'order' !== ParticipantFields::scope( $f ); } ) );
-			$order_clean = array();
-			$first = is_array( $given[0]['answers'] ?? null ) ? $given[0]['answers'] : array();
-			foreach ( $order_fields as $field ) {
-				list( $value, $error ) = self::normalize_answer( $field, $first[ $field->field_key ] ?? '' );
-				if ( $error ) { return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( 0, $field ) ); }
-				if ( (int) $field->required && '' === $value && ! $skip_required_fields && ( $given || ! $allow_missing ) ) {
-					/* translators: %s: field label */
-					return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für die Bestellung ausfüllen.', 'pass-captain' ), $field->label ), $where( 0, $field ) );
-				}
-				if ( '' !== $value ) { $order_clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
-			}
-			$needs_all = ! $defer_required && ! $allow_missing && ( $name_required || (bool) array_filter( $ticket_fields, static function ( $f ) { return (int) $f->required; } ) );
-			for ( $i = 0; $i < $quantity; $i++ ) {
-				$entry = $given[ $i ] ?? null;
-				if ( ! $entry && ! $needs_all && ! $order_clean ) { continue; }
-				$present = (bool) $entry;
-				$entry = is_array( $entry ) ? $entry : array();
-				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
-				$clean = array();
-				foreach ( $ticket_fields as $field ) {
-					// A498: sanitize_email() turns "kein-mail" into "" – an entered but invalid value must not pass as empty.
-					list( $value, $error ) = self::normalize_answer( $field, $answers[ $field->field_key ] ?? '' );
-					if ( $error ) {
-						return new \WP_Error( 'wpcap_attendee_field_invalid', ParticipantFields::invalid_message( $field ), $where( $i, $field ) );
-					}
-					if ( (int) $field->required && '' === $value && ! $skip_required_fields && ( $present || ! $allow_missing ) ) {
-						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), $where( $i, $field ) );
-					}
-					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
-				}
-				// A552: "same as buyer" takes the buyer's address (and billing name) for this ticket.
-				$same = ! empty( $entry['same_as_buyer'] ) && $buyer;
-				$name = 'off' === $name_mode ? '' : mb_substr( sanitize_text_field( Http::str( $entry['name'] ?? '' ) ), 0, 190 );
-				$raw_email = $entry['email'] ?? '';
-				if ( $same ) {
-					if ( '' === $name && 'off' !== $name_mode ) { $name = mb_substr( sanitize_text_field( Http::str( $buyer['name'] ?? '' ) ), 0, 190 ); }
-					if ( '' === trim( Http::str( $raw_email ) ) ) { $raw_email = $buyer['email'] ?? ''; }
-				}
-				if ( $name_required && '' === $name && ( $present || ! $allow_missing ) ) {
-					return new \WP_Error( 'wpcap_attendee_field_required', __( 'Bitte den Namen für jedes Ticket angeben.', 'pass-captain' ), $where( $i, '__name' ) );
-				}
-				$email = Http::email( $raw_email );
-				if ( Http::email_too_long( $email ) ) {
-					// A493: a valid but overlong address would fail at the tickets/assignments column at issuance.
-					return new \WP_Error( 'wpcap_attendees_invalid', self::email_too_long_message(), $where( $i ) + array( 'reason' => 'email_too_long' ) );
-				}
-				// A599: an entered but invalid address is refused (it was dropped silently, so the ticket
-				// went to the buyer instead of the attendee). field_key "__email" names the field of the block.
-				if ( false === Http::optional_email( $entry['email'] ?? '' ) ) {
-					$label = __( 'E-Mail der Teilnehmer:in', 'pass-captain' );
-					/* translators: %s: field label */
-					$message = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $label );
-					return new \WP_Error( 'wpcap_attendee_field_invalid', $message, $where( $i, (object) array( 'field_key' => '__email' ) ) + array( 'reason' => 'email_invalid' ) );
-				}
-				$out[] = array(
-					'ticket_type_id' => (int) $type_id,
-					'name' => $name,
-					'email' => is_email( $email ) ? $email : '',
-					'answers' => $clean + $order_clean,
-				);
-			}
-		}
-		return $out;
-	}
-
-	/**
-	 * One answer normalised for its field ([value, error], see ParticipantFields::normalize()). Field types
-	 * that only the newline-option variant knows ("radio", "consent"; choices one per line in `options`)
-	 * are validated by clean_answer(), everything else by ParticipantFields.
-	 */
-	private static function normalize_answer( $field, $value ) {
-		$type = (string) ( $field->field_type ?? '' );
-		$json_options = in_array( $type, array( 'select', 'multiselect' ), true ) && is_array( json_decode( (string) ( $field->options ?? '' ), true ) );
-		if ( in_array( $type, array( 'radio', 'consent' ), true ) || ( 'select' === $type && ! $json_options && '' !== (string) ( $field->options ?? '' ) ) ) {
-			$clean = self::clean_answer( $field, $value );
-			return null === $clean ? array( '', 'invalid' ) : array( $clean, '' );
-		}
-		return ParticipantFields::normalize( $field, $value );
+		return Orders\Attendees::validate( $lines, $attendees, $options, $skip_required );
 	}
 
 	/** Normalised attendee-name mode of a ticket type: off, optional (default) or required. */
 	public static function attendee_name_mode( $value ) {
-		return in_array( (string) $value, array( 'off', 'optional', 'required' ), true ) ? (string) $value : 'optional';
+		return Orders\Attendees::name_mode( $value );
 	}
 
 	/**
@@ -1122,11 +1094,7 @@ final class Orders {
 	 * @return string[]
 	 */
 	public static function field_options( $field ) {
-		$raw = is_object( $field ) ? ( $field->options ?? '' ) : ( $field['options'] ?? '' );
-		// Two stored formats: a JSON list (ParticipantFields, A680) or one choice per line.
-		$list = is_array( $raw ) ? $raw : json_decode( (string) $raw, true );
-		$choices = is_array( $list ) ? array_map( 'strval', $list ) : (array) preg_split( '/\R/', (string) $raw );
-		return array_values( array_unique( array_filter( array_map( 'trim', $choices ), static function ( $choice ) { return '' !== $choice; } ) ) );
+		return Orders\Attendees::field_options( $field );
 	}
 
 	/**
@@ -1134,30 +1102,7 @@ final class Orders {
 	 * (e-mail, choice outside the options, impossible date, phone number with other characters).
 	 */
 	public static function clean_answer( $field, $value ) {
-		$value = is_scalar( $value ) ? trim( (string) $value ) : '';
-		switch ( (string) $field->field_type ) {
-			case 'email':
-				$value = sanitize_email( $value );
-				return '' === $value || is_email( $value ) ? $value : null;
-			case 'textarea':
-				return sanitize_textarea_field( $value );
-			case 'checkbox':
-			case 'consent':
-				return $value && '0' !== $value ? '1' : '';
-			case 'select':
-			case 'radio':
-				$value = sanitize_text_field( $value );
-				return '' === $value || in_array( $value, self::field_options( $field ), true ) ? $value : null;
-			case 'date':
-				if ( '' === $value ) { return ''; }
-				$date = \DateTime::createFromFormat( '!Y-m-d', $value );
-				return $date && $date->format( 'Y-m-d' ) === $value ? $value : null;
-			case 'tel':
-				if ( '' === $value ) { return ''; }
-				return preg_match( '/^\+?[0-9 ()\/.\-]{3,40}$/', $value ) && preg_match_all( '/[0-9]/', $value ) >= 3 ? $value : null;
-			default:
-				return sanitize_text_field( $value );
-		}
+		return Orders\Attendees::clean_answer( $field, $value );
 	}
 
 	/**
@@ -1250,7 +1195,7 @@ final class Orders {
 			if ( $price !== (int) $shown['price'] ) {
 				$state = self::shown_state( $occurrence, $now );
 				/* translators: 1: ticket type name, 2: new price */
-				return new \WP_Error( 'wpcap_price_changed', sprintf( __( 'Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), (string) $type->name, Frontend\Format::money( $price, $type->currency ) ), array( 'status' => 409, 'reason' => 'price_changed', 'state' => $state ) );
+				return new \WP_Error( 'wpcap_price_changed', sprintf( __( 'Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab.', 'pass-captain' ), (string) $type->name, Frontend\Format::money( ServiceFee::shown_unit( $type, $price ), $type->currency ) ), array( 'status' => 409, 'reason' => 'price_changed', 'state' => $state ) );
 			}
 		}
 		return null;
@@ -1267,7 +1212,8 @@ final class Orders {
 		$formatted = array();
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $row ) {
 			$prices[ (int) $row->ticket_type_id ] = self::unit_price( $row, $occurrence, 1, array( 'now' => $now ) );
-			$formatted[ (int) $row->ticket_type_id ] = Frontend\Format::money( $prices[ (int) $row->ticket_type_id ], $row->currency );
+			// A425: the displayed price includes the per-ticket service fee (prices[] stays the ticket price).
+			$formatted[ (int) $row->ticket_type_id ] = Frontend\Format::money( ServiceFee::shown_unit( $row, $prices[ (int) $row->ticket_type_id ] ), $row->currency );
 		}
 		return array(
 			'occurrence_id' => (int) $occurrence->occurrence_id,
@@ -1306,6 +1252,10 @@ final class Orders {
 			'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
 			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
 			'manual_hold_limit' => __( 'Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'small_business_vat' => __( 'Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ),
+			'manual_event_hold_limit' => __( 'Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'addon_requires_ticket' => __( 'Zusatzprodukte kannst du nur zusammen mit mindestens einem Ticket für denselben Termin bestellen.', 'pass-captain' ),
+			'addon_limit' => __( 'Für dieses Zusatzprodukt sind pro Ticket nicht so viele Stück möglich.', 'pass-captain' ),
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
@@ -1564,84 +1514,7 @@ final class Orders {
 	 * reservation history); without them the paid lines and holds are summed (upgrade fallback).
 	 */
 	private static function capacity_error( $type, $occurrence, $quantity, $exclude_order_id = 0, $occurrence_quantity = null ) {
-		$occurrence_quantity = null === $occurrence_quantity ? $quantity : (int) $occurrence_quantity;
-		if ( CapacityCounters::enabled() && isset( $occurrence->sold_qty, $occurrence->held_qty ) && ( (int) $type->capacity <= 0 || isset( $type->sold_qty, $type->held_qty ) ) ) {
-			return self::capacity_error_counted( $type, $occurrence, (int) $quantity, absint( $exclude_order_id ), $occurrence_quantity );
-		}
-		return self::capacity_error_summed( $type, $occurrence, (int) $quantity, absint( $exclude_order_id ), $occurrence_quantity );
-	}
-
-	/** capacity_error() from the locked counters. */
-	private static function capacity_error_counted( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		if ( (int) $type->capacity > 0 ) {
-			// Holds that no longer hold (lapsed while still "active", or already expired/released/
-			// converted but not yet synced) still count in held_qty until the counters catch up.
-			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $type->ticket_type_id, $now ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$own = 0;
-			if ( $exclude_order_id ) {
-				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", $exclude_order_id, $type->ticket_type_id ) )
-					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE order_id=%d AND ticket_type_id=%d AND status='active' AND expires_at > %s", $exclude_order_id, $type->ticket_type_id, $now ) );
-				if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			}
-			if ( (int) $type->sold_qty + (int) $type->held_qty - $lapsed - $own + $quantity > (int) $type->capacity ) {
-				return 'sold_out';
-			}
-		}
-		if ( (int) $occurrence->capacity > 0 ) {
-			// The occurrence's types first, then one range per type on counted_type (ticket_type_id,
-			// counted_qty): a join would read every historical hold of each type (A429).
-			$occ_types = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$lapsed = $occ_types ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $occ_types ) . ") AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $now ) ) : 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$own = 0;
-			if ( $exclude_order_id ) {
-				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.counted_qty),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d AND tt.occurrence_id=%d", $exclude_order_id, $occurrence->occurrence_id ) )
-					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE r.order_id=%d AND tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $exclude_order_id, $occurrence->occurrence_id, $now ) );
-				if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			}
-			if ( (int) $occurrence->sold_qty + (int) $occurrence->held_qty - $lapsed - $own + $occurrence_quantity > (int) $occurrence->capacity ) {
-				return 'occurrence_sold_out';
-			}
-		}
-		return '';
-	}
-
-	/** capacity_error() by summing paid lines and active holds (used until the counters are verified). */
-	private static function capacity_error_summed( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		$exclude_order_id = absint( $exclude_order_id );
-		// Sold and held units in ONE statement each: two statements could straddle a payment that moves
-		// units from held to sold (under READ COMMITTED they would be missing from both sums).
-		if ( (int) $type->capacity > 0 ) {
-			$used = $wpdb->get_var( $wpdb->prepare(
-				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s AND order_id <> %d)",
-				$p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id, $exclude_order_id,
-				$p . 'wpcap_reservations', $type->ticket_type_id, $now, $exclude_order_id
-			) );
-			if ( '' !== $wpdb->last_error || null === $used ) { return 'db_busy'; }
-			if ( (int) $used + $quantity > (int) $type->capacity ) {
-				return 'sold_out';
-			}
-		}
-		if ( (int) $occurrence->capacity > 0 ) {
-			$occ_used = $wpdb->get_var( $wpdb->prepare(
-				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d)",
-				$p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $exclude_order_id,
-				$p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now, $exclude_order_id
-			) );
-			if ( '' !== $wpdb->last_error || null === $occ_used ) { return 'db_busy'; }
-			if ( (int) $occ_used + $occurrence_quantity > (int) $occurrence->capacity ) {
-				return 'occurrence_sold_out';
-			}
-		}
-		return '';
+		return Orders\Capacity::error( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity );
 	}
 
 	/**
@@ -1792,23 +1665,12 @@ final class Orders {
 		do_action( 'wpcap_capacity_released', (int) $order_id, (string) $reason, $details );
 	}
 
-	/** Per-request availability memo: ticket_type_id => remaining (int|null), of the site $memo_prefix. */
-	private static $availability_memo = array();
-	/** Table prefix the memo belongs to (multisite: switch_to_blog() changes it within a request). */
-	private static $memo_prefix = null;
-	/** Whether this request wrote to plugin tables (then the object cache is not read any more). */
-	private static $wrote = false;
-	private static $query_hooked = false;
-
 	/**
 	 * Forgets memoised availability. Runs on every write to a plugin table of this request (filter
 	 * `query`), when capacity counters change and on demand (e.g. after module data changed).
 	 */
 	public static function flush_availability_cache() {
-		self::$availability_memo = array();
-		self::$wrote = true;
-		/** Request caches of modules (holds, passes, seat links, limits) are stale after a write. */
-		do_action( 'wpcap_availability_flushed' );
+		Orders\Availability::flush();
 	}
 
 	/**
@@ -1817,18 +1679,12 @@ final class Orders {
 	 * its keys contain the prefix).
 	 */
 	public static function site_switched() {
-		global $wpdb;
-		self::$availability_memo = array();
-		self::$memo_prefix = (string) $wpdb->prefix;
-		do_action( 'wpcap_availability_flushed' );
+		Orders\Availability::site_switched();
 	}
 
 	/** Filter `query`: a write to a plugin table (or a rollback) invalidates the availability memo. */
 	public static function note_query( $query ) {
-		if ( is_string( $query ) && preg_match( '/^\s*(?:(?:INSERT|UPDATE|DELETE|REPLACE)\b[^;]*wpcap_|ROLLBACK)/is', $query ) ) {
-			self::flush_availability_cache();
-		}
-		return $query;
+		return Orders\Availability::note_query( $query );
 	}
 
 	/**
@@ -1842,9 +1698,7 @@ final class Orders {
 	 * @return int|null Null when neither the type nor the occurrence is limited.
 	 */
 	public static function availability( $ticket_type_id ) {
-		$ticket_type_id = absint( $ticket_type_id );
-		$result = self::availability_many( array( $ticket_type_id ) );
-		return array_key_exists( $ticket_type_id, $result ) ? $result[ $ticket_type_id ] : 0;
+		return Orders\Availability::of( $ticket_type_id );
 	}
 
 	/**
@@ -1855,129 +1709,7 @@ final class Orders {
 	 * @return array ticket_type_id => int|null (0 for unknown types).
 	 */
 	public static function availability_many( array $ticket_type_ids, array $rows = array() ) {
-		global $wpdb;
-		if ( ! self::$query_hooked && function_exists( 'add_filter' ) ) {
-			add_filter( 'query', array( __CLASS__, 'note_query' ) );
-			self::$query_hooked = true;
-		}
-		if ( self::$memo_prefix !== (string) $wpdb->prefix ) { self::site_switched(); }
-		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_type_ids ) ) ) );
-		$out = array();
-		$missing = array();
-		foreach ( $ids as $id ) {
-			if ( array_key_exists( $id, self::$availability_memo ) ) { $out[ $id ] = self::$availability_memo[ $id ]; } else { $missing[] = $id; }
-		}
-		if ( ! $missing ) {
-			return $out;
-		}
-		$ttl = max( 0, min( 60, (int) apply_filters( 'wpcap_availability_cache_ttl', 10 ) ) );
-		$use_cache = $ttl > 0 && function_exists( 'wp_cache_get' );
-		$cache_key = static function ( $id ) use ( $wpdb ) { return 'availability:' . $wpdb->prefix . $id; };
-		if ( $use_cache && ! self::$wrote ) {
-			foreach ( $missing as $i => $id ) {
-				$found = false;
-				$cached = wp_cache_get( $cache_key( $id ), 'wpcap', false, $found );
-				if ( $found && is_array( $cached ) && array_key_exists( 'v', $cached ) ) {
-					$out[ $id ] = self::$availability_memo[ $id ] = $cached['v'];
-					unset( $missing[ $i ] );
-				}
-			}
-		}
-		if ( ! $missing ) {
-			return $out;
-		}
-		foreach ( self::compute_availability( array_values( $missing ), $rows ) as $id => $value ) {
-			$out[ $id ] = self::$availability_memo[ $id ] = $value;
-			if ( $use_cache ) { wp_cache_set( $cache_key( $id ), array( 'v' => $value ), 'wpcap', $ttl ); }
-		}
-		return $out;
-	}
-
-	/** Uncached availability of ticket types (see availability_many()). */
-	private static function compute_availability( array $ids, array $rows ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$now = Clock::mysql();
-		$types = array();
-		$need = array();
-		foreach ( $ids as $id ) {
-			// Preloaded rows, else the display batch (event page, GET /events), else one grouped query.
-			$batched = isset( $rows['types'][ $id ] ) ? null : DisplayBatch::type( $id );
-			if ( isset( $rows['types'][ $id ] ) && is_object( $rows['types'][ $id ] ) && isset( $rows['types'][ $id ]->status ) ) { $types[ $id ] = $rows['types'][ $id ]; } elseif ( $batched && isset( $batched->status ) ) { $types[ $id ] = $batched; } else { $need[] = $id; }
-		}
-		if ( $need ) {
-			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN (" . implode( ',', $need ) . ')' ) as $row ) { $types[ (int) $row->ticket_type_id ] = $row; }
-		}
-		$occurrences = array();
-		$need = array();
-		foreach ( $types as $type ) {
-			$occ_id = (int) $type->occurrence_id;
-			$batched = isset( $rows['occurrences'][ $occ_id ] ) ? null : DisplayBatch::occurrence( $occ_id );
-			if ( isset( $rows['occurrences'][ $occ_id ] ) && is_object( $rows['occurrences'][ $occ_id ] ) && isset( $rows['occurrences'][ $occ_id ]->status ) ) { $occurrences[ $occ_id ] = $rows['occurrences'][ $occ_id ]; } elseif ( $batched && isset( $batched->status ) ) { $occurrences[ $occ_id ] = $batched; } else { $need[ $occ_id ] = $occ_id; }
-		}
-		if ( $need ) {
-			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id IN (" . implode( ',', array_map( 'intval', $need ) ) . ')' ) as $row ) { $occurrences[ (int) $row->occurrence_id ] = $row; }
-		}
-		$limited_types = array();
-		$limited_occ = array();
-		foreach ( $types as $id => $type ) {
-			if ( (int) $type->capacity > 0 ) { $limited_types[] = (int) $id; }
-			$occ = $occurrences[ (int) $type->occurrence_id ] ?? null;
-			if ( $occ && (int) $occ->capacity > 0 ) { $limited_occ[ (int) $occ->occurrence_id ] = (int) $occ->occurrence_id; }
-		}
-		$type_used = array();
-		$occ_used = array();
-		$grouped = static function ( $sql ) use ( $wpdb ) {
-			$map = array();
-			foreach ( (array) $wpdb->get_results( $sql ) as $row ) {
-				$row = array_values( (array) $row );
-				$map[ (int) $row[0] ] = (int) $row[1];
-			}
-			return $map;
-		};
-		$counted = CapacityCounters::enabled() && ( ! $types || isset( reset( $types )->sold_qty ) );
-		if ( $limited_types ) {
-			$in = implode( ',', $limited_types );
-			if ( $counted ) {
-				// Counters minus holds that are still marked active but already lapsed.
-				$lapsed = $grouped( $wpdb->prepare( "SELECT ticket_type_id,SUM(counted_qty) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at <= %s GROUP BY ticket_type_id", $now ) );
-				foreach ( $limited_types as $id ) { $type_used[ $id ] = (int) $types[ $id ]->sold_qty + (int) $types[ $id ]->held_qty - ( $lapsed[ $id ] ?? 0 ); }
-			} else {
-				$sold = $grouped( "SELECT oi.ticket_type_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id" );
-				$held = $grouped( $wpdb->prepare( "SELECT ticket_type_id,SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s GROUP BY ticket_type_id", $now ) );
-				foreach ( $limited_types as $id ) { $type_used[ $id ] = ( $sold[ $id ] ?? 0 ) + ( $held[ $id ] ?? 0 ); }
-			}
-		}
-		if ( $limited_occ ) {
-			$in = implode( ',', $limited_occ );
-			if ( $counted ) {
-				$lapsed = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.counted_qty) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id IN ($in) GROUP BY tt.occurrence_id", $now ) );
-				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = (int) $occurrences[ $occ_id ]->sold_qty + (int) $occurrences[ $occ_id ]->held_qty - ( $lapsed[ $occ_id ] ?? 0 ); }
-			} else {
-				$sold = $grouped( "SELECT tt.occurrence_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id" );
-				$held = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.quantity) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN ($in) AND r.status='active' AND r.expires_at > %s GROUP BY tt.occurrence_id", $now ) );
-				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = ( $sold[ $occ_id ] ?? 0 ) + ( $held[ $occ_id ] ?? 0 ); }
-			}
-		}
-		$out = array();
-		foreach ( $ids as $id ) {
-			$type = $types[ $id ] ?? null;
-			$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
-			if ( ! $type || ! $occurrence ) { $out[ $id ] = 0; continue; }
-			$limits = array();
-			if ( (int) $type->capacity > 0 ) { $limits[] = (int) $type->capacity - $type_used[ $id ]; }
-			if ( (int) $occurrence->capacity > 0 ) { $limits[] = (int) $occurrence->capacity - $occ_used[ (int) $occurrence->occurrence_id ]; }
-			$remaining = $limits ? max( 0, min( $limits ) ) : null;
-			/**
-			 * Remaining units after module limits (e.g. series quota pools). Return null for unlimited
-			 * or a smaller non-negative int; never more than the core value.
-			 */
-			$filtered = apply_filters( 'wpcap_ticket_availability', $remaining, $type, $occurrence );
-			if ( null === $filtered || ! is_numeric( $filtered ) ) { $out[ $id ] = $remaining; continue; }
-			$filtered = max( 0, (int) $filtered );
-			$out[ $id ] = null === $remaining ? $filtered : min( $remaining, $filtered );
-		}
-		return $out;
+		return Orders\Availability::many( $ticket_type_ids, $rows );
 	}
 
 	/** Occurrence row (SELECT *), from the display batch when preloaded. */
@@ -2076,7 +1808,7 @@ final class Orders {
 	/** Whether the order still has an unexpired active hold (non-locking read). */
 	public static function has_active_hold( $order_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) ) > 0;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), Clock::mysql() ) ) > 0;
 	}
 
 	/**
@@ -2183,7 +1915,7 @@ final class Orders {
 				$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
 				$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
 				if ( $error ) { break; }
-				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
+				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + ( Sales\Addons::is_addon( $type ) ? 0 : (int) $line->quantity ); // Add-ons use no seats.
 			}
 			if ( ! $error && $reserve_error ) {
 				$error = $reserve_error->get_error_code();
@@ -2513,8 +2245,9 @@ final class Orders {
 	}
 
 	/**
-	 * Checks the new manual order's lines against manual_hold_cap() (inside Orders::create(), with the
-	 * ticket types and occurrences locked). Returns 'manual_hold_limit', 'db_busy' or ''.
+	 * Checks the new manual order's lines against manual_hold_cap() and manual_event_hold_cap() (inside
+	 * Orders::create(), with the ticket types and occurrences locked). Returns 'manual_hold_limit',
+	 * 'manual_event_hold_limit', 'db_busy' or ''.
 	 *
 	 * @param int[]    $lines       ticket_type_id => quantity.
 	 * @param object[] $types       Locked ticket types by id.
@@ -2544,7 +2277,63 @@ final class Orders {
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			if ( $held + (int) $quantity > $cap ) { return 'manual_hold_limit'; }
 		}
+		// Absolute bound per event over all its dates (`manual_hold_max_event_tickets`, 0 = off). Dates of the
+		// same event are locked one by one, so two checkouts for different dates may overshoot it by one order.
+		$event_cap = self::manual_event_hold_cap();
+		if ( $event_cap ) {
+			$per_event = array();
+			foreach ( $per_occurrence as $occ_id => $quantity ) {
+				$event_id = isset( $occurrences[ $occ_id ]->event_id ) ? (int) $occurrences[ $occ_id ]->event_id : 0;
+				if ( $event_id ) { $per_event[ $event_id ] = ( $per_event[ $event_id ] ?? 0 ) + (int) $quantity; }
+			}
+			foreach ( $per_event as $event_id => $quantity ) {
+				$held = self::manual_held_for_event( $event_id, $now );
+				if ( null === $held ) { return 'db_busy'; }
+				if ( $held + (int) $quantity > $event_cap ) { return 'manual_event_hold_limit'; }
+			}
+		}
 		return '';
+	}
+
+	/** Absolute bound of tickets held by unpaid bank transfer orders per event (0 = no bound). */
+	public static function manual_event_hold_cap() {
+		return max( 0, (int) Settings::get( 'manual_hold_max_event_tickets', 0 ) );
+	}
+
+	/**
+	 * Tickets held right now by unpaid bank transfer orders (active, unexpired holds) over all dates of an
+	 * event, or of one date when $occurrence_id is given. Null on a database error.
+	 */
+	public static function manual_held_for_event( $event_id, $now = null, $occurrence_id = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = null === $now ? Clock::mysql() : (string) $now;
+		$where = $occurrence_id ? $wpdb->prepare( 't.occurrence_id=%d', absint( $occurrence_id ) ) : $wpdb->prepare( 'oc.event_id=%d', absint( $event_id ) );
+		$held = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id INNER JOIN {$p}wpcap_ticket_types t ON t.ticket_type_id=r.ticket_type_id INNER JOIN {$p}wpcap_occurrences oc ON oc.occurrence_id=t.occurrence_id WHERE r.status='active' AND r.expires_at > %s AND o.payment_provider='manual' AND o.payment_status='pending' AND " . $where, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is prepared above.
+		return '' !== $wpdb->last_error ? null : (int) $held;
+	}
+
+	/**
+	 * Whether unpaid bank transfer orders already hold as much of a date as they may (the event bound
+	 * `manual_hold_max_event_tickets` or the date's share `manual_hold_max_percent`): the checkout then
+	 * offers no bank transfer for it (PublicEvents::card_providers()); Orders::create() refuses it anyway.
+	 * Bounds per ticket type are not considered here (other types of the date may still be open).
+	 */
+	public static function manual_holds_exhausted( $event_id, $occurrence_id ) {
+		global $wpdb;
+		$event_cap = self::manual_event_hold_cap();
+		if ( $event_cap && $event_id ) {
+			$held = self::manual_held_for_event( $event_id );
+			if ( null !== $held && $held >= $event_cap ) { return true; }
+		}
+		if ( ! $occurrence_id || null === self::manual_hold_cap( 100 ) ) { return false; } // Share switched off.
+		$capacity = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT capacity FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
+		$cap = self::manual_hold_cap( $capacity );
+		if ( null !== $cap ) {
+			$held = self::manual_held_for_event( 0, null, $occurrence_id );
+			if ( null !== $held && $held >= $cap ) { return true; }
+		}
+		return false;
 	}
 
 	/** manual_hold_minutes() for a known start timestamp (0 = unknown: no cap). */
@@ -2779,7 +2568,15 @@ final class Orders {
 	const PENDING_LINK_DAYS = 7;
 
 	/**
-	 * End of the order portal access (A424): `wpcap_order_access_days` (default 30) days from now, but at least as
+	 * Absolute cap of the quantity of one order line (checked before any row is locked): setting
+	 * max_line_quantity (SET-PC-20, default 100, 1–1000), filter wpcap_max_line_quantity keeps precedence.
+	 */
+	public static function max_line_quantity() {
+		return max( 1, (int) apply_filters( 'wpcap_max_line_quantity', max( 1, min( 1000, (int) Settings::get( 'max_line_quantity', 100 ) ) ) ) );
+	}
+
+	/**
+	 * End of the order portal access (A424): setting order_access_days (SET-PC-20, default 30; filter `wpcap_order_access_days`) days from now, but at least as
 	 * many days after the end of the order's last date, so the link still works at and after the event.
 	 *
 	 * @param int $order_id Order (0 = only the days from now).
@@ -2787,7 +2584,7 @@ final class Orders {
 	 */
 	public static function access_until( $order_id = 0 ) {
 		global $wpdb;
-		$days = max( 1, min( 3650, (int) apply_filters( 'wpcap_order_access_days', 30 ) ) );
+		$days = max( 1, min( 3650, (int) apply_filters( 'wpcap_order_access_days', max( 1, min( 3650, (int) Settings::get( 'order_access_days', 30 ) ) ) ) ) ); // SET-PC-20.
 		$until = Clock::now() + $days * DAY_IN_SECONDS;
 		if ( absint( $order_id ) ) {
 			$last = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(COALESCE(o.ends_at,o.starts_at)) FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
@@ -2809,6 +2606,21 @@ final class Orders {
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $order ) { return false; }
+		$token = self::issue_access_token( (int) $order->order_id, $keep_current );
+		return '' !== $token && self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+	}
+
+	/**
+	 * Issues a new access token for an order without mailing it (rotate_access_link() and callers that
+	 * send several links in one mail). Returns the plain token ('' when the order does not exist).
+	 *
+	 * @param int  $order_id     Order.
+	 * @param bool $keep_current Store it as pending link (A631) instead of replacing the current one.
+	 */
+	public static function issue_access_token( $order_id, $keep_current = false ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( ! $order ) { return ''; }
 		$token = bin2hex( random_bytes( 32 ) );
 		if ( $keep_current && self::pending_link_ready() ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_pending_hash' => hash( 'sha256', $token ), 'access_pending_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + self::PENDING_LINK_DAYS * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
@@ -2817,7 +2629,7 @@ final class Orders {
 			if ( self::pending_link_ready() ) { $fields += array( 'access_pending_hash' => '', 'access_pending_expires_at' => null ); }
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', $fields, array( 'order_id' => (int) $order->order_id ), null, array( '%d' ) );
 		}
-		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+		return $token;
 	}
 
 	/** Drops a pending order link (A631), e.g. when the order is anonymised. */
@@ -2888,7 +2700,7 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order = self::get( $order_id );
 		if ( ! $order ) { return array(); }
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.unit_price_minor,' . ( ServiceFee::ready() ? 'oi.fee_kind,' : '' ) . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column lists built from literals.
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.unit_price_minor,' . ( ServiceFee::ready() ? 'oi.fee_kind,' : '' ) . OrderLines::paid_columns() . ",tt.name" . Sales\Addons::column_sql( 'tt' ) . ",e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column lists built from literals.
 		$lines = array_values( array_filter( (array) $lines, static function ( $l ) { return ! OrderLines::is_moved_in( $l ); } ) );
 		$after = OrderLines::after_discount( $lines, (int) $order->discount_minor );
 		$out = array();
@@ -2898,7 +2710,7 @@ final class Orders {
 			$out[] = array(
 				'event' => (string) $line->event_name,
 				// A425: a service fee line is named as such and counts the tickets it covers.
-				'ticket' => $fee ? ServiceFee::label( $line, (string) $line->name ) : (string) $line->name,
+				'ticket' => $fee ? ServiceFee::label( $line, (string) $line->name ) : ( Sales\Addons::is_addon( $line ) ? Sales\Addons::line_label( (string) $line->name ) : (string) $line->name ),
 				'when' => self::format_start( $line->starts_at, $line->timezone ),
 				'quantity' => $fee ? ServiceFee::covered( $line ) : (int) $line->quantity,
 				'gross_minor' => (int) $after[ $i ],
@@ -2978,7 +2790,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		// A holder change by assignment counts against the same limit as a transfer.
-		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) ) {
+		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= TicketAssignments::max_holder_changes( (int) $ticket->ticket_id ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -2988,29 +2800,133 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return Admission\CodeRotationLock::error( $locked );
 		}
+		$moved = self::move_ticket( $order, $ticket, $recipient_email, array( 'source' => 'portal' ) );
+		if ( is_wp_error( $moved ) ) { return $moved; }
+		if ( ! $moved['mailed'] ) {
+			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
+		}
+		return array( 'status' => 'transferred' );
+	}
+
+	/**
+	 * PASS-FE-03: staff change the holder of a ticket to another person (admin "Inhaber ändern"). Same
+	 * effect as a buyer transfer in the order portal (move_ticket()): new code (the previous holder's
+	 * link and wallet pass stop working), counted as a transfer (the buyer's order link can no longer
+	 * re-target the ticket), the previous holder's name, answers and consents end, `wpcap_ticket_code_rotated`
+	 * and `wpcap_ticket_transferred` (source "admin") fire. Unlike the portal, staff are not bound to the
+	 * holder-change limit or the start of the date; open refunds and the code rotation lock (admission begun,
+	 * offline scanners) still refuse. The caller checks permissions.
+	 *
+	 * @param int    $ticket_id Ticket.
+	 * @param string $email     New holder address (required, must differ from the current holder).
+	 * @param string $name      New attendee name (required).
+	 * @param array  $context   reason (required), notify (bool, default true: the new holder gets the ticket, the buyer a notice).
+	 * @return array|\WP_Error {status, ticket_id, mailed}
+	 */
+	public static function change_ticket_holder( $ticket_id, $email, $name, array $context = array() ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_id = absint( $ticket_id );
+		$email = Http::email( $email );
+		$name = Text::limit( sanitize_text_field( Http::str( $name ) ), TicketAssignments::NAME_MAX );
+		$reason = sanitize_text_field( (string) ( $context['reason'] ?? '' ) );
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpcap_holder_change_reason', __( 'Bitte einen Grund für den Inhaberwechsel angeben.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( Http::email_too_long( $email ) ) {
+			return new \WP_Error( 'wpcap_holder_change_invalid', self::email_too_long_message(), array( 'status' => 400, 'field' => 'attendee_email' ) );
+		}
+		if ( ! is_email( $email ) || '' === $name ) {
+			return new \WP_Error( 'wpcap_holder_change_invalid', __( 'Bitte Name und eine gültige E-Mail-Adresse der neuen Person angeben.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $p . 'wpcap_tickets', $ticket_id ) );
+		self::begin();
+		// Same lock order as the portal transfer and refunds: order row first, then the ticket.
+		$order = $order_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) ) : null;
+		$ticket = $order ? $wpdb->get_row( $wpdb->prepare(
+			'SELECT t.ticket_id,t.status,t.attendee_email,t.transfer_count,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.ticket_id=%d AND t.order_id=%d FOR UPDATE', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events',
+			$ticket_id,
+			(int) $order->order_id
+		) ) : null;
+		if ( ! $order || ! $ticket ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+		}
+		// transfer_count is a tinyint: a ticket moved 255 times cannot be counted any further.
+		if ( 'valid' !== $ticket->status || 'paid' !== $order->payment_status || (int) $ticket->transfer_count >= 255 ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_holder_change_not_allowed', __( 'Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können an eine andere Person gehen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$holder = is_email( (string) $ticket->attendee_email ) ? (string) $ticket->attendee_email : (string) $order->customer_email;
+		if ( 0 === strcasecmp( $holder, $email ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_holder_change_same', __( 'Das ist bereits die Adresse der Inhaber:in. Für Tippfehler derselben Person „Teilnehmerdaten korrigieren“ verwenden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		// A537: while a refund of the ticket is pending or running, it stays with its holder.
+		$open_refund = Refunds::ticket_has_open_refund( (int) $order->order_id, (int) $ticket->ticket_id );
+		if ( false !== $open_refund ) {
+			$wpdb->query( 'ROLLBACK' );
+			return null === $open_refund
+				? Errors::busy( __( 'Der Inhaber konnte gerade nicht geändert werden. Bitte erneut versuchen.', 'pass-captain' ) )
+				: new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		// A593: the change rotates the code – not once admission has begun or the code is on offline scanners.
+		$locked = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
+		if ( '' !== $locked ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Admission\CodeRotationLock::error( $locked );
+		}
+		return self::move_ticket( $order, $ticket, $email, array( 'source' => 'admin', 'attendee_name' => $name, 'notify' => (bool) ( $context['notify'] ?? true ), 'reason' => $reason ) );
+	}
+
+	/**
+	 * Moves a ticket to another holder (portal transfer and admin holder change): new code, transfer
+	 * counted, the previous holder's name, answers and consents end, hooks fire after the commit, mails.
+	 * Call inside the transaction that holds the order and ticket row locks (checks done); it commits, or
+	 * rolls back on a failed write.
+	 *
+	 * @param object $order           Order row.
+	 * @param object $ticket          Locked ticket row (ticket_id, transfer_count, event_name, ticket_name, starts_at, timezone, location).
+	 * @param string $recipient_email New holder.
+	 * @param array  $opts            source (portal|admin), attendee_name (admin: the new name; portal: cleared),
+	 *                                notify (bool, default true), reason (admin audit).
+	 * @return array|\WP_Error {status: transferred, ticket_id, mailed}
+	 */
+	private static function move_ticket( $order, $ticket, $recipient_email, array $opts ) {
+		global $wpdb;
+		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
+		$admin = 'admin' === ( $opts['source'] ?? '' );
+		$notify = (bool) ( $opts['notify'] ?? true );
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
 		CodeHistory::replacing( (int) $ticket->ticket_id, 'transfer' ); // A543: the old code says "transferred".
+		// A581: the portal recipient is never the buyer; staff may move a ticket back to the buyer.
+		$with_attendee = $admin ? TicketCodes::to_attendee( $recipient_email, (string) $order->customer_email ) : 1;
 		$set = array(
 			'token_hash' => hash( 'sha256', $token ),
 			'attendee_email' => $recipient_email,
 			'transfer_count' => (int) $ticket->transfer_count + 1,
-		) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => 1 ) : array() ); // A581.
+		) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => $with_attendee ) : array() ); // A581.
 		$updated = $wpdb->update( $tickets_table, $set, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array_slice( array( '%s', '%s', '%d', '%d' ), 0, count( $set ) ), array( '%d', '%s', '%d' ) );
 		if ( false === $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
-		// The previous holder's name and custom answers must not stay on the transferred ticket.
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $wpdb->prefix . 'wpcap_ticket_assignments', $recipient_email, (int) $ticket->ticket_id ) );
+		// The previous holder's name and custom answers must not stay on the transferred ticket; staff set the new name.
+		if ( $admin ) {
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $wpdb->prefix . 'wpcap_ticket_assignments', (int) $ticket->ticket_id, (string) $order->customer_email, $recipient_email, (string) ( $opts['attendee_name'] ?? '' ), Clock::mysql() ) );
+		} else {
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $wpdb->prefix . 'wpcap_ticket_assignments', $recipient_email, (int) $ticket->ticket_id ) );
+		}
 		$wpdb->delete( $wpdb->prefix . 'wpcap_participant_answers', array( 'ticket_id' => (int) $ticket->ticket_id ) );
+		if ( $admin ) { TicketAssignments::touch( array( (int) $ticket->ticket_id ) ); } // A574: the name lives outside wpcap_tickets.
 		$wpdb->query( 'COMMIT' );
 		// The previous holder's consents end with the ticket (logged, hooks fire).
 		Consents::end_for_ticket( (int) $ticket->ticket_id, 'transfer', $previous_holder );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
 		/** A674: another person holds the ticket now (after the commit; no code, no addresses). */
-		do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'portal', 'holder_changes' => (int) $ticket->transfer_count + 1 + TicketAssignments::holder_changes( (int) $ticket->ticket_id ) ) );
+		do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => $admin ? 'admin' : 'portal', 'holder_changes' => (int) $ticket->transfer_count + 1 + TicketAssignments::holder_changes( (int) $ticket->ticket_id ) ) );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
 		$vars = array(
 			'order_id' => (string) $order->public_id,
@@ -3022,14 +2938,22 @@ final class Orders {
 			'ticket_extras' => Mail\Blocks::extra( self::code_mail_section( (int) $ticket->ticket_id, (string) $order->locale ) ),
 			'recipient_email' => $recipient_email,
 		);
+		$audit = array( 'order_id' => (int) $order->order_id ) + ( $admin ? array( 'source' => 'admin', 'reason' => (string) ( $opts['reason'] ?? '' ), 'notified' => $notify ) : array() );
+		$result = array( 'status' => 'transferred', 'ticket_id' => (int) $ticket->ticket_id, 'mailed' => false );
+		if ( ! $notify ) {
+			Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit );
+			return $result;
+		}
 		// The recipient's language is unknown; the order's locale is the best available guess.
 		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale, (int) $order->order_id ) ) {
-			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
+			if ( $admin ) { Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit + array( 'mailed' => false ) ); }
+			return $result;
 		}
 		// A652: the previous holder learns that the ticket moved – never the new code (link, help code).
 		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, self::without_code_vars( $vars ), array(), (string) $order->locale, (int) $order->order_id );
-		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
-		return array( 'status' => 'transferred' );
+		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit );
+		$result['mailed'] = true;
+		return $result;
 	}
 
 	/**
@@ -3077,8 +3001,7 @@ final class Orders {
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'occurrences' => count( $occurrence_ids ), 'run_id' => (int) $run->run_id ) + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
-		/** A674: the event is cancelled (committed); its occurrences follow in the run (wpcap_occurrence_cancelled each). */
-		do_action( 'wpcap_event_cancelled', $event_id, array( 'occurrence_ids' => $occurrence_ids, 'run_id' => (int) $run->run_id ) );
+		// PC-9: wpcap_event_cancelled fires from the run once the dates are cancelled and the tickets revoked (BulkRuns).
 		return self::event_cancellation_result( BulkRuns::drive( $run ) );
 	}
 
@@ -3401,7 +3324,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' ); // Nothing written.
 			return true;
 		}
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name AS ticket_name' . Sales\Addons::column_sql( 'tt' ) . ',tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list (Sales\Addons::column_sql()).
 		if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'lines' ); }
 		/**
 		 * Order lines that receive tickets. Modules may drop lines that are no admission of their own,
@@ -3411,6 +3334,8 @@ final class Orders {
 		 * @param object   $order Locked order row.
 		 */
 		$lines = (array) apply_filters( 'wpcap_issue_order_lines', $lines, $order );
+		// Add-on products (Sales\Addons) are no admission: their lines stay order lines without tickets.
+		$lines = array_filter( $lines, static function ( $line ) { return ! Sales\Addons::is_addon( $line ); } );
 		$issued = array();
 		// Attendee data collected at checkout, applied once to the issued tickets.
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
@@ -3673,7 +3598,7 @@ final class Orders {
 		$now = Clock::mysql();
 		if ( $sent ) {
 			$marker = self::delivery_marker( $order_id, $ticket_ids );
-			update_option( $marker, time(), false );
+			update_option( $marker, Clock::now(), false );
 			$completed = Jobs::update_with_retry( $table, array( 'status' => 'complete', 'attempts' => 1, 'locked_at' => null, 'last_error' => null, 'updated_at' => $now ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%s', '%s' ) );
 			if ( $completed ) {
 				delete_option( $marker );
@@ -3773,7 +3698,7 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.status='complete' AND ord.updated_at>=%s AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i j WHERE j.idempotency_key=SHA2(CONCAT('ticket-issue-sweep|', ord.order_id), 256)) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders',
+			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.status='complete' AND ord.updated_at>=%s AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi" . self::addon_free_join() . " WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i j WHERE j.idempotency_key=SHA2(CONCAT('ticket-issue-sweep|', ord.order_id), 256)) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join (Orders::addon_free_join()).
 			gmdate( 'Y-m-d H:i:s', Clock::now() - self::UNISSUED_LOOKBACK ), $p . 'wpcap_order_items', $p . 'wpcap_tickets', $p . 'wpcap_jobs',
 			max( 1, absint( $limit ) )
 		) );
@@ -3948,14 +3873,24 @@ final class Orders {
 	}
 
 	/**
+	 * SQL join for queries on order lines (alias oi) that compare them with issued tickets: leaves out
+	 * lines of add-on products (Sales\Addons), which never get tickets. '' before schema 3.18.5.
+	 */
+	public static function addon_free_join() {
+		global $wpdb;
+		return Sales\Addons::ready() ? " INNER JOIN {$wpdb->prefix}wpcap_ticket_types att ON att.ticket_type_id=oi.ticket_type_id AND att.kind<>'" . Sales\Addons::ADDON . "'" : '';
+	}
+
+	/**
 	 * Number of tickets a paid order should have but does not (issuance failed or is still pending).
 	 *
 	 * @return int|null Null on a database error.
 	 */
 	public static function missing_tickets( $order_id ) {
+		// Lines of add-on products (Sales\Addons) get no tickets and are left out (addon_free_join()).
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$missing = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(0, oi.qty - COALESCE(t.n,0))),0) FROM (SELECT ticket_type_id, SUM(quantity) AS qty FROM %i WHERE order_id=%d GROUP BY ticket_type_id) oi LEFT JOIN (SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d GROUP BY ticket_type_id) t ON t.ticket_type_id=oi.ticket_type_id', $p . 'wpcap_order_items', absint( $order_id ), $p . 'wpcap_tickets', absint( $order_id ) ) );
+		$missing = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(0, oi.qty - COALESCE(t.n,0))),0) FROM (SELECT oi.ticket_type_id, SUM(oi.quantity) AS qty FROM %i oi' . self::addon_free_join() . ' WHERE oi.order_id=%d GROUP BY oi.ticket_type_id) oi LEFT JOIN (SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d GROUP BY ticket_type_id) t ON t.ticket_type_id=oi.ticket_type_id', $p . 'wpcap_order_items', absint( $order_id ), $p . 'wpcap_tickets', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join (Orders::addon_free_join()).
 		return '' !== $wpdb->last_error || null === $missing ? null : (int) $missing;
 	}
 
@@ -3994,6 +3929,8 @@ final class Orders {
 			'ticket_links' => Mail\Blocks::links( array_column( $entries, 'url' ) ),
 			// A568: the legal texts of the version this order was concluded under (built only when used).
 			'contract_texts' => static function () use ( $order ) { return LegalVersions::mail_block( $order ); },
+			// Agent model: the organizer as contract partner (empty otherwise).
+			'contract_partner' => static function () use ( $order ) { return Mail\Blocks::contract_partner( Partners\SalesModel::contract_partner_for_order( (int) $order->order_id ) ); },
 		);
 	}
 
@@ -4063,7 +4000,7 @@ final class Orders {
 		foreach ( $chunks as $index => $chunk ) {
 			// A474: the PDF speaks the buyer's language, like the mail itself.
 			$bytes = Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $chunk ) {
-				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+				return TicketPdf::render( $chunk, array( 'title' => get_bloginfo( 'name' ), 'footer' => TicketPdf::default_footer() ) );
 			} );
 			if ( $index > 0 && $used + strlen( $bytes ) > $budget ) { break; }
 			$file = $pdf_dir . '/tickets-' . Frontend\Format::order_reference( (string) $order->public_id ) . ( count( $chunks ) > 1 ? '-' . ( $index + 1 ) : '' ) . '.pdf'; // A091: readable order number.

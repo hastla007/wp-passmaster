@@ -7,6 +7,9 @@ use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FiskaltrustAdapter implements AdapterInterface {
 	public function id() { return 'fiskaltrust_pos'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
@@ -78,11 +81,11 @@ final class FiskaltrustAdapter implements AdapterInterface {
 		if ( null === $pay_case || ! $charges || $sum !== (int) ( $document['gross_minor'] ?? -1 ) ) {
 			return new \WP_Error( 'fiskaltrust_payment_mapping_missing', __( 'Die Zahlungscode-Zuordnung fehlt oder der Belegbetrag stimmt nicht.', 'pass-captain' ) );
 		}
-		$moment = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c' ) ) );
+		$moment = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c', \PassCaptain\Clock::real() ) ) );
 		$register = sanitize_text_field( (string) ( $document['profile']['register_id'] ?? $configuration['terminal_id'] ?? '1' ) );
 		$payload = array(
 			'cbReceiptReference' => (string) ( $document['idempotency_key'] ?? '' ),
-			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: time() ),
+			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: \PassCaptain\Clock::real() ),
 			'cbTerminalID' => $register,
 			'cbReceiptAmount' => (float) ProviderHttp::decimal( $sum, $currency ),
 			'cbChargeItems' => $charges,

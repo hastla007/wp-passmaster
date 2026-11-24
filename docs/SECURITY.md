@@ -194,6 +194,20 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 - Der Header wird nur ausgewertet, wenn die Anfrage tatsächlich von einem vertrauenswürdigen Proxy kommt. Bei `X-Forwarded-For` gilt der rechteste Eintrag, der selbst kein vertrauenswürdiger Proxy ist (links stehende Einträge sind fälschbar). Ungültige Werte fallen auf `REMOTE_ADDR` zurück.
 - Der Filter `wpcap_client_ip` kann das Ergebnis weiterhin ersetzen.
 
+### Bestelllinks anfordern und Bot-Prüfung im Checkout
+
+**Bestelllinks anfordern** (`PassCaptain\OrderLinkRequest`, Seite `/?wpcap_order_link=1`, Formular auf der Seite für abgelaufene Bestelllinks und REST `POST /orders/link-request` mit `email`; öffentlicher Vertrag seit 1.3):
+
+- **Gleiche Antwort für jede Adresse:** Ob zur Adresse Bestellungen gehören, ob eine Mail hinausging oder das Tageslimit der Adresse erreicht ist – die Antwort ist immer dieselbe Meldung (REST: `{"message": …}`, HTTP 200). Gemeldet werden nur eine ungültige Adresse (400 `wpcap_order_link_email`) und das Limit je Client (429 `wpcap_rate_limited`). So lässt sich nicht abfragen, ob eine Adresse Kundin ist.
+- **Rate-Limits:** je Client 5 Anfragen pro Stunde (`RateLimit::allow_client()`, IPv6 je /64 plus /48-Netz; Filter `wpcap_order_link_request_client_limit`), je Adresse höchstens 3 Mails am Tag (stillschweigend, `OrderLinkRequest::ADDRESS_LIMIT`; gespeichert nur als HMAC). Platzhalteradressen (Verkäufe ohne Käufer-E-Mail) erhalten nie Mails.
+- Die Links gehen nur an die Bestelladresse und sind **vorgemerkt** wie beim Bestelllink von der Ticketseite (A631): Der bisherige Link bleibt gültig, bis der neue geöffnet wird. Wer eine fremde Adresse eingibt, sperrt niemanden aus. Eine Mail listet höchstens die 10 neuesten Bestellungen (offene Überweisungen, bezahlt, erstattet). Das Formular hat einen Nonce und ein Fangfeld; die Seite wird nicht gecacht und nicht indexiert.
+
+**Bot-Prüfung im Checkout** (`PassCaptain\Security\FormGuard`, Einstellungen `checkout_bot_check`, Standard an, und `checkout_min_fill_seconds`, Standard 3, 0 = nur Fangfeld):
+
+- **Geltungsbereich:** nur Bestellungen aus dem eigenen Bestellformular (Block, Shortcode). Das Formular sendet den optionalen Checkout-Parameter `form_guard` (`{"hp": "<Fangfeld>", "ms": <Millisekunden seit dem Anzeigen>}`). Anfragen **ohne** `form_guard` (eigene REST-Integrationen, ältere gecachte Seiten, Partner-API, WooCommerce, Kasse, Servicebuchungen und andere interne Aufrufe) werden nicht geprüft; für sie gelten nur die Rate-Limits oben.
+- **Ablehnung:** ausgefülltes Fangfeld → 400 `wpcap_form_guard` (`data.reason` `form_guard`); schneller als die Mindestzeit → 400 `wpcap_form_too_fast` (`data.reason` `form_too_fast`). Es wird keine Bestellung angelegt und kein Kontingent gehalten. Ein zu schnelles Absenden ist kein Sperrgrund: Der Hinweis bittet um erneutes Absenden, die Zeit läuft weiter, der nächste Versuch geht durch.
+- Keine Cookies, kein externer Dienst. Das Fangfeld ist versteckt (`hidden`, `aria-hidden`, nicht fokussierbar), Browser füllen es nicht automatisch aus. Die Prüfung ersetzt keine Bot-Abwehr am WAF/CDN.
+
 ## Rollen, Eventscoping und Datenminimierung
 
 - **WooCommerce-Produkte (SEC-V2):** Nur Administratoren (`manage_options`) und Personen mit `wpcap_manage_events` für das jeweilige Event (`Access::can_access_event`) dürfen ein Produkt mit einer Ticketart verknüpfen, die Verknüpfung ändern oder entfernen. Shop-Manager ohne Eventzuweisung sehen in der Auswahl nur Ticketarten ihrer Events; eine bestehende Verknüpfung zu einem fremden Event wird schreibgeschützt angezeigt. Ein unzulässiger Wert wird nicht gespeichert (Fehlerhinweis im Produkt-Editor); andere Speicherwege eines angemeldeten Nutzers (WooCommerce-REST-API, Schnellbearbeitung, CSV-Import) setzen den gespeicherten Wert zurück (Audit `woocommerce_product_link_refused`).
@@ -216,7 +230,7 @@ Warteliste (Event): 5 Anmeldungen je Adresse (Groß-/Kleinschreibung egal) und E
 
 ## Audit-Log
 
-- Protokolliert u. a. Exporte und Downloads (`export_downloaded`), Personal-/Terminzuweisungen, Änderungen an WordPress-Rollen (`user_role_changed/added/removed`), direkt vergebene/entzogene Plugin-Capabilities (`user_capability_granted/revoked`), Capability-Änderungen von Plugin-Rollen (`role_capabilities_changed`), lesende Zugriffe auf personenbezogene Daten (`pii_read`: Bestelldetail, Ticketsuche, Personal-REST-Abrufe, Audit-Log-Ansicht). Lesezugriffe werden zusammengefasst: je Person, Ansicht und Objekt höchstens alle 15 Minuten, höchstens `audit_read_limit_per_hour` je Person und Stunde (danach ein Eintrag `pii_read_throttled`).
+- Protokolliert u. a. Exporte und Downloads (`export_downloaded`), Personal-/Terminzuweisungen, Änderungen an WordPress-Rollen (`user_role_changed/added/removed`), direkt vergebene/entzogene Plugin-Capabilities (`user_capability_granted/revoked`), Capability-Änderungen von Plugin-Rollen (`role_capabilities_changed`), lesende Zugriffe auf personenbezogene Daten (`pii_read`: Bestelldetail, Ticketsuche, Personal-REST-Abrufe, Audit-Log-Ansicht). Lesezugriffe werden zusammengefasst: je Person, Ansicht und Objekt höchstens alle 15 Minuten, höchstens `audit_read_limit_per_hour` je Person und Stunde (danach ein Eintrag `pii_read_throttled`). Die Herausgabe der E-Mail-Adresse eines Ticketinhabers an einen Connector (`wpcap_get_ticket_details()` mit Capability `wpcap_read_holder_email`) steht als `holder_email_read` im Log; Connectoren schreiben eigene Einträge nur über `wpcap_connector_audit()` (Aktion `connector_log_…`, Angabe `source`, ohne personenbezogene Daten, höchstens 60 je Connector und Minute; [EXTENSIONS.md](EXTENSIONS.md#protokolleintrag-eines-connectors)).
 - Ansicht *Pass Captain → Audit-Log* (Capability `wpcap_view_audit`, Administratoren; alternativ `manage_options`) mit Filtern nach Aktion, Objekt, Objekt-ID, Benutzer, Zeitraum, Seitenweise; CSV-Export wird selbst protokolliert (`audit_log_exported`).
 
 ## Berechtigungen (automatisch geprüft)
@@ -289,13 +303,16 @@ die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
 - **CI/Release-Härtung (A653):** Alle GitHub Actions sind per vollständigem Commit-SHA gepinnt, die
   Version steht als Kommentar dahinter (`uses: actions/checkout@<sha> # v4.4.0`; Dependabot aktualisiert
   SHA und Kommentar gemeinsam). Jeder Workflow setzt `permissions` auf Workflow-Ebene (`contents: read`,
-  Release `{}` mit `contents: write` nur im Release-Job). Checkouts laufen mit `persist-credentials: false`;
-  einzige Ausnahme ist der Release-Job, der danach `git fetch origin main` braucht. `composer install` läuft
-  überall mit `--no-scripts`; Produktionsinstallationen (`--no-dev`: Release-ZIP, Paket-/Installationstests,
-  WordPress-Matrix, Drills, Last) zusätzlich mit `--no-plugins` (Entwicklungsinstallationen brauchen die in
-  `allow-plugins` freigegebenen Plugins für PHPCS-Standards und PHPStan-Erweiterungen). Geprüft in
-  `tests/consistency.php`. Offen (Repository-Einstellung, nicht im Code): Build-Attestierung
-  (`actions/attest-build-provenance`) für das Release-ZIP.
+  Release `{}` mit `contents: write` nur im Release-Job und `id-token`/`attestations: write` nur im Job
+  `attest`, der keinen Build-Code ausführt). Alle Checkouts laufen mit `persist-credentials: false`, auch im
+  Release-Job: Die drei Schritte, die mit `origin` sprechen (`git fetch origin main`, `verify-release.sh`,
+  Tag-Prüfung), bekommen das Token nur für sich über `GIT_CONFIG_*`; Composer, WP-CLI und die Build-Skripte
+  können es nicht aus `.git/config` lesen. `composer install` läuft überall mit `--no-scripts --no-plugins`,
+  auch die Entwicklungsinstallation für PHPCS/PHPStan: Die PHPCS-Standards stehen in `phpcs.xml.dist`
+  (`installed_paths`), die PHPStan-WordPress-Erweiterung in `phpstan.neon.dist`; `allow-plugins` ist leer bis
+  auf den PHPCS-Installer für lokale Installationen. Mit dem Release werden `pass-captain.zip.sha256` und eine
+  Build-Provenance-Attestierung (`actions/attest-build-provenance`, bei privatem Repository nur mit
+  Repository-Variable `WPCAP_ATTEST=1`) veröffentlicht. Geprüft in `tests/consistency.php`.
 
 ### Kompatibilitätsprüfungen
 
@@ -455,11 +472,25 @@ und sind nie auf Events oder Bereiche beschränkt.
 | `wpcap_manage_events` | Events, Termine, Ticketarten, Teams, Service-Zeitfenster und Zuweisungen verwalten | ✓ | ✓ | | | | | | |
 | `wpcap_manage_orders` | Bestellungen, Tickets, Kasse, Gästelisten, Erstattung anfragen | ✓ | ✓ | ✓ | | | | | ✓ |
 | `wpcap_checkin` | Einlass (Web-Scanner, Scanner-App, Offline-Scanner), Check-in-Liste | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
+| `wpcap_undo_checkin` | Check-in zurücknehmen (Ticketliste, Web-Scanner, Scanner-App) – immer mit Grund; zusätzlich gelten Event-Zuweisung über `wpcap_checkin`, Bereich, Zeitfenster und `undo_roles` | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
+| `wpcap_redeem_passes` | Mitglieds- und Saisonpässe am Einlass einlösen (`POST /passes/redeem`); Event-Zuweisung über `wpcap_checkin` | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
 | `wpcap_view_reports` | Berichte und Kennzahlen (nur Summen) | ✓ | ✓ | | | ✓ | | ✓ | |
 | `wpcap_refund` | Erstattungen ausführen bzw. anstoßen | ✓ | ✓ | | | | | | |
 | `wpcap_approve_refunds` | Erstattungen freigeben (Vier-Augen) | ✓ | | | | | | ✓ | |
 | `wpcap_view_finance` | Rechnungen, Kassenbelege, Buchhaltungsexport – ohne Event-Zuweisung (Bereich nach A119) | ✓ | | | | | | ✓ | |
 | `wpcap_service_bookings` | Eigene Leistungen: Zeitfenster und Buchungen ansehen, bestätigen, als nicht erschienen markieren | ✓ | | | | | ✓ | | |
+
+**Getrennte Rechte für Einlass, Einlösen und Rücknahme:** Einlass (`wpcap_checkin`), Pässe einlösen
+(`wpcap_redeem_passes`) und Check-ins zurücknehmen (`wpcap_undo_checkin`) sind eigene Capabilities. Bis
+Version 1.6 genügte für alle drei `wpcap_checkin`. Damit bestehende Websites unverändert weiterlaufen, erhält
+beim ersten Laden nach dem Update **jede Rolle, die `wpcap_checkin` hat** (Plugin-Rollen, Administratoren und
+selbst angelegte Rollen), einmalig auch `wpcap_undo_checkin` und `wpcap_redeem_passes`
+(`Installer::grant_split_capabilities()`, Merker-Option `wpcap_split_checkin_caps`). Wer Türpersonal die
+Rücknahme entziehen will, nimmt der Rolle danach `wpcap_undo_checkin` weg, z. B. mit
+`wp cap remove wpcap_checkin_staff wpcap_undo_checkin`. Einzelnen Benutzern direkt (ohne Rolle) vergebenes
+`wpcap_checkin` wird nicht übertragen; diese Konten brauchen die neuen Rechte von Hand. Spätere Updates
+geben die beiden Rechte bestehenden Rollen nicht erneut, eine solche Trennung bleibt also bestehen. Die Rücknahme verlangt immer einen Grund
+(Fehlercode `wpcap_undo_reason_required`); ohne das Recht antwortet sie mit `wpcap_undo_capability` (HTTP 403).
 
 Rollen-Slugs: `wpcap_ticket_admin`, `wpcap_event_manager`, `wpcap_box_office`, `wpcap_checkin_staff`,
 `wpcap_partner` (Veranstalter, also Organisator eines Events), `wpcap_service_provider` (Leistungserbringer,
@@ -710,6 +741,7 @@ Wirkung im Plugin:
   dieser Matrix.
 
 Anpassbar über `wpcap_pii_matrix`, `wpcap_pii_can_view` und `wpcap_pii_mask` (siehe [HOOKS.md](HOOKS.md)).
+Je Teilnehmerfeld lässt sich das Recht mit `wpcap_pii_can_view_answer` einschränken (z. B. ein Gesundheitsfeld nur für bestimmte Rollen): Das Feld fehlt dann in der Teilnehmerliste, im Teilnehmer-CSV (je Termin und über alle Termine) und bei den Tickets in der Bestelldetailansicht. Die E-Mail-Spalten der vollständigen Teilnehmerliste folgen der Matrix je Feld. Ohne Filter bleibt alles wie bisher.
 
 ## Hilfscode für den Einlass
 

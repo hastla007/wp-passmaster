@@ -12,6 +12,9 @@ use PassCaptain\Reports\Scope;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FeatureScreens {
 	/** admin-post action => handler. */
 	public static function handlers() {

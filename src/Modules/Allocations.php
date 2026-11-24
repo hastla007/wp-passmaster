@@ -23,6 +23,9 @@ use PassCaptain\Allocations\SeatHolds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Allocations {
 	private static $registered = false;
 
@@ -144,6 +147,13 @@ final class Allocations {
 				// A484: Gmail ignores dots in the local part; googlemail.com = gmail.com.
 				'buyer_limit_gmail_dots' => 1,
 			),
+		);
+	}
+
+	/** Settings register entries of this module (SET-PC-01, SettingsSchema). */
+	public static function settings_schema() {
+		return array(
+			'allocations' => array( 'type' => 'group', 'label' => __( 'Kontingente und Käuferlimits', 'pass-captain' ), 'help' => __( 'Automatische Freigabe nicht genutzter Kontingente und wie Käufer für Kauflimits erkannt werden (Benutzerkonto, E-Mail-Varianten mit + oder Punkten).', 'pass-captain' ), 'page' => 'wpcap-allocations', 'fields' => array( 'auto_release_hours' => array( 'type' => 'int', 'min' => 0, 'max' => 8760, 'label' => __( 'Automatische Freigabe (Stunden vor Beginn)', 'pass-captain' ) ) ) ),
 		);
 	}
 

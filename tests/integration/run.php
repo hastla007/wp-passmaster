@@ -373,6 +373,8 @@ foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $cor
 // Template stubs and helpers several modules share (ex_*, adm_*, svc_*), so a module also runs on its own (Z1).
 require_once __DIR__ . '/lib/fixtures_wp.php';
 require_once __DIR__ . '/lib/fixtures_modules.php';
+// WordPress stubs (REST, ajax, enqueue, shortcodes, timezone) several modules need, defined only if missing.
+require_once __DIR__ . '/lib/wp_stubs.php';
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
 	if ( '' !== $wpcap_only && ! preg_match( '#' . $wpcap_only . '#', basename( $module_test, '.php' ) ) ) { continue; }
 	if ( '' !== (string) getenv( 'WPCAP_TEST_SKIP' ) && preg_match( '#' . getenv( 'WPCAP_TEST_SKIP' ) . '#', basename( $module_test, '.php' ) ) ) { continue; }

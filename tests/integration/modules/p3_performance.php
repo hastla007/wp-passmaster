@@ -18,6 +18,8 @@ use PassCaptain\PublicEvents;
 use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Exchange::class ); // Exchange hooks (p3_exchange.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 
@@ -212,10 +214,10 @@ if ( ! function_exists( 'wp_cache_get' ) ) {
 	function wp_cache_set( $key, $value, $group = '', $ttl = 0 ) { $GLOBALS['pf_cache'][ "$group:$key" ] = $value; $GLOBALS['pf_cache_ttl'][ "$group:$key" ] = $ttl; return true; }
 }
 $reset_request = static function () {
-	$memo = new ReflectionProperty( Orders::class, 'availability_memo' );
+	$memo = new ReflectionProperty( PassCaptain\Orders\Availability::class, 'availability_memo' );
 	$memo->setAccessible( true );
 	$memo->setValue( null, array() );
-	$wrote = new ReflectionProperty( Orders::class, 'wrote' );
+	$wrote = new ReflectionProperty( PassCaptain\Orders\Availability::class, 'wrote' );
 	$wrote->setAccessible( true );
 	$wrote->setValue( null, false );
 };
@@ -276,7 +278,9 @@ $make_listing( 9 );
 list( $q12, $html12 ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
 // Merged line: event price rules (Sales\PriceRules) and series prices add one grouped query each
 // (display batch, preloaded rows), the separate ticket type re-read is gone: budget 10 instead of 9.
-check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 10 );
+// Add-on products (Sales\Addons::annotate_occurrences(), seats left without add-ons) add one grouped
+// query; the organizer of the contract partner notice comes with the listing query: budget 11.
+check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 11 );
 check( 'listing shows all 12 dates with translation, fields and availability', 12 === substr_count( $html12, '<article class="wpcap-event">' ) && false !== strpos( $html12, 'Übersetzt ' . $listing_occ[11] ) && false !== strpos( $html12, '&quot;key&quot;:&quot;firma&quot;' ) && false !== strpos( $html12, 'max="10"' ) );
 $req = class_exists( 'WP_REST_Request' ) ? new WP_REST_Request( 'GET' ) : null;
 if ( $req ) {

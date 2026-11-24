@@ -13,6 +13,9 @@ use PassCaptain\Security\Vault;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Repository {
 	/** Refund handling of platform fees: reverse commission and per-ticket fee, keep the fixed fee, keep both. */
 	const REFUND_POLICIES = array( 'reverse_all', 'keep_fixed_fee', 'keep_all' );
@@ -127,7 +130,7 @@ final class Repository {
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$email = \PassCaptain\Http::optional_email( $data['contact_email'] ?? '' );
 		if ( false === $email ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? 'EUR' ) ) );
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? \PassCaptain\Localization::default_currency() ) ) );
 		if ( 3 !== strlen( $currency ) ) { return new \WP_Error( 'wpcap_partner_currency', __( 'Die Währung muss ein dreistelliger ISO-Code sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$commission = (int) ( $data['commission_bp'] ?? 0 );
 		$fee_tax = (int) ( $data['fee_tax_rate_bp'] ?? 0 );
@@ -153,7 +156,7 @@ final class Repository {
 			'fee_per_ticket_minor' => $fee,
 			'fee_tax_rate_bp' => $fee_tax,
 			'refund_policy' => in_array( $data['refund_policy'] ?? '', self::REFUND_POLICIES, true ) ? $data['refund_policy'] : 'reverse_all',
-			'settlement_start' => '' !== $start ? $start : ( $existing ? $existing->settlement_start : gmdate( 'Y-m-01' ) ),
+			'settlement_start' => '' !== $start ? $start : ( $existing ? $existing->settlement_start : gmdate( 'Y-m-01', \PassCaptain\Clock::now() ) ),
 			'status' => in_array( $data['status'] ?? '', self::STATUSES, true ) ? $data['status'] : 'active',
 			'notes' => \PassCaptain\Text::cut( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 5000 ),
 			'updated_at' => $now,

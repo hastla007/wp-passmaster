@@ -28,6 +28,9 @@ use PassCaptain\RateLimit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AccessCookie {
 	/** Lifetime of the cookie in seconds (short-lived; the mail link works again afterwards). */
 	const TTL = 7200;
@@ -67,7 +70,7 @@ final class AccessCookie {
 		$plain = Vault::decrypt( $value, self::CONTEXT );
 		$data = is_string( $plain ) ? json_decode( $plain, true ) : null;
 		if ( ! is_array( $data ) || (string) ( $data['s'] ?? '' ) !== (string) $scope || ! hash_equals( (string) $ref, (string) ( $data['r'] ?? '' ) ) ) { return ''; }
-		if ( (int) ( $data['e'] ?? 0 ) <= ( null === $now ? time() : (int) $now ) ) { return ''; }
+		if ( (int) ( $data['e'] ?? 0 ) <= ( null === $now ? \PassCaptain\Clock::real() : (int) $now ) ) { return ''; }
 		$token = (string) ( $data['t'] ?? '' );
 		return preg_match( '/^[a-f0-9]{64}$/', $token ) ? $token : '';
 	}
@@ -99,7 +102,7 @@ final class AccessCookie {
 	 */
 	public static function plan( $scope, $ref, $token, $clean_url, $server = null ) {
 		if ( ! self::is_get( $server ) || self::cookies_blocked( $scope, $ref ) ) { return array( 'action' => 'render' ); }
-		$expires = time() + self::TTL;
+		$expires = \PassCaptain\Clock::real() + self::TTL;
 		$value = self::seal( $scope, $ref, $token, $expires );
 		if ( '' === $value ) { return array( 'action' => 'render' ); }
 		return array(

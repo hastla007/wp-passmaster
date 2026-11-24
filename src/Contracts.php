@@ -19,6 +19,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Contracts {
 	const HEADER = 'X-WPCAP-Contract';
 	const REST_NAMESPACE = 'pass-captain/v1';
@@ -33,23 +36,22 @@ final class Contracts {
 	 *
 	 * @return array<string,string> public, partner, developer, app, offline (REST), voucher_provider,
 	 *                              ticket_service, checkin_service (Voucher Captain bridge), affiliate,
-	 *                              addon (public add-on hooks, PublicApi), workflow (Workflow\Contract),
+	 *                              addon (public add-on hooks, PublicApi), review (Review\Contract),
 	 *                              connector (ConnectorEvents).
 	 */
 	public static function versions() {
 		return array(
-			'public'           => '1.1', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560).
+			'public'           => '1.3', // 1.1: /events times with offset, phase, sales status (A561); checkout state binding (A560). 1.2: /events service fee fields (A425). 1.3: POST /orders/link-request, optional checkout param form_guard (400 wpcap_form_guard / wpcap_form_too_fast).
 			'partner'          => Partners\Api::VERSION . '.0',
 			'developer'        => '1.0',
 			'app'              => Mobile\Api::VERSION,
-			'offline'          => OfflineScanner\Package::VERSION . '.0',
+			'offline'          => OfflineScanner\Package::VERSION . '.' . OfflineScanner\Package::CONTRACT_MINOR, // Major = package format v1; minor counts additive fields.
 			'voucher_provider' => Integrations\Vouchers\Bridge::CONTRACT,
 			'ticket_service'   => Integrations\Vouchers\TicketService::VERSION . '.0',
 			'checkin_service'  => Integrations\Vouchers\CheckinService::VERSION . '.0',
 			'affiliate'        => Integrations\AffiliateCaptain\Adapter::CONTRACT,
 			'addon'            => PublicApi::VERSION, // A663: public hooks for add-ons (docs/HOOKS.md).
-			'workflow'         => Workflow\Contract::VERSION, // A673: workflow provider contract (outbox events).
-			'workflow_commands' => Workflow\Commands::VERSION, // A676: workflow commands v1.
+			'actions'          => Api\Actions::VERSION, // PC-7: public write actions (wpcap_resend_ticket_mail() …).
 			'review'           => Review\Contract::VERSION, // A667: review participation contract (experience_completed).
 			'ticket_read'      => Api\Tickets::VERSION, // A709: wpcap_get_ticket() read model for suite plugins.
 			'connector'        => Integrations\ConnectorEvents::CONTRACT_VERSION, // A705: connector events (wp_pass_captain_connectors_v1).

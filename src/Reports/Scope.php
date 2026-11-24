@@ -12,6 +12,9 @@ use PassCaptain\Admin\Queries;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Scope {
 	/**
 	 * Event ids reachable with any of the capabilities.

@@ -20,6 +20,9 @@ use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class EventsPage {
 	const SLUG = 'pass-captain';
 	const CAP = 'wpcap_manage_events';
@@ -40,7 +43,7 @@ final class EventsPage {
 		$name = Forms::text( $in, 'name' );
 		$timezone = Forms::text( $in, 'timezone', 64 );
 		$ticket_name = Forms::text( $in, 'ticket_name' );
-		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: 'EUR' );
+		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) ?: \PassCaptain\Localization::default_currency() ); // SET-PC-08
 		// A297: each check names its field (the form marks it and keeps the input).
 		if ( '' === $name ) {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte einen Eventnamen angeben.', 'pass-captain' ), 400, 'name' );
@@ -73,6 +76,12 @@ final class EventsPage {
 		if ( null === $price ) { return Forms::error( 'wpcap_event_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
 		if ( null === $tax_bp ) { return Forms::error( 'wpcap_event_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
+		// A new event has no organizer yet: the platform sells it; as a small business only with 0 %.
+		$small_business = \PassCaptain\Partners\SalesModel::small_business_type_error( 0, (int) $tax_bp );
+		if ( $small_business ) { return Forms::error( $small_business->get_error_code(), $small_business->get_error_message(), 400, 'tax_rate' ); }
+		// SET-PC-45: a net entry is converted to the stored gross price per occurrence below, with the rate
+		// checkout applies (net_rate_bp(): active tax profile for country, class and date, else the form rate).
+		$entered_price = (int) $price;
 		$status = Forms::choice( $in, 'status', array( 'draft', 'published' ), 'draft' );
 		$repeat = Forms::choice( $in, 'repeat_frequency', array( 'none', 'weekly' ), 'none' );
 		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, Forms::int( $in, 'repeat_count', 1 ) ) ) : 1;
@@ -115,6 +124,7 @@ final class EventsPage {
 				$wpdb->query( 'ROLLBACK' );
 				return Forms::error( 'wpcap_occurrence_save', __( 'Ein Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 			}
+			$price = self::entry_to_gross( $entered_price, self::net_rate_bp( (int) $tax_bp, Queries::occurrence( $occurrence_id ) ) );
 			$wpdb->insert( "{$p}wpcap_ticket_types", array(
 				'occurrence_id' => $occurrence_id,
 				'name' => $ticket_name,
@@ -549,6 +559,40 @@ final class EventsPage {
 	}
 
 	/** Creates or updates a ticket type of an occurrence. */
+	/** Whether prices are entered net (setting price_entry, SET-PC-45; stored and shown to buyers: gross). */
+	public static function net_entry() {
+		return 'net' === \PassCaptain\Settings::get( 'price_entry', 'gross' );
+	}
+
+	/** Gross price from the entered price (net entry: + tax, rounded half up to the minor unit). */
+	public static function entry_to_gross( $minor, $tax_bp ) {
+		return self::net_entry() ? (int) round( (int) $minor * ( 10000 + (int) $tax_bp ) / 10000 ) : (int) $minor;
+	}
+
+	/**
+	 * Tax rate for net entry: the rate of an active tax profile for event country, tax class and date
+	 * (as checkout applies it, Sales\TaxProfiles::for_line), else the rate of the form.
+	 *
+	 * @param int         $form_bp    Rate of the form in basis points.
+	 * @param object|null $occurrence Occurrence row.
+	 * @param string      $tax_class  Tax class of the type ('' = standard).
+	 */
+	public static function net_rate_bp( $form_bp, $occurrence, $tax_class = '' ) {
+		if ( ! self::net_entry() || ! $occurrence ) { return (int) $form_bp; }
+		$line = \PassCaptain\Sales\TaxProfiles::for_line( (object) array( 'tax_class' => (string) $tax_class ), $occurrence, \PassCaptain\Clock::mysql() );
+		return is_array( $line ) ? (int) $line['rate_bp'] : (int) $form_bp;
+	}
+
+	/** Entered price from the stored gross price (form value). */
+	public static function gross_to_entry( $minor, $tax_bp ) {
+		return self::net_entry() ? (int) round( (int) $minor * 10000 / ( 10000 + (int) $tax_bp ) ) : (int) $minor;
+	}
+
+	/** Label of the price field. */
+	public static function price_label() {
+		return self::net_entry() ? __( 'Preis (netto, ohne Steuer)', 'pass-captain' ) : __( 'Preis (brutto)', 'pass-captain' );
+	}
+
 	public static function save_ticket_type( array $in ) {
 		$type_id = Forms::int( $in, 'ticket_type_id' );
 		$old = $type_id ? Queries::ticket_type( $type_id ) : null;
@@ -559,11 +603,23 @@ final class EventsPage {
 		$name = Forms::text( $in, 'name' );
 		if ( '' === $name ) { return Forms::error( 'wpcap_type_name', __( 'Bitte einen Namen für die Ticketart angeben.', 'pass-captain' ), 400, 'name' ); }
 		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) );
-		if ( ! in_array( $currency, Localization::currencies(), true ) ) { return Forms::error( 'wpcap_type_currency', __( 'Die Währung ist ungültig.', 'pass-captain' ), 400, 'currency' ); }
+		// The current currency of an existing type stays allowed even when the setting "currencies" no longer offers it.
+		$allowed_currencies = array_merge( Localization::currencies(), $old ? array( strtoupper( (string) $old->currency ) ) : array() );
+		if ( ! in_array( $currency, $allowed_currencies, true ) ) { return Forms::error( 'wpcap_type_currency', __( 'Die Währung ist ungültig.', 'pass-captain' ), 400, 'currency' ); }
 		$price = Forms::parse_money( $in['price'] ?? '', Forms::currency_decimals( $currency ) );
 		if ( null === $price ) { return Forms::error( 'wpcap_type_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
 		if ( null === $tax_bp ) { return Forms::error( 'wpcap_type_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
+		// SET-PC-45: net entry is converted to the stored gross price; an unchanged net value keeps the stored gross price (no rounding drift).
+		// The rate is the one checkout applies: an active tax profile for event country and class wins over the form rate.
+		$tax_class = array_key_exists( 'tax_class', $in ) ? substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 ) : (string) ( $old->tax_class ?? '' );
+		// A small-business seller (platform setting, or agent organizer) must not sell with VAT: refused here
+		// instead of at invoice time (a paid order that cannot be invoiced, § 14c UStG).
+		$small_business = \PassCaptain\Partners\SalesModel::small_business_type_error( (int) $occ->event_id, (int) $tax_bp, \PassCaptain\Partners\SalesModel::effective_tax_rate_bp( (object) array( 'tax_rate_bp' => (int) $tax_bp, 'tax_class' => $tax_class, 'occurrence_id' => (int) $occ->occurrence_id ), $occ ) );
+		if ( $small_business ) { return Forms::error( $small_business->get_error_code(), $small_business->get_error_message(), 400, (string) ( $small_business->get_error_data()['field'] ?? 'tax_rate' ) ); }
+		$net_bp = self::net_rate_bp( (int) $tax_bp, $occ, $tax_class );
+		$old_net_bp = $old ? self::net_rate_bp( (int) $old->tax_rate_bp, $occ, (string) ( $old->tax_class ?? '' ) ) : 0;
+		$price = ( $old && self::net_entry() && $net_bp === $old_net_bp && (int) $price === self::gross_to_entry( (int) $old->price_minor, $old_net_bp ) ) ? (int) $old->price_minor : self::entry_to_gross( (int) $price, $net_bp );
 		$max = Forms::int( $in, 'max_per_order', 10 );
 		if ( $max < 1 || $max > 100 ) { return Forms::error( 'wpcap_type_max', __( 'Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen.', 'pass-captain' ), 400, 'max_per_order' ); }
 		$sales = array();
@@ -588,6 +644,16 @@ final class EventsPage {
 		}
 		$capacity = Forms::int( $in, 'capacity' );
 		$status = Forms::choice( $in, 'status', array( 'active', 'paused' ), 'active' );
+		// Sales\Addons: kind ticket | addon and the add-on limit per main ticket; only when submitted (schema 3.18.5).
+		$kind = null;
+		$addon_max = 0;
+		if ( array_key_exists( 'kind', $in ) && \PassCaptain\Sales\Addons::ready() ) {
+			$kind = is_scalar( $in['kind'] ) ? (string) $in['kind'] : '';
+			if ( ! in_array( $kind, \PassCaptain\Sales\Addons::KINDS, true ) ) { return Forms::error( 'wpcap_type_kind', __( 'Die Art der Ticketart ist ungültig.', 'pass-captain' ), 400, 'kind' ); }
+			$addon_max = Forms::int( $in, 'addon_max_per_ticket' );
+			if ( $addon_max < 0 || $addon_max > 100 ) { return Forms::error( 'wpcap_type_addon_max', __( 'Die Höchstmenge je Ticket muss zwischen 0 und 100 liegen (0 = ohne Grenze).', 'pass-captain' ), 400, 'addon_max_per_ticket' ); }
+			if ( \PassCaptain\Sales\Addons::TICKET === $kind ) { $addon_max = 0; }
+		}
 		global $wpdb;
 		if ( $old ) {
 			// A531: check and update under the row lock – sales lock the same row (Orders::create()), so the
@@ -614,6 +680,10 @@ final class EventsPage {
 			};
 			if ( $currency !== $old->currency && Queries::type_has_orders( $old->ticket_type_id ) ) {
 				return $refuse( Forms::error( 'wpcap_type_currency_locked', __( 'Die Währung kann nach den ersten Bestellungen nicht mehr geändert werden.', 'pass-captain' ), 409 ) );
+			}
+			// Ticket ↔ add-on after orders would leave sold units without (or with unwanted) tickets.
+			if ( null !== $kind && $kind !== \PassCaptain\Sales\Addons::kind( $old ) && Queries::type_has_orders( $old->ticket_type_id ) ) {
+				return $refuse( Forms::error( 'wpcap_type_kind_locked', __( 'Ob Ticket oder Zusatzprodukt, kann nach den ersten Bestellungen nicht mehr geändert werden.', 'pass-captain' ), 409, 'kind' ) );
 			}
 			$sold = Queries::sold_for_type( $old->ticket_type_id );
 			if ( $capacity > 0 && $capacity < $sold ) {
@@ -680,6 +750,17 @@ final class EventsPage {
 				$formats[] = '%s';
 			}
 		}
+		if ( null !== $kind ) {
+			$data['kind'] = $kind;
+			$data['addon_max_per_ticket'] = $addon_max;
+			array_push( $formats, '%s', '%d' );
+			if ( \PassCaptain\Sales\Addons::ADDON === $kind ) {
+				// An add-on gets no ticket: no attendee name is asked or required.
+				foreach ( array( 'attendee_name' => 'off', 'attendee_name_required' => 0 ) as $column => $value ) {
+					if ( array_key_exists( $column, $data ) ) { $data[ $column ] = $value; }
+				}
+			}
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
@@ -704,6 +785,7 @@ final class EventsPage {
 			if ( ! $type_id ) { return Forms::error( 'wpcap_type_save', __( 'Die Ticketart konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
 		$details = array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status, 'currency' => $currency, 'type_name' => $name, 'tax_class' => (string) ( $data['tax_class'] ?? ( $old->tax_class ?? '' ) ) );
+		if ( null !== $kind ) { $details['product_kind'] = $kind; }
 		if ( $old ) {
 			// A114: price, capacity and sales window changes (old → new) for the occurrence's history.
 			$details['changes'] = ChangeHistory::diff( (array) $old, array_intersect_key( $data, array_flip( array( 'name', 'price_minor', 'currency', 'tax_rate_bp', 'tax_class', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'status' ) ) ) );
@@ -1414,68 +1496,210 @@ final class EventsPage {
 		return array( 'draft' => __( 'Entwurf', 'pass-captain' ), 'published' => __( 'Veröffentlicht', 'pass-captain' ) );
 	}
 
+	/* ---------------------------------------------------------------------------------------------
+	 * Event list (A411: WP_List_Table with status views, sorting, screen option, bulk duplicate)
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Bulk action of the event list: duplicate the selected events as drafts (like "Als Entwurf duplizieren"). */
+	const BULK_DUPLICATE = 'wpcap_bulk_duplicate_event';
+
+	/** Events per bulk duplication at most (each copy takes its upcoming dates with it). */
+	const BULK_LIMIT = 20;
+
+	/** Screen option (user meta) with the number of events per page. */
+	const PER_PAGE_OPTION = 'wpcap_events_per_page';
+	const PER_PAGE_DEFAULT = 50;
+
+	/**
+	 * State of the list from the query string: status view and whitelisted sort column/direction.
+	 *
+	 * @return array{status:string,orderby:string,order:string}
+	 */
+	public static function list_state() {
+		$status = Forms::query_arg( 'status' );
+		$orderby = Forms::query_arg( 'orderby' );
+		$orderby = in_array( $orderby, array( 'name', 'status' ), true ) ? $orderby : '';
+		$order = '' === $orderby ? '' : ( 'desc' === strtolower( Forms::query_arg( 'order' ) ) ? 'desc' : 'asc' );
+		return array(
+			'status' => in_array( $status, Queries::EVENT_STATUSES, true ) ? $status : '',
+			'orderby' => $orderby,
+			'order' => $order,
+		);
+	}
+
+	/** Query arguments of the list state (links, bulk form, redirect after a bulk action). */
+	public static function list_args( array $state ) {
+		return array_filter( array( 'status' => $state['status'] ?? '', 'orderby' => $state['orderby'] ?? '', 'order' => $state['order'] ?? '' ) );
+	}
+
+	/** Columns of the list (without the checkbox column): key => label. */
+	public static function list_columns() {
+		return array(
+			'event'    => __( 'Event', 'pass-captain' ),
+			'next'     => __( 'Nächster Termin', 'pass-captain' ),
+			'location' => __( 'Ort', 'pass-captain' ),
+			'dates'    => __( 'Termine', 'pass-captain' ),
+			'sold'     => __( 'Verkauft / Kapazität', 'pass-captain' ),
+			'revenue'  => __( 'Umsatz', 'pass-captain' ),
+			'status'   => __( 'Status', 'pass-captain' ),
+			'actions'  => __( 'Aktion', 'pass-captain' ),
+		);
+	}
+
+	/** Accessible caption of the list. */
+	public static function list_caption() {
+		return __( 'Events mit nächstem Termin, Auslastung und Umsatz', 'pass-captain' );
+	}
+
+	/**
+	 * One page of the list in the user's event scope with the sold/revenue figures of its events.
+	 *
+	 * @return array{rows: object[], total: int, figures: array}
+	 */
+	public static function list_data( array $state, $page, $per_page ) {
+		$data = Queries::events_overview( Queries::event_ids_for( self::CAP ), max( 1, (int) $page ), ListTables::clamp_per_page( $per_page ), $state );
+		$data['figures'] = Queries::event_figures( array_map( static function ( $row ) { return (int) $row->event_id; }, $data['rows'] ) );
+		return $data;
+	}
+
+	/**
+	 * Status views above the list: key => [label, url, current], with the number of events (sort order
+	 * kept). States without events are left out unless they are the current view.
+	 *
+	 * @param array<string,int>|null $counts Queries::event_status_counts() of the scope (read when null).
+	 */
+	public static function list_views( array $state, $counts = null ) {
+		$counts = is_array( $counts ) ? $counts : Queries::event_status_counts( Queries::event_ids_for( self::CAP ) );
+		$keep = array_filter( array( 'orderby' => $state['orderby'] ?? '', 'order' => $state['order'] ?? '' ) );
+		$current = (string) ( $state['status'] ?? '' );
+		$views = array( 'all' => array( __( 'Alle', 'pass-captain' ), '' ) );
+		foreach ( Queries::EVENT_STATUSES as $status ) { $views[ $status ] = array( Forms::status_label( $status, 'event' ), $status ); }
+		$out = array();
+		foreach ( $views as $key => $view ) {
+			if ( 'all' !== $key && empty( $counts[ $key ] ) && $view[1] !== $current ) { continue; }
+			$out[ $key ] = array(
+				'label' => $view[0] . ' (' . number_format_i18n( (int) ( $counts[ $key ] ?? 0 ) ) . ')',
+				'url' => self::url( $keep + array_filter( array( 'status' => $view[1] ) ) ),
+				'current' => $view[1] === $current,
+			);
+		}
+		return $out;
+	}
+
+	/** Empty list: hint (with a link back to all events in a status view). */
+	public static function empty_state( array $state ) {
+		if ( '' === ( $state['status'] ?? '' ) ) { return esc_html__( 'Noch keine Events angelegt.', 'pass-captain' ); }
+		return esc_html__( 'Keine Events gefunden.', 'pass-captain' ) . ' <a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Filter zurücksetzen', 'pass-captain' ) . '</a>';
+	}
+
+	/** HTML of one cell of the list (escaped). */
+	public static function list_cell( $column, $event, array $fig ) {
+		$next = $event->next_occurrence;
+		$shown = $next ? $next : $event->last_occurrence;
+		switch ( $column ) {
+			case 'event':
+				return '<strong><a href="' . esc_url( self::event_url( $event->event_id ) ) . '">' . esc_html( $event->name ) . '</a></strong>';
+			case 'next':
+				if ( $next ) { return esc_html( Forms::datetime( $next->starts_at, $next->timezone ) ); }
+				/* translators: %s: date */
+				return $shown ? esc_html( sprintf( __( 'Kein kommender Termin (zuletzt %s)', 'pass-captain' ), Forms::datetime( $shown->starts_at, $shown->timezone ) ) ) : '—';
+			case 'location':
+				return esc_html( $shown ? $shown->location : '' );
+			case 'dates':
+				return esc_html( (string) (int) $event->occurrence_count );
+			case 'sold':
+				return esc_html( self::figures_sold_label( $fig ) );
+			case 'revenue':
+				return esc_html( self::figures_revenue_label( $fig ) );
+			case 'status':
+				return esc_html( Forms::status_label( $event->status, 'event' ) );
+			case 'actions':
+				$html = '<a class="button" href="' . esc_url( self::event_url( $event->event_id ) ) . '">' . esc_html__( 'Bearbeiten', 'pass-captain' ) . '</a>';
+				if ( 'published' === $event->status ) {
+					$html .= ' <a class="button" href="' . esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ) . '">' . esc_html__( 'Event absagen …', 'pass-captain' ) . '</a>';
+				}
+				return $html;
+		}
+		return '';
+	}
+
+	/** Filter set_screen_option_{option}: stores the events per page (1–200). */
+	public static function save_per_page( $keep, $option, $value ) {
+		return self::PER_PAGE_OPTION === $option ? ListTables::clamp_per_page( $value ) : $keep;
+	}
+
+	/**
+	 * load-{hook} of the events page (list view only): screen option "Events pro Seite" and the bulk
+	 * action, handled before output and redirected back to the list with its view and sort order.
+	 */
+	public static function load_screen() {
+		if ( '' !== Forms::query_arg( 'view' ) ) { return; }
+		ListTables::add_per_page_option( __( 'Events pro Seite', 'pass-captain' ), self::PER_PAGE_OPTION, self::PER_PAGE_DEFAULT );
+		if ( self::BULK_DUPLICATE !== ListTables::posted_bulk_action() ) { return; }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403 ) ); }
+		check_admin_referer( 'bulk-events' );
+		$result = self::bulk_duplicate( ListTables::posted_ids( 'event' ) );
+		foreach ( self::bulk_messages( $result ) as $message ) { Forms::flash( $message[0], $message[1] ); }
+		Forms::redirect( self::url( self::list_args( self::list_state() ) ) );
+	}
+
+	/**
+	 * Bulk action "Als Entwurf duplizieren" (A411): each selected event goes through the same
+	 * Duplicator::duplicate_event() as the single action with its default (upcoming dates included;
+	 * capability and event scope are checked there).
+	 *
+	 * @param int[] $ids Event ids (at most BULK_LIMIT are processed).
+	 * @return array{duplicated: array<int,int>, failed: array<int,string>, over_limit: int}
+	 */
+	public static function bulk_duplicate( array $ids ) {
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ids ) ) ) );
+		$out = array( 'duplicated' => array(), 'failed' => array(), 'over_limit' => max( 0, count( $ids ) - self::BULK_LIMIT ) );
+		foreach ( array_slice( $ids, 0, self::BULK_LIMIT ) as $id ) {
+			$result = Duplicator::duplicate_event( $id, true );
+			if ( is_wp_error( $result ) ) { $out['failed'][ $id ] = $result->get_error_message(); } else { $out['duplicated'][ $id ] = (int) $result['event_id']; }
+		}
+		return $out;
+	}
+
+	/** Notices of a bulk duplication: [type, message]. */
+	public static function bulk_messages( array $result ) {
+		$messages = array();
+		$done = count( $result['duplicated'] ?? array() );
+		/* translators: %d: number of events */
+		if ( $done ) { $messages[] = array( 'success', sprintf( _n( '%d Event als Entwurf dupliziert.', '%d Events als Entwurf dupliziert.', $done, 'pass-captain' ), $done ) ); }
+		foreach ( (array) ( $result['failed'] ?? array() ) as $id => $error ) {
+			/* translators: 1: event id, 2: error message */
+			$messages[] = array( 'error', sprintf( __( 'Event #%1$d: %2$s', 'pass-captain' ), (int) $id, (string) $error ) );
+		}
+		$over = (int) ( $result['over_limit'] ?? 0 );
+		/* translators: 1: maximum number of events, 2: number of events left out */
+		if ( $over ) { $messages[] = array( 'warning', sprintf( __( 'Höchstens %1$d Events je Sammelaktion; %2$d weitere wurden nicht dupliziert.', 'pass-captain' ), self::BULK_LIMIT, $over ) ); }
+		if ( ! $messages ) { $messages[] = array( 'warning', __( 'Kein Event ausgewählt.', 'pass-captain' ) ); }
+		return $messages;
+	}
+
 	private static function render_list() {
-		$scope = Queries::event_ids_for( self::CAP );
+		$state = self::list_state();
 		$page = Forms::current_page();
-		$data = Queries::events_overview( $scope, $page, 50 );
-		$figures = Queries::event_figures( array_map( static function ( $row ) { return (int) $row->event_id; }, $data['rows'] ) );
 		?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
 		<?php if ( 1 === $page ) { Dashboard::render_summary(); } ?>
 		<?php GettingStarted::render(); ?>
-		<table class="widefat striped wpcap-events-list">
-			<caption class="screen-reader-text"><?php esc_html_e( 'Events mit nächstem Termin, Auslastung und Umsatz', 'pass-captain' ); ?></caption>
-			<thead><tr>
-				<th scope="col"><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Nächster Termin', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Termine', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Verkauft / Kapazität', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Umsatz', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
-			</tr></thead>
-			<tbody>
-			<?php if ( ! $data['rows'] ) : ?>
-				<tr><td colspan="8"><?php esc_html_e( 'Noch keine Events angelegt.', 'pass-captain' ); ?></td></tr>
-			<?php endif; ?>
-			<?php foreach ( $data['rows'] as $event ) :
-				$next = $event->next_occurrence;
-				$shown = $next ? $next : $event->last_occurrence;
-				$fig = $figures[ (int) $event->event_id ] ?? array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() );
-				?>
-				<tr>
-					<th scope="row"><strong><a href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php echo esc_html( $event->name ); ?></a></strong></th>
-					<td>
-						<?php
-						if ( $next ) {
-							echo esc_html( Forms::datetime( $next->starts_at, $next->timezone ) );
-						} elseif ( $shown ) {
-							/* translators: %s: date */
-							echo esc_html( sprintf( __( 'Kein kommender Termin (zuletzt %s)', 'pass-captain' ), Forms::datetime( $shown->starts_at, $shown->timezone ) ) );
-						} else {
-							echo '—';
-						}
-						?>
-					</td>
-					<td><?php echo esc_html( $shown ? $shown->location : '' ); ?></td>
-					<td><?php echo esc_html( (string) (int) $event->occurrence_count ); ?></td>
-					<td><?php echo esc_html( self::figures_sold_label( $fig ) ); ?></td>
-					<td><?php echo esc_html( self::figures_revenue_label( $fig ) ); ?></td>
-					<td><?php echo esc_html( Forms::status_label( $event->status, 'event' ) ); ?></td>
-					<td>
-						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a>
-						<?php if ( 'published' === $event->status ) : ?>
-							<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ); ?>"><?php esc_html_e( 'Event absagen …', 'pass-captain' ); ?></a>
-						<?php endif; ?>
-					</td>
-				</tr>
-			<?php endforeach; ?>
-			</tbody>
-		</table>
-		<?php Forms::pagination( $data['total'], $page, 50, self::url() ); ?>
+		<?php
+		if ( ListTables::available() ) {
+			$table = new EventsListTable();
+			$table->prepare_items();
+			$table->views();
+			echo '<form method="post" action="' . esc_url( self::url( self::list_args( $state ) ) ) . '">';
+			$table->display();
+			echo '</form>';
+		} else {
+			// Without WP_List_Table (not loadable): plain table with the same cells.
+			self::render_plain_list( $state, $page );
+		}
+		?>
 
 		<h2 id="wpcap-create-event"><?php esc_html_e( 'Event anlegen', 'pass-captain' ); ?></h2>
 		<p><?php esc_html_e( 'Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben.', 'pass-captain' ); ?></p>
@@ -1495,7 +1719,7 @@ final class EventsPage {
 			<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $v( 'location', '' ) ); ?>"></td></tr>
 			<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Kontingent pro Termin', 'pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'event_capacity', '0' ) ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="<?php echo esc_attr( $v( 'ticket_name', 'Standard' ) ); ?>" required maxlength="190"<?php echo $bad( 'ticket_name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
-			<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'price', '0,00' ) ); ?>" required size="10"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $v( 'currency', 'EUR' ), '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?></td></tr>
+			<tr><th><label for="wpcap-price"><?php echo esc_html( self::price_label() ); ?></label></th><td><input id="wpcap-price" name="price" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'price', '0,00' ) ); ?>" required size="10"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $v( 'currency', Localization::default_currency() ), '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?></td></tr>
 			<tr><th><label for="wpcap-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tax" name="tax_rate" type="text" inputmode="decimal" value="<?php echo esc_attr( $v( 'tax_rate', '0' ) ); ?>" size="6"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-type-capacity"><?php esc_html_e( 'Ticketkontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-type-capacity" name="ticket_capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'ticket_capacity', '0' ) ); ?>"></td></tr>
 			<tr><th><label for="wpcap-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $v( 'status', 'draft' ), 'wpcap-status' ); ?></td></tr>
@@ -1504,6 +1728,37 @@ final class EventsPage {
 		</form>
 		<?php
 		OrganizerTools::render_import();
+	}
+
+	/** Event list without WP_List_Table: the former plain table with the same cells and views. */
+	private static function render_plain_list( array $state, $page ) {
+		$data = self::list_data( $state, $page, self::PER_PAGE_DEFAULT );
+		ListTables::render_views( self::list_views( $state ) );
+		?>
+		<table class="widefat striped wpcap-events-list">
+			<caption class="screen-reader-text"><?php echo esc_html( self::list_caption() ); ?></caption>
+			<thead><tr>
+				<?php foreach ( self::list_columns() as $label ) : ?><th scope="col"><?php echo esc_html( $label ); ?></th><?php endforeach; ?>
+			</tr></thead>
+			<tbody>
+			<?php if ( ! $data['rows'] ) : ?>
+				<tr><td colspan="<?php echo count( self::list_columns() ); ?>"><?php echo self::empty_state( $state ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in empty_state(). ?></td></tr>
+			<?php endif; ?>
+			<?php
+			foreach ( $data['rows'] as $event ) {
+				$fig = $data['figures'][ (int) $event->event_id ] ?? array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() );
+				echo '<tr>';
+				foreach ( array_keys( self::list_columns() ) as $column ) {
+					$cell = self::list_cell( $column, $event, $fig );
+					echo 'event' === $column ? '<th scope="row">' . $cell . '</th>' : '<td>' . $cell . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in list_cell().
+				}
+				echo '</tr>';
+			}
+			?>
+			</tbody>
+		</table>
+		<?php
+		Forms::pagination( $data['total'], $page, self::PER_PAGE_DEFAULT, self::url( self::list_args( $state ) ) );
 	}
 
 	/** "Verkauft / Kapazität" cell of the event list: "12 / 100 (12 %)", "12 / ∞". */
@@ -1755,7 +2010,14 @@ final class EventsPage {
 		<?php Forms::render_notices(); ?>
 		<?php if ( $editable ) { self::occurrence_form( $occ, (int) $occ->event_id, $occ->timezone ); } ?>
 
-		<h2><?php esc_html_e( 'Ticketarten', 'pass-captain' ); ?></h2>
+		<?php
+		// Sales\Addons: add-on products (parking, merchandise …) in their own table under the tickets.
+		list( $wpcap_tickets, $wpcap_addons ) = \PassCaptain\Sales\Addons::split( $types );
+		$wpcap_groups = array( array( __( 'Ticketarten', 'pass-captain' ), $wpcap_tickets, __( 'Noch keine Ticketarten.', 'pass-captain' ) ) );
+		if ( $wpcap_addons ) { $wpcap_groups[] = array( __( 'Zusatzprodukte', 'pass-captain' ), $wpcap_addons, '' ); }
+		foreach ( $wpcap_groups as list( $wpcap_title, $wpcap_rows, $wpcap_empty ) ) :
+		?>
+		<h2><?php echo esc_html( $wpcap_title ); ?></h2>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Name', 'pass-captain' ); ?></th>
@@ -1767,8 +2029,8 @@ final class EventsPage {
 				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
-			<?php if ( ! $types ) : ?><tr><td colspan="7"><?php esc_html_e( 'Noch keine Ticketarten.', 'pass-captain' ); ?></td></tr><?php endif; ?>
-			<?php foreach ( $types as $type ) : ?>
+			<?php if ( ! $wpcap_rows ) : ?><tr><td colspan="7"><?php echo esc_html( $wpcap_empty ); ?></td></tr><?php endif; ?>
+			<?php foreach ( $wpcap_rows as $type ) : ?>
 				<tr>
 					<td><a href="<?php echo esc_url( self::url( array( 'view' => 'ticket_type', 'ticket_type_id' => $type->ticket_type_id ) ) ); ?>"><?php echo esc_html( $type->name ); ?></a></td>
 					<td><?php echo esc_html( Forms::money( $type->price_minor, $type->currency ) ); ?></td>
@@ -1781,6 +2043,7 @@ final class EventsPage {
 			<?php endforeach; ?>
 			</tbody>
 		</table>
+		<?php endforeach; ?>
 		<?php if ( $editable ) : ?>
 			<h3><?php esc_html_e( 'Ticketart hinzufügen', 'pass-captain' ); ?></h3>
 			<?php self::ticket_type_form( null, $occ ); ?>
@@ -1804,7 +2067,7 @@ final class EventsPage {
 		$old = Forms::old( 'wpcap_save_ticket_type', array( 'occurrence_id' => (int) $occ->occurrence_id, 'ticket_type_id' => $type ? (int) $type->ticket_type_id : 0 ) );
 		$v = static function ( $key, $default ) use ( $old ) { return Forms::old_value( $old, $key, $default ); };
 		$bad = static function ( $key ) use ( $old ) { return Forms::invalid_attr( $old, $key ); };
-		$currency = $v( 'currency', $type ? $type->currency : 'EUR' );
+		$currency = $v( 'currency', $type ? $type->currency : \PassCaptain\Localization::default_currency() );
 		Forms::open_form( 'wpcap_save_ticket_type' );
 		Forms::hidden( 'occurrence_id', $occ->occurrence_id );
 		Forms::hidden( 'ticket_type_id', $type ? $type->ticket_type_id : 0 );
@@ -1816,7 +2079,12 @@ final class EventsPage {
 		?>
 		<table class="form-table"><tbody>
 			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $v( 'name', $type ? $type->name : '' ) ); ?>"<?php echo $bad( 'name' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></td></tr>
-			<tr><th><label for="wpcap-tt-price"><?php esc_html_e( 'Preis (brutto)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( $v( 'price', Forms::money_input( $type ? $type->price_minor : 0, Forms::currency_decimals( $currency ) ) ) ); ?>"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $currency, '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
+			<?php if ( \PassCaptain\Sales\Addons::ready() ) : $wpcap_kind = (string) $v( 'kind', \PassCaptain\Sales\Addons::kind( $type ) ); ?>
+			<tr><th><label for="wpcap-tt-kind"><?php esc_html_e( 'Art', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'kind', array( 'ticket' => __( 'Ticket (Einlass)', 'pass-captain' ), 'addon' => __( 'Zusatzprodukt (z. B. Parken, Merch)', 'pass-captain' ) ), $wpcap_kind, 'wpcap-tt-kind', 'aria-describedby="wpcap-tt-kind-help"' . $bad( 'kind' ) ); ?>
+				<label><?php esc_html_e( 'Höchstens je Ticket', 'pass-captain' ); ?> <input name="addon_max_per_ticket" type="number" min="0" max="100" class="small-text" value="<?php echo esc_attr( (string) $v( 'addon_max_per_ticket', (string) \PassCaptain\Sales\Addons::max_per_ticket( $type ) ) ); ?>"<?php echo $bad( 'addon_max_per_ticket' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>></label>
+				<p class="description" id="wpcap-tt-kind-help"><?php esc_html_e( 'Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem Ticket desselben Termins in derselben Bestellung. Es erzeugt kein Ticket und keinen QR-Code, belegt keine Plätze des Termins und steht als eigene Position mit eigenem Steuersatz in Bestellübersicht und Rechnung. „Höchstens je Ticket“ gilt nur für Zusatzprodukte (0 = ohne Grenze). Nach den ersten Bestellungen lässt sich die Art nicht mehr ändern.', 'pass-captain' ); ?></p></td></tr>
+			<?php endif; ?>
+			<tr><th><label for="wpcap-tt-price"><?php echo esc_html( self::price_label() ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( $v( 'price', Forms::money_input( $type ? self::gross_to_entry( (int) $type->price_minor, self::net_rate_bp( (int) $type->tax_rate_bp, $occ, (string) ( $type->tax_class ?? '' ) ) ) : 0, Forms::currency_decimals( $currency ) ) ) ); ?>"<?php echo $bad( 'price' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <?php Forms::select( 'currency', array_combine( array_unique( array_merge( Localization::currencies(), array( $currency ) ) ), array_unique( array_merge( Localization::currencies(), array( $currency ) ) ) ), $currency, '', 'aria-label="' . esc_attr__( 'Währung', 'pass-captain' ) . '"' . $bad( 'currency' ) ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( $v( 'tax_rate', Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ) ); ?>"<?php echo $bad( 'tax_rate' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-taxclass" name="tax_class" type="text" size="16" maxlength="64" pattern="[a-z0-9_-]*" aria-describedby="wpcap-tt-taxclass-help" value="<?php echo esc_attr( $v( 'tax_class', $type ? (string) ( $type->tax_class ?? '' ) : '' ) ); ?>"> <span class="description" id="wpcap-tt-taxclass-help"><?php esc_html_e( 'z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent dieser Ticketart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $v( 'capacity', (string) ( $type ? (int) $type->capacity : 0 ) ) ); ?>"<?php echo $bad( 'capacity' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fixed attribute string. ?>> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
@@ -1831,6 +2099,8 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-attname"><?php esc_html_e( 'Name je Ticket', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'attendee_name', array( 'optional' => __( 'Optional abfragen', 'pass-captain' ), 'required' => __( 'Pflichtangabe (personalisiertes Ticket)', 'pass-captain' ), 'off' => __( 'Nicht abfragen', 'pass-captain' ) ), $type ? \PassCaptain\Orders::attendee_name_mode( $type->attendee_name ?? '' ) : 'optional', 'wpcap-tt-attname' ); ?></td></tr>
 			<?php
 			$checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 );
+			// SET-PC-18: a new ticket type starts with the minimum age of the settings (0 = none).
+			if ( ! $type ) { $checks['min_age'] = max( 0, min( \PassCaptain\AdmissionChecks::MAX_AGE, (int) \PassCaptain\Settings::get( 'default_min_age', 0 ) ) ); }
 			if ( $old ) {
 				$checks = array( 'id_check' => Forms::old_flag( $old, 'id_check', false ), 'min_age' => (int) $v( 'min_age', '0' ), 'staff_note' => $v( 'staff_note', '' ) ) + $checks;
 			}

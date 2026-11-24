@@ -16,6 +16,8 @@ use PassCaptain\OfflineScanner\Rest;
 use PassCaptain\OfflineScanner\Rules;
 use PassCaptain\Orders;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'wpw-test-salt-' . $scheme; } }
 PassCaptain\Modules\OfflineScanner::register();
 global $wpdb;
@@ -40,14 +42,6 @@ function off_sync( $token, array $scans ) {
 	$req->route = '/pass-captain/v1/app/scan/sync';
 	$res = Rest::after_callbacks( Api::sync( $req ), null, $req );
 	return $res->get_data();
-}
-function off_pair( $event_ids, $label ) {
-	$GLOBALS['wpcap_test_user_id'] = 7;
-	$pairing = Devices::create_pairing( $event_ids, $label, 12 );
-	$paired = Devices::pair( $pairing['code'], $label, 'pwa', '1.0' );
-	$GLOBALS['wpcap_test_user_id'] = 7;
-	$paired['row'] = $GLOBALS['wpdb']->get_row( "SELECT * FROM {$GLOBALS['wpdb']->prefix}wpcap_scanner_devices WHERE public_id='" . $paired['device_id'] . "'" );
-	return $paired;
 }
 function off_err( $r ) { return is_wp_error( $r ) ? $r->get_error_code() : ''; }
 function off_payload( $r ) { return is_array( $r ) ? json_decode( $r['payload'], true ) : null; }
@@ -280,8 +274,9 @@ $pwa_keys = array_unique( array_merge( $pwa_keys, $html_keys ) );
 $table_keys = array_keys( PassCaptain\OfflineScanner\I18n::strings() );
 $not_served = array_values( array_diff( $pwa_keys, $table_keys ) );
 // Merged PWA: the 22 codes of the Arbeitsliste line (incl. invalid_code, rate_limited) plus retry and
-// invalid_signature of the audit line (database retry, signed QR) = 24 result texts.
-check( 'app.js looks up its texts with t() and covers all 24 result codes (incl. retry, invalid_signature, rate_limited)', count( $pwa_keys ) > 60 && 24 === count( $result_keys ) && in_array( 'Bitte erneut scannen', $result_keys, true ) && in_array( 'QR-Signatur ungültig', $result_keys, true ) && in_array( 'Zu viele Hilfscode-Eingaben', $result_keys, true ) );
+// invalid_signature of the audit line (database retry, signed QR) = 24 result texts, plus the three
+// check-out results (checked_out, not_checked_in, checkout_forbidden) = 27.
+check( 'app.js looks up its texts with t() and covers all 27 result codes (incl. retry, invalid_signature, rate_limited, check-out)', count( $pwa_keys ) > 60 && 27 === count( $result_keys ) && in_array( 'Nicht eingecheckt', $result_keys, true ) && in_array( 'Bitte erneut scannen', $result_keys, true ) && in_array( 'QR-Signatur ungültig', $result_keys, true ) && in_array( 'Zu viele Hilfscode-Eingaben', $result_keys, true ) );
 check( 'every PWA text (t(), RESULT_TEXT, data-i18n*) is in the served table' . ( $not_served ? ' – missing: ' . implode( ' | ', $not_served ) : '' ), array() === $not_served && count( $html_keys ) >= 20 );
 check( 'app keeps the table in IndexedDB, sets <html lang> and formats dates with Intl in that locale', false !== strpos( $app_js, "kvSet('i18n', table)" ) && false !== strpos( $app_js, "kvGet('i18n')" ) && false !== strpos( $app_js, 'document.documentElement.lang = lang()' ) && false !== strpos( $app_js, 'new Intl.DateTimeFormat(lang()' ) && false === strpos( $app_js, "toLocaleString('de-DE'" ) );
 check( 'app asks for the device languages (navigator.languages → ?locale=)', false !== strpos( $app_js, 'navigator.languages' ) && false !== strpos( $app_js, "endpoint('offline/i18n', prefs ? 'locale=' + encodeURIComponent(prefs) : '')" ) );

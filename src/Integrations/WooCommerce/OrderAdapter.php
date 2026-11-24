@@ -39,6 +39,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrderAdapter {
 	const PRODUCT_META  = '_wpcap_ticket_type_id';
 	const ORDER_META    = '_wpcap_core_order_id';
@@ -887,6 +890,7 @@ final class OrderAdapter {
 			'street'     => implode( ', ', array_filter( array( trim( $get( 'get_billing_address_1' ) ), trim( $get( 'get_billing_address_2' ) ) ), 'strlen' ) ),
 			'postcode'   => $get( 'get_billing_postcode' ),
 			'city'       => $get( 'get_billing_city' ),
+			'region'     => $get( 'get_billing_state' ),
 			'country'    => $get( 'get_billing_country' ),
 			'vat_id'     => $vat_id,
 			'po_number'  => '',
@@ -901,6 +905,8 @@ final class OrderAdapter {
 	/** Hold duration for WooCommerce orders (at least the WooCommerce "hold stock" setting). */
 	private static function hold_minutes() {
 		$minutes = max( Orders::HOLD_MINUTES, absint( get_option( 'woocommerce_hold_stock_minutes', 60 ) ) );
+		$own = absint( \PassCaptain\Settings::get( 'woo_hold_minutes', 0 ) ); // SET-PC-29: 0 = automatic.
+		if ( $own > 0 ) { $minutes = max( $own, $minutes ); } // Only longer: never shorter than WooCommerce's "hold stock" (late payments).
 		return (int) apply_filters( 'wpcap_woocommerce_hold_minutes', $minutes );
 	}
 
@@ -1335,7 +1341,7 @@ final class OrderAdapter {
 		$type    = 'refund' === $kind ? 'woocommerce_refund_sync' : 'woocommerce_paid_sync';
 		$key     = 'refund' === $kind ? 'woocommerce-refund-sync|' . absint( $refund_id ) : 'woocommerce-paid-sync|' . $wc_id;
 		$payload = 'refund' === $kind ? array( 'woo_order' => $wc_id, 'refund_id' => absint( $refund_id ) ) : array( 'woo_order' => $wc_id );
-		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . time(), $type, $payload, gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+		$queued  = \PassCaptain\Jobs::enqueue( $key . '|' . \PassCaptain\Clock::now(), $type, $payload, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 		if ( true !== $queued ) {
 			return false; // Not even the job could be stored: the caller's note asks for a manual retry.
 		}
@@ -1376,7 +1382,8 @@ final class OrderAdapter {
 		 * @param string[]  $gateways Gateway IDs. Default array( 'cod' ).
 		 * @param \WC_Order $wc_order WooCommerce order.
 		 */
-		$gateways = (array) apply_filters( 'wpcap_woocommerce_issue_on_completed_gateways', array( 'cod' ), $wc_order );
+		$configured = array_values( array_filter( array_map( 'sanitize_key', preg_split( '/[\s,;]+/', (string) \PassCaptain\Settings::get( 'woo_issue_on_completed_gateways', 'cod' ) ) ) ) ); // SET-PC-29
+		$gateways = (array) apply_filters( 'wpcap_woocommerce_issue_on_completed_gateways', $configured, $wc_order );
 		if ( ! in_array( $method, $gateways, true ) ) {
 			return false;
 		}
@@ -1656,7 +1663,7 @@ final class OrderAdapter {
 			self::refund_job_key( $refund_id ),
 			self::REFUND_SYNC_JOB,
 			array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id ),
-			gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
+			gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 2 * MINUTE_IN_SECONDS )
 		);
 		\PassCaptain\Log::error( 'woocommerce_refund_sync_failed', 'WooCommerce refund could not be synchronised with the tickets.', array( 'object_type' => 'order', 'object_id' => (int) ( $core_ids[0] ?? 0 ), 'details' => array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => \PassCaptain\Text::cut( $message, 190 ) ) ) );
 		$note = $retryable
@@ -2244,7 +2251,22 @@ final class OrderAdapter {
 		}
 		echo '<p>' . esc_html__( 'Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet.', 'pass-captain' ) . '</p>';
 		self::render_ticket_table( $tickets );
+		if ( self::is_account_order_view() ) {
+			// PASS-FE-04: from the customer account to the self-service order portal (link by mail, A631 pending link).
+			$core = Orders::get( (int) reset( $core_ids ) );
+			echo \PassCaptain\OrderLinkRequest::account_form_html( $core ? (string) $core->customer_email : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in account_form_html().
+		}
 		echo '</section>';
+	}
+
+	/**
+	 * PASS-FE-04: whether the order details are shown in the customer account ("Mein Konto" > order view) of a
+	 * logged-in customer – not on the thank-you page, where the ticket mail has just been sent. Filter
+	 * wpcap_woo_account_order_view.
+	 */
+	public static function is_account_order_view() {
+		$view = function_exists( 'is_user_logged_in' ) && is_user_logged_in() && function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'view-order' );
+		return (bool) apply_filters( 'wpcap_woo_account_order_view', $view );
 	}
 
 	/** Adds the Pass Captain meta box to the order edit screen (HPOS and legacy). */

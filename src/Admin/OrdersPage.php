@@ -16,6 +16,9 @@ use PassCaptain\Security\DataPolicy;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class OrdersPage {
 	const SLUG = 'wpcap-orders';
 	const CAP = 'wpcap_manage_orders';
@@ -245,7 +248,7 @@ final class OrdersPage {
 			);
 		}
 		$content = \PassCaptain\Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $entries ) {
-			return \PassCaptain\TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
+			return \PassCaptain\TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => \PassCaptain\TicketPdf::default_footer() ) );
 		} );
 		\PassCaptain\Audit::record( 'admin_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'missing' => $missing, 'scope' => '' === $only ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', \PassCaptain\Frontend\Format::order_reference( $order->public_id ) );
@@ -303,6 +306,9 @@ final class OrdersPage {
 			if ( null === $minor ) { return Forms::error( 'wpcap_refund_amount', __( 'Abzug oder Höchstbetrag ist ungültig. Beispiel: 5,00', 'pass-captain' ) ); }
 			if ( $minor > 0 ) { $out[ $key ] = $minor; }
 		}
+		// A425: service fee of the refunded tickets – automatic (cancellation: refund; else the setting), or fixed.
+		$fee_rule = is_scalar( $in['service_fee'] ?? null ) ? sanitize_key( (string) $in['service_fee'] ) : '';
+		if ( in_array( $fee_rule, array( 'refund', 'retain' ), true ) ) { $out['service_fee'] = $fee_rule; }
 		return $out;
 	}
 
@@ -579,6 +585,86 @@ final class OrdersPage {
 		Forms::finish( $sent ? true : new \WP_Error( 'wpcap_order_link_failed', __( 'Der Bestelllink konnte nicht gesendet werden.', 'pass-captain' ) ), __( 'Neuer Bestelllink gesendet. Der bisherige Link gilt, bis der neue zum ersten Mal geöffnet wird.', 'pass-captain' ), self::order_url( (int) $order->order_id ) );
 	}
 
+	/**
+	 * "Käufer-E-Mail ändern": sets a new buyer address (e.g. a typo at checkout). Every existing order link
+	 * (current and pending) becomes invalid at once; tickets the buyer still holds under the old address
+	 * follow the new one. Optionally the new order link goes to the new address. Recorded in the audit log
+	 * with masked addresses and the reason. Not for WooCommerce orders (the address belongs to WooCommerce)
+	 * or anonymised orders.
+	 *
+	 * @return array|\WP_Error old, new (addresses), sent (bool).
+	 */
+	public static function change_buyer_email( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( ! empty( DataPolicy::masks_pii_many( array( (int) $order->order_id ) )[ (int) $order->order_id ] ) ) {
+			return Forms::forbidden( __( 'Die Käuferdaten dieser Bestellung sind für dich maskiert; die E-Mail-Adresse kann nur ändern, wer sie sehen darf.', 'pass-captain' ) );
+		}
+		if ( 'woocommerce' === (string) $order->payment_provider ) {
+			return Forms::error( 'wpcap_order_email_woocommerce', __( 'Diese Bestellung wurde über WooCommerce abgewickelt. Die Käufer-E-Mail bitte in WooCommerce ändern.', 'pass-captain' ), 409 );
+		}
+		$old = (string) $order->customer_email;
+		if ( ! is_email( $old ) || \PassCaptain\Mail\Mailer::is_placeholder( $old ) ) {
+			return Forms::error( 'wpcap_order_email_anonymised', __( 'Diese Bestellung hat keine Käufer-E-Mail mehr (anonymisiert oder ohne Adresse verkauft).', 'pass-captain' ), 409 );
+		}
+		$new = strtolower( trim( sanitize_email( Forms::text( $in, 'new_email', 254 ) ) ) );
+		if ( '' === $new || ! is_email( $new ) || \PassCaptain\Http::email_too_long( $new ) || \PassCaptain\Mail\Mailer::is_placeholder( $new ) ) {
+			return Forms::error( 'wpcap_order_email_invalid', __( 'Bitte gib eine gültige neue E-Mail-Adresse ein.', 'pass-captain' ), 400, 'new_email' );
+		}
+		if ( 0 === strcasecmp( $new, $old ) ) {
+			return Forms::error( 'wpcap_order_email_unchanged', __( 'Die neue E-Mail-Adresse ist dieselbe wie die bisherige.', 'pass-captain' ), 400, 'new_email' );
+		}
+		$reason = Forms::text( $in, 'reason', 190 );
+		if ( mb_strlen( $reason ) < 3 ) {
+			return Forms::error( 'wpcap_order_email_reason', __( 'Bitte gib einen Grund an (wird protokolliert).', 'pass-captain' ), 400, 'reason' );
+		}
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = (int) $order->order_id;
+		if ( ! $wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $new ), array( 'order_id' => $order_id, 'customer_email' => $old ), array( '%s' ), array( '%d', '%s' ) ) ) {
+			// false: database error; 0: the address was changed in the meantime.
+			return Forms::error( 'wpcap_order_email_failed', __( 'Die E-Mail-Adresse konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
+		}
+		// Tickets the buyer holds under the old address (not passed on) follow the new address.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET attendee_email=%s WHERE order_id=%d AND transfer_count=0 AND attendee_email=%s", $new, $order_id, $old ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_assignments a INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id SET a.attendee_email=IF(a.attendee_email=%s,%s,a.attendee_email),a.buyer_email=IF(a.buyer_email=%s,%s,a.buyer_email) WHERE t.order_id=%d AND t.transfer_count=0", $old, $new, $old, $new, $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names from $wpdb->prefix.
+		// Every link sent so far ends now (the current and a pending one); the new link is only mailed on request.
+		$token = Orders::issue_access_token( $order_id, false );
+		$sent = Forms::flag( $in, 'send_link' ) && '' !== $token && Orders::send_order_access_link( $new, (string) $order->public_id, $token );
+		Audit::record( 'order_email_changed', 'order', $order_id, array(
+			'old' => \PassCaptain\Frontend\Format::mask_email( $old ),
+			'new' => \PassCaptain\Frontend\Format::mask_email( $new ),
+			'reason' => $reason,
+			'link_sent' => $sent,
+		) );
+		/**
+		 * The buyer address of an order was changed in the admin (old order links are invalid).
+		 *
+		 * @param int    $order_id Order.
+		 * @param string $old      Previous address.
+		 * @param string $new      New address.
+		 */
+		do_action( 'wpcap_order_email_changed', $order_id, $old, $new );
+		return array( 'order_id' => $order_id, 'old' => $old, 'new' => $new, 'sent' => $sent );
+	}
+
+	public static function handle_change_buyer_email() {
+		Forms::require_any_cap( array( self::CAP ) );
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_change_buyer_email_' . $order_id );
+		$result = self::change_buyer_email( $in );
+		Forms::finish(
+			$result,
+			is_wp_error( $result ) ? '' : ( $result['sent']
+				/* translators: %s: new e-mail address */
+				? sprintf( __( 'Käufer-E-Mail geändert. Der neue Bestelllink wurde an %s gesendet; alle bisherigen Bestelllinks sind ungültig.', 'pass-captain' ), $result['new'] )
+				/* translators: %s: new e-mail address */
+				: sprintf( __( 'Käufer-E-Mail auf %s geändert; alle bisherigen Bestelllinks sind ungültig. Mit „Bestelllink erneut senden“ erhält die neue Adresse einen Link.', 'pass-captain' ), $result['new'] ) ),
+			self::order_url( $order_id )
+		);
+	}
+
 	public static function handle_ticket_pdf() {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
@@ -594,7 +680,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_refund_order_' . $order_id );
 		if ( Forms::flag( $in, 'preview' ) ) {
 			// "Betrag berechnen": back to the order with the selection; the page shows the preview.
-			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ) );
+			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ), 'service_fee' => Forms::text( $in, 'service_fee', 10 ) );
 			Forms::redirect( add_query_arg( array_filter( $args, static function ( $value ) { return '' !== (string) $value; } ), self::order_url( $order_id ) ) );
 		}
 		$result = self::refund( $in );
@@ -687,7 +773,7 @@ final class OrdersPage {
 		$filters = self::list_filters();
 		$rows = self::csv_rows( $filters );
 		Audit::record( 'orders_exported', 'order', 0, array( 'rows' => count( $rows ) - 1, 'filters' => array_filter( $filters ) ) );
-		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d' ) . '.csv' );
+		\PassCaptain\Reports\Scope::send_csv( $rows, 'bestellungen-' . gmdate( 'Y-m-d', \PassCaptain\Clock::now() ) . '.csv' );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -1026,6 +1112,15 @@ final class OrdersPage {
 					<label><?php esc_html_e( 'Grund / Supportfall', 'pass-captain' ); ?> <input type="text" name="reason" required minlength="5" maxlength="190"></label>
 					<button class="button button-small" type="submit"><?php esc_html_e( 'Daten für diesen Fall anzeigen (wird protokolliert)', 'pass-captain' ); ?></button>
 					</form>
+				<?php elseif ( ! $is_woo && is_email( (string) $order->customer_email ) && ! \PassCaptain\Mail\Mailer::is_placeholder( (string) $order->customer_email ) ) : ?>
+					<details class="wpcap-change-email"><summary><?php esc_html_e( 'Käufer-E-Mail ändern', 'pass-captain' ); ?></summary>
+					<?php Forms::open_form( 'wpcap_change_buyer_email', 'wpcap_change_buyer_email_' . (int) $order_id, 'style="margin-top:.5em"' ); Forms::hidden( 'order_id', (int) $order_id ); ?>
+					<p><label><?php esc_html_e( 'Neue E-Mail-Adresse', 'pass-captain' ); ?><br><input type="email" name="new_email" required maxlength="190" class="regular-text" autocomplete="off"></label></p>
+					<p><label><?php esc_html_e( 'Grund (wird protokolliert)', 'pass-captain' ); ?><br><input type="text" name="reason" required minlength="3" maxlength="190" class="regular-text"></label></p>
+					<p><label><input type="checkbox" name="send_link" value="1" checked> <?php esc_html_e( 'Neuen Bestelllink an die neue Adresse senden', 'pass-captain' ); ?></label></p>
+					<p class="description"><?php esc_html_e( 'Alle bisher gesendeten Bestelllinks werden sofort ungültig. Tickets, die die Käufer:in unter der bisherigen Adresse hält, gehen auf die neue Adresse über; Ticketcodes bleiben unverändert.', 'pass-captain' ); ?></p>
+					<button class="button" type="submit"><?php esc_html_e( 'E-Mail-Adresse ändern', 'pass-captain' ); ?></button>
+					</form></details>
 				<?php endif; ?>
 			</td></tr>
 			<?php $billing = $masked ? array() : \PassCaptain\Billing::for_order( $order ); ?>
@@ -1154,6 +1249,7 @@ final class OrdersPage {
 				'ticket_ids' => array_filter( array_map( 'absint', explode( ',', (string) Forms::query_arg( 'tickets' ) ) ) ),
 				'deduct' => (string) Forms::query_arg( 'deduct' ),
 				'max_amount' => (string) Forms::query_arg( 'max_amount' ),
+				'service_fee' => (string) Forms::query_arg( 'service_fee' ),
 			);
 			$calc_preview = self::refund_preview( $preview_in );
 		}
@@ -1207,6 +1303,14 @@ final class OrdersPage {
 				<span class="description" id="wpcap-refund-all-help"><?php esc_html_e( 'Ersetzt die Einzelauswahl in der Tabelle; diese ist dann gesperrt.', 'pass-captain' ); ?></span><br>
 				<label><?php esc_html_e( 'Abzug (optional, z. B. Bearbeitungsgebühr)', 'pass-captain' ); ?> <input type="text" name="deduct" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['deduct'] ?? '' ) ); ?>"></label>
 				<label><?php esc_html_e( 'Höchstbetrag (optional, Kulanz)', 'pass-captain' ); ?> <input type="text" name="max_amount" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['max_amount'] ?? '' ) ); ?>"></label><br>
+				<?php if ( \PassCaptain\ServiceFee::of_order( $order ) ) : // A425: service fee of the refunded tickets. ?>
+					<?php $wpcap_fee_rule = sanitize_key( (string) ( $preview_in['service_fee'] ?? '' ) ); ?>
+					<label><?php esc_html_e( 'Servicegebühr', 'pass-captain' ); ?> <select name="service_fee">
+						<option value=""<?php selected( '', $wpcap_fee_rule ); ?>><?php echo esc_html( 'refund' === \PassCaptain\ServiceFee::buyer_refund_rule() ? __( 'automatisch (mit erstatten)', 'pass-captain' ) : __( 'automatisch (bei Absage erstatten, sonst einbehalten)', 'pass-captain' ) ); ?></option>
+						<option value="refund"<?php selected( 'refund', $wpcap_fee_rule ); ?>><?php esc_html_e( 'mit erstatten', 'pass-captain' ); ?></option>
+						<option value="retain"<?php selected( 'retain', $wpcap_fee_rule ); ?>><?php esc_html_e( 'einbehalten', 'pass-captain' ); ?></option>
+					</select></label><br>
+				<?php endif; ?>
 				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
 			<?php if ( is_array( $calc_preview ) ) : ?>
@@ -1244,7 +1348,9 @@ final class OrdersPage {
 		$can_mark_paid = 'manual' === $order->payment_provider && in_array( $order->payment_status, array( 'pending', 'expired' ), true ) && ! in_array( $order->status, array( 'cancelled', 'refunded' ), true );
 		$can_cancel = 'pending' === $order->payment_status && 'pending_payment' === $order->status;
 		$can_resend = 'paid' === $order->payment_status;
-		if ( ! $can_mark_paid && ! $can_cancel && ! $can_resend ) { return; }
+		// The order link also helps with open bank transfers (payment details) and refunded orders (status, credit note).
+		$can_link = in_array( (string) $order->payment_status, \PassCaptain\OrderLinkRequest::PAYMENT_STATES, true ) && is_email( (string) $order->customer_email ) && ! \PassCaptain\Mail\Mailer::is_placeholder( (string) $order->customer_email );
+		if ( ! $can_mark_paid && ! $can_cancel && ! $can_resend && ! $can_link ) { return; }
 		echo '<h2>' . esc_html__( 'Aktionen', 'pass-captain' ) . '</h2><p>';
 		if ( $can_mark_paid ) {
 			Forms::open_form( 'wpcap_confirm_payment', 'wpcap_confirm_payment_' . $order->order_id, 'style="display:inline"' );
@@ -1271,7 +1377,7 @@ final class OrdersPage {
 		}
 		echo '</p>';
 		if ( $can_resend ) { self::render_resend_form( $order ); }
-		if ( $can_resend ) {
+		if ( $can_link ) {
 			Forms::open_form( 'wpcap_send_order_link', 'wpcap_send_order_link_' . $order->order_id, 'class="wpcap-order-link-form"' );
 			Forms::hidden( 'order_id', $order->order_id );
 			echo '<p><button class="button" type="submit">' . esc_html__( 'Bestelllink erneut senden', 'pass-captain' ) . '</button> <span class="description">' . esc_html__( 'Für Rechnung und Tickets: „Tickets erneut senden“ (die Rechnung hängt an der Ticket-Mail).', 'pass-captain' ) . '</span></p></form>';

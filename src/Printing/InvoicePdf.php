@@ -13,6 +13,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class InvoicePdf {
 	/** Same rule as Invoices::can_view_order_finance(): finance roles globally, order managers per event. */
 	public static function can_view_order_finance( $order_id ) {

@@ -27,6 +27,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Memberships {
 	const SCOPES = array( 'event', 'service', 'any' );
 	const SLOT_MODES = array( 'slot_free', 'slot_bound' );
@@ -204,7 +207,7 @@ final class Memberships {
 		if ( ! $direct && ! $ready ) { return self::error( 'wpcap_pass_forbidden', __( 'Mitgliedspässe können erst nach dem Datenbank-Update beantragt werden.', 'pass-captain' ), 503 ); }
 		$token = bin2hex( random_bytes( 32 ) );
 		$passes = $wpdb->prefix . 'wpcap_member_passes';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$row = array( 'public_id' => bin2hex( random_bytes( 16 ) ), 'member_email' => $email, 'token_hash' => hash( 'sha256', $direct ? $token : 'pending|' . bin2hex( random_bytes( 32 ) ) ), 'valid_from' => sanitize_text_field( $valid_from ), 'valid_until' => sanitize_text_field( $valid_until ), 'status' => $direct ? 'active' : 'pending', 'created_at' => $now );
 		if ( $ready ) {
 			$row['requested_by'] = get_current_user_id();
@@ -243,7 +246,7 @@ final class Memberships {
 		if ( ! self::can_decide( $pass ) ) { return self::error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), 403 ); }
 		if ( 'pending' !== $pass->status ) { return self::error( 'wpcap_pass_state', __( 'Nur beantragte Pässe können freigegeben werden.', 'pass-captain' ), 409 ); }
 		$token = bin2hex( random_bytes( 32 ) );
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_member_passes SET status='active',token_hash=%s,approved_by=%d,approved_at=%s WHERE pass_id=%d AND status='pending'", hash( 'sha256', $token ), get_current_user_id(), current_time( 'mysql', true ), (int) $pass->pass_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_member_passes SET status='active',token_hash=%s,approved_by=%d,approved_at=%s WHERE pass_id=%d AND status='pending'", hash( 'sha256', $token ), get_current_user_id(), Clock::mysql(), (int) $pass->pass_id ) );
 		if ( 1 !== (int) $updated ) { return self::error( 'wpcap_pass_state', __( 'Nur beantragte Pässe können freigegeben werden.', 'pass-captain' ), 409 ); }
 		Mail\Mailer::send( 'member_pass', $pass->member_email, array( 'pass_code' => $token, 'valid_from' => (string) $pass->valid_from, 'valid_until' => (string) $pass->valid_until ) );
 		Audit::record( 'member_pass_approved', 'member_pass', (int) $pass->pass_id, array( 'requested_by' => (int) $pass->requested_by ) );
@@ -256,7 +259,7 @@ final class Memberships {
 		$pass = self::get( $pass_id );
 		if ( ! $pass ) { return self::error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! current_user_can( self::APPROVE_CAP ) || ! self::in_scope( self::event_ids( $pass->pass_id ), self::APPROVE_CAP ) ) { return self::error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'pass-captain' ), 403 ); }
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_member_passes SET status='rejected',approved_by=%d,approved_at=%s WHERE pass_id=%d AND status='pending'", get_current_user_id(), current_time( 'mysql', true ), (int) $pass->pass_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_member_passes SET status='rejected',approved_by=%d,approved_at=%s WHERE pass_id=%d AND status='pending'", get_current_user_id(), Clock::mysql(), (int) $pass->pass_id ) );
 		if ( 1 !== (int) $updated ) { return self::error( 'wpcap_pass_state', __( 'Nur beantragte Pässe können abgelehnt werden.', 'pass-captain' ), 409 ); }
 		Audit::record( 'member_pass_rejected', 'member_pass', (int) $pass->pass_id );
 		return true;
@@ -320,7 +323,7 @@ final class Memberships {
 		$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s FOR UPDATE', $wpdb->prefix . 'wpcap_member_passes', hash( 'sha256', $token ) ) );
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT pass_use_id,pass_id FROM %i WHERE idempotency_key=%s', $uses, $key ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id ); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( ! $pass || 'active' !== $pass->status || $pass->valid_from > $now || $pass->valid_until < $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_inactive', __( 'Pass ist ungültig oder außerhalb der Laufzeit.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		// Only event rules ("event" or "any" scope) that have not expired admit to an event.
 		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.* FROM %i r WHERE r.pass_id=%d AND r.scope IN ('event','any') AND (r.expires_at IS NULL OR r.expires_at>%s) AND (r.ticket_type_id=%d OR r.ticket_type_id=0) AND (r.event_id=%d OR r.event_id=0) ORDER BY r.ticket_type_id DESC,r.event_id DESC LIMIT 1 FOR UPDATE", $wpdb->prefix . 'wpcap_pass_rules', $pass->pass_id, $now, $ticket_type_id, (int) $type->event_id ) );
@@ -408,7 +411,7 @@ final class Memberships {
 		if ( $existing ) { return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id, 'rule_id' => (int) $existing->rule_id, 'booking_id' => (int) $existing->booking_id ); }
 		$wpdb->query( 'START TRANSACTION' );
 		$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE token_hash=%s FOR UPDATE', $wpdb->prefix . 'wpcap_member_passes', hash( 'sha256', $token ) ) );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( ! $pass || 'active' !== $pass->status || $pass->valid_from > $now || $pass->valid_until < $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_inactive', __( 'Pass ist ungültig oder außerhalb der Laufzeit.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT pass_use_id,pass_id,rule_id,booking_id FROM %i WHERE idempotency_key=%s', $uses, $key ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'status' => 'already_redeemed', 'pass_id' => (int) $existing->pass_id, 'rule_id' => (int) $existing->rule_id, 'booking_id' => (int) $existing->booking_id ); }
@@ -421,7 +424,7 @@ final class Memberships {
 			return new \WP_Error( 'wpcap_pass_scope', $any ? $other : __( 'Dieser Pass gilt nicht für diese Ressource.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$tz = ServiceResources::timezone_of( $resource );
-		$day = wp_date( 'Y-m-d', $slot_id ? strtotime( $slot->starts_at . ' UTC' ) : time(), new \DateTimeZone( $tz ) );
+		$day = wp_date( 'Y-m-d', $slot_id ? strtotime( $slot->starts_at . ' UTC' ) : Clock::now(), new \DateTimeZone( $tz ) );
 		$today = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d AND service_date=%s', $uses, $pass->pass_id, $rule->rule_id, $day ) );
 		$total = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE pass_id=%d AND rule_id=%d', $uses, $pass->pass_id, $rule->rule_id ) );
 		if ( ( (int) $rule->uses_per_day > 0 && $today >= (int) $rule->uses_per_day ) || ( (int) $rule->uses_total > 0 && $total >= (int) $rule->uses_total ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_quota', __( 'Das Nutzungskontingent dieses Passes ist ausgeschöpft.', 'pass-captain' ), array( 'status' => 409 ) ); }

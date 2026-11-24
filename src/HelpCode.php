@@ -21,6 +21,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class HelpCode {
 	/** Unambiguous alphabet (no 0, O, 1, I): exactly 32 characters, 5 bits each. */
 	const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';

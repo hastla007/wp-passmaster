@@ -33,6 +33,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Suppression {
 	const SCOPE_REMINDERS = 'reminders';
 
@@ -101,7 +104,7 @@ final class Suppression {
 		global $wpdb;
 		$hash = preg_match( '/^[a-f0-9]{64}$/', (string) $hash ) ? (string) $hash : '';
 		if ( '' === $hash ) { return false; }
-		return false !== $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (email_hash,scope,reason,created_at) VALUES (%s,%s,%s,%s)', self::table(), $hash, sanitize_key( $scope ), sanitize_key( $reason ), current_time( 'mysql', true ) ) );
+		return false !== $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (email_hash,scope,reason,created_at) VALUES (%s,%s,%s,%s)', self::table(), $hash, sanitize_key( $scope ), sanitize_key( $reason ), \PassCaptain\Clock::mysql() ) );
 	}
 
 	/** HMAC of an address hash for the unsubscribe link. */
@@ -273,10 +276,10 @@ final class Suppression {
 		$email = sanitize_email( (string) $email );
 		if ( ! is_email( $email ) ) { return false; }
 		$type = 'complaint' === $type ? 'complaint' : 'bounce';
-		$since = gmdate( 'Y-m-d H:i:s', time() - 14 * DAY_IN_SECONDS );
+		$since = gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 14 * DAY_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='failed',last_error=%s WHERE recipient=%s AND status IN ('sent','queued') AND created_at>=%s", $p . 'wpcap_message_queue', 'complaint' === $type ? 'Spam complaint reported by the mail service.' : 'Bounce reported by the mail service.', $email, $since ) );
 		if ( 'complaint' === $type ) { self::suppress_hash( self::hash( $email ), self::SCOPE_REMINDERS, 'complaint' ); }
-		$orders = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE customer_email=%s AND created_at>=%s ORDER BY order_id DESC LIMIT 20', $p . 'wpcap_orders', $email, gmdate( 'Y-m-d H:i:s', time() - 90 * DAY_IN_SECONDS ) ) );
+		$orders = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE customer_email=%s AND created_at>=%s ORDER BY order_id DESC LIMIT 20', $p . 'wpcap_orders', $email, gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 90 * DAY_IN_SECONDS ) ) );
 		foreach ( (array) $orders as $order_id ) {
 			Audit::record( 'mail_bounced', 'order', (int) $order_id, array( 'type' => $type ) );
 		}

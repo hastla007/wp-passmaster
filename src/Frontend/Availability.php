@@ -29,6 +29,9 @@ use PassCaptain\RateLimit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Availability {
 	/** Versioned action for purge adapters: ( int[] $ticket_type_ids, string $reason ). */
 	const CHANGED_HOOK = 'wp_pass_captain_availability_changed_v1';
@@ -126,7 +129,7 @@ final class Availability {
 		foreach ( self::snapshot( self::parse_ids( $request->get_param( 'types' ) ) ) as $id => $state ) {
 			$types[ (string) $id ] = $state;
 		}
-		return new \WP_REST_Response( array( 'now' => gmdate( 'c' ), 'types' => (object) $types ), 200 );
+		return new \WP_REST_Response( array( 'now' => gmdate( 'c', \PassCaptain\Clock::now() ), 'types' => (object) $types ), 200 );
 	}
 
 	/** Cache-Control of the availability answer (filter wpcap_availability_cache_control, e.g. "no-store"). */

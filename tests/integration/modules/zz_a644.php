@@ -12,6 +12,8 @@ use PassCaptain\ServiceBookings;
 use PassCaptain\Settings;
 use PassCaptain\Waitlists;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Sms::class ); // SMS checkout hooks (sms.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 echo "A644: limiters count after validation\n";
@@ -34,7 +36,7 @@ for ( $i = 0; $i < 6; $i++ ) { Waitlists::join( $x1_event, $x1_occ, $x1_type, $x
 $x1_rejoin = Waitlists::join( $x1_event, $x1_occ, $x1_type, $x1_victim, 1 );
 check( 'A644: repeating a sign-up that is already open sends no mail and does not count either', ! is_wp_error( $x1_rejoin ) );
 $x1_wsrc = (string) file_get_contents( WPCAP_PATH . 'src/Waitlists.php' );
-check( 'A644: the address limit is checked with hits() and counted only when a mail goes out', false !== strpos( $x1_wsrc, 'RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::EMAIL_HOURLY_LIMIT' ) && false !== strpos( $x1_wsrc, "RateLimit::allow( \$email_bucket, self::EMAIL_HOURLY_LIMIT, HOUR_IN_SECONDS ); // A644" ) );
+check( 'A644: the address limit is checked with hits() and counted only when a mail goes out', false !== strpos( $x1_wsrc, 'RateLimit::hits( $email_bucket, HOUR_IN_SECONDS ) >= self::email_limit_per_hour()' ) && false !== strpos( $x1_wsrc, "RateLimit::allow( \$email_bucket, self::email_limit_per_hour(), HOUR_IN_SECONDS ); // A644" ) );
 
 // Service booking.
 $x1_svc_victim = 'x1-a644-svc@example.com';

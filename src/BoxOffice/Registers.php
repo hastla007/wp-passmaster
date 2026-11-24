@@ -13,6 +13,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Registers {
 	/** Capability to manage registers, view all shifts and Z reports and book corrections. */
 	const MANAGE_CAP = 'manage_options';
@@ -76,8 +79,8 @@ final class Registers {
 		if ( $register_id && ! $existing ) { return new \WP_Error( 'wpcap_pos_register', __( 'Kasse nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$name = mb_substr( trim( sanitize_text_field( (string) ( $data['name'] ?? '' ) ) ), 0, 100 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_pos_register_name', __( 'Bitte einen Namen für die Kasse angeben.', 'pass-captain' ) ); }
-		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? ( $existing ? $existing->currency : 'EUR' ) ) ) );
-		$currency = 3 === strlen( $currency ) ? $currency : 'EUR';
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? ( $existing ? $existing->currency : \PassCaptain\Localization::default_currency() ) ) ) );
+		$currency = 3 === strlen( $currency ) ? $currency : \PassCaptain\Localization::default_currency(); // SET-PC-08
 		$status = 'inactive' === ( $data['status'] ?? 'active' ) ? 'inactive' : 'active';
 		if ( $existing && $existing->currency !== $currency && Shifts::open_for_register( $register_id ) ) {
 			return new \WP_Error( 'wpcap_pos_register_busy', __( 'Die Währung kann nicht geändert werden, solange eine Schicht offen ist.', 'pass-captain' ), array( 'status' => 409 ) );

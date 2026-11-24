@@ -12,6 +12,9 @@ use PassCaptain\Admin\Queries;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminPage {
 	const SLUG = 'wpcap-exchange';
 	const CAP = 'wpcap_manage_orders';
@@ -97,15 +100,18 @@ final class AdminPage {
 		$in = Forms::post();
 		$fee = Forms::parse_money( $in['fee'] ?? '0' );
 		if ( null === $fee ) { Forms::finish( Forms::error( 'wpcap_exchange_fee', __( 'Bitte eine gültige Gebühr angeben.', 'pass-captain' ) ), '', self::url() ); }
-		Policy::save_global( array(
+		// SET-PC-01: limits and the choice are checked by the settings register (reported, not clamped).
+		$checked = \PassCaptain\SettingsSchema::check_group( 'exchange', array(
 			'enabled' => Forms::flag( $in, 'enabled' ),
 			'portal_enabled' => Forms::flag( $in, 'portal_enabled' ),
-			'portal_hours' => Forms::int( $in, 'portal_hours', 24 ),
-			'portal_max_per_ticket' => Forms::int( $in, 'portal_max_per_ticket', 1 ),
-			'refund_policy' => Forms::choice( $in, 'refund_policy', array( 'refund', 'none' ), 'refund' ),
+			'portal_hours' => $in['portal_hours'] ?? 24,
+			'portal_max_per_ticket' => $in['portal_max_per_ticket'] ?? 1,
+			'refund_policy' => $in['refund_policy'] ?? 'refund',
 			'fee_minor' => (int) $fee,
 			'allow_series' => Forms::flag( $in, 'allow_series' ),
 		) );
+		if ( is_wp_error( $checked ) ) { Forms::finish( $checked, '', self::url() ); }
+		Policy::save_global( $checked );
 		Forms::finish( true, __( 'Umtausch-Einstellungen gespeichert.', 'pass-captain' ), self::url() );
 	}
 

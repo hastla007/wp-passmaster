@@ -14,6 +14,13 @@
  * annotate()) and are recorded when the tickets are issued, with the time of the checkout. Hooks
  * `wpcap_consent_granted` / `wpcap_consent_withdrawn` fire after the data is committed.
  *
+ * One consent model (N03): this class is the entry point for the consents of both field kinds.
+ * Participant fields of type `consent` (own text + version, records in `wpcap_consents`) keep their
+ * store in Sales\Consents; this class never logs them (RECORD_TYPE) and shows, withdraws (admin) and
+ * exports both kinds through one path: one portal card (portal_html()), one admin section
+ * (render_admin_section(), admin_withdraw()) and one event CSV (export_rows()). Stored rows and hook
+ * payloads of both stores keep their shape (docs/HOOKS.md, docs/WEBHOOKS.md).
+ *
  * @package PassCaptain
  */
 
@@ -21,11 +28,16 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Consents {
 	const GRANTED = 'granted';
 	const WITHDRAWN = 'withdrawn';
 	/** Sources a consent record can name (unknown channel sources are kept as sanitized key). */
 	const SOURCES = array( 'checkout', 'woocommerce', 'box_office', 'api', 'portal', 'ticket_page', 'admin', 'exchange', 'transfer', 'holder_change', 'privacy_erasure' );
+	/** Field type whose consents Sales\Consents stores (`wpcap_consents`); never written to this log. */
+	const RECORD_TYPE = 'consent';
 
 	/** Log IDs of checkout grants recorded inside the issuance transaction; hooks fire after commit. */
 	private static $pending = array();
@@ -77,7 +89,7 @@ final class Consents {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $field_ids ) ) ) );
 		if ( ! $ids || ! self::ready() ) { return array(); }
 		$out = array();
-		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,field_key,label,purpose,required,status FROM {$wpdb->prefix}wpcap_participant_fields WHERE consent=1 AND field_id IN (" . implode( ',', $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,field_key,label,purpose,required,status FROM {$wpdb->prefix}wpcap_participant_fields WHERE consent=1 AND field_type<>'consent' AND field_id IN (" . implode( ',', $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$out[ (int) $row->field_id ] = $row;
 		}
 		return $out;
@@ -87,7 +99,7 @@ final class Consents {
 	public static function fields_for_type( $ticket_type_id ) {
 		global $wpdb;
 		if ( ! self::ready() ) { return array(); }
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_id,ticket_type_id,field_key,label,purpose,required,status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND consent=1 AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT field_id,ticket_type_id,field_key,label,purpose,required,status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND consent=1 AND field_type<>%s AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ), self::RECORD_TYPE ) );
 	}
 
 	/** Source label stored with a record: channel sources of Orders::create() mapped to consent sources. */
@@ -472,6 +484,35 @@ final class Consents {
 	 * @param string   $notice  Result notice.
 	 */
 	public static function self_service_html( array $tickets, $scope, $notice = '' ) {
+		return self::section_html( self::self_service_cards( $tickets, $scope ), $notice );
+	}
+
+	/**
+	 * Consent card of the order portal (N03): one section for both field kinds – the logged consents
+	 * of the order's own tickets and the records of fields of type `consent` (Sales\Consents, with
+	 * their own grant/withdraw forms and result notice). '' without any consent.
+	 *
+	 * @param object   $order   Order row (access verified by the caller).
+	 * @param object[] $tickets Tickets whose logged consents the buyer manages (see self_service_html()).
+	 * @param string   $notice  Result notice of a logged-consent change.
+	 */
+	public static function portal_html( $order, array $tickets, $notice = '' ) {
+		$cards = self::self_service_cards( $tickets, (string) $order->public_id );
+		$records = class_exists( Sales\Consents::class ) && Privacy::has_table( 'wpcap_consents' ) ? Sales\Consents::portal_items( $order, false ) : '';
+		return self::section_html( $records . $cards, $notice );
+	}
+
+	/** Section wrapper of the consent card ('' without cards). */
+	private static function section_html( $cards, $notice ) {
+		if ( '' === $cards ) { return ''; }
+		$html = '<section class="card" id="wpcap-consents" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
+		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst jede Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Was bis dahin auf ihrer Grundlage geschehen ist, bleibt rechtmäßig.', 'pass-captain' ) . '</small></p>';
+		if ( '' !== $notice ) { $html .= '<p role="status"><strong>' . esc_html( $notice ) . '</strong></p>'; }
+		return $html . $cards . '</section>';
+	}
+
+	/** Cards of the logged consents of the tickets ('' when no ticket has a consent field or record). */
+	private static function self_service_cards( array $tickets, $scope ) {
 		$states = self::states( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
 		$nonce = wp_create_nonce( self::nonce_action( $scope ) );
 		$cards = '';
@@ -508,11 +549,7 @@ final class Consents {
 			}
 			$cards .= '</ul>';
 		}
-		if ( '' === $cards ) { return ''; }
-		$html = '<section class="card" id="wpcap-consents" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
-		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst jede Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Was bis dahin auf ihrer Grundlage geschehen ist, bleibt rechtmäßig.', 'pass-captain' ) . '</small></p>';
-		if ( '' !== $notice ) { $html .= '<p role="status"><strong>' . esc_html( $notice ) . '</strong></p>'; }
-		return $html . $cards . '</section>';
+		return $cards;
 	}
 
 	/* ------------------------------------------------------------------ Admin */
@@ -521,7 +558,8 @@ final class Consents {
 	public static function render_admin_section( $order, $tickets = array() ) {
 		$ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, (array) $tickets );
 		$history = self::history( $ids );
-		if ( ! $history ) { return; }
+		$records = self::records_for_order( (int) $order->order_id );
+		if ( ! $history && ! $records ) { return; }
 		$by_ticket = array();
 		foreach ( $history as $row ) { $by_ticket[ (int) $row->ticket_id ][ (int) $row->field_id ][] = $row; }
 		$public = array();
@@ -555,7 +593,46 @@ final class Consents {
 				echo '</td></tr>';
 			}
 		}
+		// Fields of type consent (Sales\Consents): one record per grant, withdrawal kept on the record.
+		foreach ( $records as $record ) {
+			$granted = null === $record->withdrawn_at;
+			echo '<tr><td><code>' . esc_html( $public[ (int) $record->ticket_id ] ?? (string) $record->ticket_id ) . '</code></td>';
+			echo '<td><strong>' . esc_html( (string) $record->consent_label ) . '</strong>' . ( '' !== (string) $record->consent_text ? '<br><span class="description">' . esc_html( (string) $record->consent_text ) . '</span>' : '' ) . '</td>';
+			echo '<td>' . esc_html( $granted ? __( 'Erteilt', 'pass-captain' ) : __( 'Widerrufen', 'pass-captain' ) ) . '</td><td><ul style="margin:0">';
+			foreach ( self::record_events( $record ) as $event ) {
+				$label = self::GRANTED === $event['action'] ? __( 'erteilt', 'pass-captain' ) : __( 'widerrufen', 'pass-captain' );
+				/* translators: 1: date and time, 2: granted/withdrawn, 3: source, 4: short text version */
+				echo '<li>' . esc_html( sprintf( __( '%1$s: %2$s (Quelle: %3$s, Textversion %4$s)', 'pass-captain' ), Admin\Forms::datetime( $event['at'], $tz ), $label, self::source_label( $event['source'] ), substr( (string) $record->text_version, 0, 12 ) ) ) . '</li>';
+			}
+			echo '</ul></td><td>';
+			if ( $granted ) {
+				Admin\Forms::open_form( 'wpcap_consent_withdraw', 'wpcap_consent_withdraw_' . (int) $order->order_id );
+				Admin\Forms::hidden( 'order_id', (int) $order->order_id );
+				Admin\Forms::hidden( 'consent_id', (int) $record->consent_id );
+				echo '<button class="button" type="submit">' . esc_html__( 'Widerruf erfassen', 'pass-captain' ) . '</button></form>';
+			} else {
+				echo '—';
+			}
+			echo '</td></tr>';
+		}
 		echo '</tbody></table>';
+	}
+
+	/** Records of fields of type consent of an order (Sales\Consents store; [] without the table). */
+	private static function records_for_order( $order_id ) {
+		if ( ! class_exists( Sales\Consents::class ) || ! Privacy::has_table( 'wpcap_consents' ) ) { return array(); }
+		return (array) Sales\Consents::for_order( $order_id );
+	}
+
+	/**
+	 * Grant and (if any) withdrawal of a Sales\Consents record as log-like events.
+	 *
+	 * @return array<int,array{action:string,at:string,source:string}>
+	 */
+	private static function record_events( $record ) {
+		$events = array( array( 'action' => self::GRANTED, 'at' => (string) $record->granted_at, 'source' => (string) $record->source ) );
+		if ( null !== $record->withdrawn_at ) { $events[] = array( 'action' => self::WITHDRAWN, 'at' => (string) $record->withdrawn_at, 'source' => (string) $record->withdrawn_source ); }
+		return $events;
 	}
 
 	/** Readable source label. */
@@ -571,6 +648,8 @@ final class Consents {
 			'exchange' => __( 'Ticketumtausch', 'pass-captain' ),
 			'transfer' => __( 'Ticketübertragung', 'pass-captain' ),
 			'holder_change' => __( 'Inhaberwechsel', 'pass-captain' ),
+			'holder_changed' => __( 'Inhaberwechsel', 'pass-captain' ), // Sales\Consents records.
+			'attendee_link' => __( 'Einwilligungslink', 'pass-captain' ),
 			'privacy_erasure' => __( 'Datenlöschung', 'pass-captain' ),
 		);
 		return $labels[ (string) $source ] ?? (string) $source;
@@ -584,6 +663,14 @@ final class Consents {
 	public static function admin_withdraw( array $in ) {
 		$order_id = Admin\Forms::int( $in, 'order_id' );
 		if ( ! Admin\Queries::can_access_order( $order_id, Admin\OrdersPage::CAP ) ) { return Admin\Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ) ); }
+		$consent_id = Admin\Forms::int( $in, 'consent_id' );
+		if ( $consent_id ) {
+			// Field of type consent: the record of Sales\Consents (kept with withdrawal time and source "admin").
+			$record = self::records_for_order( $order_id ) ? Sales\Consents::get( $consent_id ) : null;
+			if ( ! $record || (int) $record->order_id !== $order_id ) { return Admin\Forms::error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), 404 ); }
+			$result = Sales\Consents::withdraw( $consent_id, 'admin' );
+			return is_wp_error( $result ) ? $result : array( 'order_id' => $order_id );
+		}
 		$ticket = self::ticket( Admin\Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket || (int) $ticket->order_id !== $order_id ) { return Admin\Forms::error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), 404 ); }
 		$result = self::withdraw( (int) $ticket->ticket_id, Admin\Forms::int( $in, 'field_id' ), 'admin', array( 'note' => Admin\Forms::text( $in, 'note' ) ) );
@@ -621,7 +708,27 @@ final class Consents {
 			$is_latest = $latest[ (int) $row->ticket_id . ':' . (int) $row->field_id ] === (int) $row->log_id;
 			$out[] = array( (string) $row->created_at, (string) $row->order_public_id, (string) $row->ticket_public_id, (string) $row->ticket_status, (string) $row->starts_at, (string) $row->ticket_name, (string) $row->field_key, (string) $row->label, (string) $row->purpose, (string) $row->text_version, (string) $row->action, (string) $row->source, (string) $row->locale, '' !== (string) $row->subject_hash ? substr( (string) $row->subject_hash, 0, 16 ) : '', $is_latest ? (string) $row->action : '' );
 		}
-		Audit::record( 'consents_exported', 'event', $event_id, array( 'rows' => count( $rows ) ) );
+		// Fields of type consent (Sales\Consents): grant and withdrawal of each record as rows, same columns
+		// (text = label, purpose = consent text, person reference = the same keyed hash as the log).
+		$count = count( $rows );
+		if ( class_exists( Sales\Consents::class ) && Privacy::has_table( 'wpcap_consents' ) ) {
+			$records = (array) $wpdb->get_results( $wpdb->prepare(
+				"SELECT c.*,t.public_id AS ticket_public_id,t.status AS ticket_status,ord.public_id AS order_public_id,ord.locale,tt.name AS ticket_name,o.starts_at,COALESCE(f.field_key,'') AS field_key FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i f ON f.field_id=c.field_id WHERE o.event_id=%d ORDER BY c.ticket_id,c.field_id,c.consent_id",
+				$p . 'wpcap_consents', $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_participant_fields', $event_id
+			) );
+			$newest = array();
+			foreach ( $records as $record ) { $newest[ (int) $record->ticket_id . ':' . (int) $record->field_id ] = (int) $record->consent_id; }
+			foreach ( $records as $record ) {
+				$events = self::record_events( $record );
+				$hash = self::subject_hash( (string) $record->subject_email );
+				$is_newest = $newest[ (int) $record->ticket_id . ':' . (int) $record->field_id ] === (int) $record->consent_id;
+				foreach ( $events as $n => $event ) {
+					$out[] = array( $event['at'], (string) $record->order_public_id, (string) $record->ticket_public_id, (string) $record->ticket_status, (string) $record->starts_at, (string) $record->ticket_name, (string) $record->field_key, (string) $record->consent_label, (string) $record->consent_text, (string) $record->text_version, $event['action'], $event['source'], (string) $record->locale, '' !== $hash ? substr( $hash, 0, 16 ) : '', $is_newest && count( $events ) - 1 === $n ? $event['action'] : '' );
+					++$count;
+				}
+			}
+		}
+		Audit::record( 'consents_exported', 'event', $event_id, array( 'rows' => $count ) );
 		return $out;
 	}
 

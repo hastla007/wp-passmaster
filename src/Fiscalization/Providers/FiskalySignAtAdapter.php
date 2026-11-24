@@ -8,6 +8,9 @@ use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class FiskalySignAtAdapter implements AdapterInterface {
 	const BASE_URL = 'https://rksv.fiskaly.com/api/v1';
 	public function id() { return 'fiskaly_sign_at'; }

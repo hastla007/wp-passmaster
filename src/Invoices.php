@@ -10,6 +10,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Invoices {
 	const FINANCE_CAP = 'wpcap_view_finance';
 
@@ -85,8 +88,9 @@ final class Invoices {
 		$tax_notes = Sales\TaxProfiles::invoice_notes( $items );
 		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
 		// PASS-INV-15: service date (start/end, local date of the occurrence) per invoice line, in line order.
-		$snapshot['service_dates'] = array_map( array( __CLASS__, 'service_dates_of' ), array_values( $items ) );
-		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
+		// SET-PC-15: lines without an occurrence follow the setting invoice_service_date_fallback (default: no date).
+		$snapshot['service_dates'] = array_map( static function ( $item ) use ( $order ) { return self::line_service_dates( $item, $order ); }, array_values( $items ) );
+		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => Clock::mysql(), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		// Same allocation as orders, reports and settlements (stored line discounts, OrderLines). Orders
@@ -147,7 +151,7 @@ final class Invoices {
 			'net_minor' => (int) $credit_amounts['total_minor'] - (int) $credit_amounts['tax_minor'],
 			'tax_minor' => (int) $credit_amounts['tax_minor'],
 			'total_minor' => (int) $credit_amounts['total_minor'],
-			'issued_at' => current_time( 'mysql', true ),
+			'issued_at' => Clock::mysql(),
 		);
 		// Net/VAT/gross per tax rate, frozen with the document (schema 3.8.3; older rows are computed on display).
 		if ( self::credit_rates_ready() ) {
@@ -185,7 +189,7 @@ final class Invoices {
 	 */
 	public static function void_credit_note_for_refund( $refund_id ) {
 		global $wpdb;
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', current_time( 'mysql', true ), absint( $refund_id ) ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', Clock::mysql(), absint( $refund_id ) ) );
 		if ( $updated ) {
 			Audit::record( 'credit_note_voided', 'invoice', 0, array( 'refund_id' => absint( $refund_id ), 'reason' => 'provider_refund_failed' ) );
 		}
@@ -207,7 +211,8 @@ final class Invoices {
 		$total = max( 0, (int) $total );
 		$tax = max( 0, min( (int) $tax, $total ) );
 		$order = Orders::get( (int) ( $refund['order_id'] ?? 0 ) );
-		$items = $order ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_rate_bp FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) : array();
+		$items = $order ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor,tax_rate_bp' . ServiceFee::columns( '' ) . ' FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list.
+		$fee_weights = array();
 		if ( ! $items ) {
 			return array( array( 'tax_rate_bp' => 0, 'net_minor' => $total - $tax, 'tax_minor' => $tax, 'total_minor' => $total ) );
 		}
@@ -220,13 +225,17 @@ final class Invoices {
 		if ( $ticket_ids ) {
 			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') GROUP BY ticket_type_id', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ticket_ids ) ) );
 			foreach ( $rows as $row ) { $counts[ (int) $row->ticket_type_id ] = (int) $row->n; }
+			// A425: per-ticket service fee lines of the refunded tickets weigh with their own rate.
+			$fee_weights = ServiceFee::refund_weights( $items, $counts, $refund );
 		}
 		$weights = array();
 		foreach ( $items as $index => $item ) {
 			$type = (int) $item->ticket_type_id;
 			$discount = null !== $stored && isset( $stored[ $type ] ) ? min( (int) $item->line_total_minor, $stored[ $type ] ) : $split[ $index ];
 			$line = max( 0, (int) $item->line_total_minor - $discount );
-			if ( $counts ) {
+			if ( isset( $fee_weights[ $index ] ) ) {
+				$line = (int) $fee_weights[ $index ][1];
+			} elseif ( $counts ) {
 				$used = min( (int) $item->quantity, $counts[ $type ] ?? 0 );
 				$counts[ $type ] = max( 0, ( $counts[ $type ] ?? 0 ) - $used );
 				$line = (int) round( $line * $used / max( 1, (int) $item->quantity ) );
@@ -295,7 +304,7 @@ final class Invoices {
 			$wpdb->query( 'ROLLBACK' );
 			return $number;
 		}
-		$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_credit_notes SET reversal_number=%s,reversed_at=%s WHERE credit_note_id=%d AND reversal_number=''", $number, current_time( 'mysql', true ), (int) $credit['credit_note_id'] ) );
+		$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_credit_notes SET reversal_number=%s,reversed_at=%s WHERE credit_note_id=%d AND reversal_number=''", $number, Clock::mysql(), (int) $credit['credit_note_id'] ) );
 		if ( 1 !== (int) $set || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_credit_reversal', __( 'Die Rechnungskorrektur konnte nicht storniert werden.', 'pass-captain' ), array( 'status' => 503 ) );
@@ -335,7 +344,7 @@ final class Invoices {
 		$tax = (int) $tax;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		if ( null === $items ) {
-			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
+			$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . ServiceFee::columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
 		}
 		if ( null === $discount ) {
 			$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
@@ -410,7 +419,7 @@ final class Invoices {
 		if ( $order_id && $refund_id ) {
 			$earlier = null !== $history
 				? array_values( array_filter( array_map( static function ( $r ) { return (array) $r; }, (array) $history ), static function ( $r ) use ( $refund_id ) { return (int) $r['refund_id'] < $refund_id; } ) )
-				: (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A );
+				: (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids" . Refunds::fee_columns( '' ) . " FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			foreach ( $earlier as $previous ) {
 				$amounts = Integrations\Vouchers\Checkout::refund_amounts( $previous );
 				foreach ( self::line_parts( $previous, $items, $discount, (int) $amounts['amount_minor'], (int) $amounts['tax_minor'], $used_gross, $used_tax ) as $part ) {
@@ -435,7 +444,7 @@ final class Invoices {
 			$out += array_fill_keys( $chunk, array() );
 			// has_voucher and the ticket types of the refunded tickets come along, so refund_line_parts()
 			// needs no query per refund (PERF: reports over many refunds).
-			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND r.status='completed' ORDER BY r.refund_id", $chunk ), ARRAY_A );
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$wpdb->prefix}wpcap_refunds r INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=r.order_id WHERE r.order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ") AND r.status='completed' ORDER BY r.refund_id", $chunk ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			$ticket_ids = array();
 			foreach ( $rows as $row ) { $ticket_ids = array_merge( $ticket_ids, array_filter( array_map( 'absint', (array) json_decode( (string) $row['ticket_ids'], true ) ) ) ); }
 			$types = array();
@@ -497,6 +506,8 @@ final class Invoices {
 					$n -= $share;
 				}
 			}
+			// A425: the per-ticket service fee of the refunded tickets (own lines, possibly with an own tax rate).
+			foreach ( ServiceFee::refund_weights( $items, $counts, $refund ) as $i => $fee_weight ) { $weights[ $i ] = $fee_weight; }
 		}
 		if ( ! array_filter( array_column( $weights, 1 ) ) ) {
 			// Amount-only refund: weighted by what is left of each line (all paid lines when nothing is left).
@@ -736,6 +747,44 @@ final class Invoices {
 		return array( 'start' => $start, 'end' => '' !== $end && $end >= $start ? $end : $start );
 	}
 
+	/**
+	 * Service date of an invoice line with the fallback for lines without an occurrence (SET-PC-15, setting
+	 * invoice_service_date_fallback): 'none' keeps the empty date (former behaviour), 'payment' takes the
+	 * payment date of the order, 'valid_from' the start of validity of the line and 'period' its validity
+	 * period (valid_from/valid_until of the item, e.g. set by an add-on through wpcap_invoice_items: UTC
+	 * datetime or local date Y-m-d). Without validity data both fall back to the payment date.
+	 *
+	 * @param object|array $item  Invoice item (starts_at, ends_at, timezone, optional valid_from, valid_until).
+	 * @param object|null  $order Order row (paid_at).
+	 * @return array{start:string,end:string}
+	 */
+	public static function line_service_dates( $item, $order = null ) {
+		$dates = self::service_dates_of( $item );
+		if ( '' !== $dates['start'] ) { return $dates; }
+		$mode = (string) Settings::get( 'invoice_service_date_fallback', 'none' );
+		if ( ! in_array( $mode, array( 'payment', 'valid_from', 'period' ), true ) ) { return $dates; }
+		$item = (object) $item;
+		$tz = (string) ( $item->timezone ?? '' );
+		$day = static function ( $value, $zone ) {
+			$value = trim( (string) $value );
+			if ( '' === $value || 0 === strpos( $value, '0000-00-00' ) ) { return ''; }
+			if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) { return $value; }
+			$time = strtotime( $value . ' UTC' );
+			return false === $time ? '' : wp_date( 'Y-m-d', $time, $zone );
+		};
+		try {
+			$zone = '' !== $tz ? new \DateTimeZone( $tz ) : Frontend\Format::site_timezone();
+		} catch ( \Exception $e ) {
+			$zone = Frontend\Format::site_timezone();
+		}
+		$paid_at = is_object( $order ) && '' !== (string) ( $order->paid_at ?? '' ) ? (string) $order->paid_at : Clock::mysql();
+		$paid = $day( $paid_at, Frontend\Format::site_timezone() ); // Payment date in the site timezone.
+		$from = $day( $item->valid_from ?? '', $zone );
+		if ( 'payment' === $mode || '' === $from ) { return array( 'start' => $paid, 'end' => $paid ); }
+		$until = 'period' === $mode ? $day( $item->valid_until ?? '', $zone ) : '';
+		return array( 'start' => $from, 'end' => '' !== $until && $until >= $from ? $until : $from );
+	}
+
 	private static function local_ymd( $utc, $timezone ) {
 		try {
 			$zone = new \DateTimeZone( '' !== $timezone ? $timezone : wp_timezone_string() );
@@ -781,22 +830,22 @@ final class Invoices {
 		global $wpdb;
 		// Year of the invoice date in the site timezone (an invoice issued on 1 January 00:30 local time belongs to the new year).
 		$year = $year ? absint( $year ) : self::local_year();
-		$table = $wpdb->prefix . 'wpcap_invoice_sequences';
 		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (year,next_number) VALUES (%d,1)', $table, $year ) );
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE year=%d FOR UPDATE', $table, $year ) );
-		if ( ! $row ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
-		$number = (int) $row->next_number;
-		$updated = $wpdb->update( $table, array( 'next_number' => $number + 1 ), array( 'year' => $year ), array( '%d' ), array( '%d' ) );
-		if ( false === $updated ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
+		// SET-PC-03: counter (yearly or continuous), start number and pattern from the settings; defaults = former format.
+		$number = DocumentNumbers::reserve( $wpdb->prefix . 'wpcap_invoice_sequences', null, $year, DocumentNumbers::config( 'invoice' ) );
+		if ( false === $number ) {
+			if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); }
+			return new \WP_Error( 'wpcap_invoice_sequence', __( 'Rechnungsnummer konnte nicht reserviert werden.', 'pass-captain' ) );
+		}
 		if ( ! $in_transaction ) { $wpdb->query( 'COMMIT' ); }
-		$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) Settings::get( 'invoice_prefix' ) ) ?: 'WPC';
-		return sprintf( '%s-%d-%06d', $prefix, $year, $number );
+		$formatted = DocumentNumbers::format( 'invoice', DocumentNumbers::prefix_of( 'invoice' ), $year, $number );
+		DocumentNumbers::record_pending_skip( 'invoice', $formatted );
+		return $formatted;
 	}
 
 	/** Current year in the site timezone. */
 	public static function local_year( $timestamp = null ) {
-		return (int) wp_date( 'Y', null === $timestamp ? time() : (int) $timestamp, Frontend\Format::site_timezone() );
+		return (int) wp_date( 'Y', null === $timestamp ? Clock::now() : (int) $timestamp, Frontend\Format::site_timezone() );
 	}
 
 	/**
@@ -831,13 +880,14 @@ final class Invoices {
 			return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		};
 		if ( ! $in_transaction && false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
-		if ( false === $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (series,year,next_number) VALUES (%s,%d,1)', $table, $series, $year ) ) ) { return $failed(); }
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT next_number FROM %i WHERE series=%s AND year=%d FOR UPDATE', $table, $series, $year ) );
-		if ( ! $row ) { return $failed(); }
-		$number = (int) $row->next_number;
-		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d', $table, $number + 1, $series, $year, $number ) ) ) { return $failed(); }
+		// SET-PC-03: pattern, padding, start number and yearly restart per kind (organizer ranges: fixed format).
+		$kind = DocumentNumbers::kind_of_series( $series );
+		$number = DocumentNumbers::reserve( $table, $series, $year, DocumentNumbers::config( $kind ) );
+		if ( false === $number ) { return $failed(); }
 		if ( ! $in_transaction && false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
-		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
+		$formatted = DocumentNumbers::format( $kind, preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number, $series );
+		DocumentNumbers::record_pending_skip( $kind, $formatted );
+		return $formatted;
 	}
 
 	/**
@@ -948,7 +998,7 @@ final class Invoices {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_export_accounting' );
 		// Defaults: current month up to today, both in the site timezone.
-		$today = Reports\Scope::local( gmdate( 'Y-m-d H:i:s' ), Reports\Scope::site_timezone(), 'Y-m-d' );
+		$today = Reports\Scope::local( Clock::mysql(), Reports\Scope::site_timezone(), 'Y-m-d' );
 		$from_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['from'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce checked by the export handler.
 		$to_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['to'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$from = Reports\Data::valid_date( $from_in ) ? $from_in : substr( $today, 0, 8 ) . '01';
@@ -1301,9 +1351,9 @@ final class Invoices {
 		}
 		$reversal_ready = Refunds::provider_status_ready();
 		// A refund reversed later (A348) stays on its booking day; its reversal follows on its own day below.
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",r.updated_at,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
 		if ( $reversal_ready ) {
-			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . Refunds::fee_columns() . ",r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,o.discount_minor,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Refunds::fee_columns() is a fixed column list.
 			$refunds = array_merge( $refunds, $reversed );
 		}
 		$refunds = array_values( array_filter( $refunds, static function ( $r ) use ( $comp ) { return ! in_array( (string) $r->payment_provider, $comp, true ); } ) );
@@ -1333,7 +1383,7 @@ final class Invoices {
 		$out = array();
 		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
 			$out += array_fill_keys( $chunk, array() );
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY order_id,item_id', $chunk ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid_columns() returns a fixed column list built from literals.
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . ServiceFee::columns( '' ) . " FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY order_id,item_id', $chunk ) ) as $item ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- OrderLines::paid_columns() returns a fixed column list built from literals.
 				$out[ (int) $item->order_id ][] = $item;
 			}
 		}
@@ -1385,15 +1435,8 @@ final class Invoices {
 	 * @return array{revenue: array<int,string>, revenue_default: string, bu_keys: array<int,string>, contra: string, contra_by_provider: array<string,string>}
 	 */
 	public static function datev_accounts() {
-		$skr04 = 'skr04' === (string) Settings::get( 'datev_chart', 'skr03' );
-		$contra = preg_replace( '/\D/', '', (string) Settings::get( 'datev_contra_account', '' ) );
-		$defaults = array(
-			'revenue' => $skr04 ? array( 1900 => '4400', 700 => '4300' ) : array( 1900 => '8400', 700 => '8300' ),
-			'revenue_default' => $skr04 ? '4200' : '8200',
-			'bu_keys' => array(),
-			'contra' => strlen( $contra ) >= 4 && strlen( $contra ) <= 8 ? $contra : ( $skr04 ? '1460' : '1360' ),
-			'contra_by_provider' => array(),
-		);
+		// SET-PC-37: chart, money account and the own accounts of the settings table (empty = the chart).
+		$defaults = DatevAccounts::effective();
 		/**
 		 * Accounts of the DATEV-style booking batch (docs/OPERATIONS.md "Buchungsstapel").
 		 *
@@ -1481,25 +1524,30 @@ final class Invoices {
 
 	/**
 	 * Missing numbers per number range (prefix and year) in a list of document numbers
-	 * ("PREFIX-YYYY-000123"); a range is checked from its lowest to its highest number.
+	 * ("PREFIX-YYYY-000123", or a number pattern that issued numbers, SET-PC-03); a range is checked from
+	 * its lowest to its highest number. Numbers skipped on purpose (start number raised) are left out.
 	 *
 	 * @param string[] $numbers Document numbers.
-	 * @return array<string,string[]> "PREFIX-YYYY" => missing numbers (formatted like the documents).
+	 * @return array<string,string[]> "PREFIX-YYYY" (or the pattern with "#" for the number) => missing numbers
+	 *                                (formatted like the documents).
 	 */
 	public static function number_gaps( array $numbers ) {
 		$ranges = array();
+		$templates = array();
 		foreach ( $numbers as $number ) {
-			if ( preg_match( '/^(.+)-(\d{4})-(\d{6,})$/', (string) $number, $m ) ) {
-				$ranges[ $m[1] . '-' . $m[2] ][] = (int) $m[3];
-			}
+			$parsed = DocumentNumbers::parse( (string) $number );
+			if ( null === $parsed ) { continue; }
+			$ranges[ $parsed['range'] ][] = $parsed['number'];
+			$templates[ $parsed['range'] ] = array( $parsed['template'], $parsed['digits'] );
 		}
 		ksort( $ranges );
 		$out = array();
 		foreach ( $ranges as $range => $seq ) {
 			$present = array_flip( $seq );
 			$missing = array();
+			list( $template, $digits ) = $templates[ $range ];
 			for ( $n = min( $seq ), $max = max( $seq ); $n <= $max && count( $missing ) < 1000; $n++ ) {
-				if ( ! isset( $present[ $n ] ) ) { $missing[] = sprintf( '%s-%06d', $range, $n ); }
+				if ( ! isset( $present[ $n ] ) && ! DocumentNumbers::skipped( $range, $n ) ) { $missing[] = sprintf( $template, str_pad( (string) $n, $digits, '0', STR_PAD_LEFT ) ); }
 			}
 			if ( $missing ) { $out[ $range ] = $missing; }
 		}
@@ -1527,7 +1575,9 @@ final class Invoices {
 		$numbers = array_filter(
 			$numbers,
 			static function ( $n ) use ( $first, $last ) {
-				return preg_match( '/-(\d{4})-\d{6,}$/', (string) $n, $m ) && (int) $m[1] >= $first && (int) $m[1] <= $last;
+				// Numbers of a pattern without year (continuous counter) are kept; the issue dates already bound them.
+				$parsed = DocumentNumbers::parse( (string) $n );
+				return null !== $parsed && ( 0 === $parsed['year'] || ( $parsed['year'] >= $first && $parsed['year'] <= $last ) );
 			}
 		);
 		return self::number_gaps( $numbers );
@@ -1550,7 +1600,7 @@ final class Invoices {
 	/**
 	 * Section "Zahlungen" of an invoice with a voucher: multi-purpose vouchers are listed as payments (code
 	 * masked) followed by the remaining amount paid; the VAT breakdown above stays on the full amounts.
-	 * Single-purpose vouchers were a price reduction and only get a note. Empty for invoices without voucher.
+	 * Single-purpose vouchers and promotion codes were a price reduction and only get a note. Empty for invoices without voucher.
 	 *
 	 * @return array{rows: array<int, array{0:string,1:int,2:bool}>, notes: string[]} Rows: label, amount (minor), bold.
 	 */
@@ -1566,6 +1616,10 @@ final class Invoices {
 				$voucher_total += $amount;
 				/* translators: %s: masked voucher code */
 				$out['rows'][] = array( sprintf( __( 'Bezahlt mit Gutschein %s (Mehrzweckgutschein)', 'pass-captain' ), $code ), -$amount, false );
+			} elseif ( Integrations\Vouchers\Checkout::PURPOSE_DISCOUNT === ( $voucher['purpose'] ?? '' ) ) {
+				// Promotion code: a plain price reduction – no VAT was charged in advance, so no such statement.
+				/* translators: %s: masked code */
+				$out['notes'][] = sprintf( __( 'Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt.', 'pass-captain' ), $code );
 			} else {
 				/* translators: %s: masked voucher code */
 				$out['notes'][] = sprintf( __( 'Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt.', 'pass-captain' ), $code );

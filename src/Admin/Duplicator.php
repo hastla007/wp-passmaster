@@ -20,6 +20,9 @@ use PassCaptain\TicketTypeCopier;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Duplicator {
 	/** Upcoming occurrences copied with an event at most. */
 	const MAX_OCCURRENCES = 200;

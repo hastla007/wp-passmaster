@@ -24,6 +24,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class ParticipantFields {
 	const TYPES = array( 'text', 'email', 'textarea', 'checkbox', 'select', 'multiselect', 'tel', 'date', 'number', 'radio', 'consent' ); // radio/consent: field types of the audit line (Orders::validate_attendees() checks them).
 	const CHOICE_TYPES = array( 'select', 'multiselect' );

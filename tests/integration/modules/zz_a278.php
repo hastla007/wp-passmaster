@@ -2,35 +2,22 @@
 /**
  * Worklist item A278: a developer API key only works while its owner exists and still holds the
  * capability of the event assignment; role removal and deletion revoke the keys (UserAccess).
- * Included from run.php after zz_a277.php (Q1_User, q1_user(), q1_event()).
+ * Included from run.php; Q1_User, q1_user() and q1_event() come from lib/fixtures_shared.php.
  *
  * @package PassCaptain
  */
 
 // phpcs:ignoreFile
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+
 use PassCaptain\DeveloperKeys;
+
+wpcap_test_ensure_registered( PassCaptain\UserAccess::class ); // Role/user hooks (zz_a277.php in a full run).
 
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_transients'] = array();
 
-function q1_key_request( $key, $event_id ) {
-	$r = new WP_REST_Request( 'GET' );
-	$r->set_header( 'X-WPCAP-Key', $key );
-	$r->set_param( 'event_id', $event_id );
-	return $r;
-}
-function q1_issue_key( $user_id, $event_id ) {
-	$saved = $GLOBALS['wpcap_test_user_id'] ?? 1;
-	$GLOBALS['wpcap_test_user_id'] = $user_id;
-	$key = DeveloperKeys::issue( $event_id, array( 'events.read' ), 'A278' );
-	$GLOBALS['wpcap_test_user_id'] = $saved;
-	return $key;
-}
-function q1_key_revoked( $key_id ) {
-	global $wpdb;
-	return null !== $wpdb->get_var( "SELECT revoked_at FROM {$wpdb->prefix}wpcap_api_keys WHERE api_key_id=" . (int) $key_id );
-}
 
 echo "A278: developer API key owner checks\n";
 // Merged DeveloperKeys::owner_can() asks user_can() (as WordPress does: via the user's roles); the test user_can()

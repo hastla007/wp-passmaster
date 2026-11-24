@@ -16,6 +16,9 @@ use PassCaptain\Security\SupportAccess;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SecurityScreens {
 	const SUPPORT_SLUG = 'wpcap-support-access';
 	const UNMASK_ACTION = 'wpcap_pii_unmask';

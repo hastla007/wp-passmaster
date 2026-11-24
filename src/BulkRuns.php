@@ -30,6 +30,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class BulkRuns {
 	const TABLE = 'wpcap_bulk_runs';
 
@@ -100,8 +103,8 @@ final class BulkRuns {
 			'cursor_id' => 0,
 			'payload' => wp_json_encode( $data ),
 			'created_by' => get_current_user_id(),
-			'created_at' => current_time( 'mysql', true ),
-			'updated_at' => current_time( 'mysql', true ),
+			'created_at' => Clock::mysql(),
+			'updated_at' => Clock::mysql(),
 		);
 		if ( self::ready() ) {
 			$existing = self::by_key( $row['run_key'] );
@@ -162,7 +165,7 @@ final class BulkRuns {
 		global $wpdb;
 		foreach ( $fields as $name => $value ) { $run->$name = $value; }
 		if ( ! $run->run_id ) { return; }
-		$fields['updated_at'] = current_time( 'mysql', true );
+		$fields['updated_at'] = Clock::mysql();
 		$run->updated_at = $fields['updated_at'];
 		$wpdb->update( self::table(), $fields, array( 'run_id' => (int) $run->run_id ) );
 	}
@@ -171,7 +174,7 @@ final class BulkRuns {
 	public static function count( $run_id, $column, $by = 1 ) {
 		global $wpdb;
 		if ( ! absint( $run_id ) || ! self::ready() || ! in_array( $column, array( 'refunds', 'refunds_open' ), true ) ) { return; }
-		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET $column=$column+%d,updated_at=%s WHERE run_id=%d", (int) $by, current_time( 'mysql', true ), absint( $run_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and allow-listed column.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET $column=$column+%d,updated_at=%s WHERE run_id=%d", (int) $by, Clock::mysql(), absint( $run_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table and allow-listed column.
 	}
 
 	/**
@@ -209,8 +212,8 @@ final class BulkRuns {
 
 	private static function lease( $run ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
-		$until = gmdate( 'Y-m-d H:i:s', time() + (int) ceil( Jobs\TimeBudget::seconds() ) + 120 );
+		$now = Clock::real_mysql();
+		$until = gmdate( 'Y-m-d H:i:s', Clock::real() + (int) ceil( Jobs\TimeBudget::seconds() ) + 120 );
 		$taken = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET locked_until=%s WHERE run_id=%d AND status='running' AND (locked_until IS NULL OR locked_until<%s)", $until, (int) $run->run_id, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 		if ( 1 !== (int) $taken ) { return false; }
 		self::$leases[ (int) $run->run_id ] = true;
@@ -274,7 +277,7 @@ final class BulkRuns {
 	}
 
 	private static function finish( $run ) {
-		self::save( $run, array( 'status' => 'complete', 'phase' => 'done', 'finished_at' => current_time( 'mysql', true ) ) );
+		self::save( $run, array( 'status' => 'complete', 'phase' => 'done', 'finished_at' => Clock::mysql() ) );
 		$summary = self::summary( $run );
 		$actions = array( 'occurrence_cancel' => 'occurrence_cancellation_processed', 'event_cancel' => 'event_cancellation_processed', 'notify' => 'occurrence_notification_processed' );
 		$types = array( 'occurrence_cancel' => 'occurrence', 'event_cancel' => 'event', 'notify' => 'occurrence' );
@@ -476,11 +479,35 @@ final class BulkRuns {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid' ORDER BY t.ticket_id LIMIT %d", (int) $run->object_id, self::batch() ) );
-		if ( ! $ids ) { return self::next( $run, 'released' ); }
+		if ( ! $ids ) {
+			self::next( $run, 'released' );
+			self::announce_event_cancelled( $run );
+			return true;
+		}
 		$revoked = Orders::revoke_ids( $ids );
 		self::save( $run, array( 'revoked' => $run->revoked + count( $revoked ) ) );
 		Orders::fire_revoked( $revoked, 'event_cancelled' );
 		return (bool) $revoked;
+	}
+
+	/**
+	 * PC-9: wpcap_event_cancelled fires once per event cancellation, after every date of the event was
+	 * cancelled and every ticket of it revoked (occurrence runs and safety net done), before the capacity
+	 * release and the event mails. The run remembers it (data event_announced, saved before the action),
+	 * so a resumed or repeated run never fires it again.
+	 */
+	private static function announce_event_cancelled( $run ) {
+		if ( ! empty( $run->data['event_announced'] ) ) { return; }
+		$run->data['event_announced'] = 1;
+		self::save( $run, array( 'payload' => wp_json_encode( $run->data ) ) );
+		/**
+		 * An event was cancelled: committed, its dates are cancelled and its tickets revoked.
+		 *
+		 * @param int   $event_id Event id.
+		 * @param array $context  occurrence_ids (cancelled dates), run_id (BulkRuns run; 0 before the schema
+		 *                        upgrade). Further keys may be added.
+		 */
+		do_action( 'wpcap_event_cancelled', (int) $run->object_id, array( 'occurrence_ids' => array_map( 'intval', (array) ( $run->data['occurrence_ids'] ?? array() ) ), 'run_id' => (int) $run->run_id ) );
 	}
 
 	/** Capacity of the event's orders stopped counting (open orders reported it when cancelled). */
@@ -610,7 +637,7 @@ final class BulkRuns {
 			$out['total'] += (int) $row->n;
 			if ( 'sent' === $row->status ) { $out['sent'] += (int) $row->n; } elseif ( in_array( $row->status, array( 'failed', 'cancelled' ), true ) ) { $out['failed'] += (int) $row->n; } else { $out['waiting'] += (int) $row->n; }
 		}
-		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE template_key=%s AND status='queued' AND send_at<=%s", $key, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE template_key=%s AND status='queued' AND send_at<=%s", $key, Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		return $out;
 	}
 
@@ -624,7 +651,7 @@ final class BulkRuns {
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT status,COUNT(*) AS n FROM $table WHERE job_type=%s AND payload LIKE %s AND status<>'complete' GROUP BY status", OccurrenceCancellation::REFUND_JOB, $like ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 			if ( 'dead_letter' === $row->status ) { $out['failed'] += (int) $row->n; } else { $out['retrying'] += (int) $row->n; }
 		}
-		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE job_type=%s AND payload LIKE %s AND status='queued' AND run_after<=%s", OccurrenceCancellation::REFUND_JOB, $like, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$out['due'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE job_type=%s AND payload LIKE %s AND status='queued' AND run_after<=%s", OccurrenceCancellation::REFUND_JOB, $like, Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		return $out;
 	}
 

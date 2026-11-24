@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Campaigns {
 	/**
 	 * Whether a code entered in the single checkout code field is a discount campaign (any status, so an expired
@@ -400,7 +403,7 @@ final class Campaigns {
 		$code = strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $data['code'] ?? '' ) ) ) );
 		$kind = sanitize_key( $data['kind'] ?? '' );
 		$value = absint( $data['value'] ?? 0 );
-		$currency = strtoupper( sanitize_text_field( $data['currency'] ?? 'EUR' ) );
+		$currency = strtoupper( sanitize_text_field( $data['currency'] ?? Localization::default_currency() ) ); // SET-PC-08
 		if ( strlen( $code ) < 3 || strlen( $code ) > 32 || ! in_array( $kind, array( 'percent', 'fixed' ), true ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! $value || ( 'percent' === $kind && $value > 10000 ) ) {
 			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}

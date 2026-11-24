@@ -13,6 +13,9 @@ use PassCaptain\Privacy\Retention;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Privacy {
 	/** Domain of all placeholder addresses (erased buyers, box office sales without e-mail). */
 	const PLACEHOLDER_DOMAIN = '@invalid.example';
@@ -300,10 +303,10 @@ final class Privacy {
 		$p = $wpdb->prefix;
 		$count = 0;
 		if ( self::has_table( 'wpcap_partners' ) ) {
-			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_partners', current_time( 'mysql', true ), $email ) );
+			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_partners', Clock::mysql(), $email ) );
 		}
 		if ( self::has_table( 'wpcap_legal_sellers' ) ) {
-			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_email='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_legal_sellers', current_time( 'mysql', true ), $email ) );
+			$count += (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET contact_email='',updated_at=%s WHERE contact_email=%s", $p . 'wpcap_legal_sellers', Clock::mysql(), $email ) );
 		}
 		return $count;
 	}
@@ -388,7 +391,7 @@ final class Privacy {
 		$p = $wpdb->prefix;
 		$email = sanitize_email( $email_address );
 		if ( '' === $email ) { return array( 'items_removed' => false, 'items_retained' => false, 'messages' => array(), 'done' => true ); }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$removed = 0;
 		// WordPress calls the eraser page by page until `done`. Counts are summed over the pages, the
 		// messages and the deferral mail follow once on the last page (not once per batch of 50 orders).
@@ -530,7 +533,7 @@ final class Privacy {
 		}
 		if ( $upcoming ) {
 			/* translators: %d: number of tickets */
-			$messages[] = sprintf( _n( 'Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', (int) $upcoming, 'pass-captain' ), $upcoming );
+			$messages[] = sprintf( _n( 'Achtung: %d Ticket für bevorstehende Termine wurde durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'Achtung: %d Tickets für bevorstehende Termine wurden durch die Löschung ungültig. Bitte kläre mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', (int) $upcoming, 'pass-captain' ), $upcoming );
 		}
 		return array(
 			'items_removed' => $removed > 0,
@@ -549,7 +552,7 @@ final class Privacy {
 	private static function anonymize_order( $order_id, $replacement, $email ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$invoices = 0;
 		$billing_erased = 0;
 		$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE order_id=%d', $p . 'wpcap_tickets', $order_id ) ) );
@@ -635,7 +638,7 @@ final class Privacy {
 	private static function erase_member_passes( $email, $replacement ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$removed = 0;
 		$deferred = 0;
 		$list = self::deferred_passes();
@@ -683,7 +686,7 @@ final class Privacy {
 		global $wpdb;
 		$passes = self::deferred_passes();
 		if ( $passes ) {
-			$now = current_time( 'mysql', true );
+			$now = Clock::mysql();
 			foreach ( $passes as $pass_id => $replacement ) {
 				$pass = $wpdb->get_row( $wpdb->prepare( 'SELECT status,valid_until FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_member_passes', (int) $pass_id ) );
 				if ( $pass && 'active' === $pass->status && (string) $pass->valid_until > $now ) { continue; }
@@ -729,7 +732,7 @@ final class Privacy {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$in = self::in_list( $ticket_ids );
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN ($in) AND t.status='valid' AND o.status<>'cancelled' AND COALESCE(o.ends_at,o.starts_at)>=%s", current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id IN ($in) AND t.status='valid' AND o.status<>'cancelled' AND COALESCE(o.ends_at,o.starts_at)>=%s", Clock::mysql() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/**
@@ -754,7 +757,7 @@ final class Privacy {
 		} else {
 			// Apple devices still need the push for the revoked pass; drop their registration afterwards.
 			// Recorded first (survives a deactivation that removes the cron event, A510), then scheduled.
-			$due = time() + HOUR_IN_SECONDS;
+			$due = Clock::real() + HOUR_IN_SECONDS;
 			self::change_pending_wallet_purges( static function ( array $pending ) use ( $ticket_ids, $due ) {
 				foreach ( array_filter( array_map( 'absint', $ticket_ids ) ) as $id ) { $pending[ $id ] = isset( $pending[ $id ] ) ? min( (int) $pending[ $id ], $due ) : $due; }
 				return $pending;

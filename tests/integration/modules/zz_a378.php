@@ -13,7 +13,7 @@ check( 'A378: privacy and advanced are core tabs', 'Datenschutz' === ( $a378_tab
 $a378_ids = static fn( $tab ) => array_keys( SettingsPage::scoped_sections( $tab ) );
 check( 'A378: general no longer holds proxy, privacy, security, support, uninstall', ! array_intersect( $a378_ids( 'general' ), array( 'network', 'privacy', 'security', 'support', 'uninstall' ) ) && in_array( 'general', $a378_ids( 'general' ), true ) && in_array( 'mail', $a378_ids( 'general' ), true ) );
 check( 'A378: advanced holds proxy, security, support, uninstall', ! array_diff( array( 'network', 'security', 'support', 'uninstall' ), $a378_ids( 'advanced' ) ) );
-check( 'A378: privacy tab holds the retention periods', array( 'privacy' ) === $a378_ids( 'privacy' ) );
+check( 'A378: privacy tab holds the retention periods', array( 'privacy', 'logs' ) === $a378_ids( 'privacy' ) );
 
 $a378_before = Settings::get( 'voucher_default_purpose' );
 Settings::update( array( 'voucher_default_purpose' => 'multi' ) );

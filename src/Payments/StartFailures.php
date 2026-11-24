@@ -17,6 +17,9 @@ use PassCaptain\Operations\SiteHealth;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class StartFailures {
 	/**
 	 * Records a failed create_payment() and returns the error for the buyer: the provider's error code

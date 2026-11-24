@@ -27,7 +27,7 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass); derselbe Einlass doppelt gemeldet bleibt ein Ereignis | Ticket + `checked_in_at`, `source` |
 | `ticket.checked_out` | `wpcap_ticket_checked_out` – jeder Auslass ein Ereignis | Ticket + `checked_out_at`, `source` |
 | `attendance.confirmed` | erster gültiger Einlass eines Tickets – höchstens einmal je Ticket | Ticket + `confirmed_at`, `method` (`check_in`), `source` |
-| `ticket.transferred` | `wpcap_ticket_transferred` (Übertragung im Bestellportal, Inhaberwechsel bei der Zuweisung) | Ticket + `source` (`portal`, `assign`), `holder_changes` |
+| `ticket.transferred` | `wpcap_ticket_transferred` (Übertragung im Bestellportal, Inhaberwechsel bei der Zuweisung, „Inhaber ändern“ im Admin) | Ticket + `source` (`portal`, `assign`, `admin`), `holder_changes` |
 | `ticket.revoked` | `wpcap_ticket_revoked` (Admin, Erstattung, Stornierung, Absage) | Ticket + `reason` |
 | `ticket.exchanged` | `wpcap_ticket_exchanged` (Umtausch abgeschlossen: Admin, Portal, Kasse) | neues Ticket + `previous_ticket_id` (öffentliche ID des alten Tickets) + `exchange` (`from_ticket_type_id`, `to_ticket_type_id`, `channel`, `currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) |
 | `occurrence.rescheduled` | `wpcap_occurrence_rescheduled` | Termin + `previous_starts_at` |
@@ -40,10 +40,9 @@ Zahlungsanbieters) erzeugt `order.refunded` mit `refund.kind = "full"` und `tick
 betroffenen Tickets. Erstattungen über das Plugin senden `order.refunded` je Erstattung; die zugehörige
 Vollerstattungsmeldung wird dann nicht doppelt gesendet.
 
-Dieselben Ereignisse (ohne personenbezogene Daten, auch ohne Opt-in) schreibt der Kern unabhängig von
-Webhook-Abonnements in die Ereignis-Outbox des Workflow-Providervertrags
-([CONTRACTS.md](CONTRACTS.md#workflow-providervertrag-v1)); Webhook und Outbox tragen für dasselbe Ereignis
-dieselbe `id`.
+Die `id` eines Ereignisses ist stabil: Sie entsteht aus Typ und fachlicher Kennung (Bestellung, Ticket,
+Erstattung, Einlasszeile, Revision), ein doppelt feuernder interner Hook erzeugt dieselbe `id`. Eine eigene
+Ereignis-Outbox für Workflows gibt es im Kern nicht (PC-7, [CONTRACTS.md](CONTRACTS.md#kein-workflow-vertrag-im-kern-pc-7)).
 
 Hinweis: Erstattungen, die direkt im Dashboard eines Zahlungsanbieters ausgelöst werden, sowie
 Chargebacks (Stripe-Dispute verloren bzw. Geld abgezogen, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie-Chargeback)

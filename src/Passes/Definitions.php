@@ -29,6 +29,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Definitions {
 	const CAP = 'wpcap_manage_events';
 	const MODES = array( 'once', 'reentry' );
@@ -189,7 +192,7 @@ final class Definitions {
 		if ( ! Access::can_access_event( (int) $anchor->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
 		if ( '' === $name ) { return self::error( 'wpcap_pass_name', __( 'Bitte einen Namen für den Pass angeben.', 'pass-captain' ) ); }
-		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $in['currency'] ?? 'EUR' ) ) );
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $in['currency'] ?? \PassCaptain\Localization::default_currency() ) ) );
 		$wpdb->insert( "{$p}wpcap_ticket_types", array(
 			'occurrence_id' => (int) $anchor->occurrence_id,
 			'name' => $name,

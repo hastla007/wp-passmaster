@@ -13,6 +13,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminPage {
 	const SLUG = 'wpcap-offline-scanner';
 	const CAP = 'wpcap_manage_events';
@@ -37,7 +40,7 @@ final class AdminPage {
 		if ( ! self::can( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$rules = Rules::save( $event_id, array(
 			'enabled' => Forms::flag( $in, 'enabled' ),
-			'max_offline_hours' => Forms::int( $in, 'max_offline_hours', 12 ),
+			'max_offline_hours' => Forms::int( $in, 'max_offline_hours', Rules::default_hours() ),
 			'duplicate_policy' => Forms::choice( $in, 'duplicate_policy', Rules::POLICIES, '' ),
 			'include_attendee' => Forms::flag( $in, 'include_attendee' ),
 		) );

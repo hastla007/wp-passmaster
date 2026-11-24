@@ -164,4 +164,86 @@ function withPage(getCtx, name, fn) {
 	};
 }
 
-module.exports = { playwright, BASE, WP, BROWSER, DEVICE, LABEL, installMuPlugin, fixture, helper, codeFrom, launch, grantCamera, context, login, withPage, assertFitsViewport };
+/* ---- A321: realistic conditions (shared by conditions*.test.js and the flow tests) ---- */
+
+let axePath = '';
+for (const candidate of [path.join(__dirname, '..', 'a11y', 'node_modules', 'axe-core', 'axe.min.js'), path.join(__dirname, 'node_modules', 'axe-core', 'axe.min.js')]) {
+	if (fs.existsSync(candidate)) { axePath = candidate; break; }
+}
+if (!axePath) { try { axePath = require.resolve('axe-core/axe.min.js'); } catch (e) { axePath = ''; } }
+
+/** Horizontal overflow at the current viewport: [scrollWidth, clientWidth, widest elements]. */
+async function overflow(p) {
+	return p.evaluate(() => {
+		const width = document.documentElement.clientWidth;
+		const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
+		const wide = Array.from(document.querySelectorAll('body *')).filter((el) => {
+			const r = el.getBoundingClientRect();
+			if (!r.width || getComputedStyle(el).position === 'fixed') return false;
+			return rtl ? r.left < -1 : r.right > width + 1;
+		}).slice(0, 5).map((el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : ''));
+		// Elements whose own content (e.g. an unbreakable word) is wider than their box.
+		const over = Array.from(document.querySelectorAll('body *')).filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === 'visible').slice(0, 5).map((el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '') + ' (content ' + el.scrollWidth + ' > ' + el.clientWidth + ' px)');
+		return { scroll: document.documentElement.scrollWidth, width, wide: wide.concat(over) };
+	});
+}
+/** The page must not scroll horizontally at the current viewport (WCAG 1.4.10 reflow at 320 CSS px). */
+async function assertReflow(p, what) {
+	const r = await overflow(p);
+	if (r.scroll > r.width + 1) throw new Error(what + ': scrolls horizontally at ' + r.width + ' px (' + r.scroll + ' px): ' + r.wide.join(', '));
+}
+/** axe colour contrast (WCAG 1.4.3) of the page or a part of it; null when axe-core is not installed. */
+async function contrast(p, include) {
+	if (!axePath) return null;
+	await p.addScriptTag({ path: axePath });
+	return p.evaluate(async (inc) => {
+		const r = await window.axe.run(inc && document.querySelector(inc) ? { include: [[inc]] } : document, { runOnly: { type: 'rule', values: ['color-contrast'] } });
+		return r.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ') + ': ' + (n.failureSummary || '').split('\n').slice(-1)[0]));
+	}, include || null);
+}
+/** Context for the 320 CSS px reflow checks (= 1280 px at 400 % zoom), without device emulation. */
+function narrowOptions(extra) {
+	return Object.assign({ viewport: { width: 320, height: 640 }, isMobile: false, hasTouch: false, deviceScaleFactor: 1 }, extra || {});
+}
+/**
+ * Slow network for every engine (CDP throttling exists only in Chromium): each matching request waits
+ * `ms` before it goes out. Returns a function that removes the delay.
+ */
+async function slowNetwork(p, pattern, ms) {
+	const handler = async (route) => { await new Promise((r) => setTimeout(r, ms)); await route.continue().catch(() => {}); };
+	await p.route(pattern, handler);
+	return () => p.unroute(pattern, handler);
+}
+/** Name of the focused element (tag, name/class) for assertion messages. */
+async function focused(p) {
+	return p.evaluate(() => {
+		const el = document.activeElement;
+		if (!el || el === document.body) return 'body';
+		return el.tagName.toLowerCase() + (el.name ? '[name=' + el.name + ']' : '') + (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '');
+	});
+}
+/**
+ * Keyboard only: presses Tab (at most `max` times) until `selector` has the focus. Throws when it is not
+ * reachable – keyboard users could not get there either. WebKit follows the platform setting "Press Tab
+ * to highlight each item" (off by default on Apple systems: Tab skips buttons and links), so there a
+ * control Tab does not reach is focused directly; Chromium and Firefox must reach it with Tab (Shift+Tab
+ * when the target comes before the focused control).
+ */
+async function tabTo(p, selector, max) {
+	const reached = () => p.evaluate((sel) => { const el = document.querySelector(sel); return !!el && (el === document.activeElement || el.contains(document.activeElement)); }, selector);
+	// A target before the focused control is reached backwards (Shift+Tab), as a keyboard user would:
+	// at the end of the page Firefox moves the focus into the browser UI instead of wrapping around.
+	const before = await p.evaluate((sel) => { const el = document.querySelector(sel); const a = document.activeElement; return !!el && !!a && a !== document.body && !el.contains(a) && !!(el.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING); }, selector);
+	const key = before ? 'Shift+Tab' : 'Tab';
+	for (let i = 0; i < (max || 60); i++) {
+		if (await reached()) return;
+		await p.keyboard.press(key);
+	}
+	if (BROWSER === 'webkit' && await p.evaluate((sel) => { const el = document.querySelector(sel); return !!el && /^(BUTTON|A)$/.test(el.tagName); }, selector)) {
+		await p.focus(selector);
+		if (await reached()) return;
+	}
+	throw new Error('not reachable with Tab: ' + selector + ' (focus on ' + (await focused(p)) + ')');
+}
+
+module.exports = { playwright, BASE, WP, BROWSER, DEVICE, LABEL, installMuPlugin, fixture, helper, codeFrom, launch, grantCamera, context, login, withPage, assertFitsViewport, overflow, assertReflow, contrast, narrowOptions, slowNetwork, focused, tabTo };

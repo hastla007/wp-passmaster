@@ -25,6 +25,9 @@ use PassCaptain\Log;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class CheckoutGate {
 	const FILTER = 'wp_pass_captain_checkout_allowed_v1';
 	const VERSION = 1;

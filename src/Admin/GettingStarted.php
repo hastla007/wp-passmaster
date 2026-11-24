@@ -15,6 +15,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class GettingStarted {
 	/** User meta: 1 = checklist hidden by this user. */
 	const META = 'wpcap_getting_started_hidden';
@@ -61,6 +64,9 @@ final class GettingStarted {
 			'require_terms'       => (bool) Settings::get( 'require_terms' ),
 			'seller'              => '' !== trim( (string) Settings::get( 'seller_name' ) ) && '' !== trim( (string) Settings::get( 'seller_address' ) ),
 		);
+		// SET-PC-31: the country counts as chosen once seller_country was stored (screen, preset or import).
+		$stored = get_option( Settings::OPTION, array() );
+		$state['country'] = is_array( $stored ) && array_key_exists( 'seller_country', $stored );
 		$state['legal_texts'] = $state['terms_text'] && $state['consumer_info_text'];
 		$state += self::frontend_pages();
 		foreach ( array( 'events', 'published_events', 'upcoming_occurrences', 'ticket_types', 'devices', 'paid_orders' ) as $key ) {
@@ -137,6 +143,21 @@ final class GettingStarted {
 			$payment_note = __( 'Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen.', 'pass-captain' );
 		}
 		$items = array(
+			// SET-PC-31: guided order country → seller → payment → legal texts → first event.
+			array(
+				'key' => 'country',
+				'label' => __( 'Land wählen', 'pass-captain' ),
+				'description' => __( 'Ein Länderprofil schlägt passende Werte für Fristen, Hinweise und Vorwahlen vor; du übernimmst nur, was du auswählst.', 'pass-captain' ),
+				'done' => ! empty( $state['country'] ),
+				'url' => SettingsTools::url( array( 'view' => 'preset' ) ),
+			),
+			array(
+				'key' => 'seller',
+				'label' => __( 'Rechnungssteller angeben', 'pass-captain' ),
+				'description' => __( 'Name und Anschrift für Rechnungen und Belege.', 'pass-captain' ),
+				'done' => ! empty( $state['seller'] ),
+				'url' => self::settings_url( 'invoices', '', 'seller' ),
+			),
 			array(
 				'key' => 'payment',
 				'label' => __( 'Zahlungsart einrichten', 'pass-captain' ),
@@ -152,13 +173,6 @@ final class GettingStarted {
 				// A289: done only when the buyer sees and accepts the terms in the checkout.
 				'done' => ! empty( $state['legal_texts'] ) && ! empty( $state['require_terms'] ),
 				'url' => self::settings_url( 'legal' ),
-			),
-			array(
-				'key' => 'seller',
-				'label' => __( 'Rechnungssteller angeben', 'pass-captain' ),
-				'description' => __( 'Name und Anschrift für Rechnungen und Belege.', 'pass-captain' ),
-				'done' => ! empty( $state['seller'] ),
-				'url' => self::settings_url( 'invoices', '', 'seller' ),
 			),
 			array(
 				'key' => 'event',

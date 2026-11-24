@@ -26,22 +26,137 @@ use PassCaptain\Modules;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class SettingsPage {
 	const SLUG = 'wpcap-settings';
 	const CAP = 'manage_options';
 
 	/** Field definitions grouped by section. */
+	/** Tax classes for the service fee (A425): those of the tax profiles, plus "service" and the stored value. */
+	public static function fee_tax_classes() {
+		$classes = array( 'service' );
+		try {
+			$classes = array_merge( $classes, \PassCaptain\Sales\TaxProfiles::classes() );
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Table missing (before the upgrade): the defaults are enough.
+		}
+		$current = sanitize_key( (string) Settings::get( 'service_fee_tax_class' ) );
+		if ( '' !== $current ) { $classes[] = $current; }
+		$classes = array_values( array_unique( array_filter( array_map( 'sanitize_key', $classes ) ) ) );
+		return array_combine( $classes, $classes );
+	}
+
+	/** SET-PC-03: fields of the number patterns, four per document kind (DocumentNumbers::KINDS). */
+	public static function number_fields() {
+		$fields = array();
+		foreach ( \PassCaptain\DocumentNumbers::labels() as $kind => $label ) {
+			/* translators: %s: document kind, e.g. Rechnungen */
+			$fields[ $kind . '_number_pattern' ] = array( 'type' => 'text', 'label' => sprintf( __( '%s: Nummernmuster', 'pass-captain' ), $label ), 'description' => __( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DocumentNumbers::class, 'sanitize_pattern' ) );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_digits' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Stellen der laufenden Nummer', 'pass-captain' ), $label ), 'min' => 1, 'max' => \PassCaptain\DocumentNumbers::MAX_DIGITS, 'description' => __( 'Mit Nullen aufgefüllt, z. B. 6 = 000123. Standard: 6.', 'pass-captain' ) );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_start' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Startnummer', 'pass-captain' ), $label ), 'min' => 0, 'max' => 999999999, 'description' => __( 'Erste Nummer eines neuen Nummernkreises (bei jährlichem Neubeginn in jedem Jahr). 0 = ab 1. Nur nach oben: Sie muss größer sein als die zuletzt vergebene Nummer.', 'pass-captain' ), 'sanitize' => static function ( $value, $current = null ) use ( $kind ) { return \PassCaptain\DocumentNumbers::sanitize_start( $kind, $value, $current ); } );
+			/* translators: %s: document kind */
+			$fields[ $kind . '_number_yearly' ] = array( 'type' => 'bool', 'label' => sprintf( __( '%s: jedes Jahr neu beginnen', 'pass-captain' ), $label ), 'description' => __( 'Nur wenn das Muster {year} oder {yy} enthält; sonst läuft die Nummer über die Jahre weiter.', 'pass-captain' ) );
+		}
+		return $fields;
+	}
+
+	/**
+	 * SET-PC-03: the number pattern fields as one table (row per document kind) with the next number. The
+	 * inputs keep the ids wpcap-set-{key}, so error links and labels work as for the other fields.
+	 *
+	 * @param array $def    Section definition.
+	 * @param array $values Current settings.
+	 */
+	public static function render_number_table( array $def, array $values ) {
+		echo '<table class="widefat striped wpcap-number-table"><thead><tr><th scope="col">' . esc_html__( 'Belegart', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Muster', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Stellen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Startnummer', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Jedes Jahr neu', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Nächste Nummer', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( \PassCaptain\DocumentNumbers::labels() as $kind => $label ) {
+			$keys = array( 'pattern' => $kind . '_number_pattern', 'digits' => $kind . '_number_digits', 'start' => $kind . '_number_start', 'yearly' => $kind . '_number_yearly' );
+			echo '<tr><th scope="row">' . esc_html( $label ) . '</th>';
+			echo '<td><input type="text" id="' . esc_attr( 'wpcap-set-' . $keys['pattern'] ) . '" name="' . esc_attr( $keys['pattern'] ) . '" size="24" maxlength="60" value="' . esc_attr( (string) ( $values[ $keys['pattern'] ] ?? '' ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['pattern'] ]['label'] ) . '"></td>';
+			echo '<td><input type="number" id="' . esc_attr( 'wpcap-set-' . $keys['digits'] ) . '" name="' . esc_attr( $keys['digits'] ) . '" min="1" max="' . esc_attr( (string) \PassCaptain\DocumentNumbers::MAX_DIGITS ) . '" class="small-text" value="' . esc_attr( (string) (int) ( $values[ $keys['digits'] ] ?? 6 ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['digits'] ]['label'] ) . '"></td>';
+			echo '<td><input type="number" id="' . esc_attr( 'wpcap-set-' . $keys['start'] ) . '" name="' . esc_attr( $keys['start'] ) . '" min="0" max="999999999" class="small-text" value="' . esc_attr( (string) (int) ( $values[ $keys['start'] ] ?? 0 ) ) . '" aria-label="' . esc_attr( (string) $def['fields'][ $keys['start'] ]['label'] ) . '"></td>';
+			echo '<td><input type="checkbox" id="' . esc_attr( 'wpcap-set-' . $keys['yearly'] ) . '" name="' . esc_attr( $keys['yearly'] ) . '" value="1"' . checked( ! empty( $values[ $keys['yearly'] ] ), true, false ) . ' aria-label="' . esc_attr( (string) $def['fields'][ $keys['yearly'] ]['label'] ) . '"></td>';
+			echo '<td><code>' . esc_html( \PassCaptain\DocumentNumbers::preview( $kind ) ) . '</code></td></tr>';
+			foreach ( $keys as $key ) {
+				if ( isset( self::$field_errors[ $key ] ) ) { echo '<tr><td></td><td colspan="5" class="wpcap-field-error"><strong>' . esc_html( self::$field_errors[ $key ] ) . '</strong></td></tr>'; }
+			}
+		}
+		echo '</tbody></table>';
+		echo '<p class="description">' . esc_html__( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ) . ' ' . esc_html__( 'Die Präfixe stehen bei den Rechnungsdaten, an der Kasse und bei den Partnern. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat.', 'pass-captain' ) . '</p>';
+	}
+
+	/**
+	 * SET-PC-37: DATEV accounts as one table – chart, revenue account and BU key per VAT rate, revenue
+	 * account of all other rates, money account (datev_contra_account) and money account per payment method
+	 * (datev_accounts). Empty cells show the account of the chart as placeholder.
+	 *
+	 * @param array $def    Section definition.
+	 * @param array $values Current settings.
+	 */
+	public static function render_datev_table( array $def, array $values ) {
+		$chart = (string) ( $values['datev_chart'] ?? 'skr03' );
+		$base = \PassCaptain\DatevAccounts::chart_defaults( $chart );
+		$stored = \PassCaptain\DatevAccounts::normalize( is_array( $values['datev_accounts'] ?? null ) ? $values['datev_accounts'] : array() );
+		$account = static function ( $name, $value, $placeholder, $label, $id = '' ) {
+			return '<input type="text" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" size="9"' . ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . ' name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" placeholder="' . esc_attr( (string) $placeholder ) . '" aria-label="' . esc_attr( $label ) . '">';
+		};
+		echo '<p><label for="wpcap-set-datev_chart">' . esc_html( (string) $def['fields']['datev_chart']['label'] ) . '</label> ';
+		Forms::select( 'datev_chart', $def['fields']['datev_chart']['options'], $chart, 'wpcap-set-datev_chart' );
+		echo '</p>';
+		echo '<table class="widefat striped wpcap-datev-table"><thead><tr><th scope="col">' . esc_html__( 'Buchung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Steuersatz (%)', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konto', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'BU-Schlüssel', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		$rates = array_values( array_unique( array_merge( array_keys( $base['revenue'] ), array( 0 ), array_keys( $stored['revenue'] ), array_keys( $stored['bu_keys'] ) ) ) );
+		$rows = array_merge( $rates, array( null, null ) ); // Two empty rows for further rates.
+		foreach ( $rows as $i => $rate_bp ) {
+			$rate_label = null === $rate_bp ? __( 'weiterer Steuersatz', 'pass-captain' ) : Forms::percent_input( (int) $rate_bp ) . ' %';
+			echo '<tr><th scope="row">' . esc_html__( 'Erlöse', 'pass-captain' ) . '</th><td>';
+			echo '<input type="text" inputmode="decimal" size="6" name="' . esc_attr( 'datev_accounts[rates][' . $i . '][rate]' ) . '" value="' . esc_attr( null === $rate_bp ? '' : Forms::percent_input( (int) $rate_bp ) ) . '" aria-label="' . esc_attr__( 'Steuersatz (%)', 'pass-captain' ) . '">';
+			echo '</td><td>' . $account( 'datev_accounts[rates][' . $i . '][account]', null === $rate_bp ? '' : ( $stored['revenue'][ $rate_bp ] ?? '' ), null === $rate_bp ? $base['revenue_default'] : ( $base['revenue'][ $rate_bp ] ?? $base['revenue_default'] ), sprintf( /* translators: %s: VAT rate */ __( 'Erlöskonto %s', 'pass-captain' ), $rate_label ) ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+			echo '<td><input type="text" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" size="5" name="' . esc_attr( 'datev_accounts[rates][' . $i . '][bu]' ) . '" value="' . esc_attr( null === $rate_bp ? '' : ( $stored['bu_keys'][ $rate_bp ] ?? '' ) ) . '" aria-label="' . esc_attr( sprintf( /* translators: %s: VAT rate */ __( 'BU-Schlüssel %s', 'pass-captain' ), $rate_label ) ) . '"></td></tr>';
+		}
+		echo '<tr><th scope="row">' . esc_html__( 'Erlöse', 'pass-captain' ) . '</th><td>' . esc_html__( 'alle übrigen Sätze', 'pass-captain' ) . '</td><td>' . $account( 'datev_accounts[revenue_default]', $stored['revenue_default'], $base['revenue_default'], __( 'Erlöskonto für alle übrigen Sätze', 'pass-captain' ) ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		echo '<tr><th scope="row">' . esc_html__( 'Geldkonto', 'pass-captain' ) . '</th><td>' . esc_html__( 'alle Zahlungsarten', 'pass-captain' ) . '</td><td>' . $account( 'datev_contra_account', (string) ( $values['datev_contra_account'] ?? '' ), $base['contra'], (string) $def['fields']['datev_contra_account']['label'], 'wpcap-set-datev_contra_account' ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		$providers = array();
+		foreach ( Registry::all() as $provider_id => $gateway ) { $providers[ (string) $provider_id ] = $gateway->title(); }
+		foreach ( array_keys( $stored['contra_by_provider'] ) as $provider_id ) { $providers += array( (string) $provider_id => (string) $provider_id ); }
+		foreach ( $providers as $provider_id => $title ) {
+			echo '<tr><th scope="row">' . esc_html__( 'Geldkonto', 'pass-captain' ) . '</th><td>' . esc_html( $title ) . ' <code>' . esc_html( $provider_id ) . '</code></td><td>' . $account( 'datev_accounts[contra_by_provider][' . $provider_id . ']', $stored['contra_by_provider'][ $provider_id ] ?? '', preg_match( '/^\d{4,8}$/', (string) ( $values['datev_contra_account'] ?? '' ) ) ? (string) $values['datev_contra_account'] : $base['contra'], sprintf( /* translators: %s: payment method */ __( 'Geldkonto %s', 'pass-captain' ), $title ) ) . '</td><td></td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		}
+		echo '</tbody></table>';
+		foreach ( array( 'datev_chart', 'datev_contra_account', 'datev_accounts' ) as $key ) {
+			if ( isset( self::$field_errors[ $key ] ) ) { echo '<p class="wpcap-field-error" id="' . esc_attr( 'wpcap-set-' . $key . '-error' ) . '"><strong>' . esc_html( self::$field_errors[ $key ] ) . '</strong></p>'; }
+		}
+		echo '<p class="description" id="wpcap-set-datev_accounts">' . esc_html( (string) $def['fields']['datev_accounts']['description'] ) . '</p>';
+	}
+
+	/** Service fee tax rate fallback: '' or a percent ("19", "7,7"); invalid input is refused. */
+	public static function sanitize_fee_tax_rate( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return ''; }
+		$bp = Forms::parse_percent_bp( $value );
+		if ( null === $bp ) {
+			return new \WP_Error( 'wpcap_service_fee_tax_rate', __( '„Steuersatz der Servicegebühr“ ist ungültig. Beispiel: 20 oder 7,7 (leer = Satz der Ticketposition).', 'pass-captain' ) );
+		}
+		return Forms::percent_input( $bp );
+	}
+
 	public static function sections() {
 		return array(
 			'general' => array(
 				'title' => __( 'Allgemein / Reservierung', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
-					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120 ),
+					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120, 'description' => __( 'So lange bleiben die gewählten Tickets im Checkout für die Person reserviert; danach werden sie wieder frei.', 'pass-captain' ) ),
+					'default_currency' => array( 'type' => 'currency', 'label' => __( 'Standardwährung', 'pass-captain' ), 'description' => __( 'Währung für neue Ticketarten, Kassen, Rabattcodes und SMS-Kosten (ISO-Code, z. B. EUR oder CHF). Bestehende Preise behalten ihre Währung.', 'pass-captain' ) ),
+					'price_entry' => array( 'type' => 'choice', 'label' => __( 'Preiseingabe', 'pass-captain' ), 'options' => array( 'gross' => __( 'brutto (inkl. Steuer, Standard)', 'pass-captain' ), 'net' => __( 'netto (ohne Steuer)', 'pass-captain' ) ), 'description' => __( 'Ob du Ticketpreise mit oder ohne Steuer einträgst. Gespeichert und Käufern angezeigt wird immer der Bruttopreis; bei netto rechnet Pass Captain den Steuersatz der Ticketart dazu (auf den Cent gerundet).', 'pass-captain' ) ),
+					'currencies' => array( 'type' => 'currencies', 'label' => __( 'Angebotene Währungen', 'pass-captain' ), 'description' => __( 'ISO-Codes, durch Komma getrennt, z. B. „CHF, EUR“. Leer = EUR, USD, CHF, GBP, CAD, AUD. Ein Filter (wp_pass_captain_currencies_v1) hat Vorrang.', 'pass-captain' ) ),
 					'occurrence_default_duration_hours' => array( 'type' => 'int', 'label' => __( 'Standarddauer von Terminen ohne Ende (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 168, 'description' => __( 'Ein Termin ohne Endzeit gilt so lange nach Beginn als laufend (Abendkasse, Terminlisten von Scanner und App). Mehrtägige Termine bitte mit Ende anlegen.', 'pass-captain' ) ),
-					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
+					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Sagst du einen Termin ab, stößt Pass Captain die Erstattung bezahlter Bestellungen sofort an. Ohne Haken erstattest du selbst unter „Bestellungen“.', 'pass-captain' ) ),
 					'late_payment_auto_refund' => array( 'type' => 'bool', 'label' => __( 'Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten', 'pass-captain' ), 'description' => __( 'Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen.', 'pass-captain' ) ),
-					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5 ),
+					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5, 'description' => __( 'So viele Rabattcodes darf eine Person in einer Bestellung eingeben.', 'pass-captain' ) ),
 					'campaign_stacking' => array(
 						'type' => 'choice',
 						'label' => __( 'Mehrere Rabattcodes', 'pass-captain' ),
@@ -51,7 +166,51 @@ final class SettingsPage {
 						),
 						'description' => __( 'Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein.', 'pass-captain' ),
 					),
-					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ) ),
+					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert.', 'pass-captain' ) ),
+				),
+			),
+			'buyer' => array(
+				'title' => __( 'Bestellportal und Änderungen durch Käufer', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'order_access_days' => array( 'type' => 'int', 'label' => __( 'Persönlicher Bestelllink gültig (Tage)', 'pass-captain' ), 'min' => 1, 'max' => 3650, 'description' => __( 'So lange ab dem Versand funktioniert der Link zum Bestellportal, mindestens aber so viele Tage nach dem Ende des letzten Termins der Bestellung. Standard: 30. Ein Filter (wpcap_order_access_days) hat Vorrang.', 'pass-captain' ) ),
+					'payment_resume_link' => array(
+						'type' => 'choice',
+						'label' => __( 'Link „Zahlung fortsetzen“ nach abgebrochener Zahlung', 'pass-captain' ),
+						'options' => array(
+							'show' => __( 'anbieten (Standard)', 'pass-captain' ),
+							'hide' => __( 'nicht anbieten', 'pass-captain' ),
+						),
+						'description' => __( 'Solange die Reservierung läuft, können Käufer nach Abbruch oder Fehlschlag die Zahlung derselben Bestellung fortsetzen (Rückkehrseite und Kaufformular). Ohne den Link bleibt nur „Bestellung stornieren“ bzw. eine neue Bestellung.', 'pass-captain' ),
+					),
+					'max_attendee_name_changes' => array( 'type' => 'int', 'label' => __( 'Namensänderungen je Ticket (höchstens)', 'pass-captain' ), 'min' => 0, 'max' => 20, 'description' => __( 'So oft dürfen Käufer den Teilnehmernamen eines Tickets im Bestellportal oder auf der Ticketseite ändern, Tippfehler-Korrekturen eingeschlossen. 0 = gar nicht. Änderungen durch dein Team sind nicht begrenzt. Standard: 3. Ein Filter (wpcap_max_attendee_name_changes) hat Vorrang.', 'pass-captain' ) ),
+					'max_holder_changes' => array( 'type' => 'int', 'label' => __( 'Inhaberwechsel je Ticket (höchstens)', 'pass-captain' ), 'min' => 0, 'max' => 10, 'description' => __( 'So oft darf ein Ticket an eine andere Person gehen: Zuweisung, Übertragung oder Namensänderung auf eine andere Person. 0 = gar nicht. Standard: 1. Ein Filter (wpcap_max_holder_changes) hat Vorrang.', 'pass-captain' ) ),
+					'max_line_quantity' => array( 'type' => 'int', 'label' => __( 'Höchstmenge je Bestellposition', 'pass-captain' ), 'min' => 1, 'max' => 1000, 'description' => __( 'Absolute Obergrenze der Tickets je Position einer Bestellung, als Schutz gegen versehentliche oder missbräuchliche Mengen. Die Höchstmenge je Bestellung der Ticketart gilt zusätzlich. Standard: 100. Ein Filter (wpcap_max_line_quantity) hat Vorrang.', 'pass-captain' ) ),
+				),
+			),
+			'formats' => array(
+				'title' => __( 'Datum und Uhrzeit in Dokumenten', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'document_date_format' => array( 'type' => 'text', 'label' => __( 'Datumsformat für E-Mails, Tickets und Belege', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_date_format' ), 'description' => __( 'PHP-Datumsformat, z. B. „d.m.Y“ (24.12.2026) oder „j. F Y“ (24. Dezember 2026). Leer = Datumsformat der WordPress-Einstellungen. Gilt in der Sprache der Website; E-Mails und Dokumente in anderen Sprachen nutzen das Format ihrer Sprache. Der Filter wpcap_date_format hat Vorrang.', 'pass-captain' ) ),
+					'document_time_format' => array( 'type' => 'text', 'label' => __( 'Zeitformat für E-Mails, Tickets und Belege', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_date_format' ), 'description' => __( 'PHP-Zeitformat, z. B. „H:i“ (20:00) oder „g:i a“ (8:00 pm). Leer = Zeitformat der WordPress-Einstellungen, auf Ticket-PDFs 24 Stunden (H:i). Der Filter wpcap_time_format hat Vorrang.', 'pass-captain' ) ),
+				),
+			),
+			'rate_limits' => array(
+				'title' => __( 'Ratenlimits', 'pass-captain' ),
+				'tab' => 'advanced',
+				'description' => __( 'Schützt Checkout, Warteliste und Bestellportal vor automatisierten Anfragen. Die Untergrenzen sind fest, damit echte Käufer nicht ausgesperrt werden; Filter (z. B. wpcap_checkout_ip_limit) haben Vorrang.', 'pass-captain' ),
+				'fields' => array(
+					'rate_checkout_ip_per_hour' => array( 'type' => 'int', 'label' => __( 'Checkout: Bestellungen je Netzwerk und Stunde', 'pass-captain' ), 'min' => 10, 'max' => 10000, 'description' => __( 'Reservierungen, die ein Netzwerk (IPv4-Adresse oder IPv6-/64) je Stunde anlegen darf; Versuche dürfen das Vierfache sein. Mindestens 10 (Firmen- und Mobilfunknetze teilen sich Adressen). Filter wpcap_checkout_ip_limit.', 'pass-captain' ) ),
+					'rate_checkout_email_per_hour' => array( 'type' => 'int', 'label' => __( 'Checkout: Bestellungen je E-Mail-Adresse und Stunde', 'pass-captain' ), 'min' => 3, 'max' => 1000, 'description' => __( 'Reservierungen je Netzwerk und E-Mail-Adresse (ohne +Zusatz) je Stunde. Mindestens 3.', 'pass-captain' ) ),
+					'rate_checkout_unpaid_per_network' => array( 'type' => 'int', 'label' => __( 'Checkout: offene unbezahlte Bestellungen je Netzwerk', 'pass-captain' ), 'min' => 3, 'max' => 1000, 'description' => __( 'So viele unbezahlte Bestellungen darf ein Netzwerk innerhalb der Reservierungsdauer gleichzeitig halten. Mindestens 3. Filter wpcap_checkout_unpaid_per_network.', 'pass-captain' ) ),
+					'rate_waitlist_ip_per_hour' => array( 'type' => 'int', 'label' => __( 'Warteliste: Eintragungen je Netzwerk und Stunde (alle Events)', 'pass-captain' ), 'min' => 10, 'max' => 10000, 'description' => __( 'Mindestens 10. Filter wp_pass_captain_waitlist_ip_limit_v1.', 'pass-captain' ) ),
+					'rate_waitlist_email_per_hour' => array( 'type' => 'int', 'label' => __( 'Warteliste: Bestätigungsmails je E-Mail-Adresse, Event und Stunde', 'pass-captain' ), 'min' => 2, 'max' => 100, 'description' => __( 'Begrenzt Mails an eine Adresse, die jemand anderes eintragen könnte. Mindestens 2.', 'pass-captain' ) ),
+					'rate_portal_resend_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Tickets erneut senden je Bestellung und Stunde', 'pass-captain' ), 'min' => 1, 'max' => 50, 'description' => __( 'Mindestens 1. Filter wpcap_portal_resend_limit.', 'pass-captain' ) ),
+					'rate_portal_assign_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Namens- und Inhaberänderungen je Bestellung und Stunde', 'pass-captain' ), 'min' => 5, 'max' => 1000, 'description' => __( 'Jede Inhaberänderung schickt eine E-Mail. Mindestens 5. Filter wpcap_portal_assign_rate_limit.', 'pass-captain' ) ),
+					'checkout_bot_check' => array( 'type' => 'bool', 'label' => __( 'Checkout: Schutz vor Bots im Bestellformular', 'pass-captain' ), 'description' => __( 'Unsichtbares Fangfeld und Mindest-Ausfüllzeit im Bestellformular der Eventseiten (Block und Shortcode), ohne Cookies und ohne externen Dienst. Geprüft werden nur Bestellungen aus diesem Formular; die REST-API für eigene Integrationen, Partner, WooCommerce, Kasse und Admin sind nicht betroffen. Wer zu schnell absendet, bekommt einen Hinweis und kann sofort noch einmal absenden.', 'pass-captain' ) ),
+					'checkout_min_fill_seconds' => array( 'type' => 'int', 'label' => __( 'Checkout: Mindest-Ausfüllzeit (Sekunden)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'So viele Sekunden müssen zwischen dem Laden des Formulars und dem Absenden liegen. Standard: 3. 0 = nur das Fangfeld prüfen.', 'pass-captain' ) ),
+					'rate_portal_pdf_per_hour' => array( 'type' => 'int', 'label' => __( 'Bestellportal: Ticket-PDFs je Bestellung und Stunde', 'pass-captain' ), 'min' => 5, 'max' => 1000, 'description' => __( 'Mindestens 5. Filter wpcap_portal_pdf_rate_limit.', 'pass-captain' ) ),
 				),
 			),
 			'network' => array(
@@ -78,7 +237,7 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'disabled_modules' => array( 'type' => 'modules', 'label' => __( 'Funktionen abschalten', 'pass-captain' ), 'description' => __( 'Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
-					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
+					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die du nicht nutzt.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
 				),
 			),
 			'terms' => array(
@@ -94,11 +253,21 @@ final class SettingsPage {
 					'term_replacements' => array( 'type' => 'textarea', 'label' => __( 'Eigene Ersetzungen', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Terms::class, 'sanitize_lines' ), 'description' => __( 'Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen.', 'pass-captain' ) ),
 				),
 			),
+			'woocommerce' => array(
+				'title' => __( 'WooCommerce', 'pass-captain' ),
+				'tab' => 'general',
+				'description' => __( 'Gilt nur, wenn Tickets über WooCommerce verkauft werden. Ticketpreise aus Pass Captain, gemischte Rechnungssteller und Erstattungen nach dem Einlass stellst du unter WooCommerce → Einstellungen → Produkte ein.', 'pass-captain' ),
+				'fields' => array(
+					'woo_hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierung bei WooCommerce-Bestellungen (Minuten)', 'pass-captain' ), 'min' => 0, 'max' => 1440, 'description' => __( '0 = automatisch: die Reservierungsdauer von Pass Captain, mindestens aber „Lagerbestand halten“ aus WooCommerce. Ein eigener Wert verlängert die Reservierung, verkürzt sie aber nie.', 'pass-captain' ) ),
+					'woo_issue_on_completed_gateways' => array( 'type' => 'text', 'label' => __( 'Tickets erst bei Status „Abgeschlossen“ für diese Zahlungsarten', 'pass-captain' ), 'description' => __( 'Kennungen der WooCommerce-Zahlungsarten, durch Komma getrennt, z. B. „cod, bacs“. Bei allen anderen Zahlungsarten werden Tickets nach der Zahlung ausgestellt.', 'pass-captain' ) ),
+					'woo_collect_attendees' => array( 'type' => 'choice', 'label' => __( 'Teilnehmerdaten im WooCommerce-Checkout', 'pass-captain' ), 'options' => array( 'fields' => __( 'nur wenn die Ticketart Teilnehmerfelder hat (Standard)', 'pass-captain' ), 'always' => __( 'immer (Name und E-Mail je Ticket)', 'pass-captain' ), 'never' => __( 'nie', 'pass-captain' ) ), 'description' => __( 'Ob der WooCommerce-Checkout je Ticket Name, E-Mail und Teilnehmerfelder abfragt.', 'pass-captain' ) ),
+				),
+			),
 			'event_pages' => array(
 				'title' => __( 'Eventseiten', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
-					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
+					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'description' => __( 'Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
 					'event_base' => array( 'type' => 'text', 'label' => __( 'Adress-Basis der Eventseiten', 'pass-captain' ), 'description' => __( 'Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_base' ) ),
 				),
 			),
@@ -106,20 +275,23 @@ final class SettingsPage {
 				'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 				'tab' => 'admission',
 				'fields' => array(
-					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ) ),
+					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ), 'description' => __( 'Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst.', 'pass-captain' ) ),
 					'signed_qr' => array( 'type' => 'bool', 'label' => __( 'Signierte QR-Codes ausgeben (PC1, Ed25519)', 'pass-captain' ), 'description' => __( 'Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können.', 'pass-captain' ) ),
-					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720 ),
+					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden.', 'pass-captain' ) ),
 					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'pass-captain' ) ),
-					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ) ),
-					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080 ),
-					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080 ),
+					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ), 'description' => __( 'Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn.', 'pass-captain' ) ),
+					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
+					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'pass-captain' ), 'min' => 0, 'max' => 10080, 'description' => __( 'Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist.', 'pass-captain' ) ),
+					'offline_default_hours' => array( 'type' => 'int', 'label' => __( 'Offline-Scanner: Standard-Paketdauer (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 72, 'description' => __( 'Vorschlag für die maximale Offline-Dauer, wenn du ein Event zum ersten Mal für den Offline-Scanner einrichtest: So lange gilt ein Prüfpaket auf dem Gerät. Bereits eingerichtete Events behalten ihren Wert. Standard: 12.', 'pass-captain' ) ),
+					'review_no_show_grace_hours' => array( 'type' => 'int', 'label' => __( 'No-Show-Kulanz nach Terminende (Stunden)', 'pass-captain' ), 'min' => 0, 'max' => 168, 'description' => __( 'Erst so lange nach dem Ende eines Termins gilt ein gültiges Ticket ohne Einlass als „nicht erschienen“ und bekommt keine Bewertungsanfrage. Standard: 6. Ein Filter (wpcap_review_no_show_grace_hours) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'payments' => array(
 				'title' => __( 'Übersicht', 'pass-captain' ),
 				'tab' => 'payments',
 				'fields' => array(
-					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'pass-captain' ) ),
+					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'pass-captain' ), 'description' => __( 'Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten.', 'pass-captain' ) ),
+					'payment_rules' => array( 'type' => 'textarea', 'label' => __( 'Regeln für Zahlungsarten', 'pass-captain' ), 'description' => __( 'Optional, eine Regel je Zeile: Zahlungsart | events=Event-IDs | min=Betrag | max=Betrag | currency=Währungscodes | countries=Ländercodes. Beispiel: „manual | max=500 | currency=EUR | countries=DE,AT“. Beträge gelten in der Währung der Bestellung; currency beschränkt die Regel auf Bestellungen in diesen Währungen (leer = jede Währung). Ländercodes brauchen ein bekanntes Rechnungsland (im Checkout abgefragte Rechnungsadresse); ohne Rechnungsland bietet diese Regel die Zahlungsart nicht an. Eine Zahlungsart ohne Regel gilt überall; mehrere Zeilen für dieselbe Zahlungsart sind Alternativen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Payments\Rules::class, 'sanitize_setting' ) ),
 				),
 			),
 			'manual' => array(
@@ -129,11 +301,13 @@ final class SettingsPage {
 				'fields' => array(
 					'manual_instructions' => array( 'type' => 'textarea', 'label' => __( 'Zahlungshinweis', 'pass-captain' ), 'description' => __( 'Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten.', 'pass-captain' ) ),
 					'bank_recipient' => array( 'type' => 'text', 'label' => __( 'Überweisung: Empfänger (Kontoinhaber)', 'pass-captain' ), 'description' => __( 'Leer = Name / Firma des Rechnungsstellers.', 'pass-captain' ) ),
-					'bank_iban' => array( 'type' => 'text', 'label' => __( 'Überweisung: IBAN', 'pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'pass-captain' ) ),
-					'bank_bic' => array( 'type' => 'text', 'label' => __( 'Überweisung: BIC', 'pass-captain' ) ),
+					'bank_iban' => array( 'type' => 'iban', 'label' => __( 'Überweisung: IBAN', 'pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'pass-captain' ) ),
+					'bank_bic' => array( 'type' => 'bic', 'label' => __( 'Überweisung: BIC', 'pass-captain' ), 'description' => __( 'BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode.', 'pass-captain' ) ),
 					'manual_hold_hours' => array( 'type' => 'int', 'label' => __( 'Reservierung bei manueller Zahlung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720, 'description' => __( 'Endet spätestens mit Beginn des (ersten) Termins.', 'pass-captain' ) ),
 					'manual_hold_max_percent' => array( 'type' => 'int', 'label' => __( 'Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren', 'pass-captain' ), 'min' => 0, 'max' => 100, 'description' => __( 'Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze.', 'pass-captain' ) ),
+					'manual_hold_max_event_tickets' => array( 'type' => 'int', 'label' => __( 'Überweisung: höchstens so viele Tickets je Veranstaltung unbezahlt reservieren', 'pass-captain' ), 'min' => 0, 'max' => 1000000, 'description' => __( 'Gilt je Veranstaltung über alle Termine, auch ohne Kapazität. Halten offene, unbezahlte Überweisungsbestellungen zusammen so viele Tickets, wird Überweisung im Checkout nicht mehr angeboten (andere Zahlungsarten bleiben) und neue Überweisungsbestellungen werden mit einem Hinweis abgelehnt, bis Bestellungen bezahlt werden oder ablaufen. 0 = keine Obergrenze. Offene Überweisungen kannst du unter „Systemstatus → Betrieb“ gesammelt freigeben.', 'pass-captain' ) ),
 					'manual_cutoff_hours' => array( 'type' => 'int', 'label' => __( 'Überweisung nur bis … Stunden vor Beginn anbieten', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht.', 'pass-captain' ) ),
+					'manual_open_orders_per_email' => array( 'type' => 'int', 'label' => __( 'Überweisung: offene Bestellungen je E-Mail-Adresse (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 50, 'description' => __( 'So viele unbezahlte Überweisungsbestellungen darf eine E-Mail-Adresse gleichzeitig haben; darüber lehnt der Checkout ab. Bezahlte und abgelaufene Bestellungen zählen nicht. Standard: 2. Ein Filter (wpcap_manual_open_orders_per_email) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'stripe' => array(
@@ -142,7 +316,7 @@ final class SettingsPage {
 				'provider' => 'stripe',
 				'webhook' => 'stripe',
 				'fields' => array(
-					'stripe_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'test' => __( 'Test', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
+					'stripe_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'test' => __( 'Test', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ), 'description' => __( '„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind.', 'pass-captain' ) ),
 					'stripe_secret_key' => array( 'type' => 'secret', 'label' => __( 'Geheimer API-Schlüssel (Secret Key)', 'pass-captain' ), 'description' => __( 'Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…).', 'pass-captain' ) ),
 					'stripe_webhook_secret' => array( 'type' => 'secret', 'label' => __( 'Webhook-Signaturgeheimnis (Signing Secret)', 'pass-captain' ), 'description' => __( 'Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
 				),
@@ -153,7 +327,7 @@ final class SettingsPage {
 				'provider' => 'paypal',
 				'webhook' => 'paypal',
 				'fields' => array(
-					'paypal_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'sandbox' => __( 'Sandbox', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ) ),
+					'paypal_mode' => array( 'type' => 'choice', 'label' => __( 'Modus', 'pass-captain' ), 'options' => array( 'sandbox' => __( 'Sandbox', 'pass-captain' ), 'live' => __( 'Live', 'pass-captain' ) ), 'description' => __( '„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind.', 'pass-captain' ) ),
 					'paypal_client_id' => array( 'type' => 'text', 'label' => __( 'Client-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus).', 'pass-captain' ) ),
 					'paypal_client_secret' => array( 'type' => 'secret', 'label' => __( 'Client-Geheimnis (Secret)', 'pass-captain' ), 'description' => __( 'Steht in derselben App unter der Client-ID.', 'pass-captain' ) ),
 					'paypal_webhook_id' => array( 'type' => 'text', 'label' => __( 'Webhook-ID', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt.', 'pass-captain' ) ),
@@ -163,12 +337,24 @@ final class SettingsPage {
 				'title' => __( 'Rechtstexte', 'pass-captain' ),
 				'tab' => 'legal',
 				'fields' => array(
+					'imprint_url' => array( 'type' => 'url', 'label' => __( 'Impressum (Adresse)', 'pass-captain' ), 'description' => __( 'Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht.', 'pass-captain' ) ),
+					'privacy_url' => array( 'type' => 'url', 'label' => __( 'Datenschutzerklärung (Adresse)', 'pass-captain' ), 'description' => __( 'Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz).', 'pass-captain' ) ),
 					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ), 'description' => __( 'Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer).', 'pass-captain' ) ),
-					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ) ),
-					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ) ),
+					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ), 'description' => __( 'Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ), 'description' => __( 'Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'withdrawal_notice' => array( 'type' => 'bool', 'label' => __( 'Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen', 'pass-captain' ), 'description' => __( 'Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung.', 'pass-captain' ) ),
-					'withdrawal_notice_text' => array( 'type' => 'html', 'label' => __( 'Text: kein Widerrufsrecht (terminierte Tickets)', 'pass-captain' ) ),
+					'withdrawal_notice_text' => array( 'type' => 'html', 'label' => __( 'Text: kein Widerrufsrecht (terminierte Tickets)', 'pass-captain' ), 'description' => __( 'Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'withdrawal_right_text' => array( 'type' => 'html', 'label' => __( 'Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)', 'pass-captain' ), 'description' => __( 'Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen.', 'pass-captain' ) ),
+				),
+			),
+			// SET-PC-18: minimum age as a rule (ticket types keep their own min_age, A614).
+			'min_age' => array(
+				'title' => __( 'Mindestalter', 'pass-captain' ),
+				'tab' => 'legal',
+				'fields' => array(
+					'default_min_age' => array( 'type' => 'int', 'label' => __( 'Mindestalter für neue Ticketarten', 'pass-captain' ), 'min' => 0, 'max' => 99, 'description' => __( '0 = keines. Wird beim Anlegen einer Ticketart vorausgefüllt und kann dort geändert werden; bestehende Ticketarten bleiben unverändert.', 'pass-captain' ) ),
+					'min_age_checkbox' => array( 'type' => 'bool', 'label' => __( 'Alter im Checkout bestätigen lassen', 'pass-captain' ), 'description' => __( 'Hat eine bestellte Ticketart ein Mindestalter, müssen Käufer im eigenen Checkout bestätigen, dass alle Ticketinhaber alt genug sind; der Server prüft die Bestätigung. Ob und wie das Alter zu prüfen ist, hängt vom Land ab (Jugendschutz) – rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'min_age_notice_text' => array( 'type' => 'text', 'label' => __( 'Text der Altersbestätigung', 'pass-captain' ), 'description' => __( 'Leer = eingebauter Text in der Sprache der Käufer. Platzhalter {min_age} = höchstes Mindestalter der Bestellung. Übersetzungen unter „Rechtstexte je Sprache“.', 'pass-captain' ) ),
 				),
 			),
 			'refunds' => array(
@@ -177,7 +363,7 @@ final class SettingsPage {
 				'fields' => array(
 					'refund_approval_threshold' => array( 'type' => 'money', 'label' => __( 'Zweite Freigabe ab Betrag', 'pass-captain' ), 'description' => __( '0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00.', 'pass-captain' ) ),
 					'refund_four_eyes_approvers' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip auch für Freigebende', 'pass-captain' ), 'description' => __( 'Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person.', 'pass-captain' ) ),
-					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'pass-captain' ) ),
+					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'pass-captain' ), 'description' => __( 'Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts.', 'pass-captain' ) ),
 					'auto_refund_unmatched_payments' => array( 'type' => 'bool', 'label' => __( 'Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter.', 'pass-captain' ) ),
 					'reschedule_refund_request' => array( 'type' => 'bool', 'label' => __( 'Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben', 'pass-captain' ), 'description' => __( 'Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“.', 'pass-captain' ) ),
 					'reschedule_refund_hours' => array( 'type' => 'int', 'label' => __( 'Antragsfrist: Stunden vor dem neuen Termin', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn des neuen Termins.', 'pass-captain' ) ),
@@ -190,9 +376,40 @@ final class SettingsPage {
 				'tab' => 'general',
 				'fields' => array(
 					'service_fee_ticket_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Ticket', 'pass-captain' ), 'description' => __( '0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen.', 'pass-captain' ) ),
-					'service_fee_order_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Bestellung', 'pass-captain' ), 'description' => __( '0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout.', 'pass-captain' ) ),
+					'service_fee_order_minor' => array( 'type' => 'money', 'label' => __( 'Servicegebühr je Bestellung', 'pass-captain' ), 'description' => __( '0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen.', 'pass-captain' ) ),
+					'service_fee_tax' => array(
+						'type' => 'choice',
+						'label' => __( 'Steuer der Servicegebühr', 'pass-captain' ),
+						'options' => array(
+							'ticket' => __( 'wie das Ticket (Nebenleistung)', 'pass-captain' ),
+							'own' => __( 'eigenes Steuerprofil', 'pass-captain' ),
+						),
+						'description' => __( '„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile.', 'pass-captain' ),
+					),
+					'service_fee_tax_class' => array(
+						'type' => 'choice',
+						'label' => __( 'Steuerklasse der Servicegebühr', 'pass-captain' ),
+						'options' => self::fee_tax_classes(),
+						'description' => __( 'Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben.', 'pass-captain' ),
+					),
+					'service_fee_tax_rate' => array(
+						'type' => 'text',
+						'label' => __( 'Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)', 'pass-captain' ),
+						'description' => __( 'Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition.', 'pass-captain' ),
+						'sanitize' => array( __CLASS__, 'sanitize_fee_tax_rate' ),
+					),
+					'service_fee_refund' => array(
+						'type' => 'choice',
+						'label' => __( 'Servicegebühr bei Erstattung auf Käuferwunsch', 'pass-captain' ),
+						'options' => array(
+							'retain' => __( 'einbehalten', 'pass-captain' ),
+							'refund' => __( 'mit erstatten', 'pass-captain' ),
+						),
+						'description' => __( 'Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet.', 'pass-captain' ),
+					),
+					'service_fee_to_partner' => array( 'type' => 'bool', 'label' => __( 'Servicegebühr an Partner weitergeben', 'pass-captain' ), 'description' => __( 'Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös.', 'pass-captain' ) ),
 				),
-				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten mit dem Steuersatz der zugehörigen Ticketposition. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket. Bitte Preisangaben (Gesamtpreis inkl. Pflichtgebühren) und Steuersatz mit der Steuerberatung prüfen.', 'pass-captain' ),
+				'description' => __( 'Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen.', 'pass-captain' ),
 			),
 			'vouchers' => array(
 				'title' => __( 'Gutscheine', 'pass-captain' ),
@@ -214,24 +431,44 @@ final class SettingsPage {
 				'tab' => 'privacy',
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'pass-captain' ) ),
-					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720 ),
+					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( 'Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern.', 'pass-captain' ) ),
 					'retention_unpaid_customer_email_days' => array( 'type' => 'int', 'label' => __( 'E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
-					'retention_message_content_days' => array( 'type' => 'int', 'label' => __( 'Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_message_rows_days' => array( 'type' => 'int', 'label' => __( 'Versandprotokoll der Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_checkin_staff_days' => array( 'type' => 'int', 'label' => __( 'Personal und Gerät an Check-ins entfernen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
-					'retention_audit_logs_days' => array( 'type' => 'int', 'label' => __( 'Protokolleinträge (Audit-Log) löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_message_content_days' => array( 'type' => 'int', 'label' => __( 'Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert.', 'pass-captain' ) ),
+					'retention_message_rows_days' => array( 'type' => 'int', 'label' => __( 'Versandprotokoll der Nachrichten löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden die Einträge im Versandprotokoll vollständig gelöscht.', 'pass-captain' ) ),
+					'retention_checkin_staff_days' => array( 'type' => 'int', 'label' => __( 'Personal und Gerät an Check-ins entfernen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat.', 'pass-captain' ) ),
+					'retention_audit_logs_days' => array( 'type' => 'int', 'label' => __( 'Protokolleinträge (Audit-Log) löschen nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Danach werden Einträge des Audit-Logs gelöscht.', 'pass-captain' ) ),
 					'retention_partner_codes_days' => array( 'type' => 'int', 'label' => __( 'Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = direkt nach Ende des Termins.', 'pass-captain' ) ),
 					'retention_financial_years' => array( 'type' => 'int', 'label' => __( 'Rechnungen und Rechnungskorrekturen löschen nach (Jahren)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( '0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert.', 'pass-captain' ) ),
-					'retention_order_years' => array( 'type' => 'int', 'label' => __( 'Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; deren Löschung nach Fristablauf entscheiden Sie selbst (laufende Prüfungen verlängern die Frist). 0 = nie.', 'pass-captain' ) ),
+					'retention_order_years' => array( 'type' => 'int', 'label' => __( 'Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)', 'pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( 'Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; über deren Löschung nach Fristablauf entscheidest du selbst (laufende Prüfungen verlängern die Frist). 0 = nie.', 'pass-captain' ) ),
 					'retention_waitlist_days' => array( 'type' => 'int', 'label' => __( 'Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( 'Gilt für Event- und Termin-Wartelisten. 0 = nie.', 'pass-captain' ) ),
 					'retention_pass_days' => array( 'type' => 'int', 'label' => __( 'Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)', 'pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'pass-captain' ) ),
+				),
+			),
+			'logs' => array(
+				'title' => __( 'Protokolle und Druckdateien', 'pass-captain' ),
+				'tab' => 'privacy',
+				'fields' => array(
+					'log_retention_days' => array( 'type' => 'int', 'label' => __( 'Support-Protokoll löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 365, 'description' => __( 'Einträge des Support-Protokolls (Betrieb → Support) werden danach gelöscht; Einträge der Stufen „debug“ und „info“ spätestens nach 7 Tagen. Standard: 30. Ein Filter (wpcap_log_retention_days) hat Vorrang.', 'pass-captain' ) ),
+					'log_min_level' => array(
+						'type' => 'choice',
+						'label' => __( 'Support-Protokoll: niedrigste gespeicherte Stufe', 'pass-captain' ),
+						'options' => array(
+							'info' => __( 'Info (Standard)', 'pass-captain' ),
+							'notice' => __( 'Hinweis', 'pass-captain' ),
+							'warning' => __( 'Warnung', 'pass-captain' ),
+							'error' => __( 'Fehler', 'pass-captain' ),
+						),
+						'description' => __( 'Einträge unterhalb dieser Stufe werden nicht gespeichert. Der Debug-Modus (Erweitert → Support und Fehlersuche) speichert für 24 Stunden alles. Ein Filter (wpcap_log_min_level) hat Vorrang.', 'pass-captain' ),
+					),
+					'connector_log_days' => array( 'type' => 'int', 'label' => __( 'Zustellprotokoll der Connectors löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 365, 'description' => __( 'Zugestellte und endgültig fehlgeschlagene Einträge der HTTP/JSON-Connectors werden danach gelöscht. Standard: 30. Ein Filter (wpcap_connector_log_days) hat Vorrang.', 'pass-captain' ) ),
+					'print_batch_keep_days' => array( 'type' => 'int', 'label' => __( 'Druckstapel und ihre PDF-Dateien löschen nach (Tagen)', 'pass-captain' ), 'min' => 1, 'max' => 90, 'description' => __( 'Gerechnet ab der letzten Änderung des Stapels. Die Dateien enthalten Ticketcodes und Namen; lade sie rechtzeitig herunter. Standard: 7. Ein Filter (wpcap_print_batch_keep_days) hat Vorrang.', 'pass-captain' ) ),
 				),
 			),
 			'mail' => array(
 				'title' => __( 'E-Mail-Versand', 'pass-captain' ),
 				'tab' => 'general',
 				'fields' => array(
-					'mail_from_email' => array( 'type' => 'text', 'label' => __( 'Absenderadresse', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_mail_address' ), 'description' => __( 'Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@ihre-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. Ihren SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang.', 'pass-captain' ) ),
+					'mail_from_email' => array( 'type' => 'text', 'label' => __( 'Absenderadresse', 'pass-captain' ), 'sanitize' => array( __CLASS__, 'sanitize_mail_address' ), 'description' => __( 'Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@deine-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. deinen SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang.', 'pass-captain' ) ),
 					'mail_from_name' => array( 'type' => 'text', 'label' => __( 'Absendername', 'pass-captain' ), 'description' => __( 'Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain).', 'pass-captain' ) ),
 					'mail_reply_to' => array( 'type' => 'email', 'label' => __( 'Antwort an (E-Mail-Adresse)', 'pass-captain' ), 'description' => __( 'Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website.', 'pass-captain' ) ),
 					'alert_email' => array( 'type' => 'email', 'label' => __( 'Betriebsalarme an', 'pass-captain' ), 'description' => __( 'Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus.', 'pass-captain' ) ),
@@ -246,20 +483,52 @@ final class SettingsPage {
 				'title' => __( 'Rechnungssteller', 'pass-captain' ),
 				'tab' => 'invoices',
 				'fields' => array(
-					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'pass-captain' ) ),
-					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ) ),
-					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ) ),
+					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'pass-captain' ), 'description' => __( 'Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails.', 'pass-captain' ) ),
+					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'pass-captain' ), 'description' => __( 'Erscheint als Anschrift des Verkäufers auf Rechnungen.', 'pass-captain' ) ),
+					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'pass-captain' ), 'description' => __( 'Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'pass-captain' ) ),
-					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
-					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ) ),
+					'seller_country' => array( 'type' => 'country', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile).', 'pass-captain' ) ),
+					'billing_countries' => array( 'type' => 'countries', 'label' => __( 'Länder der Rechnungsadresse', 'pass-captain' ), 'description' => __( 'Ländercodes, durch Komma getrennt, z. B. „AT, DE, CH“. Nur diese Länder stehen in der Rechnungsadresse zur Auswahl. Leer = EU-Länder und häufige Nachbarländer.', 'pass-captain' ) ),
+					'billing_region_field' => array( 'type' => 'bool', 'label' => __( 'Feld „Region / Bundesland“ in der Rechnungsadresse anzeigen', 'pass-captain' ), 'description' => __( 'Optionales Feld, z. B. für Kanton oder Provinz; erscheint auf der Rechnung unter dem Ort.', 'pass-captain' ) ),
+					'tax_profile_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)', 'pass-captain' ), 'description' => __( 'Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam.', 'pass-captain' ) ),
 					'seller_small_business' => array( 'type' => 'bool', 'label' => __( 'Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)', 'pass-captain' ), 'description' => __( 'Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen).', 'pass-captain' ) ),
 					'seller_small_business_note' => array( 'type' => 'text', 'label' => __( 'Kleinunternehmer-Hinweis (leer = Standardtext für das Land)', 'pass-captain' ), 'description' => __( 'DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“', 'pass-captain' ) ),
-					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'pass-captain' ) ),
-					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'pass-captain' ) ),
-					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ) ),
-					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
-					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts.', 'pass-captain' ) ),
-					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ) ),
+					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird.', 'pass-captain' ) ),
+					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €, CH: 400 CHF)', 'pass-captain' ), 'description' => __( 'Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen.', 'pass-captain' ) ),
+					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'pass-captain' ), 'description' => __( 'Vorangestellt vor die Nummer von Storno- und Korrekturbelegen.', 'pass-captain' ) ),
+					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ), 'description' => __( 'Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab.', 'pass-captain' ) ),
+					// SET-PC-15: lines with an occurrence always carry its date.
+					'invoice_service_date_fallback' => array(
+						'type' => 'choice',
+						'label' => __( 'Leistungsdatum für Positionen ohne Termin', 'pass-captain' ),
+						'options' => array(
+							'none' => __( 'kein Leistungsdatum (bisheriges Verhalten)', 'pass-captain' ),
+							'payment' => __( 'Zahlungsdatum', 'pass-captain' ),
+							'valid_from' => __( 'Gültigkeitsbeginn', 'pass-captain' ),
+							'period' => __( 'Gültigkeitszeitraum', 'pass-captain' ),
+						),
+						'description' => __( 'Gilt für neue Rechnungen mit Positionen ohne Veranstaltungstermin (z. B. Pässe, Gutscheine, Gebühren). Gültigkeitsbeginn und -zeitraum kommen von der Position; fehlen sie, gilt das Zahlungsdatum. Rechtlich prüfen lassen, welches Datum in deinem Land als Leistungsdatum gilt.', 'pass-captain' ),
+					),
+				),
+			),
+			// SET-PC-03: number patterns of the document sequences (table, see render_number_table()).
+			'numbers' => array(
+				'title' => __( 'Nummernkreise', 'pass-captain' ),
+				'tab' => 'invoices',
+				'description' => __( 'Muster mit den Platzhaltern {prefix}, {year}, {yy} und {number}. Nummern bleiben fortlaufend und lückenlos; eine Änderung gilt ab der nächsten Nummer, vergebene Nummern werden nie wiederverwendet. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden. Rechtlich prüfen lassen, bevor du ein Muster im laufenden Jahr änderst.', 'pass-captain' ),
+				'render' => array( __CLASS__, 'render_number_table' ),
+				'fields' => self::number_fields(),
+			),
+			// SET-PC-37: DATEV accounts as one table (see render_datev_table()).
+			'datev' => array(
+				'title' => __( 'DATEV-Buchungsstapel', 'pass-captain' ),
+				'tab' => 'invoices',
+				'description' => __( 'Leere Felder übernehmen das Konto des Kontenrahmens. Kontonummern mit 4 bis 8 Ziffern, BU-Schlüssel mit 1 bis 4 Ziffern. Die Konten bitte mit der Steuerberatung abstimmen. Der Filter wpcap_datev_accounts hat weiterhin das letzte Wort.', 'pass-captain' ),
+				'render' => array( __CLASS__, 'render_datev_table' ),
+				'fields' => array(
+					'datev_chart' => array( 'type' => 'choice', 'label' => __( 'Kontenrahmen für den DATEV-Buchungsstapel', 'pass-captain' ), 'options' => array( 'skr03' => __( 'SKR03 (Erlöse 8400/8300, Geldtransit 1360)', 'pass-captain' ), 'skr04' => __( 'SKR04 (Erlöse 4400/4300, Geldtransit 1460)', 'pass-captain' ) ), 'description' => __( 'Bestimmt die Standardkonten; leere Felder der Tabelle übernehmen sie.', 'pass-captain' ) ),
+					'datev_contra_account' => array( 'type' => 'text', 'label' => __( 'Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)', 'pass-captain' ), 'description' => __( '4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DatevAccounts::class, 'sanitize_contra' ) ),
+					'datev_accounts' => array( 'type' => 'group', 'label' => __( 'DATEV-Konten je Steuersatz und Zahlungsart', 'pass-captain' ), 'description' => __( 'Erlöskonto und BU-Schlüssel je Steuersatz, Erlöskonto für alle übrigen Sätze und Geldkonto je Zahlungsart. Leer = Konten des Kontenrahmens.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DatevAccounts::class, 'sanitize' ) ),
 				),
 			),
 			'security' => array(
@@ -370,6 +639,7 @@ final class SettingsPage {
 			'invoices' => __( 'Rechnungen', 'pass-captain' ),
 			'privacy' => __( 'Datenschutz', 'pass-captain' ),
 			'advanced' => __( 'Erweitert', 'pass-captain' ),
+			SettingsTools::TAB => __( 'Werkzeuge', 'pass-captain' ),
 		);
 	}
 
@@ -497,6 +767,19 @@ final class SettingsPage {
 	 *
 	 * @return array|\WP_Error ['saved' => values written, 'errors' => list of messages for invalid fields]
 	 */
+	/**
+	 * SET-PC-36: sanitizer of the document date/time formats: '' or a PHP date() format of at most 40
+	 * characters with at least one date or time character (no HTML).
+	 */
+	public static function sanitize_date_format( $value ) {
+		$value = trim( (string) $value );
+		if ( '' === $value ) { return ''; }
+		if ( mb_strlen( $value ) > 40 || preg_match( '/[<>"]/', $value ) || ! preg_match( '/(?<!\\\\)[dDjlNSwzWFmMntLoYyaABgGhHisuveIOPpTZcrU]/', $value ) ) {
+			return new \WP_Error( 'wpcap_invalid_date_format', __( 'Bitte ein gültiges PHP-Datums- oder Zeitformat angeben, z. B. „d.m.Y“ oder „H:i“ (höchstens 40 Zeichen).', 'pass-captain' ) );
+		}
+		return $value;
+	}
+
 	/** Sanitizer of the sender address fields: '' or a valid e-mail address. */
 	public static function sanitize_mail_address( $value ) {
 		$value = trim( (string) $value );
@@ -510,6 +793,7 @@ final class SettingsPage {
 		$current = Settings::all();
 		$values = array();
 		$errors = array();
+		$field_errors = array();
 		// Only the submitted tab (and provider section) is processed: checkboxes of other tabs are
 		// not in the form, and treating them as unticked would reset them.
 		$sections = self::scoped_sections( array_key_exists( 'wpcap_tab', $in ) ? (string) ( is_scalar( $in['wpcap_tab'] ) ? $in['wpcap_tab'] : '' ) : null, $in['wpcap_section'] ?? '' );
@@ -524,19 +808,38 @@ final class SettingsPage {
 				$raw = $in[ $key ] ?? null;
 				switch ( $def['type'] ) {
 					case 'int':
-						if ( null === $raw || '' === $raw ) { break; }
-						if ( ! is_scalar( $raw ) || ! preg_match( '/^\s*\d+\s*$/', (string) $raw ) ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ muss eine ganze Zahl sein.', 'pass-captain' ), $def['label'] );
+					case 'money':
+					case 'email':
+					case 'iban':
+					case 'bic':
+					case 'currency':
+					case 'currencies':
+					case 'url':
+					case 'country':
+					case 'countries':
+						// SET-PC-01: checked by the settings register, which reports instead of clamping.
+						if ( 'int' === $def['type'] && ( null === $raw || '' === $raw ) ) { break; }
+					if ( null === $raw && in_array( $def['type'], array( 'iban', 'bic', 'currency', 'currencies', 'url', 'country', 'countries' ), true ) ) { break; } // Not in the form: keep the stored value.
+						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
+						if ( is_wp_error( $checked ) ) {
+							$errors[] = $checked->get_error_message();
+							$field_errors[ $key ] = $checked->get_error_message(); // SET-PC-44
 							break;
 						}
-						$values[ $key ] = max( (int) $def['min'], min( (int) $def['max'], (int) $raw ) );
+						$values[ $key ] = $checked;
 						break;
 					case 'bool':
 						$values[ $key ] = Forms::flag( $in, $key ) ? 1 : 0;
 						break;
 					case 'choice':
-						$values[ $key ] = Forms::choice( $in, $key, array_map( 'strval', array_keys( $def['options'] ) ), (string) $current[ $key ] );
+						if ( null === $raw ) { break; } // Not in the form: keep the stored value.
+						$checked = \PassCaptain\SettingsSchema::validate( $key, $raw );
+						if ( is_wp_error( $checked ) ) {
+							$errors[] = $checked->get_error_message();
+							$field_errors[ $key ] = $checked->get_error_message(); // SET-PC-44
+							break;
+						}
+						$values[ $key ] = $checked;
 						break;
 					case 'providers':
 						$available = array_keys( Registry::all() );
@@ -545,29 +848,16 @@ final class SettingsPage {
 					case 'modules':
 						$values[ $key ] = array_map( 'strval', is_array( $raw ) ? array_filter( $raw, 'is_scalar' ) : array() );
 						break;
+					case 'group':
+						// SET-PC-37: a table of sub-values; checked by the field's sanitize callback below.
+						if ( ! is_array( $raw ) ) { break; } // Not in the form: keep the stored value.
+						$values[ $key ] = $raw;
+						break;
 					case 'textarea':
 						$values[ $key ] = Forms::textarea( $in, $key, 5000 );
 						break;
 					case 'html':
 						$values[ $key ] = is_scalar( $raw ) ? wp_kses_post( (string) $raw ) : '';
-						break;
-					case 'money':
-						$parsed = Forms::parse_money( is_scalar( $raw ) && '' !== trim( (string) $raw ) ? $raw : '0', 2 );
-						if ( null === $parsed ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ ist kein gültiger Betrag.', 'pass-captain' ), $def['label'] );
-							break;
-						}
-						$values[ $key ] = $parsed;
-						break;
-					case 'email':
-						$email = is_scalar( $raw ) ? trim( (string) $raw ) : '';
-						if ( '' !== $email && ! is_email( $email ) ) {
-							/* translators: %s: field label */
-							$errors[] = sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $def['label'] );
-							break;
-						}
-						$values[ $key ] = '' === $email ? '' : sanitize_email( $email );
 						break;
 					case 'prefix':
 						$prefix = strtoupper( preg_replace( '/[^A-Za-z0-9\-]/', '', is_scalar( $raw ) ? (string) $raw : '' ) );
@@ -581,6 +871,7 @@ final class SettingsPage {
 						}
 						break;
 					default:
+						if ( null === $raw ) { break; } // Not in the form: keep the stored value.
 						$values[ $key ] = Forms::text( $in, $key, 'trusted_proxies' === $key ? 1000 : 190 );
 				}
 				// Deleting all data on uninstall (incl. invoices, credit notes and fiscal records) needs a typed confirmation.
@@ -592,6 +883,7 @@ final class SettingsPage {
 					$clean = call_user_func( $def['sanitize'], $values[ $key ], $current[ $key ] ?? null );
 					if ( is_wp_error( $clean ) ) {
 						$errors[] = $clean->get_error_message();
+						$field_errors[ $key ] = $clean->get_error_message(); // SET-PC-44
 						unset( $values[ $key ] );
 					} else {
 						$values[ $key ] = $clean;
@@ -625,7 +917,7 @@ final class SettingsPage {
 		$secrets = array_intersect_key( $values, array_flip( Settings::secret_keys() ) );
 		$saved = array_diff_key( $values, $secrets );
 		$saved['secrets_updated'] = array_keys( $secrets );
-		return array( 'saved' => $saved, 'errors' => $errors, 'warnings' => $warnings );
+		return array( 'saved' => $saved, 'errors' => $errors, 'warnings' => $warnings, 'field_errors' => $field_errors );
 	}
 
 	/**
@@ -658,23 +950,41 @@ final class SettingsPage {
 		foreach ( is_array( $raw ) ? $raw : array() as $locale => $texts ) {
 			$locale = Mailer::normalize_locale( (string) $locale );
 			if ( '' === $locale || $locale === $default || ! is_array( $texts ) ) { continue; }
-			foreach ( Settings::LEGAL_KEYS as $key ) {
-				$text = isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) ? trim( wp_kses_post( (string) $texts[ $key ] ) ) : '';
+			foreach ( Settings::TEXT_KEYS as $key ) {
+				$raw_text = isset( $texts[ $key ] ) && is_scalar( $texts[ $key ] ) ? (string) $texts[ $key ] : '';
+				// Legal texts keep their formatting; short checkout texts (SET-PC-18) are plain text.
+				$text = in_array( $key, Settings::LEGAL_KEYS, true ) ? trim( wp_kses_post( $raw_text ) ) : \PassCaptain\Text::cut( trim( sanitize_text_field( $raw_text ) ), 500 );
 				if ( '' !== $text ) { $out[ $locale ][ $key ] = $text; }
 			}
 		}
 		$new_locale = Mailer::normalize_locale( is_scalar( $new_locale ) ? trim( (string) $new_locale ) : '' );
 		if ( '' !== $new_locale && $new_locale !== $default && ! isset( $out[ $new_locale ] ) ) {
-			$out[ $new_locale ] = array_fill_keys( Settings::LEGAL_KEYS, '' );
+			$out[ $new_locale ] = array_fill_keys( Settings::TEXT_KEYS, '' );
 		}
 		ksort( $out );
 		return $out;
+	}
+
+	/** Transient prefix of the field errors of the last save (SET-PC-44). */
+	const FIELD_ERRORS = 'wpcap_settings_field_errors_';
+
+	/** @var array<string,string> Field errors shown in the current render (key => message). */
+	private static $field_errors = array();
+
+	/** Field errors of the last save of the current person (read once). */
+	public static function take_field_errors() {
+		$errors = get_transient( self::FIELD_ERRORS . get_current_user_id() );
+		if ( false !== $errors ) { delete_transient( self::FIELD_ERRORS . get_current_user_id() ); }
+		return is_array( $errors ) ? $errors : array();
 	}
 
 	public static function handle_save() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_save_settings' );
 		$result = self::save( $in );
+		if ( ! is_wp_error( $result ) && ! empty( $result['field_errors'] ) ) {
+			set_transient( self::FIELD_ERRORS . get_current_user_id(), $result['field_errors'], 5 * MINUTE_IN_SECONDS ); // SET-PC-44
+		}
 		if ( ! is_wp_error( $result ) && ( $result['errors'] || $result['warnings'] ) ) {
 			$result['warning'] = implode( ' ', array_merge( $result['errors'], $result['warnings'] ) );
 		}
@@ -728,6 +1038,12 @@ final class SettingsPage {
 		</nav>
 		<?php if ( 'payments' === $tab ) { self::render_payment_nav( $section ); } ?>
 		<?php
+		if ( SettingsTools::TAB === $tab ) {
+			// SET-PC-10/-11/-13/-32: overview, export/import, reset and history (no settings form).
+			SettingsTools::render();
+			echo '</div>';
+			return;
+		}
 		$extension = self::extension_tabs()[ $tab ] ?? null;
 		if ( null !== $extension ) {
 			// Add-on tab (wpcap_settings_tabs): its own content, no core form.
@@ -738,6 +1054,23 @@ final class SettingsPage {
 			}
 			echo '</div>';
 			return;
+		}
+		?>
+		<?php
+		// SET-PC-44: list of invalid fields with jump links (the fields carry aria-invalid and the message).
+		self::$field_errors = self::take_field_errors();
+		$visible_errors = array();
+		foreach ( $sections as $def ) {
+			foreach ( array_keys( $def['fields'] ) as $field_key ) {
+				if ( isset( self::$field_errors[ $field_key ] ) ) { $visible_errors[ $field_key ] = array( (string) $def['fields'][ $field_key ]['label'], self::$field_errors[ $field_key ] ); }
+			}
+		}
+		if ( $visible_errors ) {
+			echo '<div class="notice notice-error inline wpcap-error-summary" role="alert" tabindex="-1"><p><strong>' . esc_html__( 'Bitte prüfe diese Felder:', 'pass-captain' ) . '</strong></p><ul>';
+			foreach ( $visible_errors as $field_key => $error ) {
+				echo '<li><a href="#' . esc_attr( 'wpcap-set-' . $field_key ) . '">' . esc_html( $error[0] ) . '</a>: ' . esc_html( $error[1] ) . '</li>';
+			}
+			echo '</ul></div>';
 		}
 		?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
@@ -754,6 +1087,9 @@ final class SettingsPage {
 			<?php if ( 'legal' === $id ) : ?>
 				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: locale code */ __( 'Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung.', 'pass-captain' ), Settings::legal_default_locale() ) ); ?></p>
 			<?php endif; ?>
+			<?php if ( isset( $def['render'] ) && is_callable( $def['render'] ) ) : // SET-PC-03/-37: sections shown as one table. ?>
+				<?php call_user_func( $def['render'], $def, $values ); ?>
+			<?php else : ?>
 			<table class="form-table"><tbody>
 			<?php foreach ( $def['fields'] as $key => $field ) : ?>
 				<tr>
@@ -762,10 +1098,13 @@ final class SettingsPage {
 				</tr>
 			<?php endforeach; ?>
 			</tbody></table>
-			<?php if ( 'legal' === $id ) { self::render_legal_translations(); } ?>
+			<?php endif; ?>
 		<?php endforeach; ?>
+		<?php if ( isset( $sections['legal'] ) ) { self::render_legal_translations(); } // After every section of the tab: it also holds the age confirmation text (SET-PC-18). ?>
 		<?php submit_button( __( 'Einstellungen speichern', 'pass-captain' ) ); ?>
 		</form>
+		<?php if ( 'privacy' === $tab ) { self::render_retention_overview(); } ?>
+		<?php ProHints::render( $tab ); // SET-PC-06: grey hint lines at the end of the tab (empty until a Pro function is sold). ?>
 		<?php
 		foreach ( $sections as $def ) {
 			if ( ! empty( $def['webhook'] ) && Registry::get( (string) $def['provider'] ) && method_exists( Registry::get( (string) $def['provider'] ), 'test_connection' ) ) {
@@ -775,6 +1114,22 @@ final class SettingsPage {
 		?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * SET-PC-21: read-only table "Was wird wann gelöscht" below the privacy settings, built from the
+	 * effective periods (Privacy\Retention::overview(): settings, then filters).
+	 */
+	public static function render_retention_overview() {
+		$rows = \PassCaptain\Privacy\Retention::overview();
+		echo '<h2 id="wpcap-retention-overview">' . esc_html__( 'Was wird wann gelöscht', 'pass-captain' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Übersicht der gespeicherten Fristen (nur Anzeige). Gelöscht oder anonymisiert wird im täglichen Datenschutz-Lauf bzw. im stündlichen Aufräumlauf. Ein Filter kann eine Frist abweichend festlegen; die Tabelle zeigt den wirksamen Wert.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped wpcap-retention-overview"><thead><tr><th scope="col">' . esc_html__( 'Daten', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gelöscht bzw. anonymisiert', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Einstellung', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$setting = '' !== $row['setting'] ? (string) ( \PassCaptain\SettingsSchema::get( $row['setting'] )['label'] ?? '' ) : '';
+			echo '<tr><td>' . esc_html( $row['data'] ) . '</td><td>' . esc_html( $row['when'] ) . '</td><td>' . ( '' !== $setting ? esc_html( $setting ) : esc_html__( 'fest (Filter wpcap_privacy_retention_days)', 'pass-captain' ) ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/** admin-post action of the "Verbindung testen" button (A295). */
@@ -930,6 +1285,12 @@ final class SettingsPage {
 				}
 				echo '</td></tr>';
 			}
+			// SET-PC-18: label of the age confirmation in this language (plain text, not part of the contract version).
+			$field_id = 'wpcap-legal-' . $locale . '-min_age_notice_text';
+			echo '<tr><th scope="row"><label for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Text der Altersbestätigung', 'pass-captain' ) . '</label></th><td>';
+			echo '<input type="text" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( 'legal_texts[' . $locale . '][min_age_notice_text]' ) . '" class="large-text" maxlength="500" value="' . esc_attr( isset( $texts['min_age_notice_text'] ) && is_scalar( $texts['min_age_notice_text'] ) ? (string) $texts['min_age_notice_text'] : '' ) . '">';
+			echo '<p class="description">' . esc_html__( 'Leer: es gilt der Text der Standardsprache bzw. der eingebaute Text. Platzhalter {min_age} = Mindestalter.', 'pass-captain' ) . '</p>';
+			echo '</td></tr>';
 			echo '</tbody></table>';
 			if ( '' !== Settings::terms_version( $locale ) ) {
 				/* translators: 1: locale code, 2: version hash */
@@ -952,6 +1313,30 @@ final class SettingsPage {
 	}
 
 	private static function render_field( $key, array $def, $value ) {
+		ob_start();
+		self::render_field_inner( $key, $def, $value );
+		$html = (string) ob_get_clean();
+		// SET-PC-44: the help text and an error message describe the input (aria-describedby, aria-invalid).
+		$id = 'wpcap-set-' . $key;
+		$described = array();
+		if ( ! empty( $def['description'] ) ) {
+			$html = str_replace( '<p class="description">' . esc_html( $def['description'] ) . '</p>', '<p class="description" id="' . esc_attr( $id . '-desc' ) . '">' . esc_html( $def['description'] ) . '</p>', $html );
+			$described[] = $id . '-desc';
+		}
+		$error = self::$field_errors[ $key ] ?? '';
+		if ( '' !== $error ) {
+			$html .= '<p class="wpcap-field-error" id="' . esc_attr( $id . '-error' ) . '"><strong>' . esc_html( $error ) . '</strong></p>';
+			$described[] = $id . '-error';
+		}
+		if ( $described ) {
+			$attr = ' aria-describedby="' . esc_attr( implode( ' ', $described ) ) . '"' . ( '' !== $error ? ' aria-invalid="true"' : '' );
+			$html = preg_replace( '/(<(?:input|select|textarea)\b[^>]*\bid="' . preg_quote( esc_attr( $id ), '/' ) . '")/', '$1' . $attr, $html, 1 );
+		}
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts above.
+	}
+
+	/** Input of one field (render_field() adds the accessibility attributes). */
+	private static function render_field_inner( $key, array $def, $value ) {
 		$id = 'wpcap-set-' . $key;
 		// Secrets show their own source/status line (Secrets::render_field()).
 		$override = ( 'secret' !== $def['type'] && ! empty( $def['overridable'] ) ) ? self::override_source( $key ) : '';
@@ -964,6 +1349,12 @@ final class SettingsPage {
 				break;
 			case 'choice':
 				Forms::select( $key, $def['options'], (string) $value, $id );
+				break;
+			case 'country':
+				// SET-PC-24: selection from the country list; a stored code outside the list stays selectable.
+				$options = \PassCaptain\Billing::builtin_countries();
+				if ( '' !== (string) $value && ! isset( $options[ (string) $value ] ) ) { $options[ (string) $value ] = (string) $value; }
+				Forms::select( $key, $options, (string) $value, $id );
 				break;
 			case 'providers':
 				$enabled = (array) $value;

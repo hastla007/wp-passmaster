@@ -14,6 +14,8 @@ use PassCaptain\Modules\Mollie as A282Mollie;
 use PassCaptain\Mollie\MollieGateway as A282Gateway;
 use PassCaptain\Settings;
 
+require_once dirname( __DIR__ ) . '/lib/fixtures_shared.php';
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class ); // Mollie hooks (mollie.php in a full run).
 global $wpdb;
 $p = $wpdb->prefix;
 

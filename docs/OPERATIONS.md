@@ -124,7 +124,7 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 - **Frontend- und REST-Aufrufe** prüfen nur einen günstigen Fingerabdruck (Schema-/Plugin-Version und Modulliste, Option `wpcap_schema_fingerprint`). Weicht er ab, wird einmalig das Cron-Ereignis `wpcap_run_upgrade` eingeplant. Nur wenn dieses Ereignis länger als fünf Minuten überfällig ist (WP-Cron läuft nicht), übernimmt ein einzelner Frontend-Aufruf das Upgrade hinter derselben Sperre.
 - Bis zum Upgrade läuft der neue Code gegen das alte Schema. Das ist unkritisch, weil Migrationen nur Tabellen, Spalten und Indizes ergänzen; nach einem Update trotzdem zeitnah den Admin-Bereich öffnen oder `wp cron event run wpcap_run_upgrade` ausführen.
 - **Fehlgeschlagenes Upgrade:** Version und Fingerabdruck werden nur nach vollständigem Erfolg gespeichert; die Fehlerdetails stehen in der Option `wpcap_schema_error`, im PHP-Fehlerprotokoll und als Admin-Hinweis. Wiederholungen laufen mit **Backoff** (1, 5, 15, danach alle 60 Minuten; Zähler `attempts`, Zeitpunkt `next_retry` in der Option), damit eine defekte Datenbank nicht bei jedem Admin- oder Cron-Aufruf erneut `dbDelta` ausführt. Eine neue Plugin-/Schema-Version wird sofort versucht. Nach Behebung der Ursache unter **Pass Captain → Systemstatus → Datenbankschema → „Jetzt erneut versuchen“** sofort wiederholen (ignoriert den Backoff, läuft hinter derselben Sperre) oder per `wp pass-captain diagnose --repair=schema`.
-- Die `CREATE TABLE`-Anweisungen (Kern, Verkaufsschema, Module) liefert `Installer::schema_statements()`; `install()` enthält nur noch den Ablauf (Sperre, Vorarbeiten, `dbDelta`, Prüfung, Datenmigrationen, Version). Die REST-Routen des Kerns registriert `Rest\Controller::register_routes()` über je eine Methode pro Ressourcengruppe in unveränderter Reihenfolge (A401).
+- Die `CREATE TABLE`-Anweisungen (Kern, Verkaufsschema, Module) liefert `Installer::schema_statements()`; `install()` enthält nur noch den Ablauf (Sperre, Vorarbeiten, `dbDelta`, Prüfung, Datenmigrationen, Version). Die REST-Routen des Kerns registriert `Rest\Controller::register_routes()` über je eine Methode pro Ressourcengruppe in unveränderter Reihenfolge (A401). `schema_statements()` fügt je eine Methode pro Tabellengruppe (Events, Bestellungen, Personal, Saalplan, Services, Einlass, Rechnungen, Teilnehmer, Nachrichten, Pässe/Kampagnen, Wartelisten, Einstellungen, Zahlungen, Betrieb) in unveränderter Reihenfolge zusammen; der Text der Anweisungen ist byteweise unverändert (Prüfsumme in `zz_a401`). `Orders::create()` läuft über `create_attempt()`, das je eine private Methode pro Checkout-Phase aufruft (Eingabe, Idempotenz, Positionen, Käuferprüfungen, Limits; in der Transaktion Sperren, Kapazität, Preise, Kampagnen, Steuern, Bestellung, Positionen, Commit; danach Rollback-Auswertung bzw. Abschluss). Die Werte zwischen den Phasen trägt `Orders\CheckoutState` (intern, keine Add-on-API).
 - `dbDelta` ergänzt nur. Was es nicht kann, erledigt das Upgrade selbst (Schema 3.10.4, `Installer::upgrade_indexes()`): Ein Index, dessen Spalten, Präfixlänge oder Eindeutigkeit sich geändert hat, wird in einem einzigen `ALTER TABLE` gelöscht und neu angelegt (schlägt das fehl, z. B. weil ein neuer eindeutiger Index an doppelten Daten scheitert, bleibt der alte Index unverändert); entfernte Indizes (`Installer::OBSOLETE_INDEXES`, bisher `wpcap_order_items.type_order`, abgelöst durch `capacity_sum`) werden gelöscht. Von Betreibern selbst angelegte Indizes bleiben unberührt. Änderungen von NULL/NOT NULL übernehmen die Datenmigrationen der Module (z. B. Kasse).
 - Bricht ein Upgrade ab (Fehler, Zeitüberschreitung, Prozessende), bleibt `wpcap_db_version` auf der alten Version und die Sperre wird freigegeben; der nächste Admin-/Cron-Aufruf setzt es fort. Alle Schritte sind wiederholbar, einmalige Datenmigrationen laufen trotzdem nur einmal (geprüft in `tests/upgrade/run.php`, siehe TESTING.md).
 - **Dauerhaft fehlschlagendes Upgrade (A466):** Fehlen nach `dbDelta` Tabellen oder Spalten (z. B. fehlt dem Datenbankbenutzer das Recht `ALTER`/`CREATE`) oder fehlt bzw. weicht ein deklarierter Index ab (z. B. `UNIQUE KEY` über doppelte Zeilen, Sperr-Zeitüberschreitung beim `ALTER`; Eintrag „Tabelle: index Name“, A513), speichert das Plugin den Fehlversuch in `wpcap_schema_error` (fehlende Objekte, Datenbankfehler, Zielversion, Anzahl der Versuche, nächster Versuch; Audit-Eintrag `schema_upgrade_failed` je Versuch) und wartet mit dem nächsten automatischen Versuch: 5 Minuten, je weiterem Fehlversuch doppelt so lange, höchstens 6 Stunden (Filter `wpcap_schema_retry_delay`). In dieser Zeit führen weder Admin- noch Cron- noch Frontend-Aufrufe `dbDelta` erneut aus; das Cron-Ereignis `wpcap_run_upgrade` wird auf den nächsten Versuch gelegt. Bricht ein Upgrade mehrmals hintereinander ab, ohne fertig zu werden (Zeitlimit, Fatal Error; Option `wpcap_schema_attempt`), gilt ab dem zweiten Abbruch dieselbe Wartezeit. Sofort erneut versuchen: Knopf „Datenbank-Update jetzt erneut versuchen“ im Admin-Hinweis (nur `manage_options`, Audit `schema_upgrade_retried`), `wp pass-captain upgrade` oder Deaktivieren/Aktivieren. Eine neue Plugin-Version (andere Zielversion) versucht es sofort. Schlägt schon die Erstinstallation fehl, werden keine wiederkehrenden Cron-Ereignisse eingeplant.
@@ -550,7 +550,7 @@ Fehler, Warnungen und Hinweise des Plugins landen im **Support-Protokoll** (Tabe
 - **Fehler-ID für Käufer:innen**: Unerwartete Checkout-Fehler (A322), fehlgeschlagene Zahlungsstarts (A324) und unerwartete Fehler der REST-Schnittstelle zeigen einen neutralen Text mit Fehler-ID (`data.reference`). Mit dieser ID findet der Support den Eintrag unter **Betrieb → Support-Protokoll** (Suche nach Fehler-ID, Bestellung, Bereich, Mindeststufe). Belegte Ergebnisse (ausverkauft, Verkauf geschlossen, …) bekommen keine Fehler-ID und erscheinen nur im Debug-Modus; eine überlastete Datenbank ist eine Warnung mit dem Datenbankfehler.
 - **Debug-Modus**: Ohne ihn werden Einträge ab `info` gespeichert. **Einstellungen → Support und Fehlersuche → Fehlersuche-Protokoll** speichert zusätzlich `debug`-Einträge und schaltet sich 24 Stunden nach dem Einschalten selbst ab (zum Verlängern aus- und wieder einschalten). Die Konstante `WPCAP_DEBUG` in `wp-config.php` hat Vorrang (`true`: immer an, `false`: immer aus). Feiner: Filter `wpcap_log_min_level`.
 - **Was protokolliert wird**: Checkout-Abbrüche (A322), abgelehnte und abgestürzte Zahlungs-Webhooks (A323), Zahlungsstart-Fehler mit dem Text des Anbieters (A324), gescheiterte Jobläufe und Dead Letters (A325), endgültig gescheiterte E-Mails der Warteschlange, **jede Plugin-E-Mail** mit Typ, Empfängerzahl und Ergebnis (gesendet/nicht gesendet, A328), Ausnahmen der REST-Callbacks.
-- **Rotation**: Der stündliche Aufräumlauf (`wpcap_cleanup_reservations`) löscht Einträge älter als 30 Tage (Filter `wpcap_log_retention_days`), `debug`- und `info`-Einträge (z. B. das Mail-Protokoll) schon nach 7 Tagen, und hält höchstens 20 000 Einträge. Die Datenschutz-Löschung einer Bestellung entfernt auch ihre Einträge.
+- **Rotation**: Der stündliche Aufräumlauf (`wpcap_cleanup_reservations`) löscht Einträge älter als 30 Tage (Einstellung „Support-Protokoll aufbewahren“ im Reiter Datenschutz, SET-PC-21; der Filter `wpcap_log_retention_days` hat Vorrang), `debug`- und `info`-Einträge (z. B. das Mail-Protokoll) schon nach 7 Tagen, und hält höchstens 20 000 Einträge. Die Datenschutz-Löschung einer Bestellung entfernt auch ihre Einträge.
 - **Weiterleiten**: Die Action `wpcap_log` erhält jeden gespeicherten (bereits geschwärzten) Eintrag, z. B. für ein externes Log-System.
 
 ### Verlauf einer Bestellung (A328)
@@ -580,6 +580,14 @@ Je Zeile: **Beim Anbieter prüfen** (sofortiger Abgleich) und **Manuell bestäti
 nicht ausgezahlt, Begründung Pflicht, Recht `wpcap_approve_refunds`). Dieselben Aktionen stehen in der
 Erstattungstabelle der Bestellung. Alles wird im Audit-Log protokolliert. Ablauf und Zustände:
 [STATE-MACHINES.md](STATE-MACHINES.md#erstattung-mit-unklarem-ausgang-a272-a350).
+
+### Gutschein-Abgleich
+
+Auf der Seite **Betrieb** (Systemstatus) steht der Abschnitt „Gutschein-Abgleich“, sobald Voucher Captain
+aktiv ist oder eine Bestellung einen Gutschein enthält. Er läuft auf Knopfdruck („Abgleich ausführen“),
+ändert nichts und prüft die neuesten 500 Bestellungen mit Gutschein
+(`PassCaptain\Integrations\Vouchers\ReconciliationReport::report()`). Details in
+[VOUCHERS.md](VOUCHERS.md#gutschein-abgleich).
 
 ### Datenkonsistenz: Diagnose und Reparatur (A204)
 
@@ -727,22 +735,123 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
 - **Bestellung:** eigene Zeilen in `wpcap_order_items` mit `fee_kind` `ticket` bzw. `order` und Menge 0
   (kein Einlass, kein Kontingent). `subtotal_minor` und `total_minor` der Bestellung enthalten die Gebühr,
   `price_snapshot.service_fee` friert die Beträge ein; Rabatte mindern sie nicht.
-- **Steuer:** wie die zugehörige Ticketposition (gleicher Satz, gleiche Steuerprofil-Spalten); die
-  Gebühr je Bestellung folgt der ersten kostenpflichtigen Position. Ein eigener Steuersatz für die Gebühr ist
-  nicht vorgesehen (fachlich zu klären, siehe unten).
-- **Anzeige:** Eventseite „zzgl. … Servicegebühr“ je Ticketart und Summe mit „inkl. Servicegebühr …“;
-  Bestellübersicht in Mail und Bestellportal, Admin-Bestellansicht und Rechnung als eigene Position
+- **Steuer (Einstellung „Steuer der Servicegebühr“, Entscheidung vom 23.11.2026):**
+  - **„wie das Ticket (Nebenleistung)“** (Standard, bisheriges Verhalten): gleicher Satz und gleiche
+    Steuerprofil-Spalten wie die zugehörige Ticketposition; die Gebühr je Bestellung folgt der ersten
+    kostenpflichtigen Position.
+  - **„eigenes Steuerprofil“**: Die Gebührenzeilen nehmen das aktive Steuerprofil der eingestellten
+    **Steuerklasse der Servicegebühr** (Standard `service`; Auswahl aus den Steuerklassen unter Verkauf →
+    Steuerprofile) für denselben Leistungsort und dasselbe Datum wie ihre Ticketposition (Eventland bzw.
+    Veranstaltungsort, Leistungs-/Verkaufsdatum; `Sales\TaxProfiles` und `Tax\Profiles` wie bei Tickets). Ohne
+    passendes aktives Profil gilt der **Steuersatz der Servicegebühr ohne passendes Steuerprofil** (Quelle
+    `setting`, Admin: „Steuersatz der Servicegebühr (Einstellung)“), ist er leer, der Satz der Ticketposition.
+    Satz, Profil-ID, Version und Profil-Snapshot stehen auf der Gebührenzeile (`tax_rate_bp`, `tax_source`,
+    `tax_profile_id`, `line_snapshot.tax`); `price_snapshot.service_fee.tax` nennt den Modus.
+  - Die Einstellung gilt für neue Bestellungen; bestehende behalten ihre Zeilen. Rechnung (Positionen und
+    USt-Aufstellung je Satz), Rechnungskorrektur (Aufteilung je Satz: die Gebühr je Ticket eines erstatteten
+    Tickets wird mit dem Satz der Gebührenzeile gebucht), Fiskalbeleg (Gebührenpositionen mit ihrem Satz),
+    Bericht (Steuersätze, „davon Servicegebühren“) und Buchhaltungsexport folgen der Gebührenzeile. Die
+    Belegzeile je Ticketart (`wpcap_fiscal_document_items`, eine Zeile je Ticketart) trägt weiter den Satz der
+    Ticketposition und die Summen inkl. Gebühr.
+  - Filter `wpcap_service_fee_tax` ändert das eigene Steuerprofil je Gebührenzeile.
+- **Preisangabe (Entscheidung der Inhaberin vom 23.11.2026; DE PAngV § 3, AT PrAG, EU-Verbraucherrecht):**
+  Die Gebühr **je Ticket** ist in jedem Preis enthalten, den Käufer vor dem Kauf sehen: Preis je Ticketart auf
+  Eventkarte/Eventseite („26,50 € … inkl. 1,50 € Servicegebühr“), Preis im Kartenkopf („ab …“), Live-Stand
+  (`checkout/live`), Preis in 409-Meldungen „Preis geändert“ (A560/A576, `prices_formatted`/`formatted`),
+  JSON-LD-Angebote der Eventseite und REST `/events` (`display_price_minor`). Die Gebühr **je Bestellung**
+  steht deutlich neben den Preisen („zzgl. 2,00 € Bearbeitungsgebühr je Bestellung“ im Kartenkopf und über den
+  Ticketarten) und ist in jeder Summe vor dem Bestellbutton enthalten (Schätzung „Summe: … inkl. 3,00 €
+  Servicegebühr, inkl. 2,00 € Bearbeitungsgebühr je Bestellung“ und Summe neben dem Button). Kostenlose
+  Ticketarten bleiben „kostenlos“. Der Preisvergleich des Checkouts (`data-price`, `expected_price_minor`,
+  `price_minor` im Live-Stand und in `/events`) bleibt der Ticketpreis ohne Gebühr; REST `/events` liefert
+  zusätzlich `service_fee_minor` und `order_fee_minor` (Vertrag `public` 1.2). Listen- und Kalenderansicht
+  zeigen keine Preise; WooCommerce-Produktpreise bleiben unverändert, weil dort keine Gebühr anfällt.
+  Filter `wpcap_service_fee_shown` gleicht die Anzeige an, wenn `wpcap_service_fee` die Gebühr je Bestellung
+  ändert.
+- **Anzeige nach dem Kauf:** Bestellübersicht in Mail und Bestellportal, Admin-Bestellansicht und Rechnung als eigene Position
   („Servicegebühr (Ticketart)“ mit Anzahl Tickets, „Servicegebühr je Bestellung“); Bericht: „davon
   Servicegebühren“ je Währung (Teil des Bruttoumsatzes). Fiskalisierung: die Gebühren stehen als eigene
   Positionen auf dem Beleg des Verkäufers ihrer Ticketposition (Belegsumme = Bestellsumme); die Belegzeile je
   Ticketart (`wpcap_fiscal_document_items`) enthält ihre Beträge.
-- **Erstattung:** nach den bestehenden Regeln (`Refunds::calculate()`): ein erstattetes Ticket nimmt seine
-  Gebühr je Ticket mit, die Gebühr je Bestellung geht mit dem letzten Ticket zurück (Vollerstattung =
-  Bestellsumme). Wer die Gebühr einbehalten will, nutzt den Abzug der Erstattung (`deduct_minor`).
-- **Offen (Betreiber/Steuerberatung):** Preisangaben gegenüber Verbrauchern müssen Pflichtgebühren im
-  Gesamtpreis zeigen (DE PAngV, AT PrAG) – die Eventseite nennt die Gebühr neben dem Ticketpreis, nicht im
-  Preis; ob die Gebühr als Nebenleistung den Steuersatz des Tickets teilt, ob sie bei Absage durch den
-  Veranstalter immer zurückgeht und wem sie in Partnerabrechnungen zusteht, ist nicht entschieden.
+- **Erstattung (Entscheidung vom 23.11.2026, `Refunds::calculate()`, `ServiceFee::refund_part()`):**
+  - **Absage durch den Veranstalter** (Termin oder Event abgesagt: `OccurrenceCancellation`, Eventabsage
+    `Orders::cancel_event()`, Workflow-Befehl `event.cancel`, Pass-Absagen) erstattet die Gebühr **immer**: die
+    Gebühr je Ticket mit jedem Ticket, die Gebühr je Bestellung mit dem letzten Ticket. Das gilt auch, wenn
+    die Tickets eines abgesagten Termins später vom Team erstattet werden (ohne automatische Erstattung):
+    Tickets eines abgesagten Termins/Events erkennt die Berechnung selbst. Erstattungsanträge nach einer
+    **Terminverschiebung** (`RescheduleRefunds`) gelten ebenfalls als vom Veranstalter verursacht (Gebühr
+    wird erstattet; bitte bestätigen).
+  - **Erstattung auf Käuferwunsch** (Stornierungsanfrage im Bestellportal bzw. deren Freigabe,
+    Selbststornierung, Erstattung durch das Team ohne Absage): Einstellung **„Servicegebühr bei Erstattung
+    auf Käuferwunsch“** – „einbehalten“ (Standard) oder „mit erstatten“. Das Bestellportal nennt eine
+    einbehaltene Gebühr vor der Anfrage. Im Erstattungsformular der Bestellung kann das Team je Erstattung
+    „automatisch“, „mit erstatten“ oder „einbehalten“ wählen (Option `service_fee` von `Refunds::request()`).
+  - Eine einbehaltene Gebühr wird nicht ausgezahlt; sie zählt wie ein Abzug (`deducted_minor`), wird von
+    späteren Erstattungen nie zurückgegeben und steht mit ihrer USt in `wpcap_refunds.fee_kept_minor` /
+    `fee_kept_tax_minor`. Die erstattete Gebühr steht in `fee_minor` / `fee_tax_minor` (Schema 3.18.4). Die
+    Vorschau im Admin zeigt „Wert“ inkl. Gebühr und „Abzug“ inkl. einbehaltener Gebühr. Die
+    Rechnungskorrektur enthält nur den erstatteten Teil (die Gebührenzeilen nehmen nur teil, wenn die
+    Gebühr erstattet wurde); USt der Erstattungen plus USt der einbehaltenen Gebühren = USt der Bestellung.
+  - Filter `wpcap_service_fee_refund_rule` entscheidet je Ticket („refund“/„retain“).
+- **Partnerabrechnung und Abrechnungsblatt (Entscheidung vom 23.11.2026):** Die Gebühr ist **Umsatz des
+  Betreibers**. Partnerabrechnungen (`Partners\Settlements`) rechnen sie nicht als Veranstaltererlös ab:
+  Gebührenzeilen sind keine Verkaufspositionen (keine Provision, keine Auszahlung, sie halten keine Bestellung
+  „offen“), Erstattungen werden um die erstattete Gebühr (`wpcap_refunds.fee_minor`) gekürzt. Die Abrechnung
+  weist die Gebühr getrennt aus (`totals.service_fee`: verkauft, erstattet; Satz „Servicegebühren der Käufer:
+  … – Umsatz des Betreibers, nicht Teil dieser Abrechnung“). Einstellung **„Servicegebühr an Partner
+  weitergeben“** (Standard aus): eingeschaltet zählt die Gebühr wie der Ticketpreis zum Veranstaltererlös
+  (bisheriges Verhalten) und die Abrechnung nennt sie als weitergegeben. Das Abrechnungsblatt je Termin
+  (`Reports\Settlement`) zeigt „Servicegebühren nach Erstattungen“ getrennt (in den Summen enthalten) und
+  rechnet sie nur bei eingeschalteter Weitergabe zur Deal-Basis. Der Verkaufsbericht zeigt „davon
+  Servicegebühren“ und „Servicegebühren bei Erstattungen: erstattet …, einbehalten …“ je Währung. Die Einstellung
+  gilt für Abrechnungsentwürfe ab jetzt; abgeschlossene Abrechnungen bleiben unverändert.
+- **Rechtlicher Hinweis:** Die Umsetzung folgt den Entscheidungen der Inhaberin vom 23.11.2026. Die rechtliche
+  und steuerliche Einordnung (Preisangabe, Nebenleistung oder eigene Leistung, Erstattungspflicht,
+  Zurechnung zum Betreiber) ist **keine Rechts- oder Steuerberatung** und sollte vor dem Einsatz von einer
+  Steuerberaterin bzw. einem Steuerberater (und für die Preisangabe ggf. rechtlich) bestätigt werden.
+
+## Zusatzprodukte: Parken, Merch, Garderobe (Schema 3.18.5)
+
+Eine Ticketart hat eine **Art**: „Ticket (Einlass)“ (Standard, alle bestehenden Ticketarten) oder
+„Zusatzprodukt“ (Spalte `wpcap_ticket_types.kind` = `ticket` | `addon`). Einstellen im Formular der
+Ticketart (*Events → Termin → Ticketart*). Ein Zusatzprodukt gehört wie jede Ticketart zu einem Termin und
+hat eigenen Preis, Steuersatz bzw. Steuerklasse und eigenes Kontingent.
+
+- **Kaufregel (serverseitig, alle Kanäle):** Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem
+  Ticket **desselben Termins in derselben Bestellung**. Optional „Höchstens je Ticket“
+  (`addon_max_per_ticket`, 0 = ohne Grenze): höchstens so viele Stück je Ticket des Termins in der
+  Bestellung. Der Checkout lehnt sonst mit HTTP 409 ab (`reason` `addon_requires_ticket` bzw.
+  `addon_limit`). Das gilt für Online-Checkout, Kasse, Freikarten, Partner-API und WooCommerce gleich.
+- **Kein Einlass:** Zusatzprodukte erzeugen **kein Ticket** – keinen QR-Code, kein PDF, keinen Wallet-Pass,
+  nichts zum Einchecken. Die Position steht in der Bestellübersicht (Bestellmail, Bestellportal) als
+  „Name (Zusatzprodukt)“, auf Rechnung und Fiskalbeleg als eigene Zeile mit eigenem Steuersatz. Abholung
+  (z. B. Parkschein, Shirt) erfolgt anhand der Bestellung; einen eigenen Abholcode gibt es nicht.
+- **Kapazität:** Zusatzprodukte belegen **keine Plätze des Termins**, nur ihr eigenes Kontingent. Die
+  Termin-Zähler (`wpcap_occurrences.sold_qty`/`held_qty`) enthalten weiter alle Einheiten; die
+  Kapazitätsprüfung, „noch X Plätze“ und „Verkauft“ in der Terminliste rechnen die Zusatzprodukte heraus.
+  Kontingentpools von Serien/Pässen und Zuteilungen (Allocations) zählen Zusatzprodukte derzeit noch mit.
+- **Keine Servicegebühr je Ticket, keine Teilnehmerdaten, keine Käuferlimits:** Auf Zusatzprodukte fällt
+  keine Servicegebühr je Ticket an; die Gebühr je Bestellung hängt an einer Ticketposition. Name je Ticket
+  und Teilnehmerfelder werden nicht abgefragt. Käuferlimits für „alle Ticketarten“ eines Events zählen
+  Zusatzprodukte nicht (ein Limit für genau diese Ticketart gilt).
+- **Erstattung:** Erstattungen sind ticketbasiert. Eine Teilerstattung von Tickets erstattet **keine**
+  Zusatzprodukte. Wird das letzte offene Ticket der Bestellung erstattet, geht der Rest der Bestellung
+  zurück – Zusatzprodukte eingeschlossen (bestehende Regel „die letzten Tickets erhalten den Restbetrag“),
+  und die Bestellung gilt als erstattet. Ein Zusatzprodukt allein erstattest du über „Betrag erstatten“;
+  dessen Kontingent wird dabei nicht freigegeben. Bei einer Bestellung über mehrere Termine bleibt das
+  Zusatzprodukt eines abgesagten Termins bestehen, solange Tickets anderer Termine offen sind.
+- **Art ändern:** Nur solange die Ticketart keine Bestellungen hat.
+- **Eventseite:** Zusatzprodukte stehen in einem eigenen Block „Zusatzprodukte“ unter den Tickets
+  (`fieldset.wpcap-addons`, Eingabefelder mit `data-kind="addon"`); sie werden nur angezeigt, wenn für den
+  Termin ein Ticket im Verkauf ist, zählen nicht für „Ausverkauft“, Warteliste und „ab“-Preis.
+  `GET /events` liefert je Ticketart `kind` und `addon_max_per_ticket`.
+- **Berichte:** Der Umsatzbericht zählt verkaufte Zusatzprodukte getrennt („Verkaufte Zusatzprodukte“,
+  Feld `addons`); ihre Beträge sind im Umsatz enthalten, sie zählen nicht als Tickets.
+- **WooCommerce:** Ein WooCommerce-Produkt kann auf ein Zusatzprodukt verweisen; die Kaufregel gilt auch
+  dort (ohne passendes Ticket im Warenkorb scheitert die Reservierung). Eine eigene Prüfung im Warenkorb
+  gibt es nicht.
+- **Kombi-/Paket-Tickets** (mehrere Termine/Ticketarten zu einem Preis) sind nicht Teil dieser Funktion
+  (Entscheidung E-05 offen).
 
 ## Zahlungsanbieter: Test- und Live-Modus (A274)
 
@@ -776,7 +885,7 @@ angezeigt.
 - Jede Site hat eigene Tabellen (`{präfix}wpcap_*`) und eigene Optionen; das Plugin greift nur über `$wpdb->prefix` bzw. `$wpdb->…`-Tabellen zu (statisch geprüft, siehe TESTING.md „Tabellenpräfixe und Isolation“). Zwischenspeicher je Anfrage (Verfügbarkeit, Steuerprofile, Schema-Bereitschaft, Schema-Version) gelten nur für die Site, für die sie gefüllt wurden; nach `switch_to_blog()` werden sie neu aufgebaut (Aktion `switch_blog` und Präfixvergleich).
 - Die Deinstallation mit „Daten beim Löschen entfernen“ löscht Optionen und Transienten über die Options-API (`delete_option()`/`delete_transient()` je Name) statt per SQL und leert die Options-Caches (`alloptions`, `notoptions`) sowie die Cache-Gruppen `wpcap` und `wpcap_rate`, sofern der Objekt-Cache Gruppen leeren kann (A467). Vorher hielt ein persistenter Objekt-Cache z. B. `wpcap_db_version` weiter vor; eine spätere Neuinstallation legte dann keine Tabellen an.
 - Mit „Daten beim Löschen entfernen“ und aktivem WooCommerce entfernt die Deinstallation außerdem die Verknüpfungen in WooCommerce über die CRUD-API (HPOS und Beitragsspeicher): `_wpcap_core_order_id`, `_wpcap_checkout_attempt`, `_wpcap_refund_processed`, `_wpcap_attendees`, `_wpcap_deferred_note` an Bestellungen, `_wpcap_ticket_type_id` an Bestellpositionen und Produkten (`Integrations\WooCommerce\MetaCleanup`, Zeitbudget 20 s; A284). Was dabei liegen bleibt (WooCommerce inaktiv, sehr viele Bestellungen), ist unschädlich: Eine Verknüpfung gilt nur, wenn die Pass-Captain-Bestellung nachweislich für diese WooCommerce-Bestellung angelegt wurde (Idempotenzschlüssel = Schlüssel-Hash aus WooCommerce-Bestellnummer und Versuch). Nach einer Neuinstallation zeigen alte Bestellungen also nie auf neue, fremde Bestellungen (Storno, Erstattung, Notizen).
-- Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben – Sites ohne Plugin-Daten (keine `wpcap_*`-Tabellen, keine Version, keine Einstellungen) zählen dabei als zustimmend (A514); Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites. Entfernt werden alle Plugin-Capabilities aus `PassCaptain\Capabilities::all()` – die Rollenrechte und die Modulrechte `wpcap_approve_comps` (Gästelisten/Freikarten) und `wpcap_boxoffice_override` (Kasse) – an allen Rollen und Benutzern (A372). Unabhängig von der Zustimmung entfernt die Deinstallation die Netzwerk-Optionen `wpcap_*` (`sitemeta`, z. B. `wpcap_network_install`, `wpcap_legacy_copy_seen`) und auf jeder Site die Action-Scheduler-Aktionen der Gruppe `pass-captain` (die Gruppe `wp-pass-captain` nur, wenn die alte Kopie nicht mehr installiert ist; A514).
+- Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben – Sites ohne Plugin-Daten (keine `wpcap_*`-Tabellen, keine Version, keine Einstellungen) zählen dabei als zustimmend (A514); Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites. Entfernt werden alle Plugin-Capabilities aus `PassCaptain\Capabilities::all()` – die Rollenrechte und die Modulrechte `wpcap_approve_comps` (Gästelisten/Freikarten) , `wpcap_boxoffice_override` (Kasse) und `wpcap_read_holder_email` (E-Mail des Ticketinhabers im Lesedienst für Connectoren) – an allen Rollen und Benutzern (A372). Unabhängig von der Zustimmung entfernt die Deinstallation die Netzwerk-Optionen `wpcap_*` (`sitemeta`, z. B. `wpcap_network_install`, `wpcap_legacy_copy_seen`) und auf jeder Site die Action-Scheduler-Aktionen der Gruppe `pass-captain` (die Gruppe `wp-pass-captain` nur, wenn die alte Kopie nicht mehr installiert ist; A514).
 - Zugriffsbereiche des Personals (Spielorte/Veranstalter, A470) und das Ausblenden des Kassen-Hinweises sind Benutzeroptionen **je Site** (`{präfix}wpcap_access_scope`, `{präfix}wpcap_pos_fiscal_notice_dismissed`). Ein Bereich, der auf Site 1 gesetzt wird, schränkt dieselbe Person auf Site 2 nicht ein. Nach dem Update auf Schema 3.10.19 hat jede Site eine Kopie des früheren netzwerkweiten Bereichs; bitte je Site prüfen (Partner-IDs sind Site-lokal).
 - Datenschutz-Auskunft und -Löschung (Werkzeuge → Personenbezogene Daten exportieren/löschen) laufen **je Site**: Exporter und Löscher lesen und ändern nur die Tabellen der Site, auf der die Anfrage bearbeitet wird. Hat eine Person auf mehreren Sites gekauft, muss die Anfrage auf jeder Site gestellt werden. Netzwerkweite Benutzer-Metadaten des Plugins (Hinweis-Schalter, Event-Zuständigkeit des Personals) enthalten keine Kundendaten und bleiben unberührt (getestet in `tests/integration/modules/zz_a196.php`).
 
@@ -881,6 +990,44 @@ wird `pass-captain.zip.sha256` veröffentlicht (Prüfung und Nachbau:
 [COMPATIBILITY.md](COMPATIBILITY.md#release-artefakt-prüfen)). Freigabe-Gates und Abnahme (Upgrade/Restore
 mit realistischen Datenständen, doppelte Webhooks, E-Mail-Ausfälle, hohe Scanrate, Multisite):
 [RELEASE.md](RELEASE.md).
+
+### Präfixierte Bibliotheken aktualisieren
+
+Die QR-Bibliothek `bacon/bacon-qr-code` und ihre Abhängigkeit `dasprid/enum` werden nur
+namespace-präfixiert ausgeliefert (A103): `BaconQrCode\…` heißt im Plugin `PassCaptain\Vendor\BaconQrCode\…`,
+`DASPRiD\Enum\…` heißt `PassCaptain\Vendor\DASPRiD\Enum\…`. Ein anderes Plugin, das eigene (auch andere)
+Versionen dieser Bibliotheken oder von `endroid/qr-code` lädt (realer Fall: endroid 4.x), kann die Klassen des
+Plugins daher weder ersetzen noch brechen.
+
+- Die präfixierte Kopie liegt committet in `vendor-prefixed/` und wird über den Composer-Autoloader
+  (`autoload.classmap`) geladen, ohne Autoloader über den Fallback in `pass-captain.php`. Erzeugt wird sie mit
+  [Strauss](https://github.com/BrianHenryIE/strauss) (PHAR, Version und SHA-256 fest in
+  `build/prefix-vendor.sh`; Einstellungen in `composer.json` unter `extra.strauss`). Mitgenommen werden nur
+  Encoder, `Common` und `Exception` von Bacon (die Renderer braucht das Plugin nicht) plus `dasprid/enum`,
+  jeweils mit `LICENSE`. `vendor-prefixed/manifest.json` hält Version und Commit jedes Pakets fest.
+- Die Originalpakete stehen nur in `require-dev`: Der Release-Build (`composer install --no-dev --no-scripts
+  --no-plugins`) installiert sie nicht, Strauss läuft beim Release nicht, das ZIP enthält nur die präfixierte
+  Kopie. Der Build bleibt damit reproduzierbar (nur Dateien aus dem Commit).
+- CI (Job `static`) erzeugt die Kopie mit `bash build/prefix-vendor.sh --check` neu und bricht ab, wenn sie
+  vom committeten Stand abweicht; `tests/integration/modules/zz_a103.php` prüft Manifest gegen
+  `composer.lock`, Präfixe, Lizenzen und den Kollisionsfall (fremde `Endroid\QrCode\QrCode`, `BaconQrCode\…`
+  und `DASPRiD\Enum\…` sind vor dem Plugin geladen); der Paket-Test (`build/ci-install-test.sh`) lehnt
+  unpräfixierte Kopien im ZIP ab.
+
+Aktualisieren (auch nach einem Dependabot-PR für `bacon/bacon-qr-code` oder `dasprid/enum`):
+
+```bash
+composer update bacon/bacon-qr-code dasprid/enum   # oder den Dependabot-Branch auschecken; composer install
+bash build/prefix-vendor.sh                        # erzeugt vendor-prefixed/ neu (lädt Strauss, prüft SHA-256)
+composer dump-autoload
+git add composer.json composer.lock vendor-prefixed && git commit
+```
+
+Danach die QR-Tests (`zz_a103`, `print`, `zzzzzz_y6_integrations`) laufen lassen und den Diff von
+`vendor-prefixed/` wie Fremdcode prüfen. Strauss selbst aktualisieren: neue Version und SHA-256 der
+`strauss.phar` aus dem GitHub-Release in `build/prefix-vendor.sh` eintragen (`STRAUSS_VERSION`,
+`STRAUSS_SHA256`), `bash build/prefix-vendor.sh` ausführen und den Diff prüfen. Weitere Laufzeitbibliotheken
+gehören in `extra.strauss.packages` (und in `require-dev`), nie in `require`.
 
 ## Webhooks der Zahlungsanbieter einrichten
 
@@ -1109,11 +1256,15 @@ Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestell
 - **Österreich (RKSV):** Bareinnahmen (dazu zählen auch Karten- und Wallet-Zahlungen vor Ort) erfordern ab den gesetzlichen Umsatzgrenzen eine Registrierkasse mit Sicherheitseinrichtung (Signaturerstellungseinheit), registriert bei FinanzOnline, inkl. Start-, Monats- und Jahresbeleg.
 - **Deutschland (KassenSichV, § 146a AO):** Elektronische Aufzeichnungssysteme mit Kassenfunktion benötigen eine zertifizierte technische Sicherheitseinrichtung (TSE, BSI TR-03153) und sind dem Finanzamt zu melden; Belege müssen die TSE-Daten enthalten.
 
-Die Kasse des Plugins signiert keine Belege und hat keine TSE-/Signaturkarten-Anbindung. Ist das Land des Rechnungsstellers DE oder AT, sind **Bar und Karte deshalb gesperrt** (Fehler `wpcap_pos_fiscal_required`); Freikarte und Rechnung bleiben möglich. Werden diese Verkäufe nachweislich zusätzlich in einer eigenen zertifizierten Kasse erfasst, kann ein Administrator Bar/Karte in den Belegeinstellungen der Kasse freigeben (Einstellung `boxoffice_cash_confirmed`, wird im Audit-Log protokolliert). Eine künftige Fiskal-Anbindung meldet sich über den Filter `wpcap_boxoffice_fiscal_ready`.
+Die Kasse des Plugins signiert keine Belege und hat keine TSE-/Signaturkarten-Anbindung. Ist das Land des Rechnungsstellers DE oder AT, sind **Bar und Karte deshalb gesperrt** (Fehler `wpcap_pos_fiscal_required`); Freikarte und Rechnung bleiben möglich. Werden diese Verkäufe nachweislich zusätzlich in einer eigenen zertifizierten Kasse erfasst, kann ein Administrator Bar/Karte in den Belegeinstellungen der Kasse freigeben (Einstellung `boxoffice_cash_confirmed`, wird im Audit-Log protokolliert). Eine Fiskal-Anbindung meldet sich über den Filter `wpcap_boxoffice_fiscal_ready`; Standard ist das Modul Fiskalisierung mit einem aktiven Produktiv-Profil für den Kanal Kasse (`BoxOffice\Service::fiscal_ready()`). Sobald das zutrifft, sind Bar und Karte frei und der Hinweis „keine Registrierkasse“ wird nicht mehr angezeigt (A257).
 
 Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden und das Plugin nur für Ticketausgabe und Einlass nutzen, oder die Rechtslage mit der Steuerberatung klären. Der Hinweis auf der Kassenseite kann pro Benutzer ausgeblendet werden; der Link lässt sich über den Filter `wpcap_boxoffice_fiscal_docs_url` ändern.
 
 Die Kasse des Plugins signiert selbst keine Belege und hat keine eigene TSE-/Signaturkarten-Anbindung. Optional kann das Modul **Fiskalisierung** (Pass Captain → Fiskalisierung, [fiscalization-adapters.md](fiscalization-adapters.md)) jeden Verkauf vor der Ticketausgabe über einen vom Betreiber gewählten Anbieter (fiskaly, efsta, fiskaltrust) belegen lassen: je Rechtsträger ein Länder-/Kanalprofil mit Prüfvermerk, Kassenregister unter „Kassen- und Belegeinstellungen“ (`Standort-ID|Kassen-ID|Anzeigename`); solange der Anbieter den Beleg nicht bestätigt, bleibt der Verkauf offen (keine Bonnummer, keine Tickets, „Nachbuchen“ nach Behebung). Das Modul ist kein zertifiziertes Produkt; Anbietervertrag, Sandbox-Abnahme und rechtliche Prüfung liegen beim Betreiber. Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden und das Plugin nur für Ticketausgabe und Einlass nutzen, oder die Rechtslage mit der Steuerberatung klären. Der Hinweis auf der Kassenseite kann pro Benutzer ausgeblendet werden; der Link lässt sich über den Filter `wpcap_boxoffice_fiscal_docs_url` ändern.
+
+### Kasse ohne Netz (Entscheidung E-13)
+
+Ohne Netz sind nur **Einlässe** zulässig, und zwar mit der Offline-Scanner-Web-App ([OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)). Die Kasse braucht für **Verkäufe, Stornos und Erstattungen** (auch „Nachbuchen“ und das Auszahlen offener Kassen-Rückzahlungen) eine Netzverbindung: Der Verkauf reserviert den Platzbestand auf dem Server, braucht die Zahlungsbestätigung und – mit dem Modul Fiskalisierung – den bestätigten Beleg des Anbieters. Meldet der Browser keine Verbindung, zeigt die Kassenseite einen Hinweis und sperrt diese Schaltflächen; sobald die Verbindung zurück ist, sind sie wieder bedienbar. Es wird nichts zwischengespeichert und nichts später automatisch gebucht. Bei Netzausfall an der Abendkasse deshalb nur einlassen (Scanner-App) und Verkäufe über eine eigene, zertifizierte Kasse abwickeln oder bis zur Wiederherstellung der Verbindung zurückstellen. Ein Barverkauf ohne Netz ist nicht vorgesehen.
 
 ### Erstattungen von Kassenverkäufen und Kassenbestand
 
@@ -1263,6 +1414,10 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
 
 **Aktualisierung bestehender Installationen**: Kassensitzungen aus früheren Versionen werden einmalig der Standardkasse „Hauptkasse“ zugeordnet (Option `wpcap_boxoffice_migration` = 2). Abgeschlossene Sitzungen erhalten in der Reihenfolge ihres Abschlusses je einen Z-Bericht (Herkunft „übernommen“, Werte aus der gespeicherten Sitzung, Grand Total läuft weiter). Offene Sitzungen laufen als Schicht weiter; gab es mehrere, erhält jede weitere eine eigene Kasse „Kasse n (übernommen)“. Verkäufe und Sitzungsdaten bleiben unverändert.
 
+**Fiskalisierung im Z-Bericht**: Ist das Modul Fiskalisierung aktiv, enthält der Z-Bericht einen Abschnitt „Fiskalisierung“ je Rechtsträger der Schicht: Anbieter, bestätigte und offene Fiskalbelege der Schicht und der Status des Kassenabschlusses beim Anbieter (mit Abschluss-Referenz, Signatur und weiteren Angaben des Anbieters). Schichten ohne Fiskalbelege bekommen keinen Abschnitt.
+
+**Schichtabschluss an den Fiskal-Anbieter melden** (Einstellung `boxoffice_fiscal_closing` unter „Kassen- und Belegeinstellungen“, **Standard aus**): Beim Kassenabschluss wird für jeden Rechtsträger der Schicht (Rechtsträger ihrer Fiskalbelege und Rechtsträger mit aktivem Produktiv-Profil für Standort und Kassen-ID der Schicht) einmal der Abschluss beim Anbieter angefordert – nur, wenn dessen Adapter `ClosingAdapterInterface` umsetzt (derzeit keiner der eingebauten Adapter). Jeder Aufruf hat einen festen Idempotenzschlüssel je Z-Bericht und Rechtsträger; ein wiederholter Hook schließt nicht doppelt ab. Das Ergebnis steht im Fiskal-Ereignisprotokoll (Ereignis `shift_closing`, Status `submitted`, `failed`, `unsupported` oder `unavailable`) und im Z-Bericht; Fehler werden zusätzlich im Support- und Audit-Log vermerkt (`fiscal_shift_closing_failed`, Erfolg `fiscal_shift_closing_submitted`). Die Schicht bleibt in jedem Fall geschlossen; einen automatischen Wiederholversuch gibt es nicht – bei „Fehlgeschlagen“ den Abschluss im Anbieterportal prüfen bzw. dort nachholen.
+
 **Schnittstellen für Fiskalisierung und Integrationen** (alle nach dem Speichern ausgelöst):
 
 | Hook | Art | Argumente |
@@ -1374,6 +1529,16 @@ innerhalb der Belegtransaktion vergeben; ein abgebrochener Beleg gibt seine Numm
 Die Berichtsseite prüft die Nummernkreise der Jahre des Zeitraums und warnt bei Lücken
 (`Invoices::document_gaps()`, z. B. nach manuellem Löschen in der Datenbank).
 
+**Nummernmuster (SET-PC-03)**: Einstellungen → Rechnungen → „Nummernkreise“ legt je Belegart (Rechnungen,
+Rechnungskorrekturen, Kassenbons, Partner-Abrechnungen, Gutschriften) das Muster mit `{prefix}`, `{year}`, `{yy}`
+und `{number}`, die Stellenzahl, eine Startnummer und den jährlichen Neubeginn fest. Standard ist das bisherige
+Format `PRÄFIX-JJJJ-000123` mit Neubeginn je Jahr. Eine Änderung gilt ab der nächsten Nummer; der Zähler wird nie
+zurückgesetzt, vergebene Nummern werden nicht wiederverwendet. Ohne `{year}`/`{yy}` läuft der Zähler über die Jahre
+weiter. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden; die übersprungenen Nummern
+werden protokolliert (Audit `document_numbers_skipped`) und von der Lückenprüfung nicht gemeldet. Die Lückenprüfung
+liest auch Nummern früherer Muster. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat.
+Filter: `wp_pass_captain_invoice_number_v1`. Musterwechsel im laufenden Jahr bitte vorher rechtlich prüfen lassen.
+
 **Abstimmung mit dem Umsatzbericht**: Die Summe `Brutto` (bzw. `USt`) aller Zeilen eines Zeitraums entspricht
 „Umsatz nach Erstattungen“ (bzw. „davon USt“) des Berichts für denselben Zeitraum, sofern Rechnungen am Tag
 der Bestellung und Rechnungskorrekturen am Tag der Erstattung ausgestellt wurden (automatische Rechnungen) –
@@ -1396,9 +1561,10 @@ stimmt daher immer mit ihm überein.
   `Soll/Haben-Kennzeichen` (`S` = Verkauf, `H` = Rechnungskorrektur/Erstattung), `WKZ Umsatz`, `Konto`
   (Geldkonto), `Gegenkonto (ohne BU-Schlüssel)` (Erlöskonto), `BU-Schlüssel`, `Belegdatum` (`TTMM`),
   `Belegfeld 1` (Beleg- bzw. Bestellnummer), `Belegfeld 2` (korrigierte Rechnung), `Buchungstext`.
-- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit;
-  darüber hinaus anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
-  je Satz).
+- Konten: Einstellung „Kontenrahmen für den DATEV-Buchungsstapel“ (Einstellungen → Rechnungen): SKR03 (Standard) – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit); SKR04 – 4400, 4300, 4200, Geldkonto 1460. Ein eigenes Geldkonto (4–8 Ziffern) ersetzt den Geldtransit.
+  Die Tabelle „DATEV-Buchungsstapel“ (SET-PC-37) nimmt je Steuersatz ein eigenes Erlöskonto und einen BU-Schlüssel, ein
+  Erlöskonto für alle übrigen Sätze und ein Geldkonto je Zahlungsart auf (Einstellung `datev_accounts`; leere Felder =
+  Konten des Kontenrahmens). Der Filter `wpcap_datev_accounts` hat weiterhin das letzte Wort.
 - Belege im Vermittlermodell sind Umsatz des Veranstalters und werden nicht gebucht (Provision über die
   Partnerabrechnung).
 - Kodierung Windows-1252 ohne BOM, Semikolon. Der Stapel enthält **keinen** EXTF-Vorlaufsatz; er ist für den
@@ -1440,6 +1606,13 @@ Teilnehmerliste verwenden dieselbe Regel (`Reports\Attendance`):
 - Die Teilnehmerliste zeigt Pässe und Tickets mit wiederholbarer Einlassregel als „Eingecheckt“, sobald sie an
   diesem Termin eingelassen wurden, und die Teilnehmerfelder aller aufgeführten Ticketarten. Der Stapeldruck von
   Tickets/Badges bleibt bei den Ticketarten des Termins (Pässe werden mit ihrem Ankertermin gedruckt).
+- **Alle Termine eines Events (PASS-FE-05):** In der Ticketliste gibt es mit gewähltem Event (ohne Terminfilter)
+  „Teilnehmerliste als CSV (alle Termine des Events)“ (`wpcap_attendee_list` mit `event_id` statt
+  `occurrence_id`). Die Datei enthält Termin für Termin dieselben Zeilen wie die Einzelliste: die volle Liste hat
+  ihre Spalte „Termin“ schon, die Basisliste bekommt „Termin“ als erste Spalte; Teilnehmerfelder aller Termine
+  werden über ihren Schlüssel zusammengeführt. Es zählen nur Termine, deren Liste du exportieren darfst; ist es nur
+  für einen davon die Basisliste, gilt die Basisliste für die ganze Datei. Gleicher Schutz gegen Formeln in Zellen
+  (`Scope::csv_cell()`), Audit `attendee_list_csv` am Event. Die Einzelliste je Termin bleibt unverändert.
 
 ### Berichts-Caches und Invalidierung (A201)
 
@@ -1878,6 +2051,21 @@ Schreibschritt und das COMMIT. Schlägt einer fehl (Sperr-Timeout, Verbindungsab
 Fehler gemeldet (`wpcap_db_busy` bzw. `wpcap_correction_failed`); Erfolgsmeldung, Audit-Eintrag und Folgeaktionen
 (Wallet, Webhooks, Wartelisten) gibt es nur nach einem bestätigten COMMIT.
 
+### Inhaber eines Tickets im Admin ändern (PASS-FE-03)
+
+„Teilnehmerdaten korrigieren“ ist nur für Tippfehler derselben Person (der Code bleibt). Soll ein gültiges Ticket an
+eine **andere Person** gehen, nutzt du in der Ticketliste **Inhaber ändern**: Name und E-Mail der neuen Person, ein
+Grund (Pflicht) und die Wahl, ob die neue Person das Ticket per E-Mail bekommt (dann erhält die Käufer:in den
+üblichen Übertragungshinweis ohne Code). Die Aktion verwendet dieselbe Logik wie die Übertragung im Bestellportal
+(`Orders::change_ticket_holder()` → gemeinsamer Teil mit `Orders::transfer_ticket()`): neuer Code, der bisherige
+Ticketlink und Wallet-Pass werden ungültig, die Übertragung wird gezählt (über den Bestelllink lässt sich das Ticket
+danach nicht mehr zuweisen oder übertragen), Name, Angaben und Einwilligungen der bisherigen Person enden,
+`wpcap_ticket_code_rotated` und `wpcap_ticket_transferred` (`source` = `admin`, Webhook `ticket.transferred`)
+laufen. Anders als im Portal gelten das Limit `max_holder_changes` und der Terminbeginn nicht; eine offene
+Erstattung und die Code-Sperre (Einlass begonnen, Offline-Scanner, A593) lehnen weiterhin ab. Voraussetzung:
+`wpcap_manage_orders` für das Event und unmaskierte personenbezogene Daten der Bestellung (Support mit
+Maskierung sieht die Aktion nicht). Audit: `ticket_transferred` mit `source`, Grund und ob benachrichtigt wurde.
+
 ### Ticketarten und Teilnehmerfelder auf alle Termine anwenden; Serien (A333)
 
 Hat das Event weitere kommende Termine, bietet das Ticketart-Formular „Auch für die gleichnamige Ticketart an N
@@ -2125,7 +2313,10 @@ Neben `starts_at`/`ends_at` (UTC, „Y-m-d H:i:s“, unverändert) liefert jeder
 `phase` (A562) und `revision` (A560). Jede Ticketart hat `sales_status` (`on_sale`, `not_started`,
 `ended`, `sold_out`), `sales_start`/`sales_end` (ISO 8601 oder `null`), `online_until` (Ende des
 Online-Verkaufs nach Termin-Phase) und `available` (verbleibende Stück, `null` = unbegrenzt). Die Antwort
-trägt `Cache-Control: no-store`. Vertrag `public` 1.1.
+trägt `Cache-Control: no-store`. Vertrag `public` 1.1. Seit 1.2 (A425) zusätzlich je Ticketart
+`service_fee_minor` (Servicegebühr je Ticket im eigenen Checkout), `display_price_minor` (anzuzeigender Preis
+inkl. dieser Gebühr) und `order_fee_minor` (Bearbeitungsgebühr je Bestellung, nicht bei kostenlosen
+Bestellungen); `price_minor` bleibt der Ticketpreis.
 
 ## Geldbeträge, Rundung und Währungen (A200)
 
@@ -2305,15 +2496,17 @@ Schema 3.10.27):
 ## Captain-Suite: Status der Verträge und Provider (A670, A678)
 
 **Pass Captain → Systemstatus → Betrieb → Captain-Suite** (`Admin\SuiteStatus`, Recht `manage_options`) zeigt je Vertrag, den der
-Kern anbietet (`workflow`, `review`; [CONTRACTS.md](CONTRACTS.md)):
+Kern anbietet (heute `review`; [CONTRACTS.md](CONTRACTS.md)), danach die registrierten Connectoren:
 
 - **Status:** „Vertrag verfügbar – kein Plugin registriert“, „Vertrag verfügbar – Provider aktiv (spricht x.y.z)“
   oder „Inkompatibel – der Provider spricht 2.x, der Kern bietet 1.x an; er wird nicht aufgerufen“. Die Anzeige ist
   reine Diagnose: der Kern prüft keine Lizenzen oder Rechte eines Suite-Plugins.
 - **Letzte angenommene Zustellung**, **ausstehende / fehlgeschlagene** Ereignisse der Outbox und der **letzte Fehler**
   (Fehlercode mit Zeitpunkt) je Vertrag.
-- **Ohne Provider:** was dann passiert – Workflow: Erinnerungen und Mails versendet Pass Captain selbst, Commands
-  stehen nicht zur Verfügung; Bewertungen: keine Einladungen, Teilnahmen werden nur festgehalten. Ereignisse warten
-  30 Tage in der Outbox und erreichen ein später installiertes Plugin (Replay).
-- **Letzte Workflow-Commands** (Command, Ergebnis, Zeit – ohne Argumente) und die **Auswahl der übergebenen
-  optionalen Mails** (A677) mit den Zählern „übergeben“ und „nativ versendet (Rückfall)“ samt letztem Grund.
+- **Ohne Provider:** was dann passiert – Bewertungen: keine Einladungen, Teilnahmen werden nur festgehalten.
+  Ereignisse warten 30 Tage in der Outbox und erreichen ein später installiertes Plugin (Replay).
+
+Einen Workflow-Vertrag, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain gibt es im Kern nicht
+mehr (PC-7, [CONTRACTS.md](CONTRACTS.md#kein-workflow-vertrag-im-kern-pc-7)); alle Mails versendet Pass Captain
+selbst. Ob Workflow Captain aktiv ist und Pass Captain kennt, zeigt der Kasten „Workflow Captain“ auf der
+Systemstatusseite (er liest nur `workflow_captain_status_for()` von Workflow Captain).

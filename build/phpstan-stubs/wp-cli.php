@@ -21,6 +21,8 @@ namespace {
 		public static function error( $message, $exit = true ) {}
 		/** @param int $code */
 		public static function halt( $code ) {}
+		/** @param string $question @param array<string,mixed> $assoc */
+		public static function confirm( $question, $assoc = array() ) {}
 		/** @param string $name @param callable|string $callable @param array<string,mixed> $args */
 		public static function add_command( $name, $callable, $args = array() ) {}
 	}

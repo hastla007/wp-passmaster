@@ -129,3 +129,156 @@ if ( ! function_exists( 'wpcap_get_event_state' ) ) {
 		return PassCaptain\Api\ReadFacade::event( $id );
 	}
 }
+
+/*
+ * Read service for connectors (contract 1.4.0, PASS-E17-01): a ticket or an order with occurrence, event,
+ * holder and check-ins, see PassCaptain\Api\TicketDetails. The holder's e-mail address only with the
+ * capability wpcap_read_holder_email (audited). Null when the record does not exist.
+ */
+
+if ( ! function_exists( 'wpcap_get_ticket_details' ) ) {
+	/**
+	 * Details of a ticket, see PassCaptain\Api\TicketDetails::ticket().
+	 *
+	 * @param int|string $id   Ticket ID or public_id (32 hex characters).
+	 * @param array      $args include_email, user_id, source.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_ticket_details( $id, $args = array() ) {
+		return PassCaptain\Api\TicketDetails::ticket( $id, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_order_ticket_details' ) ) {
+	/**
+	 * Details of an order and its tickets, see PassCaptain\Api\TicketDetails::order().
+	 *
+	 * @param int|string $id   Order ID or public_id (32 hex characters).
+	 * @param array      $args include_email, user_id, source.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_order_ticket_details( $id, $args = array() ) {
+		return PassCaptain\Api\TicketDetails::order( $id, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_connector_audit' ) ) {
+	/**
+	 * Audit entry of a connector without personal data (contract 1.4.0, PASS-E17-01), see
+	 * PassCaptain\Integrations\ConnectorAudit::record(). Rate-limited per connector.
+	 *
+	 * @param string $source      Key of a connector registered through wp_pass_captain_connectors_v1.
+	 * @param string $action      Action code, stored as connector_log_<action>.
+	 * @param string $object_type connector|order|ticket|occurrence|event|refund ('' = connector).
+	 * @param int    $object_id   Object ID.
+	 * @param array  $details     Flat details: code keys, values int/float/bool/null or codes.
+	 * @return true|WP_Error
+	 */
+	function wpcap_connector_audit( $source, $action, $object_type = '', $object_id = 0, $details = array() ) {
+		return PassCaptain\Integrations\ConnectorAudit::record( $source, $action, $object_type, $object_id, $details );
+	}
+}
+
+if ( ! function_exists( 'wpcap_set_connector_enabled' ) ) {
+	/**
+	 * Opts a connector in or out (contract 1.4.0, PASS-E17-01) instead of writing the option
+	 * wpcap_enabled_connectors, see PassCaptain\Integrations\ConnectorRegistry::set_enabled().
+	 * Needs manage_options (or WP-CLI); enabling needs a registered connector; audited.
+	 *
+	 * @param string $key     Connector key.
+	 * @param bool   $enabled True = opt in, false = opt out.
+	 * @return true|WP_Error
+	 */
+	function wpcap_set_connector_enabled( $key, $enabled ) {
+		return PassCaptain\Integrations\ConnectorRegistry::set_enabled( $key, $enabled );
+	}
+}
+
+if ( ! function_exists( 'wpcap_is_connector_enabled' ) ) {
+	/**
+	 * Whether a connector is opted in (contract 1.4.0), see PassCaptain\Integrations\ConnectorRegistry::is_enabled().
+	 *
+	 * @param string $key Connector key.
+	 * @return bool
+	 */
+	function wpcap_is_connector_enabled( $key ) {
+		return PassCaptain\Integrations\ConnectorRegistry::is_enabled( $key );
+	}
+}
+
+/*
+ * Public write actions (contract actions 1.0.0, WPCAP_CONTRACT_VERSION 1.4.0; PC-7), see PassCaptain\Api\Actions.
+ * Each checks the capability of the current user or of $args['user_id'], runs the regular core service,
+ * writes an audit entry and returns a result array (with `action`, `replayed`) or a WP_Error. Optional
+ * $args['idempotency_key'] (8–64 characters): the same key with the same arguments returns the stored result.
+ */
+
+if ( ! function_exists( 'wpcap_resend_ticket_mail' ) ) {
+	/**
+	 * Sends the ticket mail of an order again (capability wpcap_manage_orders).
+	 *
+	 * @param int|string $order Order ID or public order ID.
+	 * @param array      $args  new_codes (bool, default false), user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_resend_ticket_mail( $order, $args = array() ) {
+		return PassCaptain\Api\Actions::resend_ticket_mail( $order, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_revoke_ticket' ) ) {
+	/**
+	 * Revokes a ticket without refund (capability wpcap_manage_orders).
+	 *
+	 * @param int|string $ticket Ticket ID or public ticket ID.
+	 * @param string     $reason Reason (required).
+	 * @param array      $args   user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_revoke_ticket( $ticket, $reason, $args = array() ) {
+		return PassCaptain\Api\Actions::revoke_ticket( $ticket, $reason, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_cancel_event' ) ) {
+	/**
+	 * Cancels an event through the regular cancellation (capability wpcap_manage_events).
+	 *
+	 * @param int    $event_id Event ID.
+	 * @param string $reason   Reason (required).
+	 * @param array  $args     user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_cancel_event( $event_id, $reason, $args = array() ) {
+		return PassCaptain\Api\Actions::cancel_event( $event_id, $reason, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_reschedule_occurrence' ) ) {
+	/**
+	 * Moves a date (capability wpcap_manage_events).
+	 *
+	 * @param int         $occurrence_id Occurrence ID.
+	 * @param string      $starts_at     New start, ISO 8601 with time zone.
+	 * @param string|null $ends_at       New end (ISO 8601) or null to keep the duration.
+	 * @param array       $args          user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_reschedule_occurrence( $occurrence_id, $starts_at, $ends_at = null, $args = array() ) {
+		return PassCaptain\Api\Actions::reschedule_occurrence( $occurrence_id, $starts_at, $ends_at, (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_confirm_attendance' ) ) {
+	/**
+	 * Confirms an allowed attendance without a scan (capability wpcap_checkin).
+	 *
+	 * @param int|string $ticket Ticket ID or public ticket ID.
+	 * @param string     $method manual, list, session or online.
+	 * @param array      $args   user_id, idempotency_key.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function wpcap_confirm_attendance( $ticket, $method = 'manual', $args = array() ) {
+		return PassCaptain\Api\Actions::confirm_attendance( $ticket, $method, (array) $args );
+	}
+}

@@ -39,6 +39,13 @@
 			<label id="area-wrap" hidden><span data-i18n="Einlassbereich">Einlassbereich</span>
 				<select id="area"></select>
 			</label>
+			<div id="mode-wrap" class="mode" role="group" aria-labelledby="mode-label" hidden>
+				<span id="mode-label" class="mode-label" data-i18n="Scan-Richtung">Scan-Richtung</span>
+				<div class="row">
+					<button type="button" id="mode-in" aria-pressed="true" data-i18n="Einlass">Einlass</button>
+					<button type="button" id="mode-out" aria-pressed="false" data-i18n="Auslass (Check-out)">Auslass (Check-out)</button>
+				</div>
+			</div>
 			<div id="pkg" class="pkg small" aria-live="polite"></div>
 			<div class="row">
 				<button type="button" id="refresh" data-i18n="Paket aktualisieren">Paket aktualisieren</button>

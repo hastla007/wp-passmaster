@@ -13,6 +13,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Credentials {
 	/** Reads a PEM/JSON value or the file it points to. */
 	public static function material( $value ) {
@@ -42,7 +45,7 @@ final class Credentials {
 		$known = self::$apple[ $memo ] ?? null;
 		if ( is_wp_error( $known ) ) { return $known; }
 		// A certificate that expires during a long run is checked again (A585).
-		if ( is_array( $known ) && ( ! $check_expiry || $known['valid_to'] > time() ) ) { return $known['result']; }
+		if ( is_array( $known ) && ( ! $check_expiry || $known['valid_to'] > \PassCaptain\Clock::real() ) ) { return $known['result']; }
 		$result = self::load_apple( $cert_source, $password, $check_expiry );
 		if ( is_wp_error( $result ) ) {
 			self::$apple[ $memo ] = $result;
@@ -98,7 +101,7 @@ final class Credentials {
 		if ( $check_expiry ) {
 			foreach ( array( 'cert' => $cert, 'wwdr' => $wwdr ) as $which => $pem ) {
 				$info = self::describe_cert( $pem );
-				if ( $info && $info['valid_to'] <= time() ) {
+				if ( $info && $info['valid_to'] <= \PassCaptain\Clock::real() ) {
 					return new \WP_Error(
 						'wpcap_wallet_apple_cert_expired',
 						'cert' === $which

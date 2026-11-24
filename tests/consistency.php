@@ -37,8 +37,9 @@ foreach ( preg_split( '/^(?== \d+\.\d+\.\d+ =)/m', $readme_log ) as $entry ) {
 $check( 'A389 readme changelog entries list their main changes (>= 3 bullets)' . ( $thin ? ' - too short: ' . implode( ', ', $thin ) : '' ), '' !== $readme_log && ! $thin );
 $check( 'A389 readme changelog names the rename to "Pass Captain"', false !== strpos( $readme_log, 'Renamed to "Pass Captain"' ) );
 // A653: GitHub Actions pinned to a full commit SHA (with the version as comment, Dependabot updates both),
-// explicit top-level permissions, checkouts without persisted credentials (release: documented exception for
-// its `git fetch`), Composer without install scripts and production installs without plugins.
+// explicit top-level permissions, checkouts without persisted credentials (the release job passes the token
+// per step), every Composer install without scripts and plugins, the release ZIP with checksum and a build
+// provenance attestation signed in a job of its own (the only one with id-token: write).
 $wf_problems = array();
 foreach ( (array) glob( $root . '/.github/workflows/*.yml' ) as $wf_file ) {
 	$wf = (string) file_get_contents( $wf_file );
@@ -52,13 +53,21 @@ foreach ( (array) glob( $root . '/.github/workflows/*.yml' ) as $wf_file ) {
 	foreach ( preg_split( '/\n(?=\s*- )/', $wf ) as $step ) {
 		if ( ! preg_match( '/uses:\s*actions\/checkout@/', $step ) ) { continue; }
 		$persist = preg_match( '/persist-credentials:\s*(\w+)/', $step, $pm ) ? $pm[1] : '';
-		if ( 'false' !== $persist && ! ( 'release.yml' === $wf_name && 'true' === $persist ) ) { $wf_problems[] = "$wf_name: checkout without persist-credentials: false"; }
+		if ( 'false' !== $persist ) { $wf_problems[] = "$wf_name: checkout without persist-credentials: false"; }
 	}
 	preg_match_all( '/composer install[^\n]*/', $wf, $wf_ci );
 	foreach ( $wf_ci[0] as $c ) {
-		if ( false === strpos( $c, '--no-scripts' ) || ( false !== strpos( $c, '--no-dev' ) && false === strpos( $c, '--no-plugins' ) ) ) { $wf_problems[] = "$wf_name: $c"; }
+		if ( false === strpos( $c, '--no-scripts' ) || false === strpos( $c, '--no-plugins' ) ) { $wf_problems[] = "$wf_name: $c"; }
 	}
+	if ( 'release.yml' !== $wf_name && false !== strpos( $wf, 'id-token: write' ) ) { $wf_problems[] = "$wf_name: id-token: write outside the release attestation"; }
 }
+$wf_release = (string) file_get_contents( $root . '/.github/workflows/release.yml' );
+$wf_jobs    = preg_split( '/\n(?=  [a-z][\w-]*:\n)/', (string) substr( $wf_release, (int) strpos( $wf_release, "\njobs:\n" ) ) );
+$wf_attest  = (string) current( array_filter( $wf_jobs, static fn( $j ) => str_starts_with( $j, '  attest:' ) ) );
+$wf_rjob    = (string) current( array_filter( $wf_jobs, static fn( $j ) => str_starts_with( $j, '  release:' ) ) );
+if ( ! preg_match( '/uses: actions\/attest-build-provenance@[0-9a-f]{40}/', $wf_attest ) || false === strpos( $wf_attest, 'id-token: write' ) || false !== strpos( $wf_attest, 'actions/checkout' ) ) { $wf_problems[] = 'release.yml: attest job (attest-build-provenance, id-token: write, no checkout) missing'; }
+if ( '' === $wf_rjob || false !== strpos( $wf_rjob, 'id-token' ) || false === strpos( $wf_rjob, 'pass-captain.zip.sha256' ) ) { $wf_problems[] = 'release.yml: release job must publish pass-captain.zip.sha256 and must not get id-token'; }
+if ( 1 !== preg_match_all( '/composer config [^\n]*--no-plugins/', (string) file_get_contents( $root . '/build/release.sh' ) ) ) { $wf_problems[] = 'build/release.sh: composer config without --no-plugins'; }
 foreach ( array( 'build/release.sh', 'build/ci-install-test.sh' ) as $wf_script ) {
 	if ( ! preg_match( '/composer install [^\n]*--no-dev[^\n]*--no-scripts --no-plugins/', (string) file_get_contents( $root . '/' . $wf_script ) ) ) { $wf_problems[] = "$wf_script: production composer install without --no-scripts --no-plugins"; }
 }
@@ -164,11 +173,12 @@ foreach ( (array) glob( $root . '/src/blocks/*/editor.js' ) as $editor_js ) {
 	$missing_deps = array_diff( $needed, $deps );
 	$check( "src/blocks/$block_dir/editor.asset.php lists every wp.* package of editor.js" . ( $missing_deps ? ' – missing ' . implode( ', ', $missing_deps ) : '' ), $needed && ! $missing_deps );
 }
-// A367: every shipped PHP file of the plugin (not vendor/) stops when loaded outside WordPress: an
+// A367: every shipped PHP file of the plugin (not vendor/ and not the Strauss-prefixed third-party copy in
+// vendor-prefixed/, A103: declarations only, regenerated verbatim) stops when loaded outside WordPress: an
 // ABSPATH guard (uninstall.php: WP_UNINSTALL_PLUGIN) before the first declaration or statement.
 $unguarded = array();
 foreach ( $shipped as $file ) {
-	if ( '.php' !== substr( $file, -4 ) || 0 === strpos( $file, 'vendor/' ) ) { continue; }
+	if ( '.php' !== substr( $file, -4 ) || 0 === strpos( $file, 'vendor/' ) || 0 === strpos( $file, 'vendor-prefixed/' ) ) { continue; }
 	$tokens = token_get_all( (string) file_get_contents( $root . '/' . $file ) );
 	$guarded = false;
 	$code = '';

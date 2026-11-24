@@ -21,6 +21,9 @@ use PassCaptain\Audit;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AccessLog {
 	/** Staff opened a view showing personal data of one object (order, ticket, guest list, …). */
 	const ACTION_VIEW = 'pii_viewed';
@@ -158,7 +161,7 @@ final class AccessLog {
 		$fingerprint = substr( hash( 'sha256', wp_json_encode( array( $action, $view, $object_type, $object_id, $user_id, $fingerprint_extra ) ) ), 0, 16 );
 		$window = self::window();
 		if ( $window > 0 ) {
-			$since = gmdate( 'Y-m-d H:i:s', strtotime( current_time( 'mysql', true ) . ' UTC' ) - $window );
+			$since = gmdate( 'Y-m-d H:i:s', strtotime( \PassCaptain\Clock::mysql() . ' UTC' ) - $window );
 			$seen = $wpdb->get_var( $wpdb->prepare(
 				"SELECT audit_id FROM {$wpdb->prefix}wpcap_audit_logs WHERE object_type=%s AND object_id=%d AND action=%s AND user_id=%d AND created_at>=%s AND details LIKE %s LIMIT 1",
 				$object_type,

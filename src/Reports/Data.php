@@ -22,6 +22,9 @@ namespace PassCaptain\Reports;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
 	const COMPARE = array( 'previous', 'last_year' );
@@ -117,7 +120,8 @@ final class Data {
 	}
 
 	private static function empty_bucket( $label ) {
-		return array( 'label' => $label, 'tickets' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0, 'revenue_net' => 0 );
+		// addons: units of add-on products (Sales\Addons) – counted apart from tickets, amounts in gross/revenue as usual.
+		return array( 'label' => $label, 'tickets' => 0, 'addons' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0, 'revenue_net' => 0 );
 	}
 
 	/**
@@ -243,7 +247,7 @@ final class Data {
 				$in_scope = false;
 				foreach ( $lines as $line ) {
 					if ( ! $line_in_scope( $line ) ) { continue; }
-					$comps['tickets'] += (int) $line->quantity;
+					$comps['tickets'] += \PassCaptain\Sales\Addons::is_addon( $line ) ? 0 : (int) $line->quantity;
 					$in_scope = true;
 				}
 				if ( $in_scope ) { ++$comps['orders']; }
@@ -260,17 +264,19 @@ final class Data {
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
 				$tax = (int) $line->tax_minor;
-				$share[0] += $supplement ? 0 : (int) $line->quantity;
+				$addon = \PassCaptain\Sales\Addons::is_addon( $line );
+				$share[0] += $supplement || $addon ? 0 : (int) $line->quantity;
 				$share[1] += $gross;
 				$share[2] += (int) $line->line_total_minor;
-				$add( $keys_for( $line, $order->payment_provider, $day, $order->currency ), array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax, 'revenue_net' => $gross - $tax ) );
+				$add( $keys_for( $line, $order->payment_provider, $day, $order->currency ), array( 'tickets' => $supplement || $addon ? 0 : (int) $line->quantity, 'addons' => $addon && ! $supplement ? (int) $line->quantity : 0, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax, 'revenue_net' => $gross - $tax ) );
 			}
 			if ( $share[0] ) { $order_scope[ $order_id ] = $share; }
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids" . \PassCaptain\Refunds::fee_columns() . ",r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is built from sanitize_key() values.
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
+		$fee_refunds = array(); // A425: currency => [refunded, refunded_tax, kept, kept_tax] of the service fee.
 		foreach ( array_chunk( $refunds, self::BLOCK ) as $refund_block ) {
 			$block_orders = array_values( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refund_block ) ) );
 			$refund_lines = self::lines_by_order( $block_orders, $line_sql );
@@ -279,12 +285,20 @@ final class Data {
 				$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 				if ( ! $lines ) { continue; }
 				$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
+				if ( (int) ( $refund->fee_kept_minor ?? 0 ) > 0 ) {
+					$fee_refunds[ (string) $refund->currency ]['kept'] = ( $fee_refunds[ (string) $refund->currency ]['kept'] ?? 0 ) + (int) $refund->fee_kept_minor;
+					$fee_refunds[ (string) $refund->currency ]['kept_tax'] = ( $fee_refunds[ (string) $refund->currency ]['kept_tax'] ?? 0 ) + (int) $refund->fee_kept_tax_minor;
+				}
 				// Same split as the correction document; multi-purpose voucher refunds at their credit note amounts.
 				foreach ( self::refund_split( $refund, $lines, $history[ (int) $refund->order_id ] ?? array() ) as $part ) {
 					$line = $lines[ $part['index'] ];
 					if ( ! $line_in_scope( $line ) ) { continue; }
 					$refund_scope[ (int) $refund->order_id ] = ( $refund_scope[ (int) $refund->order_id ] ?? 0 ) + $part['amount'];
-					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
+					if ( \PassCaptain\ServiceFee::is_fee_line( $line ) ) {
+						$fee_refunds[ (string) $refund->currency ]['refunded'] = ( $fee_refunds[ (string) $refund->currency ]['refunded'] ?? 0 ) + $part['amount'];
+						$fee_refunds[ (string) $refund->currency ]['refunded_tax'] = ( $fee_refunds[ (string) $refund->currency ]['refunded_tax'] ?? 0 ) + $part['tax'];
+					}
+					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => \PassCaptain\Sales\Addons::is_addon( $line ) ? 0 : $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
 				}
 			}
 		}
@@ -350,7 +364,7 @@ final class Data {
 			'credit_notes' => $credit,
 			'comps' => $comps,
 			// A425: service fees of the sales in the range (gross and VAT per currency; part of gross/revenue above).
-			'service_fees' => \PassCaptain\ServiceFee::totals( array_keys( $order_scope ) ),
+			'service_fees' => self::service_fee_totals( \PassCaptain\ServiceFee::totals( array_keys( $order_scope ) ), $fee_refunds ),
 			'occurrences' => $occurrences,
 			'histogram_occurrence' => $histogram_occ,
 			'histogram' => $histogram_occ ? self::checkin_histogram( $histogram_occ ) : array(),
@@ -471,10 +485,34 @@ final class Data {
 	 * oi.order_id). STRAIGHT_JOIN: always driven by the order ids (A434; with few events the optimizer
 	 * otherwise starts at the event and reads every line of it for each block).
 	 */
+	/**
+	 * A425: service fees per currency – sales (gross, tax, orders), refunded with refunds completed in the
+	 * range (refunded, refunded_tax; part of "Erstattungen") and kept by such refunds (kept, kept_tax).
+	 *
+	 * @param array $sales   ServiceFee::totals().
+	 * @param array $refunds currency => refunded, refunded_tax, kept, kept_tax.
+	 */
+	public static function service_fee_totals( array $sales, array $refunds ) {
+		$out = array();
+		foreach ( array_unique( array_merge( array_keys( $sales ), array_keys( $refunds ) ) ) as $cur ) {
+			$out[ $cur ] = array(
+				'gross' => (int) ( $sales[ $cur ]['gross'] ?? 0 ),
+				'tax' => (int) ( $sales[ $cur ]['tax'] ?? 0 ),
+				'orders' => (int) ( $sales[ $cur ]['orders'] ?? 0 ),
+				'refunded' => (int) ( $refunds[ $cur ]['refunded'] ?? 0 ),
+				'refunded_tax' => (int) ( $refunds[ $cur ]['refunded_tax'] ?? 0 ),
+				'kept' => (int) ( $refunds[ $cur ]['kept'] ?? 0 ),
+				'kept_tax' => (int) ( $refunds[ $cur ]['kept_tax'] ?? 0 ),
+			);
+		}
+		ksort( $out );
+		return $out;
+	}
+
 	public static function line_sql() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return "SELECT STRAIGHT_JOIN oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		return "SELECT STRAIGHT_JOIN oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . \PassCaptain\ServiceFee::columns() . ",oi.tax_rate_bp,tt.name AS ticket_name" . \PassCaptain\Sales\Addons::column_sql( 'tt' ) . ",o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 	}
 
 	/**

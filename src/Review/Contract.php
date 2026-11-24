@@ -11,7 +11,7 @@
  *   (optional, default VERSION) and `receive( array $envelope )`; another major version is never
  *   called (status "incompatible").
  * - experience_completed: once per participation (ticket) at the first valid admission, or at an
- *   explicitly allowed attendance confirmation (command attendance.confirm, A676) – never for
+ *   explicitly allowed attendance confirmation (wpcap_confirm_attendance(), Api\Actions) – never for
  *   purchase, ticket dispatch, redemption alone or a generic form entry. Again only after the
  *   admission was undone and the ticket is admitted anew.
  * - experience_excluded: correction per participation – check_in_undone (no valid admission left),
@@ -62,7 +62,7 @@ final class Contract extends \PassCaptain\Suite\Contract {
 		'wpcap_review_rejected'           => 'provider: permanent rejection – not retried',
 	);
 
-	/** Object shapes (types as in the workflow contract). */
+	/** Object shapes (types: see Suite\Contract::cast()). */
 	const OBJECTS = array(
 		'participation' => array( 'participation_id' => 'string', 'experience_id' => 'string', 'event_id' => 'int', 'occurrence_id' => 'int', 'ticket_type_id' => 'int', 'recipient_ref' => 'string', 'locale' => 'string' ),
 		'experience' => array( 'experience_id' => 'string', 'scope' => 'string', 'event_id' => 'int', 'occurrence_ids' => 'int[]' ),

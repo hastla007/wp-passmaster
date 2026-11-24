@@ -4,6 +4,9 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class Plugin {
 	private static $instance = null;
 
@@ -129,7 +132,7 @@ final class Plugin {
 		// Lapsed holds every 5 minutes too, so capacity and limited discount codes come back quickly.
 		add_action( 'wpcap_process_jobs', array( Orders::class, 'process_expired_holds' ), 3, 0 );
 		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
-		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); Ops\SettingsCli::register(); }
 		// A352: provider ↔ local payment state (lost webhooks, payments of lapsed orders).
 		add_action( 'wpcap_process_jobs', array( Payments\Reconcile::class, 'cron' ), 30, 0 );
 		add_action( 'init', array( $this, 'register_blocks' ) );
@@ -160,11 +163,10 @@ final class Plugin {
 		HelpCode::register();
 		OccurrenceCancellation::register();
 		Occurrence::register(); // A562: lifecycle phases.
-		// A673–A675: post-commit domain events into the outbox (independent of webhooks) and delivery to a
-		// workflow provider of contract v1.
-		Workflow\Events::register();
-		Workflow\Outbox::register();
-		// A667/A669: review participation contract v1 (experience_completed and corrections, same outbox).
+		// A667/A669: review participation contract v1 (experience_completed and corrections) and its outbox.
+		// PC-7: no workflow contract in the core – Workflow Captain uses the wpcap_* actions, the read facade
+		// and the public action functions (src/functions.php).
+		Suite\Outbox::register();
 		Review\Events::register();
 		Modules::register_all();
 		// A303: [wpcap_*] are the shortcodes; the former [wp_pass_captain_*] tags stay as deprecated aliases.
@@ -273,13 +275,13 @@ final class Plugin {
 	public static function schedule_events() {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		if ( ! wp_next_scheduled( 'wpcap_cleanup_reservations' ) ) {
-			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
+			wp_schedule_event( Clock::real() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
 		}
 		if ( ! wp_next_scheduled( 'wpcap_process_messages' ) ) {
-			wp_schedule_event( time() + 60, 'wpcap_five_minutes', 'wpcap_process_messages' );
+			wp_schedule_event( Clock::real() + 60, 'wpcap_five_minutes', 'wpcap_process_messages' );
 		}
 		if ( ! wp_next_scheduled( 'wpcap_process_jobs' ) ) {
-			wp_schedule_event( time() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
+			wp_schedule_event( Clock::real() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
 		}
 		Privacy\Retention::schedule();
 		CapacityCounters::schedule();
@@ -308,9 +310,10 @@ final class Plugin {
 
 	/**
 	 * Every WP-Cron hook of the plugin (deactivation removes all of them; uninstall.php has its own copy
-	 * of the list because it runs without the plugin classes).
+	 * of the list because it runs without the plugin classes). wpcap_workflow_dispatch: legacy hook of the
+	 * removed workflow outbox (up to 1.6.0), only still listed so that a leftover event is removed.
 	 */
-	const CRON_HOOKS = array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_workflow_dispatch', 'wpcap_process_fiscal_order', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
+	const CRON_HOOKS = array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', Suite\Outbox::DISPATCH_HOOK, 'wpcap_workflow_dispatch', 'wpcap_process_fiscal_order', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK, Waitlists::HOOK, PageCache::SALES_HOOK, Mollie\MollieGateway::REFRESH_HOOK, NetworkInstall::HOOK );
 
 	/**
 	 * Every cron hook the plugin schedules (recurring jobs, one-off runs and TimeBudget continuation

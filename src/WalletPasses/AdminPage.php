@@ -8,6 +8,9 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class AdminPage {
 	const SLUG = 'wpcap-wallet';
 	const CAP = 'manage_options';
@@ -104,7 +107,7 @@ final class AdminPage {
 		$provider = new AppleProvider();
 		$ticket = array(
 			'ticket_id' => 0, 'public_id' => 'test-' . bin2hex( random_bytes( 8 ) ), 'event_name' => __( 'Testveranstaltung', 'pass-captain' ), 'ticket_name' => __( 'Standard', 'pass-captain' ),
-			'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS ), 'ends_at' => null, 'timezone' => function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC', 'location' => __( 'Testort', 'pass-captain' ),
+			'starts_at' => gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() + 7 * DAY_IN_SECONDS ), 'ends_at' => null, 'timezone' => function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC', 'location' => __( 'Testort', 'pass-captain' ),
 			'seat' => '', 'attendee_name' => '', 'voided' => false, 'code' => 'TEST-' . bin2hex( random_bytes( 6 ) ), 'auth_token' => null, 'occurrence_status' => 'scheduled', 'event_status' => 'published',
 		);
 		try {
@@ -138,8 +141,8 @@ final class AdminPage {
 	private static function cert_row( $label, $cert ) {
 		echo '<tr><th>' . esc_html( $label ) . '</th><td>';
 		if ( ! $cert ) { echo '—'; } else {
-			$expired = $cert['valid_to'] < time();
-			$soon = ! $expired && $cert['valid_to'] < time() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS;
+			$expired = $cert['valid_to'] < \PassCaptain\Clock::real();
+			$soon = ! $expired && $cert['valid_to'] < \PassCaptain\Clock::real() + Credentials::EXPIRY_WARNING_DAYS * DAY_IN_SECONDS;
 			echo esc_html( $cert['subject'] ) . '<br>' . esc_html( sprintf( /* translators: 1: from date, 2: to date */ __( 'gültig von %1$s bis %2$s', 'pass-captain' ), gmdate( 'd.m.Y', $cert['valid_from'] ), gmdate( 'd.m.Y', $cert['valid_to'] ) ) );
 			if ( $expired || $soon ) { echo ' <strong style="color:#b32d2e">' . esc_html( $expired ? __( 'abgelaufen', 'pass-captain' ) : __( 'läuft bald ab', 'pass-captain' ) ) . '</strong>'; }
 		}

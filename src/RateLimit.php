@@ -18,17 +18,34 @@ namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
+/**
+ * @internal Not part of the public add-on API (A402): may change in any release.
+ */
 final class RateLimit {
 	const GROUP = 'wpcap_rate';
 
 	/** Backend that served the last hit (diagnostics, tests). */
 	public static $last_backend = '';
 
+	/**
+	 * SET-PC-38: limit an operator set for a rate (settings rate_*, default = the former fixed value).
+	 * A stored value outside the register limits (only possible without the settings screen) is
+	 * raised to the safe lower bound; filters of the callers still have the last word.
+	 */
+	public static function configured( $key ) {
+		$default = (int) ( Settings::defaults()[ $key ] ?? 1 );
+		$value = Settings::get( $key, $default );
+		$value = is_numeric( $value ) ? (int) $value : $default;
+		$entry = SettingsSchema::get( $key );
+		if ( is_array( $entry ) && 'int' === $entry['type'] ) { $value = min( (int) $entry['max'], max( (int) $entry['min'], $value ) ); }
+		return max( 1, $value );
+	}
+
 	/** Records a hit; returns false once more than $limit hits happened in the current window. */
 	public static function allow( $bucket, $limit, $window = 60 ) {
 		list( $key, $window, $slot ) = self::key( $bucket, $window );
 		// The key contains the window slot: the counter lives until the end of that slot.
-		return self::hit( $key, $limit, max( 1, ( $slot + 1 ) * $window - time() ) );
+		return self::hit( $key, $limit, max( 1, ( $slot + 1 ) * $window - Clock::real() ) );
 	}
 
 	/**
@@ -44,7 +61,7 @@ final class RateLimit {
 	/** Counter name, window and slot of a bucket for allow()/hits(). */
 	private static function key( $bucket, $window ) {
 		$window = max( 1, (int) $window );
-		$slot = (int) floor( time() / $window );
+		$slot = (int) floor( Clock::real() / $window );
 		// Keyed hash: bucket names may contain client addresses or IDs; a plain md5 of an IPv4
 		// address can be reversed by brute force from the options table / object cache.
 		return array( 'wpcap_rl_' . substr( hash_hmac( 'sha256', $bucket . '|' . $slot, self::secret() ), 0, 40 ), $window, $slot );
@@ -121,7 +138,7 @@ final class RateLimit {
 		}
 		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
-			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			$ok = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET hits=GREATEST(hits,1)-1 WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), Clock::real_mysql() ) );
 			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
 			if ( false !== $ok ) { return; }
 		}
@@ -141,7 +158,7 @@ final class RateLimit {
 		}
 		if ( 'transient' !== $backend && self::has_db() ) {
 			$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
-			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), gmdate( 'Y-m-d H:i:s' ) ) );
+			$hits = $wpdb->get_var( $wpdb->prepare( 'SELECT hits FROM %i WHERE bucket_key=%s AND expires_at>%s', self::table(), self::hash( (string) $key ), Clock::real_mysql() ) );
 			$failed = '' !== (string) $wpdb->last_error;
 			if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
 			if ( ! $failed ) { return (int) $hits; }
@@ -183,7 +200,7 @@ final class RateLimit {
 	public static function purge_expired( $now = null, $deadline = null, $batch = 5000 ) {
 		global $wpdb;
 		if ( ! self::has_db() ) { return 0; }
-		$cutoff = gmdate( 'Y-m-d H:i:s', null === $now ? time() : (int) $now );
+		$cutoff = gmdate( 'Y-m-d H:i:s', null === $now ? Clock::real() : (int) $now );
 		$deadline = null === $deadline ? microtime( true ) + 10.0 : (float) $deadline;
 		$batch = max( 1, (int) $batch );
 		$total = 0;
@@ -242,7 +259,7 @@ final class RateLimit {
 	private static function db_hit( $key, $limit, $ttl ) {
 		global $wpdb;
 		if ( ! self::has_db() ) { return null; }
-		$now = time();
+		$now = Clock::real();
 		$start = gmdate( 'Y-m-d H:i:s', $now );
 		$expires = gmdate( 'Y-m-d H:i:s', $now + $ttl );
 		$bucket = self::hash( $key );
