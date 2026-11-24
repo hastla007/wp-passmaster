@@ -6,7 +6,8 @@
  * POST …/service-slots/{id}/bookings (hold + booking token) and POST …/service-bookings/{id}/confirm
  * (free: confirmed at once; paid: regular checkout → payment redirect or bank transfer details).
  * The confirmation carries a manage link (#wpcap-booking=<id>-<token>; the token stays in the URL
- * fragment) under which the same block shows the booking with rebook and cancel.
+ * fragment) under which the same block shows the booking with rebook and cancel; dearer slots are
+ * offered with a supplementary payment for the difference (the booking moves once it is paid).
  * Strings come from the localized catalogue WPCAP_SERVICE_BOOKING.i18n (text domain pass-captain).
  */
 (function () {
@@ -124,8 +125,40 @@
 	function weekLabel(week, locale) {
 		return fill(t.weekRange || '%1$s – %2$s', [formatDate(week, locale), formatDate(addDays(week, 6), locale)]);
 	}
+	/**
+	 * Rebooking targets of the manage view (PASS-FE-17 follow-up): slots at the same price
+	 * (rebook_options) and dearer slots with a supplementary payment (supplement_options), by start.
+	 * Each choice carries supplement_minor (0 = no supplement) and currency.
+	 */
+	function rebookChoices(view) {
+		const seen = {};
+		const out = [];
+		const currency = (view && view.currency) || '';
+		[[(view && view.rebook_options) || [], false], [(view && view.supplement_options) || [], true]].forEach(function (group) {
+			group[0].forEach(function (o) {
+				const id = Number(o.slot_id);
+				const supplement = group[1] ? Math.max(0, Number(o.supplement_minor) || 0) : 0;
+				if (!id || seen[id] || (group[1] && !supplement)) return;
+				seen[id] = true;
+				out.push({ slot_id: id, resource_name: o.resource_name || '', starts_at: o.starts_at, supplement_minor: supplement, currency: o.currency || currency });
+			});
+		});
+		return out.sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : (a.starts_at > b.starts_at ? 1 : a.slot_id - b.slot_id); });
+	}
+	/** Option text: "Boot 1 · <date and time>", dearer slots with " (Zuzahlung 20,00 €)". */
+	function choiceLabel(choice, locale, tz) {
+		const text = (choice.resource_name || '') + ' · ' + formatDateTime(choice.starts_at, locale, tz);
+		return choice.supplement_minor ? text + ' (' + fill(t.supplementChoice || '+%s', [money(choice.supplement_minor, choice.currency)]) + ')' : text;
+	}
+	/** How a started payment continues: 'redirect' (hosted page), 'bank' (transfer details), 'instructions' or ''. */
+	function paymentKind(payment) {
+		if (!payment) return '';
+		if (payment.redirect_url && /^https?:\/\//i.test(String(payment.redirect_url))) return 'redirect';
+		if (payment.bank_transfer) return 'bank';
+		return payment.instructions ? 'instructions' : '';
+	}
 
-	const api = { fill: fill, plural: plural, addDays: addDays, localDate: localDate, mondayOf: mondayOf, weekOf: weekOf, groupByDay: groupByDay, apiUrl: apiUrl, parseManageHash: parseManageHash, manageUrl: manageUrl, maxQuantity: maxQuantity, durationLabel: durationLabel, deadlinePassed: deadlinePassed, money: money, weekLabel: weekLabel };
+	const api = { fill: fill, plural: plural, addDays: addDays, localDate: localDate, mondayOf: mondayOf, weekOf: weekOf, groupByDay: groupByDay, apiUrl: apiUrl, parseManageHash: parseManageHash, manageUrl: manageUrl, maxQuantity: maxQuantity, durationLabel: durationLabel, deadlinePassed: deadlinePassed, money: money, weekLabel: weekLabel, rebookChoices: rebookChoices, choiceLabel: choiceLabel, paymentKind: paymentKind };
 	if (typeof window !== 'undefined') window.wpcapServiceBooking = api;
 	if (typeof document === 'undefined' || !document.querySelectorAll) return;
 
@@ -513,6 +546,29 @@
 			panel.appendChild(p);
 			panel.appendChild(el('p', { class: 'wpcap-hint' }, t.manageHint || ''));
 		}
+		/** Payment continuation (hosted page link, transfer details or instructions); $dueNote: reservation note of a booking. */
+		function renderPayment(panel, payment, dueNote) {
+			const kind = paymentKind(payment);
+			if (kind === 'redirect') {
+				if (dueNote) panel.appendChild(el('p', {}, t.payRedirect || ''));
+				const pay = el('a', { href: payment.redirect_url, class: 'wp-element-button wpcap-sb-pay' }, t.payButton || 'Pay');
+				panel.appendChild(el('p')).appendChild(pay);
+			} else if (kind === 'bank') {
+				const bank = payment.bank_transfer;
+				panel.appendChild(el('p', {}, t.payNow || ''));
+				const list = el('dl', { class: 'wpcap-bank' });
+				[['amount', bank.amount], ['recipient', bank.recipient], ['iban', bank.iban], ['bic', bank.bic], ['remittance', bank.remittance], ['dueDate', bank.due_date]].forEach(function (row) {
+					if (!row[1]) return;
+					list.appendChild(el('dt', {}, t[row[0]] || row[0]));
+					list.appendChild(el('dd', { class: 'wpcap-bank-' + row[0] }, row[1]));
+				});
+				panel.appendChild(list);
+				if (bank.instructions) panel.appendChild(el('p', { class: 'wpcap-instructions' }, bank.instructions));
+				if (dueNote && bank.due_date) panel.appendChild(el('p', {}, fill(t.payUntil || '%s', [bank.due_date])));
+			} else if (kind === 'instructions') {
+				panel.appendChild(el('p', { class: 'wpcap-instructions' }, payment.instructions));
+			}
+		}
 		function showConfirmation(data, booking, slot, email) {
 			const order = data.order || null;
 			const confirmed = data.status === 'confirmed';
@@ -525,25 +581,7 @@
 			const payment = (order && order.payment) || {};
 			if (!confirmed && order) {
 				if (order.total_formatted && !payment.bank_transfer) panel.appendChild(el('p', {}, fill(t.orderTotal || '%s', [order.total_formatted])));
-				if (payment.redirect_url) {
-					panel.appendChild(el('p', {}, t.payRedirect || ''));
-					const pay = el('a', { href: payment.redirect_url, class: 'wp-element-button wpcap-sb-pay' }, t.payButton || 'Pay');
-					panel.appendChild(el('p')).appendChild(pay);
-				} else if (payment.bank_transfer) {
-					const bank = payment.bank_transfer;
-					panel.appendChild(el('p', {}, t.payNow || ''));
-					const list = el('dl', { class: 'wpcap-bank' });
-					[['amount', bank.amount], ['recipient', bank.recipient], ['iban', bank.iban], ['bic', bank.bic], ['remittance', bank.remittance], ['dueDate', bank.due_date]].forEach(function (row) {
-						if (!row[1]) return;
-						list.appendChild(el('dt', {}, t[row[0]] || row[0]));
-						list.appendChild(el('dd', { class: 'wpcap-bank-' + row[0] }, row[1]));
-					});
-					panel.appendChild(list);
-					if (bank.instructions) panel.appendChild(el('p', { class: 'wpcap-instructions' }, bank.instructions));
-					if (bank.due_date) panel.appendChild(el('p', {}, fill(t.payUntil || '%s', [bank.due_date])));
-				} else if (payment.instructions) {
-					panel.appendChild(el('p', { class: 'wpcap-instructions' }, payment.instructions));
-				}
+				renderPayment(panel, payment, true);
 				panel.appendChild(el('p', {}, t.afterPayment || ''));
 			}
 			panel.appendChild(el('p', {}, fill(t.sentTo || '%s', [email])));
@@ -582,7 +620,7 @@
 
 		const statusLabels = { held: t.statusHeld, pending_payment: t.statusPending, confirmed: t.statusConfirmed, cancelled: t.statusCancelled, expired: t.statusExpired, no_show: t.statusNoShow };
 		let managePanel = null;
-		async function showManage(ref, notice) {
+		async function showManage(ref, notice, supplementPayment) {
 			if (managePanel) managePanel.remove();
 			form.hidden = true;
 			const panel = managePanel = el('section', { class: 'wpcap-sb-manage-view', tabindex: '-1', 'aria-busy': 'true' });
@@ -617,25 +655,74 @@
 			panel.appendChild(dl);
 			const rules = b.rules || {};
 			const active = ['held', 'pending_payment', 'confirmed'].indexOf(b.status) !== -1;
-			if (active && b.status !== 'pending_payment' && !deadlinePassed(b.starts_at, rules.rebook_hours)) {
-				const options = b.rebook_options || [];
+			const openSupplement = b.open_supplement || null;
+			if (openSupplement) {
+				// Dearer rebooking waiting for its supplementary payment: the booking stays until it is paid.
+				const box = el('div', { class: 'wpcap-sb-supplement' });
+				box.appendChild(el('p', {}, fill(t.supplementOpen || '%1$s · %2$s · %3$s', [money(openSupplement.amount_minor, openSupplement.currency), (openSupplement.resource_name || '') + ' · ' + formatDateTime(openSupplement.starts_at, cfg.locale, cfg.tz), formatDateTime(openSupplement.expires_at, cfg.locale, cfg.tz)])));
+				if (supplementPayment && paymentKind(supplementPayment)) {
+					renderPayment(box, supplementPayment, false);
+				} else {
+					const payOpen = el('button', { type: 'button', class: 'wpcap-sb-supplement-pay' }, t.supplementPay || 'Pay');
+					payOpen.addEventListener('click', async function () {
+						setBusy(payOpen, true);
+						status.textContent = t.working || '…';
+						// Same target again: the open supplement is reused and its payment restarted.
+						const r = await request('POST', 'service-bookings/' + ref.id + '/rebook', { token: ref.token, slot_id: Number(openSupplement.slot_id), page_id: Number(cfg.pageId) || 0 }).catch(function () { return { ok: false, data: {} }; });
+						setBusy(payOpen, false);
+						if (r.ok && r.data.supplement && !r.data.payment_error) { showManage(ref, t.supplementStarted || '', r.data.supplement.payment || null).then(function () { managePanel.focus(); }); return; }
+						status.textContent = '';
+						showErrors(panel, dl, [{ input: null, message: (r.data && (r.data.payment_error || r.data.message)) || t.failed }], level + 2);
+					});
+					box.appendChild(el('p')).appendChild(payOpen);
+				}
+				panel.appendChild(box);
+			} else if (active && b.status !== 'pending_payment' && !deadlinePassed(b.starts_at, rules.rebook_hours)) {
+				const options = rebookChoices(b);
 				if (options.length) {
 					const rebook = el('form', { method: 'post', class: 'wpcap-sb-rebook', action: '#' + root.id });
 					const selectId = uid + '-rebook';
 					const field = el('div', { class: 'wpcap-field' });
 					field.appendChild(el('label', { for: selectId }, t.rebookLabel || ''));
 					const select = el('select', { id: selectId, name: 'slot_id' });
-					options.forEach(function (o) { select.appendChild(el('option', { value: String(o.slot_id) }, (o.resource_name || '') + ' · ' + formatDateTime(o.starts_at, cfg.locale, cfg.tz))); });
+					options.forEach(function (o) { select.appendChild(el('option', { value: String(o.slot_id), 'data-supplement': String(o.supplement_minor) }, choiceLabel(o, cfg.locale, cfg.tz))); });
 					field.appendChild(select);
 					rebook.appendChild(field);
+					const dearer = options.some(function (o) { return o.supplement_minor > 0; });
+					const providers = b.supplement_providers || [];
+					let providerSelect = null;
+					let providerField = null;
+					if (dearer) {
+						rebook.appendChild(el('p', { class: 'wpcap-hint' }, t.supplementHint || ''));
+						if (providers.length > 1) {
+							providerField = el('div', { class: 'wpcap-field wpcap-sb-supplement-provider' });
+							const providerId = uid + '-provider';
+							providerField.appendChild(el('label', { for: providerId }, t.supplementProvider || ''));
+							providerSelect = el('select', { id: providerId, name: 'provider' });
+							providers.forEach(function (pr) { providerSelect.appendChild(el('option', { value: String(pr.id) }, pr.title || pr.id)); });
+							providerField.appendChild(providerSelect);
+							rebook.appendChild(providerField);
+						}
+					}
+					const selectedSupplement = function () { const o = select.options[select.selectedIndex]; return o ? Number(o.getAttribute('data-supplement')) || 0 : 0; };
+					const syncProvider = function () { if (providerField) providerField.hidden = !selectedSupplement(); };
+					select.addEventListener('change', syncProvider);
+					syncProvider();
 					const button = el('button', { type: 'submit' }, t.rebookButton || 'Rebook');
 					rebook.appendChild(button);
 					rebook.addEventListener('submit', async function (event) {
 						event.preventDefault();
 						setBusy(button, true);
 						status.textContent = t.working || '…';
-						const r = await request('POST', 'service-bookings/' + ref.id + '/rebook', { token: ref.token, slot_id: Number(select.value), page_id: Number(cfg.pageId) || 0 }).catch(function () { return { ok: false, data: {} }; });
+						const body = { token: ref.token, slot_id: Number(select.value), page_id: Number(cfg.pageId) || 0 };
+						if (providerSelect && selectedSupplement()) body.provider = providerSelect.value;
+						const r = await request('POST', 'service-bookings/' + ref.id + '/rebook', body).catch(function () { return { ok: false, data: {} }; });
 						setBusy(button, false);
+						if (r.ok && r.data.supplement) {
+							// Dearer target: supplementary payment started, the booking moves once it is paid.
+							showManage(ref, r.data.payment_error ? r.data.payment_error : (t.supplementStarted || ''), r.data.payment_error ? null : (r.data.supplement.payment || null)).then(function () { managePanel.focus(); });
+							return;
+						}
 						if (r.ok) { showManage(ref, t.rebooked || '').then(function () { managePanel.focus(); }); return; }
 						status.textContent = '';
 						showErrors(panel, dl, [{ input: select, message: r.data.message || t.failed }], level + 2);
