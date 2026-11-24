@@ -690,7 +690,8 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 
 - [ ] Gästelisten und Freikarten (Freigabe-Workflow, Kontingent, Abholliste, Einlass nach Namen, Freikarten nicht im Umsatz) integrieren und abnehmen.
 - [ ] Reservierte Kontingente/Sperren inkl. Sitzplatz-Sperren und Limit pro Käufer (race-frei) integrieren und abnehmen.
-- [ ] Kassen, Schichten, Übergabe, Blindzählung, Kartenterminal-Abgleich und verketteter Z-Bericht integrieren; Z-Bericht-Hooks mit der Fiskalisierung (PR #14) verbinden.
+- [ ] Kassen, Schichten, Übergabe, Blindzählung, Kartenterminal-Abgleich und verketteter Z-Bericht integrieren; Z-Bericht-Hooks mit der Fiskalisierung (PR #14) verbinden. *24.11.2026: Z-Bericht-Hooks mit der Fiskalisierung verbunden (`Fiscalization\ShiftClosing`, optionales `ClosingAdapterInterface`, Einstellung `boxoffice_fiscal_closing` Standard aus, Abschnitt „Fiskalisierung“ im Z-Bericht). Offen: Abnahme auf echter Installation.*
+- [ ] Anbieter-Tagesabschluss für fiskaly/efsta/fiskaltrust über `ClosingAdapterInterface` umsetzen (Sandbox-Abnahme); entscheiden, ob `boxoffice_fiscal_closing` für DE/AT Standard oder Pflicht wird; Nachholen eines fehlgeschlagenen Abschlusses. Braucht: Entscheidung, Anbieter-Sandbox.
 - [ ] Ticketumtausch/Upgrade (Aufpreis-Zusatzbestellung, Differenzerstattung, Gebühr, Portal-Selbstbedienung) integrieren und abnehmen.
 - [ ] Automatische Wartelisten-Angebote mit Inventar-Reservierung integrieren und parallele Annahmen auf echter Installation testen.
 - [ ] Festival-/Mehrtagespässe über mehrere Termine integrieren und mit realem Mehrtages-Einlass abnehmen.

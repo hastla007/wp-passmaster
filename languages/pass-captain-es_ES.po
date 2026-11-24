@@ -94,8 +94,8 @@ msgstr "Activación rechazada"
 #: src/Admission/RulesPage.php:79
 #: src/Admission/RulesPage.php:88
 #: src/Admission/RulesPage.php:101
-#: src/BoxOffice/Service.php:352
-#: src/BoxOffice/Service.php:399
+#: src/BoxOffice/Service.php:363
+#: src/BoxOffice/Service.php:410
 #: src/Consents.php:611
 #: src/DeveloperKeys.php:118
 #: src/Exchange/Service.php:1272
@@ -225,14 +225,14 @@ msgstr "Clave de API revocada."
 #: src/Admission/RulesPage.php:170
 #: src/Allocations/AdminPage.php:196
 #: src/BoxOffice/Page.php:60
-#: src/BoxOffice/Page.php:500
-#: src/BoxOffice/Page.php:523
-#: src/BoxOffice/Page.php:582
+#: src/BoxOffice/Page.php:521
+#: src/BoxOffice/Page.php:544
+#: src/BoxOffice/Page.php:603
 #: src/BoxOffice/Registers.php:73
-#: src/BoxOffice/Service.php:139
-#: src/BoxOffice/Service.php:383
-#: src/BoxOffice/Service.php:1010
-#: src/BoxOffice/Service.php:1095
+#: src/BoxOffice/Service.php:150
+#: src/BoxOffice/Service.php:394
+#: src/BoxOffice/Service.php:1021
+#: src/BoxOffice/Service.php:1106
 #: src/BoxOffice/ShiftPage.php:154
 #: src/BoxOffice/ShiftPage.php:408
 #: src/BoxOffice/ShiftPage.php:418
@@ -254,17 +254,17 @@ msgstr "Clave de API revocada."
 #: src/Invoices.php:955
 #: src/Mail/Admin.php:187
 #: src/Modules/Calendar.php:520
-#: src/Modules/Fiscalization.php:835
-#: src/Modules/Fiscalization.php:889
-#: src/Modules/Fiscalization.php:1211
-#: src/Modules/Fiscalization.php:1228
-#: src/Modules/Fiscalization.php:1249
-#: src/Modules/Fiscalization.php:1269
-#: src/Modules/Fiscalization.php:1294
-#: src/Modules/Fiscalization.php:1304
-#: src/Modules/Fiscalization.php:1314
-#: src/Modules/Fiscalization.php:1324
-#: src/Modules/Fiscalization.php:1338
+#: src/Modules/Fiscalization.php:837
+#: src/Modules/Fiscalization.php:891
+#: src/Modules/Fiscalization.php:1213
+#: src/Modules/Fiscalization.php:1230
+#: src/Modules/Fiscalization.php:1251
+#: src/Modules/Fiscalization.php:1271
+#: src/Modules/Fiscalization.php:1296
+#: src/Modules/Fiscalization.php:1306
+#: src/Modules/Fiscalization.php:1316
+#: src/Modules/Fiscalization.php:1326
+#: src/Modules/Fiscalization.php:1340
 #: src/Modules/Mollie.php:202
 #: src/Modules/Reminders.php:573
 #: src/Modules/Sms.php:546
@@ -348,7 +348,7 @@ msgstr "No hay eventos para los que puedas crear claves."
 #: src/Admin/TicketsPage.php:818
 #: src/Allocations/AdminPage.php:262
 #: src/Allocations/AdminPage.php:312
-#: src/BoxOffice/Page.php:172
+#: src/BoxOffice/Page.php:173
 #: src/BoxOffice/ShiftPage.php:439
 #: src/BoxOffice/ShiftPage.php:464
 #: src/GuestLists/Page.php:164
@@ -580,10 +580,10 @@ msgstr "Válido hasta"
 #: src/Integrations/ConnectorsPage.php:227
 #: src/Integrations/FormCaptain/EventRequests.php:512
 #: src/Integrations/WooCommerce/OrderAdapter.php:2339
-#: src/Modules/Fiscalization.php:1363
-#: src/Modules/Fiscalization.php:1372
-#: src/Modules/Fiscalization.php:1428
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1374
+#: src/Modules/Fiscalization.php:1430
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Webhooks.php:456
 #: src/Modules/Webhooks.php:490
 #: src/OfflineScanner/AdminPage.php:170
@@ -816,7 +816,7 @@ msgstr "– Seleccionar evento –"
 #: src/Admin/ServiceSlotsPage.php:362
 #: src/Admin/WaitlistsPage.php:149
 #: src/Admission/RulesPage.php:181
-#: src/BoxOffice/Page.php:114
+#: src/BoxOffice/Page.php:115
 #: src/BoxOffice/ShiftPage.php:354
 #: src/GuestLists/Page.php:187
 #: src/OfflineScanner/AdminPage.php:136
@@ -888,7 +888,7 @@ msgstr "Una persona con al menos una asignación de fecha para un permiso solo a
 #: src/Admin/TicketsPage.php:888
 #: src/Admin/WaitlistsPage.php:105
 #: src/Admin/WaitlistsPage.php:146
-#: src/BoxOffice/Page.php:111
+#: src/BoxOffice/Page.php:112
 #: src/Frontend/ServiceBooking.php:136
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:250
@@ -942,7 +942,7 @@ msgstr "Fecha"
 #: src/Consents.php:619
 #: src/Exchange/AdminPage.php:221
 #: src/Integrations/FormCaptain/EventRequests.php:512
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 #: src/Series/AdminPage.php:374
 msgid "Aktion"
 msgstr "Acción"
@@ -1369,7 +1369,7 @@ msgstr "Error en la actualización de la base de datos"
 #: src/Admin/StatusPage.php:403
 #: src/Allocations/AdminPage.php:346
 #: src/Consents.php:619
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 #: src/Partners/Settlements.php:837
 #: src/Partners/Settlements.php:976
 #: src/Partners/Statement.php:173
@@ -1435,7 +1435,7 @@ msgstr "Factura"
 #: src/Admin/OperationsPage.php:228
 #: src/Admin/StatusPage.php:378
 #: src/BoxOffice/ZReport.php:420
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 #: src/Partners/Settlements.php:68
 #: src/Partners/Settlements.php:837
 #: src/Partners/Statement.php:174
@@ -1578,7 +1578,7 @@ msgstr "Hora"
 
 #: src/Admin/AuditLogPage.php:390
 #: src/Admin/OrderHistory.php:141
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 #: src/Series/AdminPage.php:374
 msgid "Details"
 msgstr "Detalles"
@@ -1788,7 +1788,7 @@ msgstr "Límite alcanzado"
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
 #: src/Integrations/ConnectorsPage.php:193
-#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1387
 #: src/Modules/Reminders.php:547
 #: src/Modules/Reminders.php:559
 #: src/Modules/Reminders.php:579
@@ -1829,7 +1829,7 @@ msgstr "Código"
 
 #: src/Admin/CampaignsPage.php:245
 #: src/Admin/OrdersPage.php:1215
-#: src/BoxOffice/Service.php:1249
+#: src/BoxOffice/Service.php:1260
 #: src/Invoices.php:875
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:808
@@ -2071,7 +2071,7 @@ msgstr "Genera códigos canjeables una sola vez con los ajustes de esta campaña
 #: src/Admin/StatusPage.php:329
 #: src/Admin/StatusPage.php:448
 #: src/Allocations/AdminPage.php:318
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/BoxOffice/ShiftPage.php:47
 #: src/Integrations/FormCaptain/EventRequests.php:531
 #: src/Privacy.php:229
@@ -2242,7 +2242,7 @@ msgstr "Zona horaria"
 #: src/Mail/Types.php:581
 #: src/Mail/Types.php:601
 #: src/Mail/Types.php:629
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 #: src/Notifications.php:186
 #: src/PublicEvents.php:1223
 #: src/Reminders/Placeholders.php:15
@@ -2263,7 +2263,7 @@ msgstr "Cupo"
 #: src/Admin/ChangeHistory.php:126
 #: src/Admin/EventsPage.php:902
 #: src/Admin/EventsPage.php:1988
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Partners/AdminPage.php:502
 #: src/Passes/AdminPage.php:175
 #: src/Sales/AdminSections.php:148
@@ -2417,7 +2417,7 @@ msgstr "Etiqueta"
 #: src/Allocations/AdminPage.php:262
 #: src/Allocations/AdminPage.php:315
 #: src/Allocations/AdminPage.php:346
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Consents.php:619
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:268
@@ -2672,7 +2672,7 @@ msgstr "Aún no se ha registrado ningún cambio."
 #: src/Admin/ChangeHistory.php:283
 #: src/Admin/CheckinsPage.php:101
 #: src/Admin/SettingsTools.php:399
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Zeitpunkt"
 msgstr "Hora"
 
@@ -2847,8 +2847,9 @@ msgid "Konnektoren"
 msgstr "Conectores"
 
 #: src/Admin/Dashboard.php:131
-#: src/Modules/Fiscalization.php:1186
-#: src/Modules/Fiscalization.php:1346
+#: src/Fiscalization/ShiftClosing.php:209
+#: src/Modules/Fiscalization.php:1188
+#: src/Modules/Fiscalization.php:1348
 msgid "Fiskalisierung"
 msgstr "Fiscalización"
 
@@ -2940,7 +2941,7 @@ msgid "Pass Captain: Überblick"
 msgstr "Pass Captain: resumen"
 
 #: src/Admin/DashboardWidget.php:99
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ZReport.php:366
 #: src/BoxOffice/ZReport.php:379
 msgid "Verkäufe"
@@ -4074,7 +4075,7 @@ msgid "← Zur Eventliste"
 msgstr "← Volver a la lista de eventos"
 
 #: src/Admin/EventsPage.php:1467
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Partners/Settlements.php:61
 #: src/Sales/TaxProfilesPage.php:56
 msgid "Entwurf"
@@ -5523,7 +5524,7 @@ msgstr "Buscar correo electrónico"
 #: src/Admin/MembershipsPage.php:229
 #: src/Admin/SettingsTools.php:261
 #: src/Admin/TicketsPage.php:894
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 #: src/Exchange/AdminPage.php:210
 #: src/GuestLists/Page.php:322
 #: src/OfflineScanner/I18n.php:225
@@ -6057,7 +6058,7 @@ msgid "Keine Buchungen."
 msgstr "No hay reservas."
 
 #: src/Admin/Notices.php:65
-#: src/BoxOffice/Page.php:363
+#: src/BoxOffice/Page.php:384
 #: src/LegacySlug.php:361
 msgid "Hinweis für mich ausblenden"
 msgstr "Ocultar el aviso para mí"
@@ -6311,7 +6312,7 @@ msgstr "Pedido #%d"
 #: src/Admin/OperationsPage.php:386
 #: src/Admin/OrdersPage.php:1052
 #: src/Admin/TicketsPage.php:773
-#: src/BoxOffice/Service.php:716
+#: src/BoxOffice/Service.php:727
 #: src/Mail/Types.php:416
 #: src/Mollie/MollieGateway.php:123
 #: src/Mollie/MollieGateway.php:469
@@ -6412,7 +6413,7 @@ msgstr "Seleccionar el elemento %d"
 #: src/Admin/OperationsPage.php:444
 #: src/Admin/OperationsPage.php:454
 #: src/Admin/StatusPage.php:361
-#: src/Modules/Fiscalization.php:1438
+#: src/Modules/Fiscalization.php:1440
 msgid "Erneut versuchen"
 msgstr "Reintentar"
 
@@ -6505,7 +6506,7 @@ msgstr "Origen"
 
 #: src/Admin/OrderHistory.php:141
 #: src/Integrations/ConnectorsPage.php:207
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Webhooks.php:490
 msgid "Ereignis"
 msgstr "Evento"
@@ -6600,7 +6601,7 @@ msgstr "Reembolsado externamente – cerrar"
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/ServiceSlotsPage.php:327
 #: src/Admin/TicketsPage.php:796
-#: src/BoxOffice/Page.php:324
+#: src/BoxOffice/Page.php:326
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:203
 #: src/BoxOffice/ShiftPage.php:394
@@ -6914,7 +6915,7 @@ msgid "Summe"
 msgstr "Total"
 
 #: src/Admin/OrdersPage.php:805
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Zahlart"
@@ -7379,7 +7380,7 @@ msgstr "¿Cancelar el pedido sin pagar y liberar la reserva?"
 
 #: src/Admin/OrdersPage.php:1361
 #: src/Admin/ServiceSlotsPage.php:325
-#: src/BoxOffice/Page.php:324
+#: src/BoxOffice/Page.php:326
 #: src/GuestLists/Page.php:278
 msgid "Stornieren"
 msgstr "Cancelar pedido"
@@ -9015,7 +9016,7 @@ msgstr "Modo"
 
 #: src/Admin/SettingsPage.php:232
 #: src/Mail/Admin.php:118
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Operations/SiteHealth.php:734
 msgid "Test"
 msgstr "Prueba"
@@ -9598,7 +9599,7 @@ msgstr "El consentimiento en el checkout está activo, pero no hay texto de cond
 #: src/Admin/SettingsPage.php:857
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
-#: src/BoxOffice/Page.php:600
+#: src/BoxOffice/Page.php:622
 #: src/Modules/Calendar.php:516
 #: src/Modules/Mollie.php:198
 #: src/Modules/Reminders.php:538
@@ -10183,8 +10184,8 @@ msgstr "Conector"
 #: src/Admin/SuiteStatus.php:103
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TaxPage.php:141
-#: src/BoxOffice/Page.php:175
-#: src/Modules/Fiscalization.php:1372
+#: src/BoxOffice/Page.php:176
+#: src/Modules/Fiscalization.php:1374
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:110
 #: src/Seating/AdminPage.php:209
@@ -10280,7 +10281,7 @@ msgstr "No hay ningún tipo de entrada activo con clase fiscal para fechas próx
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TaxPage.php:138
 #: src/Billing.php:147
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:106
 msgid "Land"
@@ -10488,7 +10489,7 @@ msgid "Bitte einen Grund für die Korrektur angeben."
 msgstr "Indica un motivo para la corrección."
 
 #: src/Admin/TicketsPage.php:233
-#: src/BoxOffice/Service.php:438
+#: src/BoxOffice/Service.php:449
 #: src/GuestLists/Service.php:240
 #: src/GuestLists/Service.php:458
 msgid "Die E-Mail-Adresse ist ungültig."
@@ -11585,7 +11586,7 @@ msgstr "Uso de los cupos reservados"
 
 #: src/Allocations/AdminPage.php:346
 #: src/Exchange/AdminPage.php:149
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Reports/Data.php:792
 #: src/Reports/Settlement.php:265
 #: src/Reports/Settlement.php:269
@@ -11989,7 +11990,7 @@ msgid "Straße und Hausnummer"
 msgstr "Calle y número"
 
 #: src/Billing.php:144
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "PLZ"
 msgstr "Código postal"
 
@@ -12128,234 +12129,234 @@ msgstr "Cajas"
 #: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:355
 #: src/Exchange/AdminPage.php:43
-#: src/Modules/BoxOffice.php:436
+#: src/Modules/BoxOffice.php:440
 #: src/Reports/Data.php:131
 #: src/Reports/Settlement.php:276
 #: src/Reports/Settlement.php:277
 msgid "Kasse"
 msgstr "Taquilla"
 
-#: src/BoxOffice/Page.php:67
+#: src/BoxOffice/Page.php:68
 msgid "Kassenbereiche"
 msgstr "Zonas de caja"
 
 #. translators: 1: receipt number, 2: amount
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:88
 #, php-format
 msgid "Verkauf gebucht: Beleg %1$s über %2$s."
 msgstr "Venta registrada: recibo %1$s por %2$s."
 
 #. translators: 1: receipt number, 2: amount
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:88
 msgid "Beleg drucken"
 msgstr "Imprimir recibo"
 
-#: src/BoxOffice/Page.php:90
+#: src/BoxOffice/Page.php:91
 msgid "Tickets drucken (PDF)"
 msgstr "Imprimir entradas (PDF)"
 
-#: src/BoxOffice/Page.php:96
+#: src/BoxOffice/Page.php:97
 msgid "Deine Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
 msgstr "Tu turno se está contando; las ventas solo serán posibles en el siguiente turno."
 
-#: src/BoxOffice/Page.php:96
+#: src/BoxOffice/Page.php:97
 msgid "Zum Kassenabschluss"
 msgstr "Ir al cierre de caja"
 
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Passes/AdminPage.php:140
 #: src/Series/AdminPage.php:714
 msgid "Verfügbar"
 msgstr "Disponible"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze)."
 msgstr "Plano de sala: las plazas se asignan automáticamente (mejores plazas libres)."
 
 #. translators: %s: list of field labels
-#: src/BoxOffice/Page.php:130
+#: src/BoxOffice/Page.php:131
 #, php-format
 msgid "Pflichtangaben je Ticket: %s"
 msgstr "Datos obligatorios por entrada: %s"
 
 #. translators: %s: ticket type
 #. translators: %s: denomination
-#: src/BoxOffice/Page.php:132
+#: src/BoxOffice/Page.php:133
 #: src/BoxOffice/ShiftPage.php:49
 #, php-format
 msgid "Anzahl %s"
 msgstr "Cantidad %s"
 
-#: src/BoxOffice/Page.php:136
+#: src/BoxOffice/Page.php:137
 msgid "An der Kasse kann kein Platz im Saalplan gewählt werden: Für Ticketarten mit Saalplan werden die besten freien Plätze automatisch vergeben und auf den Tickets angegeben. Für Wunschplätze bitte die Online-Buchung nutzen."
 msgstr "En la taquilla no se puede elegir una plaza en el plano de sala: para los tipos de entrada con plano de sala, las mejores plazas libres se asignan automáticamente y se indican en las entradas. Para elegir plazas concretas, utiliza la reserva online."
 
-#: src/BoxOffice/Page.php:139
+#: src/BoxOffice/Page.php:140
 msgid "Für Teilnehmerangaben wird JavaScript benötigt."
 msgstr "Se necesita JavaScript para los datos de los asistentes."
 
-#: src/BoxOffice/Page.php:140
+#: src/BoxOffice/Page.php:141
 msgid "Summe:"
 msgstr "Total:"
 
-#: src/BoxOffice/Page.php:148
+#: src/BoxOffice/Page.php:149
 msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
 msgstr "Efectivo y tarjeta bloqueados: en Alemania y Austria estas ventas requieren una solución de caja certificada (TSE/RKSV), que Pass Captain no tiene."
 
-#: src/BoxOffice/Page.php:154
+#: src/BoxOffice/Page.php:155
 #: src/BoxOffice/ShiftPage.php:246
 #: src/BoxOffice/ZReport.php:393
 msgid "Kartenterminal"
 msgstr "Terminal de tarjetas"
 
-#: src/BoxOffice/Page.php:160
+#: src/BoxOffice/Page.php:161
 msgid "Gegeben (bar)"
 msgstr "Entregado (efectivo)"
 
-#: src/BoxOffice/Page.php:161
+#: src/BoxOffice/Page.php:162
 msgid "Terminal-Referenz"
 msgstr "Referencia del terminal"
 
-#: src/BoxOffice/Page.php:162
+#: src/BoxOffice/Page.php:163
 msgid "E-Mail Käufer (optional, Pflicht bei Rechnung)"
 msgstr "Correo electrónico del comprador (opcional, obligatorio con factura)"
 
-#: src/BoxOffice/Page.php:164
+#: src/BoxOffice/Page.php:165
 msgid "Verkauf buchen"
 msgstr "Registrar venta"
 
-#: src/BoxOffice/Page.php:169
+#: src/BoxOffice/Page.php:170
 msgid "Rückgeld:"
 msgstr "Cambio:"
 
 #. translators: 1: running ticket number, 2: ticket type
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/BoxOffice/Page.php:171
+#: src/BoxOffice/Page.php:172
 #: src/Integrations/WooCommerce/Attendees.php:320
 #: src/Integrations/WooCommerce/Attendees.php:474
 #, php-format
 msgid "Ticket %1$d · %2$s"
 msgstr "Entrada %1$d · %2$s"
 
-#: src/BoxOffice/Page.php:173
+#: src/BoxOffice/Page.php:174
 #: src/GuestLists/Page.php:297
 msgid "E-Mail (optional)"
 msgstr "Correo electrónico (opcional)"
 
-#: src/BoxOffice/Page.php:174
+#: src/BoxOffice/Page.php:175
 msgid "Teilnehmerangaben"
 msgstr "Datos del asistente"
 
 #. translators: %s: amount with currency
-#: src/BoxOffice/Page.php:207
+#: src/BoxOffice/Page.php:208
 #, php-format
 msgid "Am Terminal bezahlen … %s"
 msgstr "Pagar en el terminal … %s"
 
-#: src/BoxOffice/Page.php:211
+#: src/BoxOffice/Page.php:212
 msgid "Die Zahlung ist erfolgt. Bitte den Verkauf in der Liste unten später „Nachbuchen“."
 msgstr "El pago se ha realizado. Más tarde, use «Registrar posteriormente» para la venta en la lista de abajo."
 
-#: src/BoxOffice/Page.php:211
-#: src/BoxOffice/Page.php:228
+#: src/BoxOffice/Page.php:212
+#: src/BoxOffice/Page.php:229
 msgid "Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden."
 msgstr "La venta puede registrarse de nuevo abajo con el mismo u otro método de pago."
 
-#: src/BoxOffice/Page.php:214
+#: src/BoxOffice/Page.php:215
 msgid "Bitte die Karte am Terminal vorlegen. Die Anzeige aktualisiert sich automatisch."
 msgstr "Presente la tarjeta en el terminal. Esta pantalla se actualiza automáticamente."
 
-#: src/BoxOffice/Page.php:215
+#: src/BoxOffice/Page.php:216
 msgid "Status aktualisieren"
 msgstr "Actualizar estado"
 
-#: src/BoxOffice/Page.php:218
+#: src/BoxOffice/Page.php:219
 msgid "Zahlung am Terminal abbrechen"
 msgstr "Cancelar el pago en el terminal"
 
-#: src/BoxOffice/Page.php:225
+#: src/BoxOffice/Page.php:226
 msgid "Zahlung wird am Terminal abgebrochen …"
 msgstr "Cancelando el pago en el terminal …"
 
-#: src/BoxOffice/Page.php:226
+#: src/BoxOffice/Page.php:227
 msgid "Keine Verbindung zum Server. Der Status wird erneut abgefragt …"
 msgstr "Sin conexión con el servidor. Se volverá a consultar el estado …"
 
-#: src/BoxOffice/Page.php:227
+#: src/BoxOffice/Page.php:228
 msgid "Zahlung erfolgreich. Der Verkauf wird gebucht …"
 msgstr "Pago correcto. Registrando la venta …"
 
-#: src/BoxOffice/Page.php:233
+#: src/BoxOffice/Page.php:234
 msgid "Kassen- und Belegeinstellungen"
 msgstr "Ajustes de caja y recibos"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Präfix Belegnummer"
 msgstr "Prefijo del número de recibo"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 #: src/Mail/Admin.php:218
 #: src/Modules/PrintTemplates.php:91
 #: src/Printing/Page.php:527
 msgid "Fußzeile"
 msgstr "Pie de página"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Bediener auf Kundenbelegen"
 msgstr "Operador en los recibos de cliente"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Bedienernummer"
 msgstr "Número de operador"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Initialen"
 msgstr "Iniciales"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Vollständiger Name"
 msgstr "Nombre completo"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
 msgstr "Las ventas en efectivo y con tarjeta también se registran en nuestra propia caja certificada (TSE/RKSV): permitir aquí efectivo y tarjeta"
 
-#: src/BoxOffice/Page.php:242
+#: src/BoxOffice/Page.php:244
 msgid "Zugelassene Kassenregister (eine Zeile je Register)"
 msgstr "Terminales de caja autorizados (una línea por terminal)"
 
-#: src/BoxOffice/Page.php:242
+#: src/BoxOffice/Page.php:244
 msgid "Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen."
 msgstr "Formato: ID de ubicación|ID de caja|nombre visible. Ejemplo: 23|BOX-01|Taquilla entrada principal. En cuanto se guardan entradas, los cajeros solo pueden elegir un terminal autorizado."
 
-#: src/BoxOffice/Page.php:243
+#: src/BoxOffice/Page.php:245
 msgid "Kassen- und Belegeinstellungen speichern"
 msgstr "Guardar ajustes de caja y recibos"
 
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 msgid "Beleg suchen (Storno früherer Schichten)"
 msgstr "Buscar recibo (anulación de turnos anteriores)"
 
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 msgid "Belegnummer"
 msgstr "Número de recibo"
 
-#: src/BoxOffice/Page.php:257
+#: src/BoxOffice/Page.php:259
 msgid "Kein Beleg mit dieser Nummer gefunden."
 msgstr "No se ha encontrado ningún recibo con este número."
 
 #. translators: 1: register, 2: shift id, 3: time
-#: src/BoxOffice/Page.php:273
+#: src/BoxOffice/Page.php:275
 #: src/BoxOffice/ShiftPage.php:166
 #, php-format
 msgid "Kasse „%1$s“ · Schicht #%2$d (seit %3$s)"
 msgstr "Caja «%1$s» · Turno n.º %2$d (desde %3$s)"
 
 #. translators: 1: location ID, 2: register ID
-#: src/BoxOffice/Page.php:276
+#: src/BoxOffice/Page.php:278
 #, php-format
 msgid "Standort %1$d · Kasse %2$s"
 msgstr "Ubicación %1$d · caja %2$s"
@@ -12364,7 +12365,7 @@ msgstr "Ubicación %1$d · caja %2$s"
 #. translators: 1: location ID, 2: register ID
 #: src/Admin/SettingsTools.php:264
 #: src/Admin/SettingsTools.php:274
-#: src/BoxOffice/Page.php:276
+#: src/BoxOffice/Page.php:278
 #: src/Mail/Admin.php:205
 #: src/Mail/Admin.php:236
 #: src/WalletPasses/AdminPage.php:106
@@ -12372,111 +12373,111 @@ msgid "Standard"
 msgstr "Predeterminado"
 
 #. translators: 1: sales, 2: stornos
-#: src/BoxOffice/Page.php:279
+#: src/BoxOffice/Page.php:281
 #, php-format
 msgid "Verkäufe %1$d · Stornos %2$d. Blindzählung: Beträge und Soll-Bestand werden erst nach der Zählung angezeigt."
 msgstr "Ventas %1$d · Anulaciones %2$d. Recuento ciego: los importes y el saldo teórico solo se muestran después del recuento."
 
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ZReport.php:367
 msgid "Stornos/Erstattungen"
 msgstr "Anulaciones/Reembolsos"
 
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 msgid "Netto-Umsatz"
 msgstr "Ingresos netos"
 
 #. translators: 1: opening cash, 2: expected cash
-#: src/BoxOffice/Page.php:285
+#: src/BoxOffice/Page.php:287
 #, php-format
 msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Fondo inicial %1$s · efectivo esperado en caja %2$s"
 
-#: src/BoxOffice/Page.php:290
+#: src/BoxOffice/Page.php:292
 msgid "Verkäufe dieser Schicht"
 msgstr "Ventas de este turno"
 
-#: src/BoxOffice/Page.php:294
+#: src/BoxOffice/Page.php:296
 msgid "Einlage/Entnahme, Zählung und Kassenabschluss"
 msgstr "Ingreso/retirada, recuento y cierre de caja"
 
-#: src/BoxOffice/Page.php:302
+#: src/BoxOffice/Page.php:304
 msgid "(nicht gebucht)"
 msgstr "(no registrada)"
 
-#: src/BoxOffice/Page.php:302
-#: src/BoxOffice/Service.php:1242
+#: src/BoxOffice/Page.php:304
+#: src/BoxOffice/Service.php:1253
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Beleg"
 msgstr "Recibo"
 
-#: src/BoxOffice/Page.php:310
+#: src/BoxOffice/Page.php:312
 msgid "Nachbuchen"
 msgstr "Registrar posteriormente"
 
-#: src/BoxOffice/Page.php:315
+#: src/BoxOffice/Page.php:317
 msgid "Storno ablehnen"
 msgstr "Rechazar anulación"
 
-#: src/BoxOffice/Page.php:317
+#: src/BoxOffice/Page.php:319
 msgid "Stornobeleg"
 msgstr "Recibo de anulación"
 
-#: src/BoxOffice/Page.php:322
+#: src/BoxOffice/Page.php:324
 msgid "Wirklich stornieren?"
 msgstr "¿Seguro que quieres anular?"
 
-#: src/BoxOffice/Page.php:326
+#: src/BoxOffice/Page.php:328
 msgid "Nur einzelne Tickets stornieren"
 msgstr "Anular solo algunas entradas"
 
-#: src/BoxOffice/Page.php:328
+#: src/BoxOffice/Page.php:330
 #: src/Integrations/WooCommerce/OrderAdapter.php:2336
 msgid "eingecheckt"
 msgstr "con check-in"
 
-#: src/BoxOffice/Page.php:333
+#: src/BoxOffice/Page.php:335
 msgid "Ausnahme für eingecheckte Tickets, Grund:"
 msgstr "Excepción para entradas con check-in, motivo:"
 
-#: src/BoxOffice/Page.php:360
+#: src/BoxOffice/Page.php:381
 msgid "Wichtiger Hinweis:"
 msgstr "Aviso importante:"
 
-#: src/BoxOffice/Page.php:361
+#: src/BoxOffice/Page.php:382
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
 msgstr "La taquilla no es una caja registradora en el sentido de la RKSV (AT) o de la KassenSichV/TSE (DE). Para los pagos en efectivo y con tarjeta in situ se necesita una unidad de firma certificada."
 
-#: src/BoxOffice/Page.php:362
+#: src/BoxOffice/Page.php:383
 msgid "Mehr dazu in der Dokumentation"
 msgstr "Más información en la documentación"
 
-#: src/BoxOffice/Page.php:362
+#: src/BoxOffice/Page.php:383
 msgid "(öffnet in neuem Tab)"
 msgstr "(se abre en una pestaña nueva)"
 
-#: src/BoxOffice/Page.php:451
+#: src/BoxOffice/Page.php:472
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Anulación creada; está pendiente de aprobación."
 
-#: src/BoxOffice/Page.php:451
+#: src/BoxOffice/Page.php:472
 msgid "Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken."
 msgstr "Anulación registrada. Paga el importe o abónalo en el terminal de tarjetas e imprime el recibo de anulación."
 
-#: src/BoxOffice/Page.php:467
+#: src/BoxOffice/Page.php:488
 msgid "Verkauf gebucht."
 msgstr "Venta registrada."
 
-#: src/BoxOffice/Page.php:478
+#: src/BoxOffice/Page.php:499
 msgid "Zahlung am Terminal abgebrochen."
 msgstr "Pago en el terminal cancelado."
 
-#: src/BoxOffice/Page.php:518
+#: src/BoxOffice/Page.php:539
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Anulación rechazada; la venta se mantiene."
 
-#: src/BoxOffice/Page.php:524
+#: src/BoxOffice/Page.php:545
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Esta venta no tiene recibo porque no se registró."
 
@@ -12510,14 +12511,14 @@ msgid "Bitte ein freigegebenes Kassenregister auswählen."
 msgstr "Selecciona un terminal de caja autorizado."
 
 #: src/BoxOffice/Registers.php:97
-#: src/BoxOffice/Service.php:145
+#: src/BoxOffice/Service.php:156
 #: src/BoxOffice/Shifts.php:206
-#: src/Modules/Fiscalization.php:241
+#: src/Modules/Fiscalization.php:243
 msgid "Kassen-ID ist ungültig."
 msgstr "El ID de caja no es válido."
 
 #: src/BoxOffice/Registers.php:98
-#: src/BoxOffice/Service.php:146
+#: src/BoxOffice/Service.php:157
 msgid "Standort und Kasse sind nicht als Register freigegeben."
 msgstr "Esta ubicación y caja no están autorizadas como terminal."
 
@@ -12555,162 +12556,162 @@ msgstr "Entrada de cortesía"
 msgid "Karte am Terminal (automatisch)"
 msgstr "Tarjeta en terminal (automático)"
 
-#: src/BoxOffice/Service.php:158
+#: src/BoxOffice/Service.php:169
 msgid "Keine freie Kasse verfügbar."
 msgstr "No hay ninguna caja libre disponible."
 
-#: src/BoxOffice/Service.php:216
+#: src/BoxOffice/Service.php:227
 #: src/BoxOffice/Shifts.php:475
 msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
 msgstr "Hay una diferencia de caja. Indica un motivo."
 
-#: src/BoxOffice/Service.php:345
-#: src/BoxOffice/Service.php:385
+#: src/BoxOffice/Service.php:356
+#: src/BoxOffice/Service.php:396
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "El formulario no es válido. Recarga la página."
 
-#: src/BoxOffice/Service.php:355
-#: src/BoxOffice/Service.php:615
+#: src/BoxOffice/Service.php:366
+#: src/BoxOffice/Service.php:626
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "Esta venta se está procesando en este momento."
 
-#: src/BoxOffice/Service.php:362
-#: src/BoxOffice/Service.php:613
+#: src/BoxOffice/Service.php:373
+#: src/BoxOffice/Service.php:624
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "Esta venta no se registró. Vuelve a introducirla."
 
-#: src/BoxOffice/Service.php:394
-#: src/BoxOffice/Service.php:564
+#: src/BoxOffice/Service.php:405
+#: src/BoxOffice/Service.php:575
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Abre primero una sesión de caja."
 
-#: src/BoxOffice/Service.php:395
+#: src/BoxOffice/Service.php:406
 msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
 msgstr "Este terminal de caja ya no está autorizado. Cierra la sesión y abre un terminal autorizado."
 
-#: src/BoxOffice/Service.php:401
+#: src/BoxOffice/Service.php:412
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
 msgstr "Esta caja solo vende entradas para otro evento."
 
-#: src/BoxOffice/Service.php:405
+#: src/BoxOffice/Service.php:416
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Los pagos en efectivo y con tarjeta en taquilla requieren en Alemania y Austria una solución de caja certificada (TSE/RKSV). Pass Captain no firma los recibos. Elige entrada gratuita o factura, o confirma en los ajustes de recibos que estas ventas se registran en una caja certificada."
 
-#: src/BoxOffice/Service.php:407
-#: src/BoxOffice/Service.php:414
+#: src/BoxOffice/Service.php:418
+#: src/BoxOffice/Service.php:425
 msgid "Bitte eine Zahlart wählen."
 msgstr "Selecciona un método de pago."
 
-#: src/BoxOffice/Service.php:409
+#: src/BoxOffice/Service.php:420
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
 msgstr "Las entradas de cortesía en taquilla requieren el permiso para aprobar entradas de cortesía."
 
-#: src/BoxOffice/Service.php:417
+#: src/BoxOffice/Service.php:428
 msgid "Bitte ein Kartenterminal wählen."
 msgstr "Elija un terminal de tarjetas."
 
-#: src/BoxOffice/Service.php:430
+#: src/BoxOffice/Service.php:441
 #: src/Seating/Layouts.php:678
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "Un tipo de entrada no pertenece a esta fecha."
 
-#: src/BoxOffice/Service.php:431
+#: src/BoxOffice/Service.php:442
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "La moneda del tipo de entrada no coincide con la sesión de caja."
 
-#: src/BoxOffice/Service.php:435
+#: src/BoxOffice/Service.php:446
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Selecciona al menos una entrada."
 
-#: src/BoxOffice/Service.php:439
+#: src/BoxOffice/Service.php:450
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "Para el pago con factura es necesaria la dirección de correo electrónico del comprador."
 
-#: src/BoxOffice/Service.php:467
-#: src/BoxOffice/Service.php:582
-#: src/BoxOffice/Service.php:667
+#: src/BoxOffice/Service.php:478
+#: src/BoxOffice/Service.php:593
+#: src/BoxOffice/Service.php:678
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "No se ha podido guardar la venta."
 
-#: src/BoxOffice/Service.php:498
+#: src/BoxOffice/Service.php:509
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
 msgstr "Para una factura por encima de este importe se necesitan el nombre y la dirección del comprador. Rellénalos en «Factura a nombre de empresa/dirección»."
 
-#: src/BoxOffice/Service.php:506
+#: src/BoxOffice/Service.php:517
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "No se ha podido guardar la venta. Vuelve a enviarla."
 
-#: src/BoxOffice/Service.php:527
+#: src/BoxOffice/Service.php:538
 msgid "Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt."
 msgstr "El turno de caja se está contando o se ha cerrado. La venta no se ha registrado; no se han emitido entradas."
 
-#: src/BoxOffice/Service.php:543
-#: src/BoxOffice/Service.php:703
-#: src/BoxOffice/Service.php:808
-#: src/BoxOffice/Service.php:865
+#: src/BoxOffice/Service.php:554
+#: src/BoxOffice/Service.php:714
+#: src/BoxOffice/Service.php:819
+#: src/BoxOffice/Service.php:876
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "No se ha podido registrar la venta en este momento. Vuelve a enviarla."
 
-#: src/BoxOffice/Service.php:567
-#: src/BoxOffice/Service.php:612
-#: src/BoxOffice/Service.php:694
-#: src/BoxOffice/Service.php:1007
+#: src/BoxOffice/Service.php:578
+#: src/BoxOffice/Service.php:623
+#: src/BoxOffice/Service.php:705
+#: src/BoxOffice/Service.php:1018
 msgid "Verkauf nicht gefunden."
 msgstr "Venta no encontrada."
 
-#: src/BoxOffice/Service.php:618
+#: src/BoxOffice/Service.php:629
 msgid "Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht."
 msgstr "El pago en el terminal de tarjetas aún no está confirmado. La venta solo se registrará después."
 
-#: src/BoxOffice/Service.php:632
+#: src/BoxOffice/Service.php:643
 msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
 msgstr "No se pudo crear el recibo fiscal. No se emitieron entradas y la venta no se registró. Revísalo en Fiscalización, vuelve a intentarlo y luego usa «Registrar posteriormente»."
 
-#: src/BoxOffice/Service.php:635
+#: src/BoxOffice/Service.php:646
 msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
 msgstr "El proveedor aún no ha confirmado el recibo fiscal. Las entradas solo se emiten después; la venta queda abierta. Usa «Registrar posteriormente» más tarde."
 
-#: src/BoxOffice/Service.php:637
+#: src/BoxOffice/Service.php:648
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "El pedido no está pagado o no se han emitido todas las entradas. La venta no se ha registrado; revisa el pedido."
 
-#: src/BoxOffice/Service.php:656
+#: src/BoxOffice/Service.php:667
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "La sesión de caja se ha cerrado entretanto. La venta no se ha registrado y las entradas se han anulado."
 
-#: src/BoxOffice/Service.php:697
-#: src/BoxOffice/Service.php:893
+#: src/BoxOffice/Service.php:708
+#: src/BoxOffice/Service.php:904
 msgid "Das Kartenterminal ist nicht mehr verfügbar."
 msgstr "El terminal de tarjetas ya no está disponible."
 
-#: src/BoxOffice/Service.php:698
+#: src/BoxOffice/Service.php:709
 msgid "Für einen Betrag von 0,00 bitte „Freikarte“ wählen."
 msgstr "Para un importe de 0,00 elija «Entrada de cortesía»."
 
-#: src/BoxOffice/Service.php:764
-#: src/BoxOffice/Service.php:889
-#: src/BoxOffice/Service.php:918
+#: src/BoxOffice/Service.php:775
+#: src/BoxOffice/Service.php:900
+#: src/BoxOffice/Service.php:929
 msgid "Kein Kassenverkauf mit Terminalzahlung gefunden."
 msgstr "No se ha encontrado ninguna venta de taquilla con pago en terminal."
 
-#: src/BoxOffice/Service.php:776
+#: src/BoxOffice/Service.php:787
 msgid "Die Zahlungsreferenz fehlt."
 msgstr "Falta la referencia de pago."
 
-#: src/BoxOffice/Service.php:782
+#: src/BoxOffice/Service.php:793
 msgid "Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten."
 msgstr "Esta venta ya se ha confirmado con otro pago en terminal. Reembolse el segundo pago en el terminal."
 
-#: src/BoxOffice/Service.php:789
+#: src/BoxOffice/Service.php:800
 msgid "Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten."
 msgstr "Ya no se espera ningún pago en terminal para esta venta (cancelado, fallido o caducado). Reembolse en el terminal cualquier pago realizado igualmente."
 
-#: src/BoxOffice/Service.php:797
+#: src/BoxOffice/Service.php:808
 msgid "Pass Captain: Terminalzahlung prüfen"
 msgstr "Pass Captain: revisar pago en terminal"
 
 #. translators: 1: order id, 2: terminal reference, 3: description of the difference
-#: src/BoxOffice/Service.php:799
+#: src/BoxOffice/Service.php:810
 #, php-format
 msgid ""
 "Bestellung %1$s (Terminal-Referenz %2$s): %3$s\n"
@@ -12722,165 +12723,165 @@ msgstr ""
 "La venta no se ha registrado. Reembolsa en el terminal el importe cobrado y vuelve a registrar la venta."
 
 #. translators: 1: charged amount, 2: order amount
-#: src/BoxOffice/Service.php:834
+#: src/BoxOffice/Service.php:845
 #, php-format
 msgid "Am Terminal wurde %1$s belastet, die Bestellung beträgt %2$s."
 msgstr "Se han cobrado %1$s en el terminal; el pedido asciende a %2$s."
 
 #. translators: 1: charged currency, 2: order currency
-#: src/BoxOffice/Service.php:838
+#: src/BoxOffice/Service.php:849
 #, php-format
 msgid "Das Terminal meldet die Währung %1$s statt %2$s."
 msgstr "El terminal indica la moneda %1$s en lugar de %2$s."
 
-#: src/BoxOffice/Service.php:852
+#: src/BoxOffice/Service.php:863
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "El pago en el terminal ha fallado. La venta no se ha registrado; inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:853
+#: src/BoxOffice/Service.php:864
 msgid "Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "El pago en el terminal se ha cancelado. La venta no se ha registrado; inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:854
+#: src/BoxOffice/Service.php:865
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Tiempo agotado: no se ha confirmado ningún pago en el terminal. La venta no se ha registrado; inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:855
+#: src/BoxOffice/Service.php:866
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Der Verkauf wurde nicht gebucht; bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "El importe cobrado en el terminal no coincide con el pedido. La venta no se ha registrado; reembolsa el pago en el terminal y vuelve a registrar la venta."
 
-#: src/BoxOffice/Service.php:926
+#: src/BoxOffice/Service.php:937
 msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten."
 msgstr "No se ha podido cancelar el pago en el terminal (p. ej., la tarjeta ya se ha presentado). Espere el resultado en el terminal."
 
-#: src/BoxOffice/Service.php:944
+#: src/BoxOffice/Service.php:955
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "El importe cobrado en el terminal no coincide con el pedido. Reembolsa el pago en el terminal y vuelve a registrar la venta."
 
-#: src/BoxOffice/Service.php:945
+#: src/BoxOffice/Service.php:956
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "El pago en el terminal ha fallado. Inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:946
+#: src/BoxOffice/Service.php:957
 msgid "Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "El pago en el terminal se ha cancelado. Inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:947
+#: src/BoxOffice/Service.php:958
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Tiempo agotado: no se ha confirmado ningún pago en el terminal. Inténtelo de nuevo o elija otro método de pago."
 
-#: src/BoxOffice/Service.php:954
+#: src/BoxOffice/Service.php:965
 msgid "Die Kartenzahlung ist bestätigt."
 msgstr "El pago con tarjeta está confirmado."
 
-#: src/BoxOffice/Service.php:1009
+#: src/BoxOffice/Service.php:1020
 #: src/BoxOffice/Shifts.php:349
 #: src/BoxOffice/Shifts.php:422
 #: src/BoxOffice/Shifts.php:595
 msgid "Kassensitzung nicht gefunden."
 msgstr "Sesión de caja no encontrada."
 
-#: src/BoxOffice/Service.php:1015
+#: src/BoxOffice/Service.php:1026
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "Solo se pueden anular las ventas de la propia sesión de caja."
 
-#: src/BoxOffice/Service.php:1026
+#: src/BoxOffice/Service.php:1037
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
 msgstr "Las entradas seleccionadas no pertenecen a esta venta o ya se han anulado."
 
-#: src/BoxOffice/Service.php:1032
+#: src/BoxOffice/Service.php:1043
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
 msgstr "Al menos una entrada ya tiene check-in. Para anularla, indica un motivo para la excepción."
 
-#: src/BoxOffice/Service.php:1033
+#: src/BoxOffice/Service.php:1044
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
 msgstr "Al menos una entrada ya tiene check-in y no se puede anular en taquilla."
 
-#: src/BoxOffice/Service.php:1036
+#: src/BoxOffice/Service.php:1047
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
 msgstr "Para el pago tiene que haber un turno de caja abierto. Abre primero un turno."
 
-#: src/BoxOffice/Service.php:1041
+#: src/BoxOffice/Service.php:1052
 msgid "eingecheckt, Ausnahme:"
 msgstr "con check-in, excepción:"
 
-#: src/BoxOffice/Service.php:1064
+#: src/BoxOffice/Service.php:1075
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "La anulación se ha rechazado o ha fallado. Inténtalo de nuevo."
 
-#: src/BoxOffice/Service.php:1094
+#: src/BoxOffice/Service.php:1105
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Esta venta no tiene ninguna anulación pendiente."
 
 #. translators: %d: user ID
-#: src/BoxOffice/Service.php:1149
+#: src/BoxOffice/Service.php:1160
 #, php-format
 msgid "Bediener %d"
 msgstr "Operador %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:1241
+#: src/BoxOffice/Service.php:1252
 #: src/Invoices.php:727
 #: src/Invoices.php:765
 #: src/Partners/Settlements.php:910
 msgid "USt-IdNr.:"
 msgstr "NIF-IVA:"
 
-#: src/BoxOffice/Service.php:1242
+#: src/BoxOffice/Service.php:1253
 #: src/BoxOffice/ZReport.php:447
 msgid "STORNOBELEG"
 msgstr "RECIBO DE ANULACIÓN"
 
-#: src/BoxOffice/Service.php:1243
+#: src/BoxOffice/Service.php:1254
 #: src/BoxOffice/ZReport.php:448
 msgid "Beleg-Nr.:"
 msgstr "N.º de recibo:"
 
-#: src/BoxOffice/Service.php:1244
+#: src/BoxOffice/Service.php:1255
 msgid "Storno zu Beleg"
 msgstr "Anulación del recibo"
 
-#: src/BoxOffice/Service.php:1245
+#: src/BoxOffice/Service.php:1256
 #: src/BoxOffice/ZReport.php:449
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Fecha:"
 
-#: src/BoxOffice/Service.php:1245
+#: src/BoxOffice/Service.php:1256
 #: src/BoxOffice/ZReport.php:449
 msgid "Kasse/Schicht/Bediener:"
 msgstr "Caja/Turno/Operador:"
 
-#: src/BoxOffice/Service.php:1250
+#: src/BoxOffice/Service.php:1261
 msgid "SUMME"
 msgstr "TOTAL"
 
 #. translators: 1: VAT rate in percent, 2: net amount
 #. translators: 1: rate, 2: net
-#: src/BoxOffice/Service.php:1252
+#: src/BoxOffice/Service.php:1263
 #: src/BoxOffice/ZReport.php:453
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "IVA %1$s %%: neto %2$s"
 
-#: src/BoxOffice/Service.php:1254
+#: src/BoxOffice/Service.php:1265
 #: src/BoxOffice/ZReport.php:455
 msgid "Zahlart:"
 msgstr "Método de pago:"
 
-#: src/BoxOffice/Service.php:1256
+#: src/BoxOffice/Service.php:1267
 msgid "Gegeben"
 msgstr "Entregado"
 
-#: src/BoxOffice/Service.php:1256
+#: src/BoxOffice/Service.php:1267
 msgid "Rückgeld"
 msgstr "Cambio"
 
-#: src/BoxOffice/Service.php:1258
+#: src/BoxOffice/Service.php:1269
 msgid "Bestellung:"
 msgstr "Pedido:"
 
-#: src/BoxOffice/Service.php:1261
+#: src/BoxOffice/Service.php:1272
 #: src/BoxOffice/ZReport.php:456
 #: src/Printing/AttendeeList.php:271
 #: src/Printing/NoShowList.php:108
@@ -13368,7 +13369,7 @@ msgid "%1$s (Standort %2$d · %3$s)"
 msgstr "%1$s (ubicación %2$d · %3$s)"
 
 #: src/BoxOffice/ShiftPage.php:479
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Standort-ID (0 = Standard)"
 msgstr "ID de ubicación (0 = predeterminada)"
 
@@ -13770,12 +13771,12 @@ msgid "Entnahme"
 msgstr "Retirada"
 
 #: src/BoxOffice/ZReport.php:419
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Storno"
 msgstr "Anulación"
 
 #: src/BoxOffice/ZReport.php:421
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Korrektur"
 msgstr "Corrección"
 
@@ -15222,7 +15223,7 @@ msgstr "No se pudieron guardar las credenciales cifradas."
 
 #: src/Fiscalization/ProviderHttp.php:43
 #: src/Fiscalization/ProviderHttp.php:88
-#: src/Modules/Fiscalization.php:1644
+#: src/Modules/Fiscalization.php:1646
 msgid "Der Fiskal-Anbieter-Endpunkt ist ungültig oder nicht erlaubt (nur öffentliche HTTPS-Endpunkte; lokale Dienste nur nach Freigabe in den Einstellungen)."
 msgstr "El endpoint del proveedor fiscal no es válido o no está permitido (solo endpoints HTTPS públicos; servicios locales solo tras autorizarlos en los ajustes)."
 
@@ -15384,9 +15385,9 @@ msgid "Fiskalbelege"
 msgstr "Recibos fiscales"
 
 #: src/Fiscalization/ReceiptRenderer.php:29
-#: src/Modules/Fiscalization.php:1361
-#: src/Modules/Fiscalization.php:1372
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1374
+#: src/Modules/Fiscalization.php:1430
 #: src/Privacy.php:289
 msgid "Verkäufer"
 msgstr "Vendedor"
@@ -17386,17 +17387,17 @@ msgid "Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkä
 msgstr "Para carritos mixtos. Los productos de entrada siguen usando el vendedor asignado al tipo de entrada de Pass Captain."
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Verkäuferrolle"
 msgstr "Rol del vendedor"
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Betreibergesellschaft ist Verkäufer"
 msgstr "La empresa operadora es el vendedor"
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Veranstalter ist Verkäufer"
 msgstr "El organizador es el vendedor"
 
@@ -17805,9 +17806,10 @@ msgstr "Workflows"
 msgid "Läufe"
 msgstr "Ejecuciones"
 
+#: src/Fiscalization/ShiftClosing.php:217
 #: src/Integrations/WorkflowCaptain/Status.php:103
-#: src/Modules/Fiscalization.php:1383
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Sms.php:574
 msgid "Anbieter"
 msgstr "Proveedor"
@@ -19873,478 +19875,478 @@ msgstr "Correo electrónico de entradas"
 msgid "Kalenderdatei (.ics) je Termin anhängen"
 msgstr "Adjuntar un archivo de calendario (.ics) por cada fecha"
 
-#: src/Modules/Fiscalization.php:205
+#: src/Modules/Fiscalization.php:207
 msgid "Für diese Tickets ist die Belegerstellung (Fiskalisierung) derzeit nicht verfügbar. Der Kauf ist im Moment nicht möglich; bitte später erneut versuchen oder den Veranstalter kontaktieren."
 msgstr "La creación de recibos (fiscalización) no está disponible actualmente para estas entradas. La compra no es posible en este momento; vuelve a intentarlo más tarde o contacta con el organizador."
 
-#: src/Modules/Fiscalization.php:209
+#: src/Modules/Fiscalization.php:211
 msgid "Die Verkäuferzuordnung dieser Tickets für die Belegerstellung ist unvollständig oder widersprüchlich. Der Kauf ist im Moment nicht möglich; bitte den Veranstalter kontaktieren."
 msgstr "La asignación de vendedor de estas entradas para la creación de recibos está incompleta o es contradictoria. La compra no es posible en este momento; contacta con el organizador."
 
-#: src/Modules/Fiscalization.php:251
+#: src/Modules/Fiscalization.php:253
 msgid "Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig."
 msgstr "El perfil fiscal, el vendedor o la configuración no secreta no es válido."
 
-#: src/Modules/Fiscalization.php:254
+#: src/Modules/Fiscalization.php:256
 msgid "Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung."
 msgstr "La aprobación para producción requiere una revisión documentada por país, una versión de la normativa y una confirmación expresa."
 
-#: src/Modules/Fiscalization.php:261
+#: src/Modules/Fiscalization.php:263
 msgid "Das Ende der Gültigkeit (effective_until) muss nach dem Beginn liegen."
 msgstr "El fin de la validez (effective_until) debe ser posterior al inicio."
 
-#: src/Modules/Fiscalization.php:279
+#: src/Modules/Fiscalization.php:281
 msgid "Fiskalprofil konnte nicht gespeichert werden."
 msgstr "No se pudo guardar el perfil fiscal."
 
-#: src/Modules/Fiscalization.php:296
+#: src/Modules/Fiscalization.php:298
 msgid "Verkäuferzuordnung ist ungültig."
 msgstr "La asignación de vendedor no es válida."
 
-#: src/Modules/Fiscalization.php:302
+#: src/Modules/Fiscalization.php:304
 msgid "Ticketart oder aktiver Rechtsträger wurde nicht gefunden."
 msgstr "No se encontró el tipo de entrada o la entidad jurídica activa."
 
-#: src/Modules/Fiscalization.php:306
+#: src/Modules/Fiscalization.php:308
 msgid "Diese Ticketart wird von der Plattform in eigenem Namen verkauft (Verkaufsmodell). Als Verkäuferrolle ist „Betreibergesellschaft ist Verkäufer“ erforderlich."
 msgstr "Este tipo de entrada lo vende la plataforma en nombre propio (modelo de venta). El rol del vendedor debe ser «La empresa operadora es el vendedor»."
 
-#: src/Modules/Fiscalization.php:307
+#: src/Modules/Fiscalization.php:309
 msgid "Diese Ticketart wird im Namen des Veranstalters verkauft (Verkaufsmodell Vermittler). Als Verkäuferrolle ist „Veranstalter ist Verkäufer“ erforderlich."
 msgstr "Este tipo de entrada se vende en nombre del organizador (modelo de venta intermediario). El rol del vendedor debe ser «El organizador es el vendedor»."
 
-#: src/Modules/Fiscalization.php:315
+#: src/Modules/Fiscalization.php:317
 msgid "Verkäuferzuordnung konnte nicht gespeichert werden."
 msgstr "No se pudo guardar la asignación de vendedor."
 
-#: src/Modules/Fiscalization.php:326
+#: src/Modules/Fiscalization.php:328
 msgid "Kassenstellen-Zuordnung ist ungültig."
 msgstr "La asignación del terminal de caja no es válida."
 
-#: src/Modules/Fiscalization.php:329
+#: src/Modules/Fiscalization.php:331
 msgid "Kassen-ID darf nur Buchstaben, Ziffern sowie . _ : - enthalten und maximal 64 Zeichen lang sein."
 msgstr "El ID de caja solo puede contener letras, cifras y . _ : - y tener como máximo 64 caracteres."
 
-#: src/Modules/Fiscalization.php:524
+#: src/Modules/Fiscalization.php:526
 msgid "WooCommerce-Position"
 msgstr "Línea de WooCommerce"
 
-#: src/Modules/Fiscalization.php:683
+#: src/Modules/Fiscalization.php:685
 msgid "Unbekannte Fiskal-Ausfallregel."
 msgstr "Regla de interrupción fiscal desconocida."
 
-#: src/Modules/Fiscalization.php:786
+#: src/Modules/Fiscalization.php:788
 msgid "Für diesen Vorgang ist kein automatisches efsta-Storno verfügbar."
 msgstr "No hay anulación automática de efsta disponible para esta operación."
 
-#: src/Modules/Fiscalization.php:790
+#: src/Modules/Fiscalization.php:792
 msgid "Ein bereits bezahlter Vorgang darf nicht als Storno automatisiert werden."
 msgstr "Una operación ya pagada no puede anularse automáticamente."
 
-#: src/Modules/Fiscalization.php:795
+#: src/Modules/Fiscalization.php:797
 msgid "Der unveränderbare Originalbeleg oder seine Anbieterkonfiguration fehlt."
 msgstr "Falta el recibo original inmutable o su configuración de proveedor."
 
-#: src/Modules/Fiscalization.php:799
+#: src/Modules/Fiscalization.php:801
 msgid "Automatisches efsta-Storno ist für dieses Land nicht freigeschaltet."
 msgstr "La anulación automática de efsta no está habilitada para este país."
 
-#: src/Modules/Fiscalization.php:807
+#: src/Modules/Fiscalization.php:809
 msgid "Für dieses Storno gab es bereits einen Sendeversuch. Anbieterstatus prüfen und nicht erneut senden."
 msgstr "Esta anulación ya se intentó enviar. Revisa el estado en el proveedor y no la vuelvas a enviar."
 
-#: src/Modules/Fiscalization.php:820
+#: src/Modules/Fiscalization.php:822
 msgid "efsta-Storno konnte nicht bestätigt werden. Anbieterstatus prüfen und keine automatische Wiederholung auslösen."
 msgstr "No se pudo confirmar la anulación de efsta. Revisa el estado en el proveedor y no lances un reintento automático."
 
-#: src/Modules/Fiscalization.php:850
+#: src/Modules/Fiscalization.php:852
 msgid "Korrekturart und Anbieter-Referenz sind erforderlich."
 msgstr "El tipo de corrección y la referencia del proveedor son obligatorios."
 
-#: src/Modules/Fiscalization.php:854
+#: src/Modules/Fiscalization.php:856
 msgid "Offener Fiskalkorrekturvorgang wurde nicht gefunden."
 msgstr "No se encontró la tarea de corrección fiscal pendiente."
 
-#: src/Modules/Fiscalization.php:863
+#: src/Modules/Fiscalization.php:865
 msgid "Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert."
 msgstr "Ya se registró una referencia de proveedor para esta tarea."
 
-#: src/Modules/Fiscalization.php:980
+#: src/Modules/Fiscalization.php:982
 msgid "Fiskalvorgang wurde nicht gefunden."
 msgstr "No se encontró el documento fiscal."
 
-#: src/Modules/Fiscalization.php:987
+#: src/Modules/Fiscalization.php:989
 msgid "Anbieter oder Verkäuferdaten fehlen."
 msgstr "Faltan los datos del proveedor o del vendedor."
 
-#: src/Modules/Fiscalization.php:995
+#: src/Modules/Fiscalization.php:997
 msgid "Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst."
 msgstr "El estado en el proveedor sigue sin estar claro; no se ha creado ningún recibo nuevo."
 
-#: src/Modules/Fiscalization.php:1003
+#: src/Modules/Fiscalization.php:1005
 msgid "Der Anbieter meldet den Beleg als erstellt, aber die erforderlichen QR-Daten fehlen. Es wurde kein zweiter Beleg erstellt."
 msgstr "El proveedor indica que el recibo se ha creado, pero faltan los datos QR necesarios. No se ha creado un segundo recibo."
 
-#: src/Modules/Fiscalization.php:1013
+#: src/Modules/Fiscalization.php:1015
 msgid "Der Anbieter hat keinen verwertbaren Status geliefert."
 msgstr "El proveedor no devolvió ningún estado utilizable."
 
-#: src/Modules/Fiscalization.php:1066
+#: src/Modules/Fiscalization.php:1068
 msgid "Pass Captain: Fiskalvorgang erfordert Eingriff"
 msgstr "Pass Captain: un documento fiscal requiere intervención"
 
 #. translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code
-#: src/Modules/Fiscalization.php:1069
+#: src/Modules/Fiscalization.php:1071
 #, php-format
 msgid "Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde."
 msgstr "El documento fiscal %1$d del pedido %2$d ha fallado. Vendedor: %3$s. Proveedor: %4$s. Código de error: %5$s. La emisión de entradas sigue bloqueada hasta que se revise y resuelva el documento."
 
-#: src/Modules/Fiscalization.php:1347
+#: src/Modules/Fiscalization.php:1349
 msgid "Änderung gespeichert."
 msgstr "Cambio guardado."
 
-#: src/Modules/Fiscalization.php:1348
+#: src/Modules/Fiscalization.php:1350
 msgid "Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen."
 msgstr "El cambio ha fallado. Revisa los datos, el adaptador y la compatibilidad del país."
 
-#: src/Modules/Fiscalization.php:1349
+#: src/Modules/Fiscalization.php:1351
 msgid "Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt."
 msgstr "Los recibos fiscales se crean por entidad jurídica. Una entrada asignada solo se emite cuando el adaptador configurado confirma el recibo."
 
-#: src/Modules/Fiscalization.php:1350
+#: src/Modules/Fiscalization.php:1352
 msgid "Rechtsträger anlegen"
 msgstr "Crear entidad jurídica"
 
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 msgid "Rechtlicher Name"
 msgstr "Nombre legal"
 
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 msgid "Steuernummer / VAT-ID"
 msgstr "Número fiscal / NIF-IVA"
 
-#: src/Modules/Fiscalization.php:1353
+#: src/Modules/Fiscalization.php:1355
 msgid "VAT-ID"
 msgstr "NIF-IVA"
 
-#: src/Modules/Fiscalization.php:1353
+#: src/Modules/Fiscalization.php:1355
 #: src/Partners/AdminPage.php:328
 #: src/Partners/Repository.php:90
 #: src/Privacy.php:290
 msgid "Kontakt-E-Mail"
 msgstr "Correo electrónico de contacto"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Geschäftsadresse"
 msgstr "Dirección comercial"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Region"
 msgstr "Región"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Land der Anschrift"
 msgstr "País de la dirección"
 
-#: src/Modules/Fiscalization.php:1355
+#: src/Modules/Fiscalization.php:1357
 msgid "Rechtsträger speichern"
 msgstr "Guardar entidad jurídica"
 
-#: src/Modules/Fiscalization.php:1356
+#: src/Modules/Fiscalization.php:1358
 msgid "Länder- und Verkaufskanalprofil"
 msgstr "Perfil de país y canal de venta"
 
-#: src/Modules/Fiscalization.php:1357
+#: src/Modules/Fiscalization.php:1359
 msgid "Ein Produktivprofil erfordert dokumentierte fachliche Prüfung. Die Plugin-Freigabe ersetzt keine rechtliche oder steuerliche Prüfung."
 msgstr "Un perfil de producción requiere una revisión especializada documentada. La aprobación en el plugin no sustituye una revisión legal o fiscal."
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Kassen-ID (leer = Standard)"
 msgstr "ID de caja (vacío = predeterminado)"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "POS/Abendkasse"
 msgstr "TPV/taquilla"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Eigener Checkout"
 msgstr "Checkout propio"
 
-#: src/Modules/Fiscalization.php:1363
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1374
 msgid "Umgebung"
 msgstr "Entorno"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/WalletPasses/AdminPage.php:192
 msgid "Produktion"
 msgstr "Producción"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Produktiv mit Adapter"
 msgstr "Producción con adaptador"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Geprüft: nicht erforderlich"
 msgstr "Revisado: no necesario"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Gesperrt"
 msgstr "Suspendido"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Regelwerk/Profil"
 msgstr "Normativa/perfil"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Regelwerkversion"
 msgstr "Versión de la normativa"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Rechts-/Prüfreferenz"
 msgstr "Referencia legal/de revisión"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Ich bestätige die fachliche Prüfung und Freigabe dieses Profils."
 msgstr "Confirmo la revisión especializada y la aprobación de este perfil."
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Ausfallverhalten"
 msgstr "Comportamiento ante interrupciones"
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Verkauf stoppen, bis Anbieter wieder verfügbar ist"
 msgstr "Detener la venta hasta que el proveedor vuelva a estar disponible"
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Anbieter-gepufferter Notbetrieb (Adapterfähigkeit erforderlich)"
 msgstr "Modo de emergencia con búfer del proveedor (requiere capacidad del adaptador)"
 
-#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1367
 msgid "Zusätzliche Adapterfähigkeiten (Komma-getrennt)"
 msgstr "Capacidades adicionales del adaptador (separadas por comas)"
 
-#: src/Modules/Fiscalization.php:1366
+#: src/Modules/Fiscalization.php:1368
 msgid "Profil speichern"
 msgstr "Guardar perfil"
 
-#: src/Modules/Fiscalization.php:1369
+#: src/Modules/Fiscalization.php:1371
 msgid "Gespeicherte Profile"
 msgstr "Perfiles guardados"
 
-#: src/Modules/Fiscalization.php:1370
+#: src/Modules/Fiscalization.php:1372
 msgid "Keine Länderprofile gespeichert."
 msgstr "No hay perfiles de país guardados."
 
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1374
 msgid "Land/Kanal/Kasse"
 msgstr "País/canal/caja"
 
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1374
 msgid "Regelwerk"
 msgstr "Normativa"
 
-#: src/Modules/Fiscalization.php:1376
+#: src/Modules/Fiscalization.php:1378
 msgid "Anbieter konfigurieren"
 msgstr "Configurar proveedor"
 
-#: src/Modules/Fiscalization.php:1377
+#: src/Modules/Fiscalization.php:1379
 msgid "Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ein Adapter registriert wurde."
 msgstr "Aún no hay ningún adaptador fiscal instalado. Los proveedores siguen desactivados hasta que se registre un adaptador."
 
-#: src/Modules/Fiscalization.php:1383
+#: src/Modules/Fiscalization.php:1385
 msgid "Keiner"
 msgstr "Ninguno"
 
-#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1387
 msgid "Nicht geheime Adapter-Konfiguration (JSON)"
 msgstr "Configuración no secreta del adaptador (JSON)"
 
-#: src/Modules/Fiscalization.php:1386
+#: src/Modules/Fiscalization.php:1388
 msgid "Anbieter speichern"
 msgstr "Guardar proveedor"
 
-#: src/Modules/Fiscalization.php:1390
+#: src/Modules/Fiscalization.php:1392
 msgid "Verbindung prüfen (keinen Beleg erstellen)"
 msgstr "Comprobar conexión (no se crea ningún recibo)"
 
-#: src/Modules/Fiscalization.php:1395
+#: src/Modules/Fiscalization.php:1397
 msgid "Zugangsdaten für Anbieter"
 msgstr "Credenciales para el proveedor"
 
-#: src/Modules/Fiscalization.php:1399
+#: src/Modules/Fiscalization.php:1401
 msgid "Gespeicherte Zugangsdaten (Werte werden nicht angezeigt):"
 msgstr "Credenciales guardadas (los valores no se muestran):"
 
 #. translators: %s: credential field name
-#: src/Modules/Fiscalization.php:1402
+#: src/Modules/Fiscalization.php:1404
 #, php-format
 msgid "%s löschen"
 msgstr "Eliminar %s"
 
-#: src/Modules/Fiscalization.php:1406
+#: src/Modules/Fiscalization.php:1408
 msgid "Feldname"
 msgstr "Nombre del campo"
 
-#: src/Modules/Fiscalization.php:1406
+#: src/Modules/Fiscalization.php:1408
 msgid "Geheimer Wert"
 msgstr "Valor secreto"
 
-#: src/Modules/Fiscalization.php:1409
+#: src/Modules/Fiscalization.php:1411
 msgid "Zugangsdaten können derzeit nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel fehlt); das Speichern wird abgelehnt."
 msgstr "Actualmente no se pueden guardar las credenciales cifradas (falta libsodium o la clave); se rechaza el guardado."
 
-#: src/Modules/Fiscalization.php:1410
+#: src/Modules/Fiscalization.php:1412
 msgid "Zugangsdaten speichern"
 msgstr "Guardar credenciales"
 
-#: src/Modules/Fiscalization.php:1413
+#: src/Modules/Fiscalization.php:1415
 msgid "Verkäufer je Ticketart"
 msgstr "Vendedor por tipo de entrada"
 
-#: src/Modules/Fiscalization.php:1414
+#: src/Modules/Fiscalization.php:1416
 msgid "Lege zuerst mindestens einen Rechtsträger an."
 msgstr "Crea primero al menos una entidad jurídica."
 
-#: src/Modules/Fiscalization.php:1418
+#: src/Modules/Fiscalization.php:1420
 msgid "Fiskalischer Verkäufer"
 msgstr "Vendedor fiscal"
 
-#: src/Modules/Fiscalization.php:1418
+#: src/Modules/Fiscalization.php:1420
 msgid "Nicht fiskal zuordnen"
 msgstr "Sin asignación fiscal"
 
-#: src/Modules/Fiscalization.php:1421
+#: src/Modules/Fiscalization.php:1423
 msgid "Zuordnung speichern"
 msgstr "Guardar asignación"
 
-#: src/Modules/Fiscalization.php:1424
+#: src/Modules/Fiscalization.php:1426
 msgid "Offene Fiskalvorgänge"
 msgstr "Documentos fiscales pendientes"
 
-#: src/Modules/Fiscalization.php:1426
+#: src/Modules/Fiscalization.php:1428
 msgid "Keine offenen Fiskalvorgänge."
 msgstr "No hay documentos fiscales pendientes."
 
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 msgid "Dokument"
 msgstr "Documento"
 
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 msgid "Versuche / letzter Fehler"
 msgstr "Intentos / último error"
 
-#: src/Modules/Fiscalization.php:1433
+#: src/Modules/Fiscalization.php:1435
 msgid "Status beim Anbieter abgleichen"
 msgstr "Conciliar el estado con el proveedor"
 
-#: src/Modules/Fiscalization.php:1447
+#: src/Modules/Fiscalization.php:1449
 msgid "Fiskaldaten exportieren"
 msgstr "Exportar datos fiscales"
 
-#: src/Modules/Fiscalization.php:1447
+#: src/Modules/Fiscalization.php:1449
 msgid "Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente."
 msgstr "Exportación CSV normalizada para archivo y operaciones; no es un formato oficial específico de un país. Periodo en UTC, como máximo 50.000 documentos."
 
-#: src/Modules/Fiscalization.php:1449
+#: src/Modules/Fiscalization.php:1451
 msgid "Von (UTC)"
 msgstr "Desde (UTC)"
 
-#: src/Modules/Fiscalization.php:1449
+#: src/Modules/Fiscalization.php:1451
 msgid "Bis (UTC)"
 msgstr "Hasta (UTC)"
 
-#: src/Modules/Fiscalization.php:1450
+#: src/Modules/Fiscalization.php:1452
 msgid "CSV herunterladen"
 msgstr "Descargar CSV"
 
-#: src/Modules/Fiscalization.php:1452
+#: src/Modules/Fiscalization.php:1454
 msgid "Fiskal-Ereignisprotokoll"
 msgstr "Registro de eventos fiscales"
 
-#: src/Modules/Fiscalization.php:1473
+#: src/Modules/Fiscalization.php:1475
 msgid "Noch keine Fiskalereignisse protokolliert."
 msgstr "Aún no se han registrado eventos fiscales."
 
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Dokument/Bestellung"
 msgstr "Documento/pedido"
 
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Bearbeitung"
 msgstr "Tramitación"
 
-#: src/Modules/Fiscalization.php:1482
+#: src/Modules/Fiscalization.php:1484
 msgid "Über Anbieteradapter erledigt"
 msgstr "Completado mediante el adaptador del proveedor"
 
-#: src/Modules/Fiscalization.php:1482
+#: src/Modules/Fiscalization.php:1484
 msgid "Extern erledigt"
 msgstr "Completado externamente"
 
 #. translators: 1: who completed the correction, 2: provider reference
-#: src/Modules/Fiscalization.php:1484
+#: src/Modules/Fiscalization.php:1486
 #, php-format
 msgid "%1$s · Referenz %2$s"
 msgstr "%1$s · referencia %2$s"
 
-#: src/Modules/Fiscalization.php:1491
+#: src/Modules/Fiscalization.php:1493
 msgid "efsta-Vollstorno senden"
 msgstr "Enviar anulación total de efsta"
 
-#: src/Modules/Fiscalization.php:1492
+#: src/Modules/Fiscalization.php:1494
 msgid "Einmaliger Sendeversuch. Bei unklarem Ergebnis Anbieterstatus prüfen; keine Wiederholung auslösen."
 msgstr "Intento de envío único. Si el resultado no está claro, revisa el estado en el proveedor; no lances un reintento."
 
-#: src/Modules/Fiscalization.php:1494
+#: src/Modules/Fiscalization.php:1496
 msgid "Sendeversuch erfolgt. Anbieterstatus prüfen; nicht erneut senden."
 msgstr "Intento de envío realizado. Revisa el estado en el proveedor; no vuelvas a enviar."
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Korrekturart"
 msgstr "Tipo de corrección"
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Gutschrift"
 msgstr "Nota de crédito"
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Beleg-/Anbieterreferenz"
 msgstr "Referencia del recibo/proveedor"
 
-#: src/Modules/Fiscalization.php:1499
+#: src/Modules/Fiscalization.php:1501
 msgid "Extern erledigt dokumentieren"
 msgstr "Registrar como completado externamente"
 
-#: src/Modules/Fiscalization.php:1500
+#: src/Modules/Fiscalization.php:1502
 msgid "Nur nach Durchführung im Anbieterportal verwenden."
 msgstr "Úsalo solo después de completarlo en el portal del proveedor."
 
-#: src/Modules/Fiscalization.php:1584
+#: src/Modules/Fiscalization.php:1586
 msgid "Name und eines der unterstützten Länder AT, DE, HU oder ein weiteres EU-Land sind erforderlich."
 msgstr "Se requieren un nombre y uno de los países admitidos AT, DE, HU u otro país de la UE."
 
-#: src/Modules/Fiscalization.php:1595
+#: src/Modules/Fiscalization.php:1597
 msgid "Rechtsträger konnte nicht gespeichert werden."
 msgstr "No se pudo guardar la entidad jurídica."
 
-#: src/Modules/Fiscalization.php:1611
+#: src/Modules/Fiscalization.php:1613
 msgid "Aktiver Anbieter oder Länderunterstützung fehlt."
 msgstr "Falta un proveedor activo o la compatibilidad con el país."
 
-#: src/Modules/Fiscalization.php:1619
+#: src/Modules/Fiscalization.php:1621
 msgid "Der Anbieter-Verbindungstest ist fehlgeschlagen."
 msgstr "La prueba de conexión con el proveedor ha fallado."
 
-#: src/Modules/Fiscalization.php:1634
+#: src/Modules/Fiscalization.php:1636
 msgid "Anbieter oder Länderunterstützung ist ungültig."
 msgstr "El proveedor o la compatibilidad con el país no es válido."
 
-#: src/Modules/Fiscalization.php:1638
+#: src/Modules/Fiscalization.php:1640
 msgid "API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden."
 msgstr "Las claves API y credenciales no deben guardarse en la configuración general del proveedor."
 
-#: src/Modules/Fiscalization.php:1648
+#: src/Modules/Fiscalization.php:1650
 msgid "Anbieter-Konfiguration konnte nicht gespeichert werden."
 msgstr "No se pudo guardar la configuración del proveedor."
 
@@ -33612,43 +33614,43 @@ msgstr "Cupos y límites por comprador"
 msgid "Automatische Freigabe nicht genutzter Kontingente und wie Käufer für Kauflimits erkannt werden (Benutzerkonto, E-Mail-Varianten mit + oder Punkten)."
 msgstr "Liberación automática de cupos no utilizados y cómo se identifica a los compradores para los límites de compra (cuenta de usuario, variantes de correo con + o puntos)."
 
-#: src/Modules/BoxOffice.php:423
+#: src/Modules/BoxOffice.php:426
 msgid "Präfix der Kassenbon-Nummern"
 msgstr "Prefijo de los números de tique"
 
-#: src/Modules/BoxOffice.php:423
+#: src/Modules/BoxOffice.php:426
 msgid "Vorangestellt vor die fortlaufende Bonnummer der Kasse."
 msgstr "Se antepone al número correlativo del tique de caja."
 
-#: src/Modules/BoxOffice.php:424
+#: src/Modules/BoxOffice.php:427
 msgid "Fußzeile des Kassenbons"
 msgstr "Pie del tique de caja"
 
-#: src/Modules/BoxOffice.php:424
+#: src/Modules/BoxOffice.php:427
 msgid "Text unter jedem Kassenbon, z. B. Steuer- oder Rückgabehinweise."
 msgstr "Texto al pie de cada tique de caja, p. ej., avisos fiscales o de devolución."
 
-#: src/Modules/BoxOffice.php:425
+#: src/Modules/BoxOffice.php:428
 msgid "Kassenterminals"
 msgstr "Terminales de caja"
 
-#: src/Modules/BoxOffice.php:425
+#: src/Modules/BoxOffice.php:428
 msgid "Kartenterminals der Kasse, eines je Zeile."
 msgstr "Terminales de tarjeta de la caja, uno por línea."
 
-#: src/Modules/BoxOffice.php:426
+#: src/Modules/BoxOffice.php:429
 msgid "Kassierer auf dem Bon"
 msgstr "Cajero en el tique"
 
-#: src/Modules/BoxOffice.php:426
+#: src/Modules/BoxOffice.php:429
 msgid "Ob und wie die Person an der Kasse auf dem Bon erscheint."
 msgstr "Si la persona de la caja aparece en el tique y de qué forma."
 
-#: src/Modules/BoxOffice.php:427
+#: src/Modules/BoxOffice.php:430
 msgid "Barzahlung ohne Fiskalisierung bestätigt"
 msgstr "Pago en efectivo sin fiscalización confirmado"
 
-#: src/Modules/BoxOffice.php:427
+#: src/Modules/BoxOffice.php:430
 msgid "Bestätigung, dass die Kasse ohne angeschlossene Fiskalisierung bar kassieren darf."
 msgstr "Confirmación de que la caja puede cobrar en efectivo sin fiscalización conectada."
 
@@ -34430,7 +34432,7 @@ msgstr "Tu tema todavía sobrescribe plantillas de Pass Captain en la carpeta an
 msgid "Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. deinen SMTP-Dienst erlauben (DMARC)."
 msgstr "La dirección del remitente usa el dominio %1$s y el sitio web %2$s. Para que los correos se entreguen, SPF y DKIM de %1$s deben permitir el envío a través de este servidor o de tu servicio SMTP (DMARC)."
 
-#: src/Modules/Fiscalization.php:1408
+#: src/Modules/Fiscalization.php:1410
 msgid "Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn du nur einzelne Felder ergänzt oder ersetzt. Werte werden nie wieder angezeigt."
 msgstr "Los valores nuevos se guardan cifrados en el almacén de secretos de Pass Captain (clave PASS_CAPTAIN_SECRET_KEY o, si no, derivada de las salts de wp-config; cambio de clave mediante PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Los valores existentes se conservan si solo añades o sustituyes campos concretos. Los valores no se vuelven a mostrar nunca."
 
@@ -35111,49 +35113,49 @@ msgstr "Indica un formato de fecha u hora PHP válido, p. ej. «d.m.Y» o «H:i�
 msgid "Bitte nach Scheinen und Münzen zählen (Stückelung); ein Gesamtbetrag allein reicht an dieser Kasse nicht."
 msgstr "Cuenta por billetes y monedas (desglose); un importe total por sí solo no basta en esta caja."
 
-#: src/BoxOffice/Page.php:237
+#: src/BoxOffice/Page.php:238
 msgid "Schichtregeln"
 msgstr "Reglas de turno"
 
-#: src/BoxOffice/Page.php:237
-#: src/Modules/BoxOffice.php:428
+#: src/BoxOffice/Page.php:238
+#: src/Modules/BoxOffice.php:431
 msgid "Kassendifferenz ohne Begründung bis"
 msgstr "Descuadre de caja sin justificación hasta"
 
-#: src/BoxOffice/Page.php:237
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:238
+#: src/Modules/BoxOffice.php:432
 msgid "Zählpflicht"
 msgstr "Obligación de recuento"
 
-#: src/BoxOffice/Page.php:238
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:239
+#: src/Modules/BoxOffice.php:432
 msgid "Betrag oder Stückelung"
 msgstr "Importe o desglose"
 
-#: src/BoxOffice/Page.php:238
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:239
+#: src/Modules/BoxOffice.php:432
 msgid "Stückelung Pflicht"
 msgstr "Desglose obligatorio"
 
-#: src/BoxOffice/Page.php:239
-#: src/Modules/BoxOffice.php:430
+#: src/BoxOffice/Page.php:240
+#: src/Modules/BoxOffice.php:433
 msgid "Sprache der Kassenbons"
 msgstr "Idioma de los tiques"
 
-#: src/BoxOffice/Page.php:240
-#: src/Modules/BoxOffice.php:431
+#: src/BoxOffice/Page.php:241
+#: src/Modules/BoxOffice.php:434
 msgid "Blindzählung als Standard für neue Kassen"
 msgstr "Recuento ciego por defecto para cajas nuevas"
 
-#: src/BoxOffice/Page.php:241
+#: src/BoxOffice/Page.php:243
 msgid "Differenzen bis zum genannten Betrag brauchen beim Abschluss und bei der Übergabe keinen Grund (0 = jede Differenz). „Stückelung Pflicht“: Anfangsbestand, Zählung und Übergabe nach Scheinen und Münzen. Sprache leer = Sprache der Kassenoberfläche."
 msgstr "Los descuadres hasta el importe indicado no requieren motivo al cerrar ni en el relevo (0 = cualquier descuadre). «Desglose obligatorio»: fondo inicial, recuento y relevo por billetes y monedas. Idioma vacío = idioma de la interfaz de caja."
 
-#: src/BoxOffice/Page.php:565
+#: src/BoxOffice/Page.php:586
 msgid "„Sprache der Kassenbons“: Bitte einen Sprachcode wie de_DE oder en_US angeben oder das Feld leer lassen."
 msgstr "«Idioma de los tiques»: indica un código de idioma como de_DE o en_US, o deja el campo vacío."
 
-#: src/BoxOffice/Page.php:576
+#: src/BoxOffice/Page.php:597
 msgid "„Kassendifferenz ohne Begründung bis“ darf nicht negativ sein."
 msgstr "«Descuadre de caja sin justificación hasta» no puede ser negativo."
 
@@ -35161,19 +35163,19 @@ msgstr "«Descuadre de caja sin justificación hasta» no puede ser negativo."
 msgid "Dieser Bereich kann nicht je Event übersteuert werden."
 msgstr "Esta sección no se puede sobrescribir por evento."
 
-#: src/Modules/BoxOffice.php:428
+#: src/Modules/BoxOffice.php:431
 msgid "Beim Schichtabschluss und bei der Übergabe brauchen Differenzen bis zu diesem Betrag (in Kassenwährung, z. B. 0,50) keinen Grund; sie stehen trotzdem im Z-Bericht. 0 = jede Differenz braucht einen Grund."
 msgstr "Al cerrar el turno y en el relevo, los descuadres hasta este importe (en la moneda de la caja, p. ej. 0,50) no requieren motivo; aun así aparecen en el informe Z. 0 = todo descuadre requiere un motivo."
 
-#: src/Modules/BoxOffice.php:429
+#: src/Modules/BoxOffice.php:432
 msgid "„Stückelung Pflicht“: Anfangsbestand, Abschlusszählung und Übergabe müssen nach Scheinen und Münzen gezählt werden (außer bei leerer Kasse)."
 msgstr "«Desglose obligatorio»: el fondo inicial, el recuento de cierre y el relevo deben contarse por billetes y monedas (salvo con la caja vacía)."
 
-#: src/Modules/BoxOffice.php:430
+#: src/Modules/BoxOffice.php:433
 msgid "Sprachcode wie de_DE oder en_US. Leer = Sprache der Kassenoberfläche."
 msgstr "Código de idioma como de_DE o en_US. Vacío = idioma de la interfaz de caja."
 
-#: src/Modules/BoxOffice.php:431
+#: src/Modules/BoxOffice.php:434
 msgid "Neue Kassen werden mit Blindzählung vorgeschlagen; je Kasse änderbar."
 msgstr "Las cajas nuevas se proponen con recuento ciego; se puede cambiar por caja."
 
@@ -36083,3 +36085,74 @@ msgstr "No se pudo cambiar el titular en este momento. Inténtalo de nuevo."
 #: src/WalletPasses/Service.php:101
 msgid "Übertragene oder neu ausgestellte Tickets erhalten ihre Pässe mit der jeweiligen E-Mail."
 msgstr "Las entradas transferidas o reemitidas reciben sus pases con el correo correspondiente."
+
+#: src/BoxOffice/Page.php:242
+#: src/Modules/BoxOffice.php:435
+msgid "Schichtabschluss an den Fiskal-Anbieter melden"
+msgstr "Notificar el cierre de turno al proveedor fiscal"
+
+#: src/BoxOffice/Page.php:242
+#: src/Modules/BoxOffice.php:435
+msgid "Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung."
+msgstr "Al cerrar la caja, el cierre se envía al proveedor fiscal por cada entidad jurídica si su adaptador lo admite. El resultado, la referencia y la firma aparecen en el informe Z y en el registro de eventos fiscales. Solo con el módulo Fiscalización activo."
+
+#: src/BoxOffice/Page.php:355
+msgid "Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich."
+msgstr "Sin conexión de red: ventas, anulaciones y pagos están bloqueados hasta que vuelva la conexión; no se guarda nada temporalmente. Sin red solo son posibles las entradas con la app de escaneo."
+
+#: src/BoxOffice/Page.php:356
+msgid "Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich."
+msgstr "De nuevo en línea: ventas, anulaciones y pagos vuelven a ser posibles."
+
+#: src/BoxOffice/Page.php:357
+msgid "Ohne Netzverbindung gesperrt"
+msgstr "Bloqueado sin conexión de red"
+
+#: src/Fiscalization/ShiftClosing.php:186
+msgid "Übermittelt"
+msgstr "Enviado"
+
+#. translators: %s: error code
+#: src/Fiscalization/ShiftClosing.php:189
+#, php-format
+msgid "Fehlgeschlagen (%s)"
+msgstr "Fallido (%s)"
+
+#: src/Fiscalization/ShiftClosing.php:191
+msgid "Vom Anbieter nicht unterstützt"
+msgstr "No admitido por el proveedor"
+
+#: src/Fiscalization/ShiftClosing.php:193
+msgid "Anbieter nicht verfügbar"
+msgstr "Proveedor no disponible"
+
+#: src/Fiscalization/ShiftClosing.php:195
+msgid "Nicht angefordert"
+msgstr "No solicitado"
+
+#: src/Fiscalization/ShiftClosing.php:216
+msgid "Rechtsträger"
+msgstr "Entidad jurídica"
+
+#. translators: 1: confirmed receipts, 2: open receipts
+#: src/Fiscalization/ShiftClosing.php:219
+msgid "Fiskalbelege dieser Schicht"
+msgstr "Recibos fiscales de este turno"
+
+#. translators: 1: confirmed receipts, 2: open receipts
+#: src/Fiscalization/ShiftClosing.php:219
+#, php-format
+msgid "%1$d bestätigt, %2$d offen"
+msgstr "%1$d confirmados, %2$d pendientes"
+
+#: src/Fiscalization/ShiftClosing.php:220
+msgid "Kassenabschluss beim Anbieter"
+msgstr "Cierre de caja en el proveedor"
+
+#: src/Fiscalization/ShiftClosing.php:222
+msgid "Abschluss-Referenz"
+msgstr "Referencia de cierre"
+
+#: src/Fiscalization/ShiftClosing.php:223
+msgid "Signatur"
+msgstr "Firma"

@@ -94,8 +94,8 @@ msgstr "Activering geweigerd"
 #: src/Admission/RulesPage.php:79
 #: src/Admission/RulesPage.php:88
 #: src/Admission/RulesPage.php:101
-#: src/BoxOffice/Service.php:352
-#: src/BoxOffice/Service.php:399
+#: src/BoxOffice/Service.php:363
+#: src/BoxOffice/Service.php:410
 #: src/Consents.php:611
 #: src/DeveloperKeys.php:118
 #: src/Exchange/Service.php:1272
@@ -225,14 +225,14 @@ msgstr "API-sleutel ingetrokken."
 #: src/Admission/RulesPage.php:170
 #: src/Allocations/AdminPage.php:196
 #: src/BoxOffice/Page.php:60
-#: src/BoxOffice/Page.php:500
-#: src/BoxOffice/Page.php:523
-#: src/BoxOffice/Page.php:582
+#: src/BoxOffice/Page.php:521
+#: src/BoxOffice/Page.php:544
+#: src/BoxOffice/Page.php:603
 #: src/BoxOffice/Registers.php:73
-#: src/BoxOffice/Service.php:139
-#: src/BoxOffice/Service.php:383
-#: src/BoxOffice/Service.php:1010
-#: src/BoxOffice/Service.php:1095
+#: src/BoxOffice/Service.php:150
+#: src/BoxOffice/Service.php:394
+#: src/BoxOffice/Service.php:1021
+#: src/BoxOffice/Service.php:1106
 #: src/BoxOffice/ShiftPage.php:154
 #: src/BoxOffice/ShiftPage.php:408
 #: src/BoxOffice/ShiftPage.php:418
@@ -254,17 +254,17 @@ msgstr "API-sleutel ingetrokken."
 #: src/Invoices.php:955
 #: src/Mail/Admin.php:187
 #: src/Modules/Calendar.php:520
-#: src/Modules/Fiscalization.php:835
-#: src/Modules/Fiscalization.php:889
-#: src/Modules/Fiscalization.php:1211
-#: src/Modules/Fiscalization.php:1228
-#: src/Modules/Fiscalization.php:1249
-#: src/Modules/Fiscalization.php:1269
-#: src/Modules/Fiscalization.php:1294
-#: src/Modules/Fiscalization.php:1304
-#: src/Modules/Fiscalization.php:1314
-#: src/Modules/Fiscalization.php:1324
-#: src/Modules/Fiscalization.php:1338
+#: src/Modules/Fiscalization.php:837
+#: src/Modules/Fiscalization.php:891
+#: src/Modules/Fiscalization.php:1213
+#: src/Modules/Fiscalization.php:1230
+#: src/Modules/Fiscalization.php:1251
+#: src/Modules/Fiscalization.php:1271
+#: src/Modules/Fiscalization.php:1296
+#: src/Modules/Fiscalization.php:1306
+#: src/Modules/Fiscalization.php:1316
+#: src/Modules/Fiscalization.php:1326
+#: src/Modules/Fiscalization.php:1340
 #: src/Modules/Mollie.php:202
 #: src/Modules/Reminders.php:573
 #: src/Modules/Sms.php:546
@@ -348,7 +348,7 @@ msgstr "Er zijn geen evenementen waarvoor je sleutels mag aanmaken."
 #: src/Admin/TicketsPage.php:818
 #: src/Allocations/AdminPage.php:262
 #: src/Allocations/AdminPage.php:312
-#: src/BoxOffice/Page.php:172
+#: src/BoxOffice/Page.php:173
 #: src/BoxOffice/ShiftPage.php:439
 #: src/BoxOffice/ShiftPage.php:464
 #: src/GuestLists/Page.php:164
@@ -580,10 +580,10 @@ msgstr "Geldig tot"
 #: src/Integrations/ConnectorsPage.php:227
 #: src/Integrations/FormCaptain/EventRequests.php:512
 #: src/Integrations/WooCommerce/OrderAdapter.php:2339
-#: src/Modules/Fiscalization.php:1363
-#: src/Modules/Fiscalization.php:1372
-#: src/Modules/Fiscalization.php:1428
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1374
+#: src/Modules/Fiscalization.php:1430
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Webhooks.php:456
 #: src/Modules/Webhooks.php:490
 #: src/OfflineScanner/AdminPage.php:170
@@ -816,7 +816,7 @@ msgstr "– Kies een evenement –"
 #: src/Admin/ServiceSlotsPage.php:362
 #: src/Admin/WaitlistsPage.php:149
 #: src/Admission/RulesPage.php:181
-#: src/BoxOffice/Page.php:114
+#: src/BoxOffice/Page.php:115
 #: src/BoxOffice/ShiftPage.php:354
 #: src/GuestLists/Page.php:187
 #: src/OfflineScanner/AdminPage.php:136
@@ -888,7 +888,7 @@ msgstr "Een persoon met minstens één datumtoewijzing voor een recht bereikt me
 #: src/Admin/TicketsPage.php:888
 #: src/Admin/WaitlistsPage.php:105
 #: src/Admin/WaitlistsPage.php:146
-#: src/BoxOffice/Page.php:111
+#: src/BoxOffice/Page.php:112
 #: src/Frontend/ServiceBooking.php:136
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:250
@@ -942,7 +942,7 @@ msgstr "Datum"
 #: src/Consents.php:619
 #: src/Exchange/AdminPage.php:221
 #: src/Integrations/FormCaptain/EventRequests.php:512
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 #: src/Series/AdminPage.php:374
 msgid "Aktion"
 msgstr "Actie"
@@ -1369,7 +1369,7 @@ msgstr "Database-update mislukt"
 #: src/Admin/StatusPage.php:403
 #: src/Allocations/AdminPage.php:346
 #: src/Consents.php:619
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 #: src/Partners/Settlements.php:837
 #: src/Partners/Settlements.php:976
 #: src/Partners/Statement.php:173
@@ -1435,7 +1435,7 @@ msgstr "Factuur"
 #: src/Admin/OperationsPage.php:228
 #: src/Admin/StatusPage.php:378
 #: src/BoxOffice/ZReport.php:420
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 #: src/Partners/Settlements.php:68
 #: src/Partners/Settlements.php:837
 #: src/Partners/Statement.php:174
@@ -1578,7 +1578,7 @@ msgstr "Tijd"
 
 #: src/Admin/AuditLogPage.php:390
 #: src/Admin/OrderHistory.php:141
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 #: src/Series/AdminPage.php:374
 msgid "Details"
 msgstr "Details"
@@ -1788,7 +1788,7 @@ msgstr "Limiet bereikt"
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
 #: src/Integrations/ConnectorsPage.php:193
-#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1387
 #: src/Modules/Reminders.php:547
 #: src/Modules/Reminders.php:559
 #: src/Modules/Reminders.php:579
@@ -1829,7 +1829,7 @@ msgstr "Code"
 
 #: src/Admin/CampaignsPage.php:245
 #: src/Admin/OrdersPage.php:1215
-#: src/BoxOffice/Service.php:1249
+#: src/BoxOffice/Service.php:1260
 #: src/Invoices.php:875
 #: src/Printing/InvoicePdf.php:115
 #: src/Reports/Data.php:808
@@ -2071,7 +2071,7 @@ msgstr "Maakt codes aan die één keer kunnen worden ingewisseld, met de instell
 #: src/Admin/StatusPage.php:329
 #: src/Admin/StatusPage.php:448
 #: src/Allocations/AdminPage.php:318
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/BoxOffice/ShiftPage.php:47
 #: src/Integrations/FormCaptain/EventRequests.php:531
 #: src/Privacy.php:229
@@ -2242,7 +2242,7 @@ msgstr "Tijdzone"
 #: src/Mail/Types.php:581
 #: src/Mail/Types.php:601
 #: src/Mail/Types.php:629
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 #: src/Notifications.php:186
 #: src/PublicEvents.php:1223
 #: src/Reminders/Placeholders.php:15
@@ -2263,7 +2263,7 @@ msgstr "Contingent"
 #: src/Admin/ChangeHistory.php:126
 #: src/Admin/EventsPage.php:902
 #: src/Admin/EventsPage.php:1988
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Partners/AdminPage.php:502
 #: src/Passes/AdminPage.php:175
 #: src/Sales/AdminSections.php:148
@@ -2417,7 +2417,7 @@ msgstr "Label"
 #: src/Allocations/AdminPage.php:262
 #: src/Allocations/AdminPage.php:315
 #: src/Allocations/AdminPage.php:346
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Consents.php:619
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:268
@@ -2672,7 +2672,7 @@ msgstr "Nog geen wijzigingen vastgelegd."
 #: src/Admin/ChangeHistory.php:283
 #: src/Admin/CheckinsPage.php:101
 #: src/Admin/SettingsTools.php:399
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Zeitpunkt"
 msgstr "Tijdstip"
 
@@ -2847,8 +2847,9 @@ msgid "Konnektoren"
 msgstr "Connectoren"
 
 #: src/Admin/Dashboard.php:131
-#: src/Modules/Fiscalization.php:1186
-#: src/Modules/Fiscalization.php:1346
+#: src/Fiscalization/ShiftClosing.php:209
+#: src/Modules/Fiscalization.php:1188
+#: src/Modules/Fiscalization.php:1348
 msgid "Fiskalisierung"
 msgstr "Fiscalisering"
 
@@ -2940,7 +2941,7 @@ msgid "Pass Captain: Überblick"
 msgstr "Pass Captain: overzicht"
 
 #: src/Admin/DashboardWidget.php:99
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ZReport.php:366
 #: src/BoxOffice/ZReport.php:379
 msgid "Verkäufe"
@@ -4074,7 +4075,7 @@ msgid "← Zur Eventliste"
 msgstr "← Naar evenementenlijst"
 
 #: src/Admin/EventsPage.php:1467
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Partners/Settlements.php:61
 #: src/Sales/TaxProfilesPage.php:56
 msgid "Entwurf"
@@ -5523,7 +5524,7 @@ msgstr "E-mail zoeken"
 #: src/Admin/MembershipsPage.php:229
 #: src/Admin/SettingsTools.php:261
 #: src/Admin/TicketsPage.php:894
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 #: src/Exchange/AdminPage.php:210
 #: src/GuestLists/Page.php:322
 #: src/OfflineScanner/I18n.php:225
@@ -6057,7 +6058,7 @@ msgid "Keine Buchungen."
 msgstr "Geen boekingen."
 
 #: src/Admin/Notices.php:65
-#: src/BoxOffice/Page.php:363
+#: src/BoxOffice/Page.php:384
 #: src/LegacySlug.php:361
 msgid "Hinweis für mich ausblenden"
 msgstr "Melding voor mij verbergen"
@@ -6311,7 +6312,7 @@ msgstr "Bestelling #%d"
 #: src/Admin/OperationsPage.php:386
 #: src/Admin/OrdersPage.php:1052
 #: src/Admin/TicketsPage.php:773
-#: src/BoxOffice/Service.php:716
+#: src/BoxOffice/Service.php:727
 #: src/Mail/Types.php:416
 #: src/Mollie/MollieGateway.php:123
 #: src/Mollie/MollieGateway.php:469
@@ -6412,7 +6413,7 @@ msgstr "Item %d selecteren"
 #: src/Admin/OperationsPage.php:444
 #: src/Admin/OperationsPage.php:454
 #: src/Admin/StatusPage.php:361
-#: src/Modules/Fiscalization.php:1438
+#: src/Modules/Fiscalization.php:1440
 msgid "Erneut versuchen"
 msgstr "Opnieuw proberen"
 
@@ -6505,7 +6506,7 @@ msgstr "Bron"
 
 #: src/Admin/OrderHistory.php:141
 #: src/Integrations/ConnectorsPage.php:207
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Webhooks.php:490
 msgid "Ereignis"
 msgstr "Gebeurtenis"
@@ -6600,7 +6601,7 @@ msgstr "Extern terugbetaald – afronden"
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/ServiceSlotsPage.php:327
 #: src/Admin/TicketsPage.php:796
-#: src/BoxOffice/Page.php:324
+#: src/BoxOffice/Page.php:326
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:203
 #: src/BoxOffice/ShiftPage.php:394
@@ -6914,7 +6915,7 @@ msgid "Summe"
 msgstr "Totaal"
 
 #: src/Admin/OrdersPage.php:805
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Zahlart"
@@ -7379,7 +7380,7 @@ msgstr "Onbetaalde bestelling annuleren en reservering vrijgeven?"
 
 #: src/Admin/OrdersPage.php:1361
 #: src/Admin/ServiceSlotsPage.php:325
-#: src/BoxOffice/Page.php:324
+#: src/BoxOffice/Page.php:326
 #: src/GuestLists/Page.php:278
 msgid "Stornieren"
 msgstr "Annuleren"
@@ -9015,7 +9016,7 @@ msgstr "Modus"
 
 #: src/Admin/SettingsPage.php:232
 #: src/Mail/Admin.php:118
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Operations/SiteHealth.php:734
 msgid "Test"
 msgstr "Test"
@@ -9598,7 +9599,7 @@ msgstr "Toestemming bij het afrekenen is actief, maar voor de standaardtaal is g
 #: src/Admin/SettingsPage.php:857
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
-#: src/BoxOffice/Page.php:600
+#: src/BoxOffice/Page.php:622
 #: src/Modules/Calendar.php:516
 #: src/Modules/Mollie.php:198
 #: src/Modules/Reminders.php:538
@@ -10183,8 +10184,8 @@ msgstr "Connector"
 #: src/Admin/SuiteStatus.php:103
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TaxPage.php:141
-#: src/BoxOffice/Page.php:175
-#: src/Modules/Fiscalization.php:1372
+#: src/BoxOffice/Page.php:176
+#: src/Modules/Fiscalization.php:1374
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:110
 #: src/Seating/AdminPage.php:209
@@ -10280,7 +10281,7 @@ msgstr "Geen actief tickettype met belastingklasse voor aankomende data. Alle ve
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TaxPage.php:138
 #: src/Billing.php:147
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 #: src/Sales/TaxProfilesPage.php:79
 #: src/Sales/TaxProfilesPage.php:106
 msgid "Land"
@@ -10488,7 +10489,7 @@ msgid "Bitte einen Grund für die Korrektur angeben."
 msgstr "Geef een reden voor de correctie op."
 
 #: src/Admin/TicketsPage.php:233
-#: src/BoxOffice/Service.php:438
+#: src/BoxOffice/Service.php:449
 #: src/GuestLists/Service.php:240
 #: src/GuestLists/Service.php:458
 msgid "Die E-Mail-Adresse ist ungültig."
@@ -11585,7 +11586,7 @@ msgstr "Gebruik van de contingenten"
 
 #: src/Allocations/AdminPage.php:346
 #: src/Exchange/AdminPage.php:149
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/Reports/Data.php:792
 #: src/Reports/Settlement.php:265
 #: src/Reports/Settlement.php:269
@@ -11989,7 +11990,7 @@ msgid "Straße und Hausnummer"
 msgstr "Straat en huisnummer"
 
 #: src/Billing.php:144
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "PLZ"
 msgstr "Postcode"
 
@@ -12128,234 +12129,234 @@ msgstr "Kassa's"
 #: src/BoxOffice/ShiftPage.php:372
 #: src/BoxOffice/ZReport.php:355
 #: src/Exchange/AdminPage.php:43
-#: src/Modules/BoxOffice.php:436
+#: src/Modules/BoxOffice.php:440
 #: src/Reports/Data.php:131
 #: src/Reports/Settlement.php:276
 #: src/Reports/Settlement.php:277
 msgid "Kasse"
 msgstr "Kassa"
 
-#: src/BoxOffice/Page.php:67
+#: src/BoxOffice/Page.php:68
 msgid "Kassenbereiche"
 msgstr "Kassaonderdelen"
 
 #. translators: 1: receipt number, 2: amount
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:88
 #, php-format
 msgid "Verkauf gebucht: Beleg %1$s über %2$s."
 msgstr "Verkoop geboekt: bon %1$s voor %2$s."
 
 #. translators: 1: receipt number, 2: amount
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:88
 msgid "Beleg drucken"
 msgstr "Bon afdrukken"
 
-#: src/BoxOffice/Page.php:90
+#: src/BoxOffice/Page.php:91
 msgid "Tickets drucken (PDF)"
 msgstr "Tickets afdrukken (PDF)"
 
-#: src/BoxOffice/Page.php:96
+#: src/BoxOffice/Page.php:97
 msgid "Deine Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
 msgstr "Je dienst wordt op dit moment geteld; verkopen zijn pas in de volgende dienst mogelijk."
 
-#: src/BoxOffice/Page.php:96
+#: src/BoxOffice/Page.php:97
 msgid "Zum Kassenabschluss"
 msgstr "Naar de kassa-afsluiting"
 
-#: src/BoxOffice/Page.php:120
+#: src/BoxOffice/Page.php:121
 #: src/Passes/AdminPage.php:140
 #: src/Series/AdminPage.php:714
 msgid "Verfügbar"
 msgstr "Beschikbaar"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze)."
 msgstr "Zaalplan: stoelen worden automatisch toegewezen (beste vrije plaatsen)."
 
 #. translators: %s: list of field labels
-#: src/BoxOffice/Page.php:130
+#: src/BoxOffice/Page.php:131
 #, php-format
 msgid "Pflichtangaben je Ticket: %s"
 msgstr "Verplichte gegevens per ticket: %s"
 
 #. translators: %s: ticket type
 #. translators: %s: denomination
-#: src/BoxOffice/Page.php:132
+#: src/BoxOffice/Page.php:133
 #: src/BoxOffice/ShiftPage.php:49
 #, php-format
 msgid "Anzahl %s"
 msgstr "Aantal %s"
 
-#: src/BoxOffice/Page.php:136
+#: src/BoxOffice/Page.php:137
 msgid "An der Kasse kann kein Platz im Saalplan gewählt werden: Für Ticketarten mit Saalplan werden die besten freien Plätze automatisch vergeben und auf den Tickets angegeben. Für Wunschplätze bitte die Online-Buchung nutzen."
 msgstr "Aan de kassa kan geen plaats in het zaalplan worden gekozen: voor tickettypen met een zaalplan worden de beste vrije plaatsen automatisch toegewezen en op de tickets vermeld. Gebruik voor gewenste plaatsen de online boeking."
 
-#: src/BoxOffice/Page.php:139
+#: src/BoxOffice/Page.php:140
 msgid "Für Teilnehmerangaben wird JavaScript benötigt."
 msgstr "Voor deelnemersgegevens is JavaScript nodig."
 
-#: src/BoxOffice/Page.php:140
+#: src/BoxOffice/Page.php:141
 msgid "Summe:"
 msgstr "Totaal:"
 
-#: src/BoxOffice/Page.php:148
+#: src/BoxOffice/Page.php:149
 msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
 msgstr "Contant en kaart zijn geblokkeerd: in Duitsland en Oostenrijk vereisen deze verkopen een gecertificeerde kassaoplossing (TSE/RKSV), die Pass Captain niet heeft."
 
-#: src/BoxOffice/Page.php:154
+#: src/BoxOffice/Page.php:155
 #: src/BoxOffice/ShiftPage.php:246
 #: src/BoxOffice/ZReport.php:393
 msgid "Kartenterminal"
 msgstr "Pinautomaat"
 
-#: src/BoxOffice/Page.php:160
+#: src/BoxOffice/Page.php:161
 msgid "Gegeben (bar)"
 msgstr "Ontvangen (contant)"
 
-#: src/BoxOffice/Page.php:161
+#: src/BoxOffice/Page.php:162
 msgid "Terminal-Referenz"
 msgstr "Terminalreferentie"
 
-#: src/BoxOffice/Page.php:162
+#: src/BoxOffice/Page.php:163
 msgid "E-Mail Käufer (optional, Pflicht bei Rechnung)"
 msgstr "E-mailadres koper (optioneel, verplicht bij factuur)"
 
-#: src/BoxOffice/Page.php:164
+#: src/BoxOffice/Page.php:165
 msgid "Verkauf buchen"
 msgstr "Verkoop boeken"
 
-#: src/BoxOffice/Page.php:169
+#: src/BoxOffice/Page.php:170
 msgid "Rückgeld:"
 msgstr "Wisselgeld:"
 
 #. translators: 1: running ticket number, 2: ticket type
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/BoxOffice/Page.php:171
+#: src/BoxOffice/Page.php:172
 #: src/Integrations/WooCommerce/Attendees.php:320
 #: src/Integrations/WooCommerce/Attendees.php:474
 #, php-format
 msgid "Ticket %1$d · %2$s"
 msgstr "Ticket %1$d · %2$s"
 
-#: src/BoxOffice/Page.php:173
+#: src/BoxOffice/Page.php:174
 #: src/GuestLists/Page.php:297
 msgid "E-Mail (optional)"
 msgstr "E-mailadres (optioneel)"
 
-#: src/BoxOffice/Page.php:174
+#: src/BoxOffice/Page.php:175
 msgid "Teilnehmerangaben"
 msgstr "Deelnemersgegevens"
 
 #. translators: %s: amount with currency
-#: src/BoxOffice/Page.php:207
+#: src/BoxOffice/Page.php:208
 #, php-format
 msgid "Am Terminal bezahlen … %s"
 msgstr "Betalen op de terminal … %s"
 
-#: src/BoxOffice/Page.php:211
+#: src/BoxOffice/Page.php:212
 msgid "Die Zahlung ist erfolgt. Bitte den Verkauf in der Liste unten später „Nachbuchen“."
 msgstr "De betaling is gedaan. Gebruik later „Alsnog boeken” voor de verkoop in de lijst hieronder."
 
-#: src/BoxOffice/Page.php:211
-#: src/BoxOffice/Page.php:228
+#: src/BoxOffice/Page.php:212
+#: src/BoxOffice/Page.php:229
 msgid "Der Verkauf kann unten mit derselben oder einer anderen Zahlart neu erfasst werden."
 msgstr "De verkoop kan hieronder opnieuw worden ingevoerd met dezelfde of een andere betaalmethode."
 
-#: src/BoxOffice/Page.php:214
+#: src/BoxOffice/Page.php:215
 msgid "Bitte die Karte am Terminal vorlegen. Die Anzeige aktualisiert sich automatisch."
 msgstr "Houd de kaart bij de terminal. Deze weergave wordt automatisch bijgewerkt."
 
-#: src/BoxOffice/Page.php:215
+#: src/BoxOffice/Page.php:216
 msgid "Status aktualisieren"
 msgstr "Status vernieuwen"
 
-#: src/BoxOffice/Page.php:218
+#: src/BoxOffice/Page.php:219
 msgid "Zahlung am Terminal abbrechen"
 msgstr "Betaling op de terminal annuleren"
 
-#: src/BoxOffice/Page.php:225
+#: src/BoxOffice/Page.php:226
 msgid "Zahlung wird am Terminal abgebrochen …"
 msgstr "Betaling wordt op de terminal geannuleerd …"
 
-#: src/BoxOffice/Page.php:226
+#: src/BoxOffice/Page.php:227
 msgid "Keine Verbindung zum Server. Der Status wird erneut abgefragt …"
 msgstr "Geen verbinding met de server. De status wordt opnieuw opgevraagd …"
 
-#: src/BoxOffice/Page.php:227
+#: src/BoxOffice/Page.php:228
 msgid "Zahlung erfolgreich. Der Verkauf wird gebucht …"
 msgstr "Betaling geslaagd. De verkoop wordt geboekt …"
 
-#: src/BoxOffice/Page.php:233
+#: src/BoxOffice/Page.php:234
 msgid "Kassen- und Belegeinstellungen"
 msgstr "Kassa- en boninstellingen"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Präfix Belegnummer"
 msgstr "Voorvoegsel bonnummer"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 #: src/Mail/Admin.php:218
 #: src/Modules/PrintTemplates.php:91
 #: src/Printing/Page.php:527
 msgid "Fußzeile"
 msgstr "Voettekst"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Bediener auf Kundenbelegen"
 msgstr "Medewerker op klantbonnen"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Bedienernummer"
 msgstr "Medewerkernummer"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Initialen"
 msgstr "Initialen"
 
-#: src/BoxOffice/Page.php:235
-#: src/Modules/BoxOffice.php:426
+#: src/BoxOffice/Page.php:236
+#: src/Modules/BoxOffice.php:429
 msgid "Vollständiger Name"
 msgstr "Volledige naam"
 
-#: src/BoxOffice/Page.php:235
+#: src/BoxOffice/Page.php:236
 msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
 msgstr "Contante en kaartverkopen worden ook in onze eigen gecertificeerde kassa (TSE/RKSV) vastgelegd – contant en kaart hier toestaan"
 
-#: src/BoxOffice/Page.php:242
+#: src/BoxOffice/Page.php:244
 msgid "Zugelassene Kassenregister (eine Zeile je Register)"
 msgstr "Toegestane kassaregisters (één regel per register)"
 
-#: src/BoxOffice/Page.php:242
+#: src/BoxOffice/Page.php:244
 msgid "Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen."
 msgstr "Formaat: locatie-ID|kassa-ID|weergavenaam. Voorbeeld: 23|BOX-01|Kassa hoofdingang. Zodra er regels zijn opgeslagen, kunnen kassiers alleen nog een toegestaan register kiezen."
 
-#: src/BoxOffice/Page.php:243
+#: src/BoxOffice/Page.php:245
 msgid "Kassen- und Belegeinstellungen speichern"
 msgstr "Kassa- en boninstellingen opslaan"
 
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 msgid "Beleg suchen (Storno früherer Schichten)"
 msgstr "Bon zoeken (annulering van eerdere diensten)"
 
-#: src/BoxOffice/Page.php:252
+#: src/BoxOffice/Page.php:254
 msgid "Belegnummer"
 msgstr "Bonnummer"
 
-#: src/BoxOffice/Page.php:257
+#: src/BoxOffice/Page.php:259
 msgid "Kein Beleg mit dieser Nummer gefunden."
 msgstr "Geen bon met dit nummer gevonden."
 
 #. translators: 1: register, 2: shift id, 3: time
-#: src/BoxOffice/Page.php:273
+#: src/BoxOffice/Page.php:275
 #: src/BoxOffice/ShiftPage.php:166
 #, php-format
 msgid "Kasse „%1$s“ · Schicht #%2$d (seit %3$s)"
 msgstr "Kassa „%1$s” · dienst #%2$d (sinds %3$s)"
 
 #. translators: 1: location ID, 2: register ID
-#: src/BoxOffice/Page.php:276
+#: src/BoxOffice/Page.php:278
 #, php-format
 msgid "Standort %1$d · Kasse %2$s"
 msgstr "Locatie %1$d · kassa %2$s"
@@ -12364,7 +12365,7 @@ msgstr "Locatie %1$d · kassa %2$s"
 #. translators: 1: location ID, 2: register ID
 #: src/Admin/SettingsTools.php:264
 #: src/Admin/SettingsTools.php:274
-#: src/BoxOffice/Page.php:276
+#: src/BoxOffice/Page.php:278
 #: src/Mail/Admin.php:205
 #: src/Mail/Admin.php:236
 #: src/WalletPasses/AdminPage.php:106
@@ -12372,111 +12373,111 @@ msgid "Standard"
 msgstr "Standaard"
 
 #. translators: 1: sales, 2: stornos
-#: src/BoxOffice/Page.php:279
+#: src/BoxOffice/Page.php:281
 #, php-format
 msgid "Verkäufe %1$d · Stornos %2$d. Blindzählung: Beträge und Soll-Bestand werden erst nach der Zählung angezeigt."
 msgstr "Verkopen %1$d · annuleringen %2$d. Blinde telling: bedragen en het verwachte saldo worden pas na de telling getoond."
 
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 #: src/BoxOffice/ZReport.php:367
 msgid "Stornos/Erstattungen"
 msgstr "Annuleringen/terugbetalingen"
 
-#: src/BoxOffice/Page.php:281
+#: src/BoxOffice/Page.php:283
 msgid "Netto-Umsatz"
 msgstr "Netto-omzet"
 
 #. translators: 1: opening cash, 2: expected cash
-#: src/BoxOffice/Page.php:285
+#: src/BoxOffice/Page.php:287
 #, php-format
 msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Beginsaldo %1$s · verwacht kassasaldo (contant) %2$s"
 
-#: src/BoxOffice/Page.php:290
+#: src/BoxOffice/Page.php:292
 msgid "Verkäufe dieser Schicht"
 msgstr "Verkopen van deze dienst"
 
-#: src/BoxOffice/Page.php:294
+#: src/BoxOffice/Page.php:296
 msgid "Einlage/Entnahme, Zählung und Kassenabschluss"
 msgstr "Storting/opname, telling en kassa-afsluiting"
 
-#: src/BoxOffice/Page.php:302
+#: src/BoxOffice/Page.php:304
 msgid "(nicht gebucht)"
 msgstr "(niet geboekt)"
 
-#: src/BoxOffice/Page.php:302
-#: src/BoxOffice/Service.php:1242
+#: src/BoxOffice/Page.php:304
+#: src/BoxOffice/Service.php:1253
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:210
 msgid "Beleg"
 msgstr "Bon"
 
-#: src/BoxOffice/Page.php:310
+#: src/BoxOffice/Page.php:312
 msgid "Nachbuchen"
 msgstr "Alsnog boeken"
 
-#: src/BoxOffice/Page.php:315
+#: src/BoxOffice/Page.php:317
 msgid "Storno ablehnen"
 msgstr "Annulering afwijzen"
 
-#: src/BoxOffice/Page.php:317
+#: src/BoxOffice/Page.php:319
 msgid "Stornobeleg"
 msgstr "Annuleringsbon"
 
-#: src/BoxOffice/Page.php:322
+#: src/BoxOffice/Page.php:324
 msgid "Wirklich stornieren?"
 msgstr "Echt annuleren?"
 
-#: src/BoxOffice/Page.php:326
+#: src/BoxOffice/Page.php:328
 msgid "Nur einzelne Tickets stornieren"
 msgstr "Alleen afzonderlijke tickets annuleren"
 
-#: src/BoxOffice/Page.php:328
+#: src/BoxOffice/Page.php:330
 #: src/Integrations/WooCommerce/OrderAdapter.php:2336
 msgid "eingecheckt"
 msgstr "ingecheckt"
 
-#: src/BoxOffice/Page.php:333
+#: src/BoxOffice/Page.php:335
 msgid "Ausnahme für eingecheckte Tickets, Grund:"
 msgstr "Uitzondering voor ingecheckte tickets, reden:"
 
-#: src/BoxOffice/Page.php:360
+#: src/BoxOffice/Page.php:381
 msgid "Wichtiger Hinweis:"
 msgstr "Belangrijke opmerking:"
 
-#: src/BoxOffice/Page.php:361
+#: src/BoxOffice/Page.php:382
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
 msgstr "De kassa is geen kasregistratiesysteem in de zin van de RKSV (AT) of de KassenSichV/TSE (DE). Voor contante en kaartbetalingen ter plaatse is een gecertificeerde handtekeningeenheid vereist."
 
-#: src/BoxOffice/Page.php:362
+#: src/BoxOffice/Page.php:383
 msgid "Mehr dazu in der Dokumentation"
 msgstr "Meer informatie in de documentatie"
 
-#: src/BoxOffice/Page.php:362
+#: src/BoxOffice/Page.php:383
 msgid "(öffnet in neuem Tab)"
 msgstr "(opent in een nieuw tabblad)"
 
-#: src/BoxOffice/Page.php:451
+#: src/BoxOffice/Page.php:472
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annulering aangemaakt; deze wacht op goedkeuring."
 
-#: src/BoxOffice/Page.php:451
+#: src/BoxOffice/Page.php:472
 msgid "Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken."
 msgstr "Annulering geboekt. Betaal het bedrag uit of schrijf het terug op de pinterminal en druk de annuleringsbon af."
 
-#: src/BoxOffice/Page.php:467
+#: src/BoxOffice/Page.php:488
 msgid "Verkauf gebucht."
 msgstr "Verkoop geboekt."
 
-#: src/BoxOffice/Page.php:478
+#: src/BoxOffice/Page.php:499
 msgid "Zahlung am Terminal abgebrochen."
 msgstr "Betaling op de terminal geannuleerd."
 
-#: src/BoxOffice/Page.php:518
+#: src/BoxOffice/Page.php:539
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Annulering afgewezen; de verkoop blijft bestaan."
 
-#: src/BoxOffice/Page.php:524
+#: src/BoxOffice/Page.php:545
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Voor deze verkoop is er geen bon, omdat deze niet is geboekt."
 
@@ -12510,14 +12511,14 @@ msgid "Bitte ein freigegebenes Kassenregister auswählen."
 msgstr "Kies een toegestaan kassaregister."
 
 #: src/BoxOffice/Registers.php:97
-#: src/BoxOffice/Service.php:145
+#: src/BoxOffice/Service.php:156
 #: src/BoxOffice/Shifts.php:206
-#: src/Modules/Fiscalization.php:241
+#: src/Modules/Fiscalization.php:243
 msgid "Kassen-ID ist ungültig."
 msgstr "De kassa-ID is ongeldig."
 
 #: src/BoxOffice/Registers.php:98
-#: src/BoxOffice/Service.php:146
+#: src/BoxOffice/Service.php:157
 msgid "Standort und Kasse sind nicht als Register freigegeben."
 msgstr "Deze locatie en kassa zijn niet als register toegestaan."
 
@@ -12555,162 +12556,162 @@ msgstr "Vrijkaartje"
 msgid "Karte am Terminal (automatisch)"
 msgstr "Kaart op terminal (automatisch)"
 
-#: src/BoxOffice/Service.php:158
+#: src/BoxOffice/Service.php:169
 msgid "Keine freie Kasse verfügbar."
 msgstr "Geen vrije kassa beschikbaar."
 
-#: src/BoxOffice/Service.php:216
+#: src/BoxOffice/Service.php:227
 #: src/BoxOffice/Shifts.php:475
 msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
 msgstr "Er is een kasverschil. Geef een reden op."
 
-#: src/BoxOffice/Service.php:345
-#: src/BoxOffice/Service.php:385
+#: src/BoxOffice/Service.php:356
+#: src/BoxOffice/Service.php:396
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "Het formulier is ongeldig. Laad het opnieuw."
 
-#: src/BoxOffice/Service.php:355
-#: src/BoxOffice/Service.php:615
+#: src/BoxOffice/Service.php:366
+#: src/BoxOffice/Service.php:626
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "Deze verkoop wordt momenteel verwerkt."
 
-#: src/BoxOffice/Service.php:362
-#: src/BoxOffice/Service.php:613
+#: src/BoxOffice/Service.php:373
+#: src/BoxOffice/Service.php:624
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "Deze verkoop is niet geboekt. Voer deze opnieuw in."
 
-#: src/BoxOffice/Service.php:394
-#: src/BoxOffice/Service.php:564
+#: src/BoxOffice/Service.php:405
+#: src/BoxOffice/Service.php:575
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Open eerst een kassasessie."
 
-#: src/BoxOffice/Service.php:395
+#: src/BoxOffice/Service.php:406
 msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
 msgstr "Dit kassaregister is niet meer toegestaan. Sluit de sessie en open een toegestaan register."
 
-#: src/BoxOffice/Service.php:401
+#: src/BoxOffice/Service.php:412
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
 msgstr "Deze kassa verkoopt alleen tickets voor een ander evenement."
 
-#: src/BoxOffice/Service.php:405
+#: src/BoxOffice/Service.php:416
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Contante en kaartbetalingen aan de kassa vereisen in Duitsland en Oostenrijk een gecertificeerde kassaoplossing (TSE/RKSV). Pass Captain ondertekent geen bonnen. Kies vrijkaart of factuur, of bevestig in de boninstellingen dat deze verkopen in een gecertificeerde kassa worden vastgelegd."
 
-#: src/BoxOffice/Service.php:407
-#: src/BoxOffice/Service.php:414
+#: src/BoxOffice/Service.php:418
+#: src/BoxOffice/Service.php:425
 msgid "Bitte eine Zahlart wählen."
 msgstr "Kies een betaalmethode."
 
-#: src/BoxOffice/Service.php:409
+#: src/BoxOffice/Service.php:420
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
 msgstr "Voor vrijkaartjes aan de kassa is de bevoegdheid nodig om vrijkaartjes goed te keuren."
 
-#: src/BoxOffice/Service.php:417
+#: src/BoxOffice/Service.php:428
 msgid "Bitte ein Kartenterminal wählen."
 msgstr "Kies een pinautomaat."
 
-#: src/BoxOffice/Service.php:430
+#: src/BoxOffice/Service.php:441
 #: src/Seating/Layouts.php:678
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "Een tickettype hoort niet bij deze datum."
 
-#: src/BoxOffice/Service.php:431
+#: src/BoxOffice/Service.php:442
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "De valuta van het tickettype komt niet overeen met de kassasessie."
 
-#: src/BoxOffice/Service.php:435
+#: src/BoxOffice/Service.php:446
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Kies minstens één ticket."
 
-#: src/BoxOffice/Service.php:439
+#: src/BoxOffice/Service.php:450
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "Voor betaling op factuur is het e-mailadres van de koper vereist."
 
-#: src/BoxOffice/Service.php:467
-#: src/BoxOffice/Service.php:582
-#: src/BoxOffice/Service.php:667
+#: src/BoxOffice/Service.php:478
+#: src/BoxOffice/Service.php:593
+#: src/BoxOffice/Service.php:678
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "De verkoop kon niet worden opgeslagen."
 
-#: src/BoxOffice/Service.php:498
+#: src/BoxOffice/Service.php:509
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
 msgstr "Voor een factuur boven dit bedrag zijn naam en adres van de koper nodig. Vul deze in onder „Factuur op bedrijf/adres”."
 
-#: src/BoxOffice/Service.php:506
+#: src/BoxOffice/Service.php:517
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "De verkoop kon niet worden opgeslagen. Verstuur hem opnieuw."
 
-#: src/BoxOffice/Service.php:527
+#: src/BoxOffice/Service.php:538
 msgid "Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt."
 msgstr "De kassadienst wordt op dit moment geteld of is gesloten. De verkoop is niet geboekt; er zijn geen tickets uitgegeven."
 
-#: src/BoxOffice/Service.php:543
-#: src/BoxOffice/Service.php:703
-#: src/BoxOffice/Service.php:808
-#: src/BoxOffice/Service.php:865
+#: src/BoxOffice/Service.php:554
+#: src/BoxOffice/Service.php:714
+#: src/BoxOffice/Service.php:819
+#: src/BoxOffice/Service.php:876
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "De verkoop kon nu niet worden geboekt. Verstuur hem opnieuw."
 
-#: src/BoxOffice/Service.php:567
-#: src/BoxOffice/Service.php:612
-#: src/BoxOffice/Service.php:694
-#: src/BoxOffice/Service.php:1007
+#: src/BoxOffice/Service.php:578
+#: src/BoxOffice/Service.php:623
+#: src/BoxOffice/Service.php:705
+#: src/BoxOffice/Service.php:1018
 msgid "Verkauf nicht gefunden."
 msgstr "Verkoop niet gevonden."
 
-#: src/BoxOffice/Service.php:618
+#: src/BoxOffice/Service.php:629
 msgid "Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht."
 msgstr "De betaling op de pinautomaat is nog niet bevestigd. De verkoop wordt pas daarna geboekt."
 
-#: src/BoxOffice/Service.php:632
+#: src/BoxOffice/Service.php:643
 msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
 msgstr "De fiscale bon kon niet worden aangemaakt. Er zijn geen tickets uitgegeven en de verkoop is niet geboekt. Controleer dit onder Fiscalisering, probeer het opnieuw en gebruik daarna „Alsnog boeken”."
 
-#: src/BoxOffice/Service.php:635
+#: src/BoxOffice/Service.php:646
 msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
 msgstr "De aanbieder heeft de fiscale bon nog niet bevestigd. Tickets worden pas daarna uitgegeven; de verkoop blijft open. Gebruik later „Alsnog boeken”."
 
-#: src/BoxOffice/Service.php:637
+#: src/BoxOffice/Service.php:648
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "De bestelling is niet betaald of er zijn niet alle tickets uitgegeven. De verkoop is niet geboekt; controleer de bestelling."
 
-#: src/BoxOffice/Service.php:656
+#: src/BoxOffice/Service.php:667
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "De kassasessie is inmiddels gesloten. De verkoop is niet geboekt en de tickets zijn geannuleerd."
 
-#: src/BoxOffice/Service.php:697
-#: src/BoxOffice/Service.php:893
+#: src/BoxOffice/Service.php:708
+#: src/BoxOffice/Service.php:904
 msgid "Das Kartenterminal ist nicht mehr verfügbar."
 msgstr "De pinautomaat is niet meer beschikbaar."
 
-#: src/BoxOffice/Service.php:698
+#: src/BoxOffice/Service.php:709
 msgid "Für einen Betrag von 0,00 bitte „Freikarte“ wählen."
 msgstr "Kies voor een bedrag van 0,00 „Vrijkaartje”."
 
-#: src/BoxOffice/Service.php:764
-#: src/BoxOffice/Service.php:889
-#: src/BoxOffice/Service.php:918
+#: src/BoxOffice/Service.php:775
+#: src/BoxOffice/Service.php:900
+#: src/BoxOffice/Service.php:929
 msgid "Kein Kassenverkauf mit Terminalzahlung gefunden."
 msgstr "Geen kassaverkoop met terminalbetaling gevonden."
 
-#: src/BoxOffice/Service.php:776
+#: src/BoxOffice/Service.php:787
 msgid "Die Zahlungsreferenz fehlt."
 msgstr "De betalingsreferentie ontbreekt."
 
-#: src/BoxOffice/Service.php:782
+#: src/BoxOffice/Service.php:793
 msgid "Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten."
 msgstr "Deze verkoop is al bevestigd met een andere terminalbetaling. Betaal de tweede betaling terug op de terminal."
 
-#: src/BoxOffice/Service.php:789
+#: src/BoxOffice/Service.php:800
 msgid "Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten."
 msgstr "Voor deze verkoop wordt geen terminalbetaling meer verwacht (geannuleerd, mislukt of verlopen). Betaal een toch gedane betaling terug op de terminal."
 
-#: src/BoxOffice/Service.php:797
+#: src/BoxOffice/Service.php:808
 msgid "Pass Captain: Terminalzahlung prüfen"
 msgstr "Pass Captain: terminalbetaling controleren"
 
 #. translators: 1: order id, 2: terminal reference, 3: description of the difference
-#: src/BoxOffice/Service.php:799
+#: src/BoxOffice/Service.php:810
 #, php-format
 msgid ""
 "Bestellung %1$s (Terminal-Referenz %2$s): %3$s\n"
@@ -12722,165 +12723,165 @@ msgstr ""
 "De verkoop is niet geboekt. Betaal het op de terminal afgeschreven bedrag daar terug en registreer de verkoop opnieuw."
 
 #. translators: 1: charged amount, 2: order amount
-#: src/BoxOffice/Service.php:834
+#: src/BoxOffice/Service.php:845
 #, php-format
 msgid "Am Terminal wurde %1$s belastet, die Bestellung beträgt %2$s."
 msgstr "Op de terminal is %1$s afgeschreven, de bestelling bedraagt %2$s."
 
 #. translators: 1: charged currency, 2: order currency
-#: src/BoxOffice/Service.php:838
+#: src/BoxOffice/Service.php:849
 #, php-format
 msgid "Das Terminal meldet die Währung %1$s statt %2$s."
 msgstr "De terminal meldt de valuta %1$s in plaats van %2$s."
 
-#: src/BoxOffice/Service.php:852
+#: src/BoxOffice/Service.php:863
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "De betaling op de terminal is mislukt. De verkoop is niet geboekt; probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:853
+#: src/BoxOffice/Service.php:864
 msgid "Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "De betaling op de terminal is geannuleerd. De verkoop is niet geboekt; probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:854
+#: src/BoxOffice/Service.php:865
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Time-out: op de terminal is geen betaling bevestigd. De verkoop is niet geboekt; probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:855
+#: src/BoxOffice/Service.php:866
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Der Verkauf wurde nicht gebucht; bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "Het op de terminal afgeschreven bedrag komt niet overeen met de bestelling. De verkoop is niet geboekt; betaal de betaling op de terminal terug en registreer de verkoop opnieuw."
 
-#: src/BoxOffice/Service.php:926
+#: src/BoxOffice/Service.php:937
 msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten."
 msgstr "De betaling kon niet op de terminal worden geannuleerd (bijv. kaart al aangeboden). Wacht het resultaat op de terminal af."
 
-#: src/BoxOffice/Service.php:944
+#: src/BoxOffice/Service.php:955
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "Het op de terminal afgeschreven bedrag komt niet overeen met de bestelling. Betaal de betaling op de terminal terug en registreer de verkoop opnieuw."
 
-#: src/BoxOffice/Service.php:945
+#: src/BoxOffice/Service.php:956
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "De betaling op de terminal is mislukt. Probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:946
+#: src/BoxOffice/Service.php:957
 msgid "Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "De betaling op de terminal is geannuleerd. Probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:947
+#: src/BoxOffice/Service.php:958
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Time-out: op de terminal is geen betaling bevestigd. Probeer het opnieuw of kies een andere betaalmethode."
 
-#: src/BoxOffice/Service.php:954
+#: src/BoxOffice/Service.php:965
 msgid "Die Kartenzahlung ist bestätigt."
 msgstr "De kaartbetaling is bevestigd."
 
-#: src/BoxOffice/Service.php:1009
+#: src/BoxOffice/Service.php:1020
 #: src/BoxOffice/Shifts.php:349
 #: src/BoxOffice/Shifts.php:422
 #: src/BoxOffice/Shifts.php:595
 msgid "Kassensitzung nicht gefunden."
 msgstr "Kassasessie niet gevonden."
 
-#: src/BoxOffice/Service.php:1015
+#: src/BoxOffice/Service.php:1026
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "Alleen verkopen van de eigen kassasessie kunnen worden geannuleerd."
 
-#: src/BoxOffice/Service.php:1026
+#: src/BoxOffice/Service.php:1037
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
 msgstr "De gekozen tickets horen niet bij deze verkoop of zijn al geannuleerd."
 
-#: src/BoxOffice/Service.php:1032
+#: src/BoxOffice/Service.php:1043
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
 msgstr "Minstens één ticket is al ingecheckt. Geef voor de annulering een reden voor de uitzondering op."
 
-#: src/BoxOffice/Service.php:1033
+#: src/BoxOffice/Service.php:1044
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
 msgstr "Minstens één ticket is al ingecheckt en kan niet aan de kassa worden geannuleerd."
 
-#: src/BoxOffice/Service.php:1036
+#: src/BoxOffice/Service.php:1047
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
 msgstr "Voor de uitbetaling moet er een kassadienst geopend zijn. Open eerst een dienst."
 
-#: src/BoxOffice/Service.php:1041
+#: src/BoxOffice/Service.php:1052
 msgid "eingecheckt, Ausnahme:"
 msgstr "ingecheckt, uitzondering:"
 
-#: src/BoxOffice/Service.php:1064
+#: src/BoxOffice/Service.php:1075
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "De annulering is afgewezen of mislukt. Probeer het opnieuw."
 
-#: src/BoxOffice/Service.php:1094
+#: src/BoxOffice/Service.php:1105
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Voor deze verkoop staat geen annulering in afwachting."
 
 #. translators: %d: user ID
-#: src/BoxOffice/Service.php:1149
+#: src/BoxOffice/Service.php:1160
 #, php-format
 msgid "Bediener %d"
 msgstr "Medewerker %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:1241
+#: src/BoxOffice/Service.php:1252
 #: src/Invoices.php:727
 #: src/Invoices.php:765
 #: src/Partners/Settlements.php:910
 msgid "USt-IdNr.:"
 msgstr "Btw-nr.:"
 
-#: src/BoxOffice/Service.php:1242
+#: src/BoxOffice/Service.php:1253
 #: src/BoxOffice/ZReport.php:447
 msgid "STORNOBELEG"
 msgstr "ANNULERINGSBON"
 
-#: src/BoxOffice/Service.php:1243
+#: src/BoxOffice/Service.php:1254
 #: src/BoxOffice/ZReport.php:448
 msgid "Beleg-Nr.:"
 msgstr "Bonnr.:"
 
-#: src/BoxOffice/Service.php:1244
+#: src/BoxOffice/Service.php:1255
 msgid "Storno zu Beleg"
 msgstr "Annulering van bon"
 
-#: src/BoxOffice/Service.php:1245
+#: src/BoxOffice/Service.php:1256
 #: src/BoxOffice/ZReport.php:449
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Datum:"
 
-#: src/BoxOffice/Service.php:1245
+#: src/BoxOffice/Service.php:1256
 #: src/BoxOffice/ZReport.php:449
 msgid "Kasse/Schicht/Bediener:"
 msgstr "Kassa/dienst/medewerker:"
 
-#: src/BoxOffice/Service.php:1250
+#: src/BoxOffice/Service.php:1261
 msgid "SUMME"
 msgstr "TOTAAL"
 
 #. translators: 1: VAT rate in percent, 2: net amount
 #. translators: 1: rate, 2: net
-#: src/BoxOffice/Service.php:1252
+#: src/BoxOffice/Service.php:1263
 #: src/BoxOffice/ZReport.php:453
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "Btw %1$s %%: netto %2$s"
 
-#: src/BoxOffice/Service.php:1254
+#: src/BoxOffice/Service.php:1265
 #: src/BoxOffice/ZReport.php:455
 msgid "Zahlart:"
 msgstr "Betaalmethode:"
 
-#: src/BoxOffice/Service.php:1256
+#: src/BoxOffice/Service.php:1267
 msgid "Gegeben"
 msgstr "Ontvangen"
 
-#: src/BoxOffice/Service.php:1256
+#: src/BoxOffice/Service.php:1267
 msgid "Rückgeld"
 msgstr "Wisselgeld"
 
-#: src/BoxOffice/Service.php:1258
+#: src/BoxOffice/Service.php:1269
 msgid "Bestellung:"
 msgstr "Bestelling:"
 
-#: src/BoxOffice/Service.php:1261
+#: src/BoxOffice/Service.php:1272
 #: src/BoxOffice/ZReport.php:456
 #: src/Printing/AttendeeList.php:271
 #: src/Printing/NoShowList.php:108
@@ -13368,7 +13369,7 @@ msgid "%1$s (Standort %2$d · %3$s)"
 msgstr "%1$s (locatie %2$d · %3$s)"
 
 #: src/BoxOffice/ShiftPage.php:479
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Standort-ID (0 = Standard)"
 msgstr "Locatie-ID (0 = standaard)"
 
@@ -13770,12 +13771,12 @@ msgid "Entnahme"
 msgstr "Opname"
 
 #: src/BoxOffice/ZReport.php:419
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Storno"
 msgstr "Storno"
 
 #: src/BoxOffice/ZReport.php:421
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Korrektur"
 msgstr "Correctie"
 
@@ -15222,7 +15223,7 @@ msgstr "Versleutelde toegangsgegevens konden niet worden opgeslagen."
 
 #: src/Fiscalization/ProviderHttp.php:43
 #: src/Fiscalization/ProviderHttp.php:88
-#: src/Modules/Fiscalization.php:1644
+#: src/Modules/Fiscalization.php:1646
 msgid "Der Fiskal-Anbieter-Endpunkt ist ungültig oder nicht erlaubt (nur öffentliche HTTPS-Endpunkte; lokale Dienste nur nach Freigabe in den Einstellungen)."
 msgstr "Het eindpunt van de fiscale aanbieder is ongeldig of niet toegestaan (alleen openbare HTTPS-eindpunten; lokale diensten alleen na vrijgave in de instellingen)."
 
@@ -15384,9 +15385,9 @@ msgid "Fiskalbelege"
 msgstr "Fiscale bonnen"
 
 #: src/Fiscalization/ReceiptRenderer.php:29
-#: src/Modules/Fiscalization.php:1361
-#: src/Modules/Fiscalization.php:1372
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1374
+#: src/Modules/Fiscalization.php:1430
 #: src/Privacy.php:289
 msgid "Verkäufer"
 msgstr "Verkoper"
@@ -17386,17 +17387,17 @@ msgid "Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkä
 msgstr "Voor gemengde winkelwagens. Ticketproducten gebruiken nog steeds de verkoper van het Pass Captain-tickettype."
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Verkäuferrolle"
 msgstr "Verkopersrol"
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Betreibergesellschaft ist Verkäufer"
 msgstr "Exploitant is de verkoper"
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:216
-#: src/Modules/Fiscalization.php:1420
+#: src/Modules/Fiscalization.php:1422
 msgid "Veranstalter ist Verkäufer"
 msgstr "Organisator is de verkoper"
 
@@ -17805,9 +17806,10 @@ msgstr "Workflows"
 msgid "Läufe"
 msgstr "Uitvoeringen"
 
+#: src/Fiscalization/ShiftClosing.php:217
 #: src/Integrations/WorkflowCaptain/Status.php:103
-#: src/Modules/Fiscalization.php:1383
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1477
 #: src/Modules/Sms.php:574
 msgid "Anbieter"
 msgstr "Aanbieder"
@@ -19873,478 +19875,478 @@ msgstr "Ticket-e-mail"
 msgid "Kalenderdatei (.ics) je Termin anhängen"
 msgstr "Een agendabestand (.ics) per datum bijvoegen"
 
-#: src/Modules/Fiscalization.php:205
+#: src/Modules/Fiscalization.php:207
 msgid "Für diese Tickets ist die Belegerstellung (Fiskalisierung) derzeit nicht verfügbar. Der Kauf ist im Moment nicht möglich; bitte später erneut versuchen oder den Veranstalter kontaktieren."
 msgstr "Het aanmaken van bonnen (fiscalisering) is voor deze tickets momenteel niet beschikbaar. Kopen is op dit moment niet mogelijk; probeer het later opnieuw of neem contact op met de organisator."
 
-#: src/Modules/Fiscalization.php:209
+#: src/Modules/Fiscalization.php:211
 msgid "Die Verkäuferzuordnung dieser Tickets für die Belegerstellung ist unvollständig oder widersprüchlich. Der Kauf ist im Moment nicht möglich; bitte den Veranstalter kontaktieren."
 msgstr "De verkopertoewijzing van deze tickets voor het aanmaken van bonnen is onvolledig of tegenstrijdig. Kopen is op dit moment niet mogelijk; neem contact op met de organisator."
 
-#: src/Modules/Fiscalization.php:251
+#: src/Modules/Fiscalization.php:253
 msgid "Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig."
 msgstr "Fiscaal profiel, verkoper of niet-geheime configuratie is ongeldig."
 
-#: src/Modules/Fiscalization.php:254
+#: src/Modules/Fiscalization.php:256
 msgid "Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung."
 msgstr "Productievrijgave vereist een gedocumenteerde landencontrole, een regelsetversie en een uitdrukkelijke bevestiging."
 
-#: src/Modules/Fiscalization.php:261
+#: src/Modules/Fiscalization.php:263
 msgid "Das Ende der Gültigkeit (effective_until) muss nach dem Beginn liegen."
 msgstr "Het einde van de geldigheid (effective_until) moet na het begin liggen."
 
-#: src/Modules/Fiscalization.php:279
+#: src/Modules/Fiscalization.php:281
 msgid "Fiskalprofil konnte nicht gespeichert werden."
 msgstr "Het fiscale profiel kon niet worden opgeslagen."
 
-#: src/Modules/Fiscalization.php:296
+#: src/Modules/Fiscalization.php:298
 msgid "Verkäuferzuordnung ist ungültig."
 msgstr "De verkopertoewijzing is ongeldig."
 
-#: src/Modules/Fiscalization.php:302
+#: src/Modules/Fiscalization.php:304
 msgid "Ticketart oder aktiver Rechtsträger wurde nicht gefunden."
 msgstr "Tickettype of actieve rechtspersoon niet gevonden."
 
-#: src/Modules/Fiscalization.php:306
+#: src/Modules/Fiscalization.php:308
 msgid "Diese Ticketart wird von der Plattform in eigenem Namen verkauft (Verkaufsmodell). Als Verkäuferrolle ist „Betreibergesellschaft ist Verkäufer“ erforderlich."
 msgstr "Dit tickettype wordt door het platform op eigen naam verkocht (verkoopmodel). De verkopersrol moet „Exploitant is de verkoper” zijn."
 
-#: src/Modules/Fiscalization.php:307
+#: src/Modules/Fiscalization.php:309
 msgid "Diese Ticketart wird im Namen des Veranstalters verkauft (Verkaufsmodell Vermittler). Als Verkäuferrolle ist „Veranstalter ist Verkäufer“ erforderlich."
 msgstr "Dit tickettype wordt op naam van de organisator verkocht (verkoopmodel bemiddelaar). De verkopersrol moet „Organisator is de verkoper” zijn."
 
-#: src/Modules/Fiscalization.php:315
+#: src/Modules/Fiscalization.php:317
 msgid "Verkäuferzuordnung konnte nicht gespeichert werden."
 msgstr "De verkopertoewijzing kon niet worden opgeslagen."
 
-#: src/Modules/Fiscalization.php:326
+#: src/Modules/Fiscalization.php:328
 msgid "Kassenstellen-Zuordnung ist ungültig."
 msgstr "De kassatoewijzing is ongeldig."
 
-#: src/Modules/Fiscalization.php:329
+#: src/Modules/Fiscalization.php:331
 msgid "Kassen-ID darf nur Buchstaben, Ziffern sowie . _ : - enthalten und maximal 64 Zeichen lang sein."
 msgstr "De kassa-ID mag alleen letters, cijfers en . _ : - bevatten en maximaal 64 tekens lang zijn."
 
-#: src/Modules/Fiscalization.php:524
+#: src/Modules/Fiscalization.php:526
 msgid "WooCommerce-Position"
 msgstr "WooCommerce-regel"
 
-#: src/Modules/Fiscalization.php:683
+#: src/Modules/Fiscalization.php:685
 msgid "Unbekannte Fiskal-Ausfallregel."
 msgstr "Onbekende fiscale storingsregel."
 
-#: src/Modules/Fiscalization.php:786
+#: src/Modules/Fiscalization.php:788
 msgid "Für diesen Vorgang ist kein automatisches efsta-Storno verfügbar."
 msgstr "Voor deze transactie is geen automatisch efsta-storno beschikbaar."
 
-#: src/Modules/Fiscalization.php:790
+#: src/Modules/Fiscalization.php:792
 msgid "Ein bereits bezahlter Vorgang darf nicht als Storno automatisiert werden."
 msgstr "Een al betaalde transactie mag niet automatisch worden gestorneerd."
 
-#: src/Modules/Fiscalization.php:795
+#: src/Modules/Fiscalization.php:797
 msgid "Der unveränderbare Originalbeleg oder seine Anbieterkonfiguration fehlt."
 msgstr "De onveranderlijke originele bon of de aanbiedersconfiguratie ervan ontbreekt."
 
-#: src/Modules/Fiscalization.php:799
+#: src/Modules/Fiscalization.php:801
 msgid "Automatisches efsta-Storno ist für dieses Land nicht freigeschaltet."
 msgstr "Automatisch efsta-storno is voor dit land niet ingeschakeld."
 
-#: src/Modules/Fiscalization.php:807
+#: src/Modules/Fiscalization.php:809
 msgid "Für dieses Storno gab es bereits einen Sendeversuch. Anbieterstatus prüfen und nicht erneut senden."
 msgstr "Voor dit storno is al een verzendpoging gedaan. Controleer de status bij de aanbieder en verzend het niet opnieuw."
 
-#: src/Modules/Fiscalization.php:820
+#: src/Modules/Fiscalization.php:822
 msgid "efsta-Storno konnte nicht bestätigt werden. Anbieterstatus prüfen und keine automatische Wiederholung auslösen."
 msgstr "Het efsta-storno kon niet worden bevestigd. Controleer de status bij de aanbieder en start geen automatische herhaling."
 
-#: src/Modules/Fiscalization.php:850
+#: src/Modules/Fiscalization.php:852
 msgid "Korrekturart und Anbieter-Referenz sind erforderlich."
 msgstr "Correctietype en aanbiedersreferentie zijn verplicht."
 
-#: src/Modules/Fiscalization.php:854
+#: src/Modules/Fiscalization.php:856
 msgid "Offener Fiskalkorrekturvorgang wurde nicht gefunden."
 msgstr "Openstaande fiscale correctietaak niet gevonden."
 
-#: src/Modules/Fiscalization.php:863
+#: src/Modules/Fiscalization.php:865
 msgid "Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert."
 msgstr "Voor deze taak is al een aanbiedersreferentie vastgelegd."
 
-#: src/Modules/Fiscalization.php:980
+#: src/Modules/Fiscalization.php:982
 msgid "Fiskalvorgang wurde nicht gefunden."
 msgstr "Fiscaal document niet gevonden."
 
-#: src/Modules/Fiscalization.php:987
+#: src/Modules/Fiscalization.php:989
 msgid "Anbieter oder Verkäuferdaten fehlen."
 msgstr "Aanbieders- of verkopergegevens ontbreken."
 
-#: src/Modules/Fiscalization.php:995
+#: src/Modules/Fiscalization.php:997
 msgid "Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst."
 msgstr "De status bij de aanbieder is nog onduidelijk; er is geen nieuwe bon aangemaakt."
 
-#: src/Modules/Fiscalization.php:1003
+#: src/Modules/Fiscalization.php:1005
 msgid "Der Anbieter meldet den Beleg als erstellt, aber die erforderlichen QR-Daten fehlen. Es wurde kein zweiter Beleg erstellt."
 msgstr "De aanbieder meldt dat de bon is aangemaakt, maar de vereiste QR-gegevens ontbreken. Er is geen tweede bon aangemaakt."
 
-#: src/Modules/Fiscalization.php:1013
+#: src/Modules/Fiscalization.php:1015
 msgid "Der Anbieter hat keinen verwertbaren Status geliefert."
 msgstr "De aanbieder heeft geen bruikbare status teruggegeven."
 
-#: src/Modules/Fiscalization.php:1066
+#: src/Modules/Fiscalization.php:1068
 msgid "Pass Captain: Fiskalvorgang erfordert Eingriff"
 msgstr "Pass Captain: fiscaal document vereist actie"
 
 #. translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code
-#: src/Modules/Fiscalization.php:1069
+#: src/Modules/Fiscalization.php:1071
 #, php-format
 msgid "Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde."
 msgstr "Fiscaal document %1$d voor bestelling %2$d is mislukt. Verkoper: %3$s. Aanbieder: %4$s. Foutcode: %5$s. De ticketuitgifte blijft geblokkeerd totdat het document is gecontroleerd en opgelost."
 
-#: src/Modules/Fiscalization.php:1347
+#: src/Modules/Fiscalization.php:1349
 msgid "Änderung gespeichert."
 msgstr "Wijziging opgeslagen."
 
-#: src/Modules/Fiscalization.php:1348
+#: src/Modules/Fiscalization.php:1350
 msgid "Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen."
 msgstr "Wijziging mislukt. Controleer de invoer, de adapter en de landondersteuning."
 
-#: src/Modules/Fiscalization.php:1349
+#: src/Modules/Fiscalization.php:1351
 msgid "Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt."
 msgstr "Fiscale bonnen worden per rechtspersoon aangemaakt. Een toegewezen ticket wordt pas uitgegeven als de ingestelde adapter de bon bevestigt."
 
-#: src/Modules/Fiscalization.php:1350
+#: src/Modules/Fiscalization.php:1352
 msgid "Rechtsträger anlegen"
 msgstr "Rechtspersoon aanmaken"
 
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 msgid "Rechtlicher Name"
 msgstr "Juridische naam"
 
-#: src/Modules/Fiscalization.php:1352
+#: src/Modules/Fiscalization.php:1354
 msgid "Steuernummer / VAT-ID"
 msgstr "Belastingnummer / btw-nummer"
 
-#: src/Modules/Fiscalization.php:1353
+#: src/Modules/Fiscalization.php:1355
 msgid "VAT-ID"
 msgstr "Btw-nummer"
 
-#: src/Modules/Fiscalization.php:1353
+#: src/Modules/Fiscalization.php:1355
 #: src/Partners/AdminPage.php:328
 #: src/Partners/Repository.php:90
 #: src/Privacy.php:290
 msgid "Kontakt-E-Mail"
 msgstr "Contact-e-mailadres"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Geschäftsadresse"
 msgstr "Bedrijfsadres"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Region"
 msgstr "Regio"
 
-#: src/Modules/Fiscalization.php:1354
+#: src/Modules/Fiscalization.php:1356
 msgid "Land der Anschrift"
 msgstr "Land van het adres"
 
-#: src/Modules/Fiscalization.php:1355
+#: src/Modules/Fiscalization.php:1357
 msgid "Rechtsträger speichern"
 msgstr "Rechtspersoon opslaan"
 
-#: src/Modules/Fiscalization.php:1356
+#: src/Modules/Fiscalization.php:1358
 msgid "Länder- und Verkaufskanalprofil"
 msgstr "Land- en verkoopkanaalprofiel"
 
-#: src/Modules/Fiscalization.php:1357
+#: src/Modules/Fiscalization.php:1359
 msgid "Ein Produktivprofil erfordert dokumentierte fachliche Prüfung. Die Plugin-Freigabe ersetzt keine rechtliche oder steuerliche Prüfung."
 msgstr "Een productieprofiel vereist een gedocumenteerde vakkundige controle. De vrijgave in de plugin vervangt geen juridische of fiscale toetsing."
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Kassen-ID (leer = Standard)"
 msgstr "Kassa-ID (leeg = standaard)"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "POS/Abendkasse"
 msgstr "POS/kassa"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Eigener Checkout"
 msgstr "Eigen checkout"
 
-#: src/Modules/Fiscalization.php:1363
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1374
 msgid "Umgebung"
 msgstr "Omgeving"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 #: src/WalletPasses/AdminPage.php:192
 msgid "Produktion"
 msgstr "Productie"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Produktiv mit Adapter"
 msgstr "Productie met adapter"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Geprüft: nicht erforderlich"
 msgstr "Gecontroleerd: niet vereist"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Gesperrt"
 msgstr "Opgeschort"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Regelwerk/Profil"
 msgstr "Regelset/profiel"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Regelwerkversion"
 msgstr "Regelsetversie"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Rechts-/Prüfreferenz"
 msgstr "Juridische/controlereferentie"
 
-#: src/Modules/Fiscalization.php:1363
+#: src/Modules/Fiscalization.php:1365
 msgid "Ich bestätige die fachliche Prüfung und Freigabe dieses Profils."
 msgstr "Ik bevestig de vakkundige controle en vrijgave van dit profiel."
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Ausfallverhalten"
 msgstr "Gedrag bij storing"
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Verkauf stoppen, bis Anbieter wieder verfügbar ist"
 msgstr "Verkoop stoppen totdat de aanbieder weer beschikbaar is"
 
-#: src/Modules/Fiscalization.php:1364
+#: src/Modules/Fiscalization.php:1366
 msgid "Anbieter-gepufferter Notbetrieb (Adapterfähigkeit erforderlich)"
 msgstr "Noodbedrijf met buffer bij de aanbieder (adaptermogelijkheid vereist)"
 
-#: src/Modules/Fiscalization.php:1365
+#: src/Modules/Fiscalization.php:1367
 msgid "Zusätzliche Adapterfähigkeiten (Komma-getrennt)"
 msgstr "Extra adaptermogelijkheden (kommagescheiden)"
 
-#: src/Modules/Fiscalization.php:1366
+#: src/Modules/Fiscalization.php:1368
 msgid "Profil speichern"
 msgstr "Profiel opslaan"
 
-#: src/Modules/Fiscalization.php:1369
+#: src/Modules/Fiscalization.php:1371
 msgid "Gespeicherte Profile"
 msgstr "Opgeslagen profielen"
 
-#: src/Modules/Fiscalization.php:1370
+#: src/Modules/Fiscalization.php:1372
 msgid "Keine Länderprofile gespeichert."
 msgstr "Geen landprofielen opgeslagen."
 
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1374
 msgid "Land/Kanal/Kasse"
 msgstr "Land/kanaal/kassa"
 
-#: src/Modules/Fiscalization.php:1372
+#: src/Modules/Fiscalization.php:1374
 msgid "Regelwerk"
 msgstr "Regelset"
 
-#: src/Modules/Fiscalization.php:1376
+#: src/Modules/Fiscalization.php:1378
 msgid "Anbieter konfigurieren"
 msgstr "Aanbieder instellen"
 
-#: src/Modules/Fiscalization.php:1377
+#: src/Modules/Fiscalization.php:1379
 msgid "Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ein Adapter registriert wurde."
 msgstr "Nog geen fiscale adapter geïnstalleerd. Aanbieders blijven uitgeschakeld totdat een adapter is geregistreerd."
 
-#: src/Modules/Fiscalization.php:1383
+#: src/Modules/Fiscalization.php:1385
 msgid "Keiner"
 msgstr "Geen"
 
-#: src/Modules/Fiscalization.php:1385
+#: src/Modules/Fiscalization.php:1387
 msgid "Nicht geheime Adapter-Konfiguration (JSON)"
 msgstr "Niet-geheime adapterconfiguratie (JSON)"
 
-#: src/Modules/Fiscalization.php:1386
+#: src/Modules/Fiscalization.php:1388
 msgid "Anbieter speichern"
 msgstr "Aanbieder opslaan"
 
-#: src/Modules/Fiscalization.php:1390
+#: src/Modules/Fiscalization.php:1392
 msgid "Verbindung prüfen (keinen Beleg erstellen)"
 msgstr "Verbinding controleren (er wordt geen bon aangemaakt)"
 
-#: src/Modules/Fiscalization.php:1395
+#: src/Modules/Fiscalization.php:1397
 msgid "Zugangsdaten für Anbieter"
 msgstr "Toegangsgegevens voor aanbieder"
 
-#: src/Modules/Fiscalization.php:1399
+#: src/Modules/Fiscalization.php:1401
 msgid "Gespeicherte Zugangsdaten (Werte werden nicht angezeigt):"
 msgstr "Opgeslagen toegangsgegevens (waarden worden niet getoond):"
 
 #. translators: %s: credential field name
-#: src/Modules/Fiscalization.php:1402
+#: src/Modules/Fiscalization.php:1404
 #, php-format
 msgid "%s löschen"
 msgstr "%s verwijderen"
 
-#: src/Modules/Fiscalization.php:1406
+#: src/Modules/Fiscalization.php:1408
 msgid "Feldname"
 msgstr "Veldnaam"
 
-#: src/Modules/Fiscalization.php:1406
+#: src/Modules/Fiscalization.php:1408
 msgid "Geheimer Wert"
 msgstr "Geheime waarde"
 
-#: src/Modules/Fiscalization.php:1409
+#: src/Modules/Fiscalization.php:1411
 msgid "Zugangsdaten können derzeit nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel fehlt); das Speichern wird abgelehnt."
 msgstr "Toegangsgegevens kunnen momenteel niet versleuteld worden opgeslagen (libsodium of sleutel ontbreekt); opslaan wordt geweigerd."
 
-#: src/Modules/Fiscalization.php:1410
+#: src/Modules/Fiscalization.php:1412
 msgid "Zugangsdaten speichern"
 msgstr "Toegangsgegevens opslaan"
 
-#: src/Modules/Fiscalization.php:1413
+#: src/Modules/Fiscalization.php:1415
 msgid "Verkäufer je Ticketart"
 msgstr "Verkoper per tickettype"
 
-#: src/Modules/Fiscalization.php:1414
+#: src/Modules/Fiscalization.php:1416
 msgid "Lege zuerst mindestens einen Rechtsträger an."
 msgstr "Maak eerst ten minste één rechtspersoon aan."
 
-#: src/Modules/Fiscalization.php:1418
+#: src/Modules/Fiscalization.php:1420
 msgid "Fiskalischer Verkäufer"
 msgstr "Fiscale verkoper"
 
-#: src/Modules/Fiscalization.php:1418
+#: src/Modules/Fiscalization.php:1420
 msgid "Nicht fiskal zuordnen"
 msgstr "Geen fiscale toewijzing"
 
-#: src/Modules/Fiscalization.php:1421
+#: src/Modules/Fiscalization.php:1423
 msgid "Zuordnung speichern"
 msgstr "Toewijzing opslaan"
 
-#: src/Modules/Fiscalization.php:1424
+#: src/Modules/Fiscalization.php:1426
 msgid "Offene Fiskalvorgänge"
 msgstr "Openstaande fiscale documenten"
 
-#: src/Modules/Fiscalization.php:1426
+#: src/Modules/Fiscalization.php:1428
 msgid "Keine offenen Fiskalvorgänge."
 msgstr "Geen openstaande fiscale documenten."
 
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 msgid "Dokument"
 msgstr "Document"
 
-#: src/Modules/Fiscalization.php:1428
+#: src/Modules/Fiscalization.php:1430
 msgid "Versuche / letzter Fehler"
 msgstr "Pogingen / laatste fout"
 
-#: src/Modules/Fiscalization.php:1433
+#: src/Modules/Fiscalization.php:1435
 msgid "Status beim Anbieter abgleichen"
 msgstr "Status bij aanbieder afstemmen"
 
-#: src/Modules/Fiscalization.php:1447
+#: src/Modules/Fiscalization.php:1449
 msgid "Fiskaldaten exportieren"
 msgstr "Fiscale gegevens exporteren"
 
-#: src/Modules/Fiscalization.php:1447
+#: src/Modules/Fiscalization.php:1449
 msgid "Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente."
 msgstr "Genormaliseerde CSV-export voor archief- en bedrijfsdoeleinden; geen landspecifiek overheidsformaat. Periode in UTC, maximaal 50.000 documenten."
 
-#: src/Modules/Fiscalization.php:1449
+#: src/Modules/Fiscalization.php:1451
 msgid "Von (UTC)"
 msgstr "Van (UTC)"
 
-#: src/Modules/Fiscalization.php:1449
+#: src/Modules/Fiscalization.php:1451
 msgid "Bis (UTC)"
 msgstr "Tot (UTC)"
 
-#: src/Modules/Fiscalization.php:1450
+#: src/Modules/Fiscalization.php:1452
 msgid "CSV herunterladen"
 msgstr "CSV downloaden"
 
-#: src/Modules/Fiscalization.php:1452
+#: src/Modules/Fiscalization.php:1454
 msgid "Fiskal-Ereignisprotokoll"
 msgstr "Logboek fiscale gebeurtenissen"
 
-#: src/Modules/Fiscalization.php:1473
+#: src/Modules/Fiscalization.php:1475
 msgid "Noch keine Fiskalereignisse protokolliert."
 msgstr "Nog geen fiscale gebeurtenissen vastgelegd."
 
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Dokument/Bestellung"
 msgstr "Document/bestelling"
 
-#: src/Modules/Fiscalization.php:1475
+#: src/Modules/Fiscalization.php:1477
 msgid "Bearbeitung"
 msgstr "Afhandeling"
 
-#: src/Modules/Fiscalization.php:1482
+#: src/Modules/Fiscalization.php:1484
 msgid "Über Anbieteradapter erledigt"
 msgstr "Afgehandeld via aanbiedersadapter"
 
-#: src/Modules/Fiscalization.php:1482
+#: src/Modules/Fiscalization.php:1484
 msgid "Extern erledigt"
 msgstr "Extern afgehandeld"
 
 #. translators: 1: who completed the correction, 2: provider reference
-#: src/Modules/Fiscalization.php:1484
+#: src/Modules/Fiscalization.php:1486
 #, php-format
 msgid "%1$s · Referenz %2$s"
 msgstr "%1$s · referentie %2$s"
 
-#: src/Modules/Fiscalization.php:1491
+#: src/Modules/Fiscalization.php:1493
 msgid "efsta-Vollstorno senden"
 msgstr "Volledig efsta-storno verzenden"
 
-#: src/Modules/Fiscalization.php:1492
+#: src/Modules/Fiscalization.php:1494
 msgid "Einmaliger Sendeversuch. Bei unklarem Ergebnis Anbieterstatus prüfen; keine Wiederholung auslösen."
 msgstr "Eenmalige verzendpoging. Controleer bij een onduidelijk resultaat de status bij de aanbieder; start geen herhaling."
 
-#: src/Modules/Fiscalization.php:1494
+#: src/Modules/Fiscalization.php:1496
 msgid "Sendeversuch erfolgt. Anbieterstatus prüfen; nicht erneut senden."
 msgstr "Verzendpoging gedaan. Controleer de status bij de aanbieder; niet opnieuw verzenden."
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Korrekturart"
 msgstr "Correctietype"
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Gutschrift"
 msgstr "Creditnota"
 
-#: src/Modules/Fiscalization.php:1498
+#: src/Modules/Fiscalization.php:1500
 msgid "Beleg-/Anbieterreferenz"
 msgstr "Bon-/aanbiedersreferentie"
 
-#: src/Modules/Fiscalization.php:1499
+#: src/Modules/Fiscalization.php:1501
 msgid "Extern erledigt dokumentieren"
 msgstr "Als extern afgehandeld vastleggen"
 
-#: src/Modules/Fiscalization.php:1500
+#: src/Modules/Fiscalization.php:1502
 msgid "Nur nach Durchführung im Anbieterportal verwenden."
 msgstr "Alleen gebruiken na uitvoering in het aanbiedersportaal."
 
-#: src/Modules/Fiscalization.php:1584
+#: src/Modules/Fiscalization.php:1586
 msgid "Name und eines der unterstützten Länder AT, DE, HU oder ein weiteres EU-Land sind erforderlich."
 msgstr "Een naam en een van de ondersteunde landen AT, DE, HU of een ander EU-land zijn verplicht."
 
-#: src/Modules/Fiscalization.php:1595
+#: src/Modules/Fiscalization.php:1597
 msgid "Rechtsträger konnte nicht gespeichert werden."
 msgstr "De rechtspersoon kon niet worden opgeslagen."
 
-#: src/Modules/Fiscalization.php:1611
+#: src/Modules/Fiscalization.php:1613
 msgid "Aktiver Anbieter oder Länderunterstützung fehlt."
 msgstr "Actieve aanbieder of landondersteuning ontbreekt."
 
-#: src/Modules/Fiscalization.php:1619
+#: src/Modules/Fiscalization.php:1621
 msgid "Der Anbieter-Verbindungstest ist fehlgeschlagen."
 msgstr "De verbindingstest met de aanbieder is mislukt."
 
-#: src/Modules/Fiscalization.php:1634
+#: src/Modules/Fiscalization.php:1636
 msgid "Anbieter oder Länderunterstützung ist ungültig."
 msgstr "Aanbieder of landondersteuning is ongeldig."
 
-#: src/Modules/Fiscalization.php:1638
+#: src/Modules/Fiscalization.php:1640
 msgid "API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden."
 msgstr "API-sleutels en toegangsgegevens mogen niet in de algemene aanbiedersconfiguratie worden opgeslagen."
 
-#: src/Modules/Fiscalization.php:1648
+#: src/Modules/Fiscalization.php:1650
 msgid "Anbieter-Konfiguration konnte nicht gespeichert werden."
 msgstr "De aanbiedersconfiguratie kon niet worden opgeslagen."
 
@@ -33612,43 +33614,43 @@ msgstr "Contingenten en kooplimieten"
 msgid "Automatische Freigabe nicht genutzter Kontingente und wie Käufer für Kauflimits erkannt werden (Benutzerkonto, E-Mail-Varianten mit + oder Punkten)."
 msgstr "Automatisch vrijgeven van ongebruikte contingenten en hoe kopers voor kooplimieten worden herkend (gebruikersaccount, e-mailvarianten met + of punten)."
 
-#: src/Modules/BoxOffice.php:423
+#: src/Modules/BoxOffice.php:426
 msgid "Präfix der Kassenbon-Nummern"
 msgstr "Prefix van kassabonnummers"
 
-#: src/Modules/BoxOffice.php:423
+#: src/Modules/BoxOffice.php:426
 msgid "Vorangestellt vor die fortlaufende Bonnummer der Kasse."
 msgstr "Wordt vóór het doorlopende bonnummer van de kassa geplaatst."
 
-#: src/Modules/BoxOffice.php:424
+#: src/Modules/BoxOffice.php:427
 msgid "Fußzeile des Kassenbons"
 msgstr "Voettekst van de kassabon"
 
-#: src/Modules/BoxOffice.php:424
+#: src/Modules/BoxOffice.php:427
 msgid "Text unter jedem Kassenbon, z. B. Steuer- oder Rückgabehinweise."
 msgstr "Tekst onder elke kassabon, bijv. belasting- of retourinformatie."
 
-#: src/Modules/BoxOffice.php:425
+#: src/Modules/BoxOffice.php:428
 msgid "Kassenterminals"
 msgstr "Kassaterminals"
 
-#: src/Modules/BoxOffice.php:425
+#: src/Modules/BoxOffice.php:428
 msgid "Kartenterminals der Kasse, eines je Zeile."
 msgstr "Pinterminals van de kassa, één per regel."
 
-#: src/Modules/BoxOffice.php:426
+#: src/Modules/BoxOffice.php:429
 msgid "Kassierer auf dem Bon"
 msgstr "Kassamedewerker op de bon"
 
-#: src/Modules/BoxOffice.php:426
+#: src/Modules/BoxOffice.php:429
 msgid "Ob und wie die Person an der Kasse auf dem Bon erscheint."
 msgstr "Of en hoe de persoon aan de kassa op de bon verschijnt."
 
-#: src/Modules/BoxOffice.php:427
+#: src/Modules/BoxOffice.php:430
 msgid "Barzahlung ohne Fiskalisierung bestätigt"
 msgstr "Contante betaling zonder fiscalisering bevestigd"
 
-#: src/Modules/BoxOffice.php:427
+#: src/Modules/BoxOffice.php:430
 msgid "Bestätigung, dass die Kasse ohne angeschlossene Fiskalisierung bar kassieren darf."
 msgstr "Bevestiging dat de kassa contant mag afrekenen zonder gekoppelde fiscalisering."
 
@@ -34430,7 +34432,7 @@ msgstr "Je thema overschrijft sjablonen van Pass Captain nog in de vroegere map 
 msgid "Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. deinen SMTP-Dienst erlauben (DMARC)."
 msgstr "Het afzenderadres gebruikt het domein %1$s, de website %2$s. Om de mails te laten bezorgen, moeten SPF en DKIM voor %1$s verzending via deze server of uw SMTP-dienst toestaan (DMARC)."
 
-#: src/Modules/Fiscalization.php:1408
+#: src/Modules/Fiscalization.php:1410
 msgid "Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn du nur einzelne Felder ergänzt oder ersetzt. Werte werden nie wieder angezeigt."
 msgstr "Nieuwe waarden worden versleuteld opgeslagen in de sleutelkluis van Pass Captain (sleutel PASS_CAPTAIN_SECRET_KEY, anders afgeleid van de wp-config-salts; sleutelwissel via PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Bestaande waarden blijven behouden als u alleen afzonderlijke velden toevoegt of vervangt. Waarden worden nooit meer getoond."
 
@@ -35111,49 +35113,49 @@ msgstr "Geef een geldige PHP-datum- of tijdnotatie op, bijv. ‘d.m.Y’ of ‘H
 msgid "Bitte nach Scheinen und Münzen zählen (Stückelung); ein Gesamtbetrag allein reicht an dieser Kasse nicht."
 msgstr "Tel per biljetten en munten (coupures); alleen een totaalbedrag is bij deze kassa niet voldoende."
 
-#: src/BoxOffice/Page.php:237
+#: src/BoxOffice/Page.php:238
 msgid "Schichtregeln"
 msgstr "Dienstregels"
 
-#: src/BoxOffice/Page.php:237
-#: src/Modules/BoxOffice.php:428
+#: src/BoxOffice/Page.php:238
+#: src/Modules/BoxOffice.php:431
 msgid "Kassendifferenz ohne Begründung bis"
 msgstr "Kasverschil zonder reden tot"
 
-#: src/BoxOffice/Page.php:237
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:238
+#: src/Modules/BoxOffice.php:432
 msgid "Zählpflicht"
 msgstr "Telplicht"
 
-#: src/BoxOffice/Page.php:238
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:239
+#: src/Modules/BoxOffice.php:432
 msgid "Betrag oder Stückelung"
 msgstr "Bedrag of coupures"
 
-#: src/BoxOffice/Page.php:238
-#: src/Modules/BoxOffice.php:429
+#: src/BoxOffice/Page.php:239
+#: src/Modules/BoxOffice.php:432
 msgid "Stückelung Pflicht"
 msgstr "Coupures verplicht"
 
-#: src/BoxOffice/Page.php:239
-#: src/Modules/BoxOffice.php:430
+#: src/BoxOffice/Page.php:240
+#: src/Modules/BoxOffice.php:433
 msgid "Sprache der Kassenbons"
 msgstr "Taal van de kassabonnen"
 
-#: src/BoxOffice/Page.php:240
-#: src/Modules/BoxOffice.php:431
+#: src/BoxOffice/Page.php:241
+#: src/Modules/BoxOffice.php:434
 msgid "Blindzählung als Standard für neue Kassen"
 msgstr "Blind tellen als standaard voor nieuwe kassa’s"
 
-#: src/BoxOffice/Page.php:241
+#: src/BoxOffice/Page.php:243
 msgid "Differenzen bis zum genannten Betrag brauchen beim Abschluss und bei der Übergabe keinen Grund (0 = jede Differenz). „Stückelung Pflicht“: Anfangsbestand, Zählung und Übergabe nach Scheinen und Münzen. Sprache leer = Sprache der Kassenoberfläche."
 msgstr "Verschillen tot het genoemde bedrag hebben bij afsluiting en overdracht geen reden nodig (0 = elk verschil). ‘Coupures verplicht’: beginsaldo, telling en overdracht per biljetten en munten. Taal leeg = taal van de kassa-interface."
 
-#: src/BoxOffice/Page.php:565
+#: src/BoxOffice/Page.php:586
 msgid "„Sprache der Kassenbons“: Bitte einen Sprachcode wie de_DE oder en_US angeben oder das Feld leer lassen."
 msgstr "‘Taal van de kassabonnen’: geef een taalcode op zoals de_DE of en_US, of laat het veld leeg."
 
-#: src/BoxOffice/Page.php:576
+#: src/BoxOffice/Page.php:597
 msgid "„Kassendifferenz ohne Begründung bis“ darf nicht negativ sein."
 msgstr "‘Kasverschil zonder reden tot’ mag niet negatief zijn."
 
@@ -35161,19 +35163,19 @@ msgstr "‘Kasverschil zonder reden tot’ mag niet negatief zijn."
 msgid "Dieser Bereich kann nicht je Event übersteuert werden."
 msgstr "Dit onderdeel kan niet per evenement worden overschreven."
 
-#: src/Modules/BoxOffice.php:428
+#: src/Modules/BoxOffice.php:431
 msgid "Beim Schichtabschluss und bei der Übergabe brauchen Differenzen bis zu diesem Betrag (in Kassenwährung, z. B. 0,50) keinen Grund; sie stehen trotzdem im Z-Bericht. 0 = jede Differenz braucht einen Grund."
 msgstr "Bij dienstafsluiting en overdracht hebben verschillen tot dit bedrag (in de kassavaluta, bijv. 0,50) geen reden nodig; ze staan wel in het Z-rapport. 0 = elk verschil heeft een reden nodig."
 
-#: src/Modules/BoxOffice.php:429
+#: src/Modules/BoxOffice.php:432
 msgid "„Stückelung Pflicht“: Anfangsbestand, Abschlusszählung und Übergabe müssen nach Scheinen und Münzen gezählt werden (außer bei leerer Kasse)."
 msgstr "‘Coupures verplicht’: beginsaldo, afsluittelling en overdracht moeten per biljetten en munten worden geteld (behalve bij een lege kassa)."
 
-#: src/Modules/BoxOffice.php:430
+#: src/Modules/BoxOffice.php:433
 msgid "Sprachcode wie de_DE oder en_US. Leer = Sprache der Kassenoberfläche."
 msgstr "Taalcode zoals de_DE of en_US. Leeg = taal van de kassa-interface."
 
-#: src/Modules/BoxOffice.php:431
+#: src/Modules/BoxOffice.php:434
 msgid "Neue Kassen werden mit Blindzählung vorgeschlagen; je Kasse änderbar."
 msgstr "Nieuwe kassa’s worden voorgesteld met blind tellen; per kassa aan te passen."
 
@@ -36083,3 +36085,74 @@ msgstr "De houder kon op dit moment niet worden gewijzigd. Probeer het opnieuw."
 #: src/WalletPasses/Service.php:101
 msgid "Übertragene oder neu ausgestellte Tickets erhalten ihre Pässe mit der jeweiligen E-Mail."
 msgstr "Overgedragen of opnieuw uitgegeven tickets krijgen hun passen met de betreffende e-mail."
+
+#: src/BoxOffice/Page.php:242
+#: src/Modules/BoxOffice.php:435
+msgid "Schichtabschluss an den Fiskal-Anbieter melden"
+msgstr "Dienstafsluiting aan de fiscale aanbieder melden"
+
+#: src/BoxOffice/Page.php:242
+#: src/Modules/BoxOffice.php:435
+msgid "Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung."
+msgstr "Bij het afsluiten van de kassa wordt de afsluiting per rechtspersoon aan de fiscale aanbieder doorgegeven, als diens adapter dat ondersteunt. Resultaat, referentie en handtekening staan in het Z-rapport en in het fiscale gebeurtenissenlogboek. Alleen met actieve module Fiscalisering."
+
+#: src/BoxOffice/Page.php:355
+msgid "Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich."
+msgstr "Geen netwerkverbinding: verkopen, annuleringen en uitbetalingen zijn geblokkeerd tot de verbinding terug is; er wordt niets tussentijds opgeslagen. Zonder netwerk zijn alleen toegangen met de scanner-app mogelijk."
+
+#: src/BoxOffice/Page.php:356
+msgid "Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich."
+msgstr "Weer online: verkopen, annuleringen en uitbetalingen zijn weer mogelijk."
+
+#: src/BoxOffice/Page.php:357
+msgid "Ohne Netzverbindung gesperrt"
+msgstr "Geblokkeerd zonder netwerkverbinding"
+
+#: src/Fiscalization/ShiftClosing.php:186
+msgid "Übermittelt"
+msgstr "Doorgegeven"
+
+#. translators: %s: error code
+#: src/Fiscalization/ShiftClosing.php:189
+#, php-format
+msgid "Fehlgeschlagen (%s)"
+msgstr "Mislukt (%s)"
+
+#: src/Fiscalization/ShiftClosing.php:191
+msgid "Vom Anbieter nicht unterstützt"
+msgstr "Niet ondersteund door de aanbieder"
+
+#: src/Fiscalization/ShiftClosing.php:193
+msgid "Anbieter nicht verfügbar"
+msgstr "Aanbieder niet beschikbaar"
+
+#: src/Fiscalization/ShiftClosing.php:195
+msgid "Nicht angefordert"
+msgstr "Niet aangevraagd"
+
+#: src/Fiscalization/ShiftClosing.php:216
+msgid "Rechtsträger"
+msgstr "Rechtspersoon"
+
+#. translators: 1: confirmed receipts, 2: open receipts
+#: src/Fiscalization/ShiftClosing.php:219
+msgid "Fiskalbelege dieser Schicht"
+msgstr "Fiscale bonnen van deze dienst"
+
+#. translators: 1: confirmed receipts, 2: open receipts
+#: src/Fiscalization/ShiftClosing.php:219
+#, php-format
+msgid "%1$d bestätigt, %2$d offen"
+msgstr "%1$d bevestigd, %2$d open"
+
+#: src/Fiscalization/ShiftClosing.php:220
+msgid "Kassenabschluss beim Anbieter"
+msgstr "Kassa-afsluiting bij de aanbieder"
+
+#: src/Fiscalization/ShiftClosing.php:222
+msgid "Abschluss-Referenz"
+msgstr "Afsluitreferentie"
+
+#: src/Fiscalization/ShiftClosing.php:223
+msgid "Signatur"
+msgstr "Handtekening"

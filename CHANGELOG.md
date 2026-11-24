@@ -39,6 +39,11 @@
 ### Admin-Listen
 - Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
 
+### Kasse
+- Hinweis „keine Registrierkasse“ verschwindet bei eingerichteter Fiskalisierung (A257).
+- Ohne Netz: Hinweis und gesperrte Verkaufs-, Storno- und Auszahlungsknöpfe, keine Offline-Verkäufe (A527, E-13).
+- Z-Bericht mit Abschnitt „Fiskalisierung“; optionaler Schichtabschluss beim Fiskal-Anbieter (Einstellung `boxoffice_fiscal_closing`, Standard aus; `ClosingAdapterInterface`).
+
 ### Tickets und Connectoren
 - Tickets: Admin-Aktion „Inhaber ändern“ (wie eine Übertragung: neuer Code, Grund Pflicht, Audit; Hook/Webhook mit `source` `admin`).
 - Teilnehmerliste als CSV über alle Termine eines Events; Bestellportal: Wallet-Buttons je Ticket.
