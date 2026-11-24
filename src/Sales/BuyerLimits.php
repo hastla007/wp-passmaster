@@ -201,7 +201,8 @@ final class BuyerLimits {
 		if ( ! $who ) { return 0; }
 		$scope = $wpdb->prepare( 'o.event_id=%d', (int) $limit->event_id );
 		if ( (int) $limit->occurrence_id ) { $scope .= $wpdb->prepare( ' AND o.occurrence_id=%d', (int) $limit->occurrence_id ); }
-		if ( (int) $limit->ticket_type_id ) { $scope .= $wpdb->prepare( ' AND tt.ticket_type_id=%d', (int) $limit->ticket_type_id ); }
+		// A limit for all ticket types counts tickets only, never add-on products (Addons).
+		$scope .= (int) $limit->ticket_type_id ? $wpdb->prepare( ' AND tt.ticket_type_id=%d', (int) $limit->ticket_type_id ) : Addons::not_addon_sql( 'tt' );
 		$from = "{$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id";
 		$where = '(' . implode( ' OR ', $who ) . ') AND ' . $scope . $wpdb->prepare( ' AND ord.order_id<>%d', absint( $exclude_order_id ) );
 		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fragments prepared above.
@@ -235,6 +236,7 @@ final class BuyerLimits {
 				if ( ! $occurrence || (int) $occurrence->event_id !== (int) $limit->event_id ) { continue; }
 				if ( (int) $limit->occurrence_id && (int) $limit->occurrence_id !== (int) $type->occurrence_id ) { continue; }
 				if ( (int) $limit->ticket_type_id && (int) $limit->ticket_type_id !== (int) $type_id ) { continue; }
+				if ( ! (int) $limit->ticket_type_id && Addons::is_addon( $type ) ) { continue; } // Add-on products count for no "all types" limit.
 				$requested += (int) $quantity;
 			}
 			if ( ! $requested ) { continue; }

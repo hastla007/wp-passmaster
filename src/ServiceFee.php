@@ -54,7 +54,8 @@ final class ServiceFee {
 	 * @param object $type Ticket type row (service_fee_minor may be missing or NULL).
 	 */
 	public static function per_ticket( $type ) {
-		if ( ! is_object( $type ) || (int) ( $type->price_minor ?? 0 ) <= 0 ) { return 0; }
+		// Add-on products (Sales\Addons) are no tickets and carry no per-ticket fee.
+		if ( ! is_object( $type ) || (int) ( $type->price_minor ?? 0 ) <= 0 || Sales\Addons::is_addon( $type ) ) { return 0; }
 		$own = property_exists( $type, 'service_fee_minor' ) ? $type->service_fee_minor : null;
 		return max( 0, null === $own || '' === $own ? self::config()['ticket_minor'] : (int) $own );
 	}
@@ -210,7 +211,7 @@ final class ServiceFee {
 			$quantity = (int) $line['quantity'];
 			// A line that is free after its discount carries no fee.
 			if ( $quantity < 1 || (int) $line['line_total'] - (int) ( $line['discount_minor'] ?? 0 ) <= 0 ) { continue; }
-			if ( null === $first ) { $first = $index; }
+			if ( null === $first && ! Sales\Addons::is_addon( $line['type'] ) ) { $first = $index; } // The per-order fee goes with a ticket line.
 			$unit = max( 0, (int) ( $fee['ticket'][ (int) $line['type']->ticket_type_id ] ?? 0 ) );
 			if ( $unit > 0 ) {
 				$lines[] = array( 'index' => $index, 'kind' => self::KIND_TICKET, 'unit_minor' => $unit, 'total_minor' => $unit * $quantity, 'rate_bp' => (int) $line['tax_rate_bp'] );

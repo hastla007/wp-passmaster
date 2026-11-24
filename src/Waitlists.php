@@ -155,7 +155,7 @@ final class Waitlists {
 		if ( ! $event_id || ! Http::valid_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
 		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $ticket_type_id, $occurrence_id ) );
+		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'" . Sales\Addons::not_addon_sql( '' ), $ticket_type_id, $occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment: add-on products (Sales\Addons) have no waitlist (an offer could not be bought alone).
 		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $quantity > max( 1, (int) $type->max_per_order ) ) {
 			/* translators: %d: maximum number of tickets per order */

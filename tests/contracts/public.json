@@ -40,7 +40,9 @@
               "sales_start": "string|null",
               "sales_end": "string|null",
               "online_until": "string",
-              "available": "int|null"
+              "available": "int|null",
+              "kind": "string",
+              "addon_max_per_ticket": "int"
             }
           ]
         }

@@ -810,6 +810,49 @@ festlegen (leer = Einstellung, 0 = keine; Spalte `wpcap_ticket_types.service_fee
   Zurechnung zum Betreiber) ist **keine Rechts- oder Steuerberatung** und sollte vor dem Einsatz von einer
   Steuerberaterin bzw. einem Steuerberater (und für die Preisangabe ggf. rechtlich) bestätigt werden.
 
+## Zusatzprodukte: Parken, Merch, Garderobe (Schema 3.18.5)
+
+Eine Ticketart hat eine **Art**: „Ticket (Einlass)“ (Standard, alle bestehenden Ticketarten) oder
+„Zusatzprodukt“ (Spalte `wpcap_ticket_types.kind` = `ticket` | `addon`). Einstellen im Formular der
+Ticketart (*Events → Termin → Ticketart*). Ein Zusatzprodukt gehört wie jede Ticketart zu einem Termin und
+hat eigenen Preis, Steuersatz bzw. Steuerklasse und eigenes Kontingent.
+
+- **Kaufregel (serverseitig, alle Kanäle):** Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem
+  Ticket **desselben Termins in derselben Bestellung**. Optional „Höchstens je Ticket“
+  (`addon_max_per_ticket`, 0 = ohne Grenze): höchstens so viele Stück je Ticket des Termins in der
+  Bestellung. Der Checkout lehnt sonst mit HTTP 409 ab (`reason` `addon_requires_ticket` bzw.
+  `addon_limit`). Das gilt für Online-Checkout, Kasse, Freikarten, Partner-API und WooCommerce gleich.
+- **Kein Einlass:** Zusatzprodukte erzeugen **kein Ticket** – keinen QR-Code, kein PDF, keinen Wallet-Pass,
+  nichts zum Einchecken. Die Position steht in der Bestellübersicht (Bestellmail, Bestellportal) als
+  „Name (Zusatzprodukt)“, auf Rechnung und Fiskalbeleg als eigene Zeile mit eigenem Steuersatz. Abholung
+  (z. B. Parkschein, Shirt) erfolgt anhand der Bestellung; einen eigenen Abholcode gibt es nicht.
+- **Kapazität:** Zusatzprodukte belegen **keine Plätze des Termins**, nur ihr eigenes Kontingent. Die
+  Termin-Zähler (`wpcap_occurrences.sold_qty`/`held_qty`) enthalten weiter alle Einheiten; die
+  Kapazitätsprüfung, „noch X Plätze“ und „Verkauft“ in der Terminliste rechnen die Zusatzprodukte heraus.
+  Kontingentpools von Serien/Pässen und Zuteilungen (Allocations) zählen Zusatzprodukte derzeit noch mit.
+- **Keine Servicegebühr je Ticket, keine Teilnehmerdaten, keine Käuferlimits:** Auf Zusatzprodukte fällt
+  keine Servicegebühr je Ticket an; die Gebühr je Bestellung hängt an einer Ticketposition. Name je Ticket
+  und Teilnehmerfelder werden nicht abgefragt. Käuferlimits für „alle Ticketarten“ eines Events zählen
+  Zusatzprodukte nicht (ein Limit für genau diese Ticketart gilt).
+- **Erstattung:** Erstattungen sind ticketbasiert. Eine Teilerstattung von Tickets erstattet **keine**
+  Zusatzprodukte. Wird das letzte offene Ticket der Bestellung erstattet, geht der Rest der Bestellung
+  zurück – Zusatzprodukte eingeschlossen (bestehende Regel „die letzten Tickets erhalten den Restbetrag“),
+  und die Bestellung gilt als erstattet. Ein Zusatzprodukt allein erstattest du über „Betrag erstatten“;
+  dessen Kontingent wird dabei nicht freigegeben. Bei einer Bestellung über mehrere Termine bleibt das
+  Zusatzprodukt eines abgesagten Termins bestehen, solange Tickets anderer Termine offen sind.
+- **Art ändern:** Nur solange die Ticketart keine Bestellungen hat.
+- **Eventseite:** Zusatzprodukte stehen in einem eigenen Block „Zusatzprodukte“ unter den Tickets
+  (`fieldset.wpcap-addons`, Eingabefelder mit `data-kind="addon"`); sie werden nur angezeigt, wenn für den
+  Termin ein Ticket im Verkauf ist, zählen nicht für „Ausverkauft“, Warteliste und „ab“-Preis.
+  `GET /events` liefert je Ticketart `kind` und `addon_max_per_ticket`.
+- **Berichte:** Der Umsatzbericht zählt verkaufte Zusatzprodukte getrennt („Verkaufte Zusatzprodukte“,
+  Feld `addons`); ihre Beträge sind im Umsatz enthalten, sie zählen nicht als Tickets.
+- **WooCommerce:** Ein WooCommerce-Produkt kann auf ein Zusatzprodukt verweisen; die Kaufregel gilt auch
+  dort (ohne passendes Ticket im Warenkorb scheitert die Reservierung). Eine eigene Prüfung im Warenkorb
+  gibt es nicht.
+- **Kombi-/Paket-Tickets** (mehrere Termine/Ticketarten zu einem Preis) sind nicht Teil dieser Funktion
+  (Entscheidung E-05 offen).
+
 ## Zahlungsanbieter: Test- und Live-Modus (A274)
 
 - **Stripe**: Der Modus (Einstellungen → Zahlungen → Stripe, Standard „Test“) muss zum Secret Key passen:

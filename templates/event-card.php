@@ -3,7 +3,8 @@
  * Theme-overridable event card. Copy to your-theme/pass-captain/event-card.php.
  *
  * Available: $event, $types (with ->available, ->fields, ->name_required, ->description, ->attendee_name
- * off|optional|required, ->price_explanation, ->max, ->waitlist), $providers (id => gateway; empty = no
+ * off|optional|required, ->price_explanation, ->max, ->waitlist, ->kind ticket|addon and ->addon_max_per_ticket;
+ * add-on products are rendered in their own fieldset .wpcap-addons with data-kind="addon"), $providers (id => gateway; empty = no
  * payment method available, the card then says "Online-Verkauf derzeit nicht möglich"), $legal
  * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language) and
  * $card (Frontend\EventCard::context(): badges, seats left, price, other dates with their link "url", next date, limits).
@@ -23,19 +24,26 @@ $wpcap_form_id = \PassCaptain\Frontend\EventCard::form_id( $event->occurrence_id
 $wpcap_level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
 $wpcap_heading = 'h' . $wpcap_level;
 $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
+// Add-on products (parking, merchandise …, kind "addon") are listed in their own fieldset under the
+// tickets; they are only sold together with a ticket of this date and never offered on the waitlist.
+$wpcap_ticket_types = array();
+$wpcap_addon_types = array();
+foreach ( $types as $wpcap_type ) {
+	if ( 'addon' === ( $wpcap_type->kind ?? 'ticket' ) ) { $wpcap_addon_types[] = $wpcap_type; } else { $wpcap_ticket_types[] = $wpcap_type; }
+}
 // Sold-out ticket types (offered on the waitlist) and whether nothing is left to buy.
 $wpcap_soldout = array();
-foreach ( $types as $wpcap_type ) {
+foreach ( $wpcap_ticket_types as $wpcap_type ) {
 	if ( null !== $wpcap_type->available && (int) $wpcap_type->available < 1 ) { $wpcap_soldout[] = $wpcap_type; }
 }
-$wpcap_all_soldout = $types && count( $wpcap_soldout ) === count( $types );
+$wpcap_all_soldout = $wpcap_ticket_types && count( $wpcap_soldout ) === count( $wpcap_ticket_types );
 // The waitlist form is always part of the card (A456) and only shown while a type is sold out.
 $wpcap_waitlist_enabled = $types && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
 $wpcap_waitlist = $wpcap_soldout && $wpcap_waitlist_enabled;
 if ( ! isset( $card ) || ! is_array( $card ) ) { $card = \PassCaptain\Frontend\EventCard::context( $event, $types ); }
 $wpcap_doors = ! empty( $event->doors_open_at ) ? \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) : '';
 $wpcap_visible = (int) $card['visible_types'];
-$wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a single remaining type.
+$wpcap_collapse = count( $wpcap_ticket_types ) > $wpcap_visible + 1; // Never collapse a single remaining type.
 // A294: without an available payment method nothing can be ordered – say so instead of failing on submit.
 $wpcap_no_payment = ! $providers;
 // Free ticket types need no payment method: they stay orderable (the note then only concerns paid types).
@@ -77,16 +85,26 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
 	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $wpcap_form_id ); ?>" method="post" action="#" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" data-waitlist="<?php echo $wpcap_waitlist_enabled ? '1' : '0'; ?>"<?php echo isset( $event->revision ) ? ' data-revision="' . esc_attr( (int) $event->revision ) . '"' : ''; // A560: the state shown; the checkout refuses a changed one. ?> novalidate>
 		<?php $wpcap_order_fee = \PassCaptain\ServiceFee::shown()['order_minor']; // A425: display only, the server computes the fee. ?>
+		<?php foreach ( array( 'tickets' => $wpcap_ticket_types, 'addons' => $wpcap_addon_types ) as $wpcap_group => $wpcap_group_types ) :
+			$wpcap_is_addon = 'addons' === $wpcap_group;
+			if ( $wpcap_is_addon && ! $wpcap_group_types ) { continue; }
+			?>
+		<?php if ( $wpcap_is_addon ) : ?>
+		<fieldset class="wpcap-addons" aria-describedby="<?php echo esc_attr( $wpcap_form_id . '-addons-note' ); ?>">
+			<legend><?php esc_html_e( 'Zusatzprodukte', 'pass-captain' ); ?></legend>
+			<p class="wpcap-addons-note" id="<?php echo esc_attr( $wpcap_form_id . '-addons-note' ); ?>"><small><?php esc_html_e( 'Nur zusammen mit mindestens einem Ticket für diesen Termin.', 'pass-captain' ); ?></small></p>
+		<?php else : ?>
 		<fieldset class="wpcap-types"<?php echo $card['max_total'] ? ' data-max-total="' . esc_attr( $card['max_total'] ) . '"' : ''; ?><?php echo $wpcap_order_fee ? ' data-order-fee="' . esc_attr( (string) $wpcap_order_fee ) . '"' : ''; ?>>
 			<legend><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></legend>
-			<?php if ( $wpcap_order_fee && $types && ! \PassCaptain\Frontend\Format::all_free( $types ) ) : // A425: the per-order fee next to the prices, before any total. ?>
-				<p class="wpcap-order-fee"><?php echo esc_html( \PassCaptain\ServiceFee::order_note( $types[0]->currency, $wpcap_order_fee ) ); ?></p>
+			<?php if ( $wpcap_order_fee && $wpcap_ticket_types && ! \PassCaptain\Frontend\Format::all_free( $wpcap_ticket_types ) ) : // A425: the per-order fee next to the prices, before any total. ?>
+				<p class="wpcap-order-fee"><?php echo esc_html( \PassCaptain\ServiceFee::order_note( $wpcap_ticket_types[0]->currency, $wpcap_order_fee ) ); ?></p>
 			<?php endif; ?>
-			<?php foreach ( array_values( $types ) as $wpcap_index => $type ) :
+		<?php endif; ?>
+			<?php foreach ( $wpcap_group_types as $wpcap_index => $type ) :
 				$wpcap_max = \PassCaptain\Frontend\EventCard::quantity_max( $type, $event );
-				if ( $wpcap_collapse && $wpcap_index === $wpcap_visible ) :
+				if ( ! $wpcap_is_addon && $wpcap_collapse && $wpcap_index === $wpcap_visible ) :
 					?>
-					<details class="wpcap-more-types"><summary><?php echo esc_html( sprintf( /* translators: %d: number of further ticket types */ __( 'Weitere Ticketarten (%d)', 'pass-captain' ), count( $types ) - $wpcap_visible ) ); ?></summary>
+					<details class="wpcap-more-types"><summary><?php echo esc_html( sprintf( /* translators: %d: number of further ticket types */ __( 'Weitere Ticketarten (%d)', 'pass-captain' ), count( $wpcap_ticket_types ) - $wpcap_visible ) ); ?></summary>
 				<?php endif;
 				// A425 (PAngV/PrAG): the shown price includes the per-ticket service fee; data-price stays the ticket price.
 				$wpcap_fee = (int) $type->price_minor > 0 ? \PassCaptain\ServiceFee::shown( $type )['ticket_minor'] : 0;
@@ -96,13 +114,15 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 				<div class="wpcap-type wpcap-field" data-type="<?php echo esc_attr( (int) $type->ticket_type_id ); ?>">
 					<label for="<?php echo esc_attr( $wpcap_form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <span class="wpcap-type-price"><?php echo esc_html( $wpcap_price ); ?></span> <span class="wpcap-price-label"<?php echo empty( $type->price_label ) ? ' hidden' : ''; ?>><?php echo esc_html( (string) ( $type->price_label ?? '' ) ); ?></span> <small class="wpcap-base-price"<?php echo '' === $wpcap_base_price ? ' hidden' : ''; ?>><?php echo '' === $wpcap_base_price ? '' : esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'pass-captain' ), $wpcap_base_price ) ); ?></small><?php if ( ! empty( $type->price_explanation ) ) : ?> <small class="wpcap-price-explanation"><?php echo esc_html( $type->price_explanation ); ?></small><?php endif; ?><?php if ( (int) $type->tax_rate_bp && (int) $type->price_minor ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?><?php if ( $wpcap_fee ) : ?> <small class="wpcap-type-fee"><?php echo esc_html( \PassCaptain\ServiceFee::included_note( $wpcap_fee, $type->currency ) ); ?></small><?php endif; ?><?php $wpcap_notice = \PassCaptain\AdmissionChecks::buyer_notice( \PassCaptain\AdmissionChecks::for_type( $type ) ); ?><?php if ( '' !== $wpcap_notice ) : ?> <small class="wpcap-age-notice"><?php echo esc_html( $wpcap_notice ); ?></small><?php endif; ?></label>
 					<?php $wpcap_description = (string) ( $type->description ?? '' ); $wpcap_qty_id = $wpcap_form_id . '-' . $type->ticket_type_id; ?>
+					<?php if ( $wpcap_is_addon && (int) ( $type->addon_max_per_ticket ?? 0 ) > 0 ) { $wpcap_description = trim( $wpcap_description . ' ' . sprintf( /* translators: %d: units of the add-on product per ticket */ __( '(höchstens %d je Ticket)', 'pass-captain' ), (int) $type->addon_max_per_ticket ) ); } ?>
 					<?php if ( '' !== $wpcap_description ) : ?><small class="wpcap-type-description" id="<?php echo esc_attr( $wpcap_qty_id . '-desc' ); ?>"><?php echo esc_html( $wpcap_description ); ?></small><?php endif; ?>
 					<span class="wpcap-soldout"<?php echo $wpcap_max < 1 ? '' : ' hidden'; ?>><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
-					<span class="wpcap-qty-box"<?php echo $wpcap_max < 1 ? ' hidden' : ''; ?>><input id="<?php echo esc_attr( $wpcap_form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( max( 0, $wpcap_max ) ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>"<?php echo $wpcap_fee ? ' data-fee="' . esc_attr( (string) $wpcap_fee ) . '"' : ''; ?> data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>" data-name-required="<?php echo ! empty( $type->name_required ) ? '1' : '0'; ?>" data-attendee-name="<?php echo esc_attr( (string) ( $type->attendee_name ?? 'optional' ) ); ?>" data-max-per-order="<?php echo esc_attr( (int) $type->max_per_order ); ?>"<?php echo '' !== $wpcap_description ? ' aria-describedby="' . esc_attr( $wpcap_qty_id . '-desc' ) . '"' : ''; ?><?php echo ( $wpcap_no_payment && (int) $type->price_minor > 0 ) || $wpcap_max < 1 ? ' disabled' : ''; ?>></span>
+					<span class="wpcap-qty-box"<?php echo $wpcap_max < 1 ? ' hidden' : ''; ?>><input id="<?php echo esc_attr( $wpcap_form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( max( 0, $wpcap_max ) ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>"<?php echo $wpcap_fee ? ' data-fee="' . esc_attr( (string) $wpcap_fee ) . '"' : ''; ?> data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $wpcap_is_addon ? array() : $type->fields ) ); ?>" data-name-required="<?php echo ! $wpcap_is_addon && ! empty( $type->name_required ) ? '1' : '0'; ?>" data-attendee-name="<?php echo esc_attr( $wpcap_is_addon ? 'off' : (string) ( $type->attendee_name ?? 'optional' ) ); ?>"<?php echo $wpcap_is_addon ? ' data-kind="addon"' : ''; ?> data-max-per-order="<?php echo esc_attr( (int) $type->max_per_order ); ?>"<?php echo '' !== $wpcap_description ? ' aria-describedby="' . esc_attr( $wpcap_qty_id . '-desc' ) . '"' : ''; ?><?php echo ( $wpcap_no_payment && (int) $type->price_minor > 0 ) || $wpcap_max < 1 ? ' disabled' : ''; ?>></span>
 				</div>
 			<?php endforeach; ?>
-			<?php if ( $wpcap_collapse ) : ?></details><?php endif; ?>
+			<?php if ( ! $wpcap_is_addon && $wpcap_collapse ) : ?></details><?php endif; ?>
 		</fieldset>
+		<?php endforeach; ?>
 		<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>
 		<p class="wpcap-soldout-note"<?php echo $wpcap_all_soldout ? '' : ' hidden'; ?>><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'pass-captain' ); ?></p>
 		<p class="wpcap-no-payment" role="status"<?php echo ! $wpcap_all_soldout && $wpcap_no_payment && $wpcap_paid_open ? '' : ' hidden'; ?>><?php esc_html_e( 'Online-Verkauf derzeit nicht möglich. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ); ?></p>
@@ -233,7 +253,7 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 				<div class="wpcap-field wpcap-waitlist-type"<?php echo count( $wpcap_soldout ) > 1 ? '' : ' hidden'; ?>>
 					<label for="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>"><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></label>
 					<select id="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>" name="ticket_type_id">
-						<?php foreach ( $types as $wpcap_type ) : $wpcap_wl_on = in_array( (int) $wpcap_type->ticket_type_id, $wpcap_wl_ids, true ); ?><option value="<?php echo esc_attr( (int) $wpcap_type->ticket_type_id ); ?>" data-max="<?php echo esc_attr( max( 1, (int) $wpcap_type->max_per_order ) ); ?>"<?php echo $wpcap_wl_on ? '' : ' disabled hidden'; ?><?php echo (int) $wpcap_type->ticket_type_id === $wpcap_wl_first ? ' selected' : ''; ?>><?php echo esc_html( $wpcap_type->name ); ?></option><?php endforeach; ?>
+						<?php foreach ( $wpcap_ticket_types as $wpcap_type ) : $wpcap_wl_on = in_array( (int) $wpcap_type->ticket_type_id, $wpcap_wl_ids, true ); ?><option value="<?php echo esc_attr( (int) $wpcap_type->ticket_type_id ); ?>" data-max="<?php echo esc_attr( max( 1, (int) $wpcap_type->max_per_order ) ); ?>"<?php echo $wpcap_wl_on ? '' : ' disabled hidden'; ?><?php echo (int) $wpcap_type->ticket_type_id === $wpcap_wl_first ? ' selected' : ''; ?>><?php echo esc_html( $wpcap_type->name ); ?></option><?php endforeach; ?>
 					</select>
 				</div>
 				<div class="wpcap-field">

@@ -59,11 +59,12 @@ $z3m_groups_schema = array( 'schema_event_tables', 'schema_order_tables', 'schem
 $z3m_charset = $wpdb->get_charset_collate();
 $z3m_core = array_slice( $z3m_statements, 0, count( $z3m_statements ) - count( PassCaptain\Modules::schema( $wpdb->prefix, $z3m_charset ) ) );
 $z3m_norm = str_replace( array( $wpdb->prefix . 'wpcap_', $z3m_charset ), array( '{prefix}wpcap_', '{charset}' ), implode( "\n", $z3m_core ) );
-$z3m_fixture = array( '3.18.4' => array( 64, '3de7fababdcbcad3d8d22df437260388d9e75ef8d0b389a57805641362aa3700' ) );
+// 3.18.5: wpcap_ticket_types.kind and addon_max_per_ticket (add-on products, Sales\Addons).
+$z3m_fixture = array( '3.18.4' => array( 64, '3de7fababdcbcad3d8d22df437260388d9e75ef8d0b389a57805641362aa3700' ), '3.18.5' => array( 64, '515f8cc5c14b224dc84412e2084f97702c6c0377af23c6506fc0cd2bfa8e7e6d' ) );
 if ( isset( $z3m_fixture[ Installer::DB_VERSION ] ) ) {
 	check( 'A401 core CREATE TABLE statements byte-identical to before the split (64 statements, normalised sha256)', array( count( $z3m_core ), hash( 'sha256', $z3m_norm ) ) === $z3m_fixture[ Installer::DB_VERSION ] );
 } else {
-	echo '  note A401 schema fixture recorded for 3.18.4 only (now ' . Installer::DB_VERSION . ")\n";
+	echo '  note A401 schema fixture recorded for ' . implode( ', ', array_keys( $z3m_fixture ) ) . ' only (now ' . Installer::DB_VERSION . ")\n";
 }
 $z3m_parts = array();
 foreach ( $z3m_groups_schema as $z3m_group ) { $z3m_parts = array_merge( $z3m_parts, ( new ReflectionMethod( Installer::class, $z3m_group ) )->invoke( null, $z3m_charset ) ); }

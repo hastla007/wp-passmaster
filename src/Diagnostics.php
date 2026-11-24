@@ -121,16 +121,19 @@ final class Diagnostics {
 	private static function orders_missing_tickets( $limit ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		// Lines of add-on products get no tickets (Orders::addon_free_join(), a literal join).
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 		return (array) $wpdb->get_results( $wpdb->prepare(
 			'SELECT ord.order_id, ord.public_id, ord.updated_at, SUM(GREATEST(0, CAST(oi.qty AS SIGNED) - COALESCE(t.n,0))) AS missing
 			FROM %i ord
-			INNER JOIN (SELECT order_id, ticket_type_id, SUM(quantity) AS qty FROM %i GROUP BY order_id, ticket_type_id) oi ON oi.order_id=ord.order_id
+			INNER JOIN (SELECT oi.order_id, oi.ticket_type_id, SUM(oi.quantity) AS qty FROM %i oi' . \PassCaptain\Orders::addon_free_join() . ' GROUP BY oi.order_id, oi.ticket_type_id) oi ON oi.order_id=ord.order_id
 			LEFT JOIN (SELECT order_id, ticket_type_id, COUNT(*) AS n FROM %i GROUP BY order_id, ticket_type_id) t ON t.order_id=oi.order_id AND t.ticket_type_id=oi.ticket_type_id
 			WHERE ord.payment_status=\'paid\' AND ord.updated_at<%s
 			GROUP BY ord.order_id, ord.public_id, ord.updated_at HAVING missing>0 ORDER BY ord.order_id LIMIT %d', $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_tickets',
 			self::gmt( self::ISSUE_GRACE ),
 			max( 1, (int) $limit )
 		) );
+		// phpcs:enable
 	}
 
 	public static function check_paid_without_tickets() {

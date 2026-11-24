@@ -333,6 +333,9 @@ final class Orders {
 			}
 			$s->types[ $type_id ] = $type;
 		}
+		// Add-on products (Sales\Addons) only with a main ticket of the same occurrence, at most n per ticket.
+		$addon_error = Sales\Addons::checkout_error( $s->clean_lines, $s->types );
+		if ( '' !== $addon_error ) { throw new \RuntimeException( $addon_error ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
 		// Hidden / code-only ticket types (Sales\Visibility): the public checkout needs an unlock code; other
 		// channels are trusted. The type's own code list is checked here (no query in the lock phase); a
 		// type unlocked by a campaign code is checked after Campaigns::calculate() (locked campaign rows).
@@ -413,8 +416,8 @@ final class Orders {
 			// cleanup job; updating them here took gap locks that deadlocked concurrent checkouts.
 			// Every statement is checked: after a deadlock or lock wait timeout MariaDB rolls the
 			// transaction back (releasing the capacity locks) and later statements would autocommit.
-			// Several ticket types of one occurrence: its capacity is checked for their sum.
-			$occurrence_demand[ (int) $occurrence->occurrence_id ] = ( $occurrence_demand[ (int) $occurrence->occurrence_id ] ?? 0 ) + $quantity;
+			// Several ticket types of one occurrence: its capacity is checked for their sum (add-ons use no seats).
+			$occurrence_demand[ (int) $occurrence->occurrence_id ] = ( $occurrence_demand[ (int) $occurrence->occurrence_id ] ?? 0 ) + ( Sales\Addons::is_addon( $type ) ? 0 : $quantity );
 			$capacity_error = self::capacity_error( $type, $occurrence, $quantity, 0, $occurrence_demand[ (int) $occurrence->occurrence_id ] );
 			if ( $capacity_error ) {
 				throw new \RuntimeException( $capacity_error ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- error code, caught in create_attempt().
@@ -1096,7 +1099,10 @@ final class Orders {
 				}
 			}
 		}
+		// Add-on products (Sales\Addons) get no tickets, so no attendee data is asked or kept for them.
+		$addon_types = Sales\Addons::addon_ids( $known_types );
 		foreach ( $lines as $type_id => $quantity ) {
+			if ( in_array( (int) $type_id, $addon_types, true ) ) { continue; }
 			$fields = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . ParticipantFields::columns() . ",status FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d" . ( $strict ? '' : " AND status='active'" ) . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- static column list.
 			// Inactive fields are only read to tell "no longer offered" from "unknown" (A681).
 			$inactive = array();
@@ -1419,7 +1425,9 @@ final class Orders {
 			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
 			'manual_hold_limit' => __( 'Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
 			'small_business_vat' => __( 'Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ),
-			'manual_event_hold_limit' => __('Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'manual_event_hold_limit' => __( 'Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'addon_requires_ticket' => __( 'Zusatzprodukte kannst du nur zusammen mit mindestens einem Ticket für denselben Termin bestellen.', 'pass-captain' ),
+			'addon_limit' => __( 'Für dieses Zusatzprodukt sind pro Ticket nicht so viele Stück möglich.', 'pass-captain' ),
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
@@ -1705,20 +1713,27 @@ final class Orders {
 				return 'sold_out';
 			}
 		}
-		if ( (int) $occurrence->capacity > 0 ) {
+		if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) {
 			// The occurrence's types first, then one range per type on counted_type (ticket_type_id,
 			// counted_qty): a join would read every historical hold of each type (A429).
-			$occ_types = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ) );
+			// Add-on products (Sales\Addons) use no seats: the occurrence counters hold the units of every
+			// type, so the add-on types' own counters are taken off again (and their holds are not "lapsed").
+			$occ_rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,sold_qty,held_qty' . Sales\Addons::column_sql( '' ) . " FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal column list.
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
+			$occ_types = array();
+			$addon_units = 0;
+			foreach ( $occ_rows as $occ_row ) {
+				if ( Sales\Addons::is_addon( $occ_row ) ) { $addon_units += (int) $occ_row->sold_qty + (int) $occ_row->held_qty; } else { $occ_types[] = (int) $occ_row->ticket_type_id; }
+			}
 			$lapsed = $occ_types ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $occ_types ) . ") AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $now ) ) : 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			$own = 0;
 			if ( $exclude_order_id ) {
-				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.counted_qty),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d AND tt.occurrence_id=%d", $exclude_order_id, $occurrence->occurrence_id ) )
-					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE r.order_id=%d AND tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $exclude_order_id, $occurrence->occurrence_id, $now ) );
+				$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.counted_qty),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d AND tt.occurrence_id=%d" . Sales\Addons::not_addon_sql( 'tt' ), $exclude_order_id, $occurrence->occurrence_id ) ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
+					+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE r.order_id=%d AND tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s" . Sales\Addons::not_addon_sql( 'tt' ), $exclude_order_id, $occurrence->occurrence_id, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
 				if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			}
-			if ( (int) $occurrence->sold_qty + (int) $occurrence->held_qty - $lapsed - $own + $occurrence_quantity > (int) $occurrence->capacity ) {
+			if ( (int) $occurrence->sold_qty + (int) $occurrence->held_qty - $addon_units - $lapsed - $own + $occurrence_quantity > (int) $occurrence->capacity ) {
 				return 'occurrence_sold_out';
 			}
 		}
@@ -1744,9 +1759,10 @@ final class Orders {
 				return 'sold_out';
 			}
 		}
-		if ( (int) $occurrence->capacity > 0 ) {
-			$occ_used = $wpdb->get_var( $wpdb->prepare(
-				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d)",
+		if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) {
+			$no_addon = Sales\Addons::not_addon_sql( 'tt' ); // Add-on products use no seats.
+			$occ_used = $wpdb->get_var( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
+				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d$no_addon) + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d$no_addon)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal add-on fragment (Sales\Addons::not_addon_sql()).
 				$p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $exclude_order_id,
 				$p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now, $exclude_order_id
 			) );
@@ -2037,7 +2053,7 @@ final class Orders {
 		foreach ( $types as $id => $type ) {
 			if ( (int) $type->capacity > 0 ) { $limited_types[] = (int) $id; }
 			$occ = $occurrences[ (int) $type->occurrence_id ] ?? null;
-			if ( $occ && (int) $occ->capacity > 0 ) { $limited_occ[ (int) $occ->occurrence_id ] = (int) $occ->occurrence_id; }
+			if ( $occ && (int) $occ->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) { $limited_occ[ (int) $occ->occurrence_id ] = (int) $occ->occurrence_id; }
 		}
 		$type_used = array();
 		$occ_used = array();
@@ -2064,12 +2080,15 @@ final class Orders {
 		}
 		if ( $limited_occ ) {
 			$in = implode( ',', $limited_occ );
+			// Add-on products (Sales\Addons) use no seats of the occurrence.
+			$no_addon = Sales\Addons::not_addon_sql( 'tt' );
 			if ( $counted ) {
-				$lapsed = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.counted_qty) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id IN ($in) GROUP BY tt.occurrence_id", $now ) );
-				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = (int) $occurrences[ $occ_id ]->sold_qty + (int) $occurrences[ $occ_id ]->held_qty - ( $lapsed[ $occ_id ] ?? 0 ); }
+				$lapsed = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.counted_qty) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id IN ($in)$no_addon GROUP BY tt.occurrence_id", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
+				$addon_units = Sales\Addons::ready() ? $grouped( "SELECT occurrence_id,SUM(sold_qty+held_qty) FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($in) AND kind='" . Sales\Addons::ADDON . "' GROUP BY occurrence_id" ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and class constant.
+				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = (int) $occurrences[ $occ_id ]->sold_qty + (int) $occurrences[ $occ_id ]->held_qty - ( $addon_units[ $occ_id ] ?? 0 ) - ( $lapsed[ $occ_id ] ?? 0 ); }
 			} else {
-				$sold = $grouped( "SELECT tt.occurrence_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id" );
-				$held = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.quantity) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN ($in) AND r.status='active' AND r.expires_at > %s GROUP BY tt.occurrence_id", $now ) );
+				$sold = $grouped( "SELECT tt.occurrence_id,SUM(oi.quantity - oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded'$no_addon GROUP BY tt.occurrence_id" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
+				$held = $grouped( $wpdb->prepare( "SELECT tt.occurrence_id,SUM(r.quantity) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN ($in) AND r.status='active' AND r.expires_at > %s$no_addon GROUP BY tt.occurrence_id", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list and literal add-on fragment.
 				foreach ( $limited_occ as $occ_id ) { $occ_used[ $occ_id ] = ( $sold[ $occ_id ] ?? 0 ) + ( $held[ $occ_id ] ?? 0 ); }
 			}
 		}
@@ -2080,7 +2099,7 @@ final class Orders {
 			if ( ! $type || ! $occurrence ) { $out[ $id ] = 0; continue; }
 			$limits = array();
 			if ( (int) $type->capacity > 0 ) { $limits[] = (int) $type->capacity - $type_used[ $id ]; }
-			if ( (int) $occurrence->capacity > 0 ) { $limits[] = (int) $occurrence->capacity - $occ_used[ (int) $occurrence->occurrence_id ]; }
+			if ( (int) $occurrence->capacity > 0 && ! Sales\Addons::is_addon( $type ) ) { $limits[] = (int) $occurrence->capacity - $occ_used[ (int) $occurrence->occurrence_id ]; }
 			$remaining = $limits ? max( 0, min( $limits ) ) : null;
 			/**
 			 * Remaining units after module limits (e.g. series quota pools). Return null for unlimited
@@ -2297,7 +2316,7 @@ final class Orders {
 				$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
 				$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
 				if ( $error ) { break; }
-				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
+				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + ( Sales\Addons::is_addon( $type ) ? 0 : (int) $line->quantity ); // Add-ons use no seats.
 			}
 			if ( ! $error && $reserve_error ) {
 				$error = $reserve_error->get_error_code();
@@ -3082,7 +3101,7 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order = self::get( $order_id );
 		if ( ! $order ) { return array(); }
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.unit_price_minor,' . ( ServiceFee::ready() ? 'oi.fee_kind,' : '' ) . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column lists built from literals.
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.unit_price_minor,' . ( ServiceFee::ready() ? 'oi.fee_kind,' : '' ) . OrderLines::paid_columns() . ",tt.name" . Sales\Addons::column_sql( 'tt' ) . ",e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed column lists built from literals.
 		$lines = array_values( array_filter( (array) $lines, static function ( $l ) { return ! OrderLines::is_moved_in( $l ); } ) );
 		$after = OrderLines::after_discount( $lines, (int) $order->discount_minor );
 		$out = array();
@@ -3092,7 +3111,7 @@ final class Orders {
 			$out[] = array(
 				'event' => (string) $line->event_name,
 				// A425: a service fee line is named as such and counts the tickets it covers.
-				'ticket' => $fee ? ServiceFee::label( $line, (string) $line->name ) : (string) $line->name,
+				'ticket' => $fee ? ServiceFee::label( $line, (string) $line->name ) : ( Sales\Addons::is_addon( $line ) ? Sales\Addons::line_label( (string) $line->name ) : (string) $line->name ),
 				'when' => self::format_start( $line->starts_at, $line->timezone ),
 				'quantity' => $fee ? ServiceFee::covered( $line ) : (int) $line->quantity,
 				'gross_minor' => (int) $after[ $i ],
@@ -3706,7 +3725,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' ); // Nothing written.
 			return true;
 		}
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name AS ticket_name' . Sales\Addons::column_sql( 'tt' ) . ',tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal column list (Sales\Addons::column_sql()).
 		if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'lines' ); }
 		/**
 		 * Order lines that receive tickets. Modules may drop lines that are no admission of their own,
@@ -3716,6 +3735,8 @@ final class Orders {
 		 * @param object   $order Locked order row.
 		 */
 		$lines = (array) apply_filters( 'wpcap_issue_order_lines', $lines, $order );
+		// Add-on products (Sales\Addons) are no admission: their lines stay order lines without tickets.
+		$lines = array_filter( $lines, static function ( $line ) { return ! Sales\Addons::is_addon( $line ); } );
 		$issued = array();
 		// Attendee data collected at checkout, applied once to the issued tickets.
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
@@ -4078,7 +4099,7 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.status='complete' AND ord.updated_at>=%s AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i j WHERE j.idempotency_key=SHA2(CONCAT('ticket-issue-sweep|', ord.order_id), 256)) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders',
+			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='paid' AND ord.status='complete' AND ord.updated_at>=%s AND (SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi" . self::addon_free_join() . " WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i j WHERE j.idempotency_key=SHA2(CONCAT('ticket-issue-sweep|', ord.order_id), 256)) ORDER BY ord.order_id LIMIT %d", $p . 'wpcap_orders', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join (Orders::addon_free_join()).
 			gmdate( 'Y-m-d H:i:s', Clock::now() - self::UNISSUED_LOOKBACK ), $p . 'wpcap_order_items', $p . 'wpcap_tickets', $p . 'wpcap_jobs',
 			max( 1, absint( $limit ) )
 		) );
@@ -4253,14 +4274,24 @@ final class Orders {
 	}
 
 	/**
+	 * SQL join for queries on order lines (alias oi) that compare them with issued tickets: leaves out
+	 * lines of add-on products (Sales\Addons), which never get tickets. '' before schema 3.18.5.
+	 */
+	public static function addon_free_join() {
+		global $wpdb;
+		return Sales\Addons::ready() ? " INNER JOIN {$wpdb->prefix}wpcap_ticket_types att ON att.ticket_type_id=oi.ticket_type_id AND att.kind<>'" . Sales\Addons::ADDON . "'" : '';
+	}
+
+	/**
 	 * Number of tickets a paid order should have but does not (issuance failed or is still pending).
 	 *
 	 * @return int|null Null on a database error.
 	 */
 	public static function missing_tickets( $order_id ) {
+		// Lines of add-on products (Sales\Addons) get no tickets and are left out (addon_free_join()).
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$missing = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(0, oi.qty - COALESCE(t.n,0))),0) FROM (SELECT ticket_type_id, SUM(quantity) AS qty FROM %i WHERE order_id=%d GROUP BY ticket_type_id) oi LEFT JOIN (SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d GROUP BY ticket_type_id) t ON t.ticket_type_id=oi.ticket_type_id', $p . 'wpcap_order_items', absint( $order_id ), $p . 'wpcap_tickets', absint( $order_id ) ) );
+		$missing = $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(GREATEST(0, oi.qty - COALESCE(t.n,0))),0) FROM (SELECT oi.ticket_type_id, SUM(oi.quantity) AS qty FROM %i oi' . self::addon_free_join() . ' WHERE oi.order_id=%d GROUP BY oi.ticket_type_id) oi LEFT JOIN (SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d GROUP BY ticket_type_id) t ON t.ticket_type_id=oi.ticket_type_id', $p . 'wpcap_order_items', absint( $order_id ), $p . 'wpcap_tickets', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join (Orders::addon_free_join()).
 		return '' !== $wpdb->last_error || null === $missing ? null : (int) $missing;
 	}
 
