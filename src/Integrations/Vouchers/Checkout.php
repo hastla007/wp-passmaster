@@ -53,6 +53,10 @@ final class Checkout {
 	const PURPOSE_MULTI = 'multi';
 	/** Promotion code of the voucher plugin: reduces price and VAT like a single-purpose voucher, but no VAT was charged in advance. */
 	const PURPOSE_DISCOUNT = 'discount';
+	/** A claim on the snapshot (one provider operation at a time) older than this is void (crashed request). */
+	const CLAIM_TTL = 120;
+	/** Attempts of a version-checked snapshot write before giving up. */
+	const CAS_TRIES = 8;
 
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
@@ -77,7 +81,15 @@ final class Checkout {
 		if ( ! $snapshot || 'released' !== ( $snapshot['status'] ?? '' ) ) { return; }
 		$order = Orders::get( $order_id );
 		if ( ! $order || in_array( (string) $order->payment_status, array( 'paid', 'refunded', 'cancelled' ), true ) || in_array( (string) $order->status, array( 'refunded', 'cancelled' ), true ) ) { return; }
-		$again = self::reserve_again( (int) $order_id, $order, $snapshot );
+		// A parallel confirmation that already reserves the voucher again holds the claim (false): it decides.
+		$claim = self::claim( (int) $order_id, 'reserve', array( 'released' ) );
+		if ( ! $claim ) { return; }
+		list( $snapshot, $token ) = $claim;
+		try {
+			$again = self::reserve_again( (int) $order_id, $order, $snapshot, $token );
+		} finally {
+			self::unclaim( (int) $order_id, $token );
+		}
 		if ( is_wp_error( $again ) ) {
 			\PassCaptain\Log::error( 'voucher_reserve_again_failed', 'voucher reserve again failed', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $again->get_error_code() ) ) );
 		}
@@ -255,8 +267,32 @@ final class Checkout {
 	 */
 	public static function commit( $order_id, $final = false ) {
 		$order_id = absint( $order_id );
-		$snapshot = self::snapshot( $order_id );
-		if ( ! $snapshot || ! in_array( $snapshot['status'] ?? '', array( 'reserved', 'released' ), true ) ) { return true; }
+		$claim = self::claim( $order_id, 'commit', array( 'reserved', 'released' ) );
+		if ( null === $claim ) { return true; }
+		if ( false === $claim ) {
+			// Another operation (e.g. the expiry releasing the reservation) is running: try again shortly;
+			// the retry sees its result (a released voucher is reserved again and then committed).
+			Jobs::enqueue( 'voucher-commit-' . $order_id, self::JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+			return false;
+		}
+		list( $snapshot, $token ) = $claim;
+		$pending = array();
+		try {
+			$done = self::commit_claimed( $order_id, $snapshot, $token, $final, $pending );
+		} finally {
+			self::unclaim( $order_id, $token );
+		}
+		// Ticket refunds made while the commit was still pending receive their voucher share now.
+		foreach ( $pending as $refund_id ) { self::refund( $refund_id, $order_id ); }
+		return $done;
+	}
+
+	/**
+	 * commit() under the claim.
+	 *
+	 * @param int[] $pending Out: refunds that waited for the commit.
+	 */
+	private static function commit_claimed( $order_id, array $snapshot, $token, $final_attempt, array &$pending ) {
 		$order = Orders::get( $order_id );
 		// Refunded or cancelled before the (retried) commit: the voucher is not charged at all.
 		if ( 'reserved' === $snapshot['status'] && $order && ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) || in_array( $order->payment_status, array( 'refunded', 'cancelled' ), true ) ) ) {
@@ -265,35 +301,46 @@ final class Checkout {
 				\PassCaptain\Log::error( 'voucher_release_failed', 'Voucher reservation could not be released.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'error' => $released->get_error_code() ) ) );
 				return true;
 			}
-			$snapshot['status'] = 'released';
-			unset( $snapshot['pending_refund_ids'] );
-			self::save( $order_id, $snapshot );
-			Audit::record( 'voucher_released', 'order', $order_id, array( 'reason' => $order->status ) );
+			if ( self::put( $order_id, $token, array( 'status' => 'released', 'pending_refund_ids' => null ) ) ) {
+				Audit::record( 'voucher_released', 'order', $order_id, array( 'reason' => $order->status ) );
+			}
 			return true;
 		}
 		if ( 'released' === $snapshot['status'] ) {
 			if ( ! $order || 'paid' !== $order->payment_status ) { return true; }
-			$again = self::reserve_again( $order_id, $order, $snapshot );
-			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final ); }
+			$again = self::reserve_again( $order_id, $order, $snapshot, $token );
+			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final_attempt, $token ); }
 			$snapshot = $again;
 		}
 		$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-' . ( $order ? $order->public_id : $order_id ) );
 		// Released on the voucher side (reservation TTL, cron, API) while the order waited for payment.
 		if ( is_wp_error( $result ) && 'vcap_reservation_missing' === $result->get_error_code() && empty( $snapshot['late_reservation'] ) && $order && 'paid' === $order->payment_status ) {
-			$again = self::reserve_again( $order_id, $order, $snapshot );
-			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final ); }
+			$again = self::reserve_again( $order_id, $order, $snapshot, $token );
+			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final_attempt, $token ); }
 			$snapshot = $again;
 			$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-late-' . $order->public_id );
 		}
-		if ( is_wp_error( $result ) ) { return self::commit_error( $order_id, $snapshot, $result, $final ); }
-		$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
-		$snapshot['status'] = 'committed';
-		$snapshot['redemption'] = $result;
-		unset( $snapshot['error'], $snapshot['pending_refund_ids'] );
-		self::save( $order_id, $snapshot );
+		if ( is_wp_error( $result ) ) { return self::commit_error( $order_id, $snapshot, $result, $final_attempt, $token ); }
+		$stored = self::change(
+			$order_id,
+			static function ( array $fresh ) use ( $result, &$pending ) {
+				// Pending refund ids are taken from the fresh snapshot in the same version-checked write, so a
+				// refund queued while the provider call ran is never lost.
+				$pending = array_map( 'absint', (array) ( $fresh['pending_refund_ids'] ?? array() ) );
+				$fresh['status'] = 'committed';
+				$fresh['redemption'] = $result;
+				unset( $fresh['error'], $fresh['pending_refund_ids'] );
+				return $fresh;
+			},
+			$token
+		);
+		if ( ! $stored ) {
+			// Not stored: the retry commits again with the same key (the provider answers once).
+			$pending = array();
+			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+			return false;
+		}
 		Audit::record( 'voucher_committed', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
-		// Ticket refunds made while the commit was still pending receive their voucher share now.
-		foreach ( $pending as $refund_id ) { self::refund( $refund_id, $order_id ); }
 		return true;
 	}
 
@@ -302,7 +349,7 @@ final class Checkout {
 	 *
 	 * @return array|\WP_Error Updated snapshot.
 	 */
-	private static function reserve_again( $order_id, $order, array $snapshot ) {
+	private static function reserve_again( $order_id, $order, array $snapshot, $token ) {
 		// Each new late reservation after a release of an earlier one gets its own key (a retried
 		// allocation after review must not get the released reservation back from the provider).
 		$round = (int) ( $snapshot['late_rounds'] ?? 0 );
@@ -317,17 +364,17 @@ final class Checkout {
 			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id . $suffix );
 			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'pass-captain' ) );
 		}
-		$snapshot['reservation'] = $again;
-		$snapshot['status'] = 'reserved';
-		$snapshot['late_reservation'] = true;
-		$snapshot['late_rounds'] = $round + 1;
-		self::save( $order_id, $snapshot );
+		$stored = self::put( $order_id, $token, array( 'reservation' => $again, 'status' => 'reserved', 'late_reservation' => true, 'late_rounds' => $round + 1 ) );
+		if ( ! $stored ) {
+			return new \WP_Error( 'wpcap_voucher_busy', __( 'Der Gutschein wird gerade anderweitig bearbeitet. Bitte versuche es gleich noch einmal.', 'pass-captain' ), array( 'status' => 503 ) );
+		}
+		$snapshot = $stored;
 		Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
 		return $snapshot;
 	}
 
-	private static function reserve_again_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
-		return 'wpcap_voucher_amount_changed' === $error->get_error_code() ? self::needs_review( $order_id, $snapshot, $error ) : self::commit_error( $order_id, $snapshot, $error, $final );
+	private static function reserve_again_error( $order_id, array $snapshot, \WP_Error $error, $final, $token ) {
+		return 'wpcap_voucher_amount_changed' === $error->get_error_code() ? self::needs_review( $order_id, $snapshot, $error, $token ) : self::commit_error( $order_id, $snapshot, $error, $final, $token );
 	}
 
 	/** Filter wpcap_process_job: retries a voucher commit. */
@@ -348,20 +395,19 @@ final class Checkout {
 		return $status >= 500 || in_array( $error->get_error_code(), array( 'vcap_temporary_failure', 'wpcap_voucher_unavailable' ), true );
 	}
 
-	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
+	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final, $token ) {
 		if ( ! $final && self::is_temporary( $error ) ) {
 			\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => true ) ) );
 			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			return false;
 		}
-		return self::needs_review( $order_id, $snapshot, $error );
+		return self::needs_review( $order_id, $snapshot, $error, $token );
 	}
 
 	/** Paid, tickets issued, but the voucher could not be charged: flag, audit and alert. */
-	private static function needs_review( $order_id, array $snapshot, \WP_Error $error ) {
-		$snapshot['status'] = 'commit_failed';
-		$snapshot['error'] = $error->get_error_code();
-		self::save( $order_id, $snapshot );
+	private static function needs_review( $order_id, array $snapshot, \WP_Error $error, $token ) {
+		// Not stored = the claim was lost: the operation that took over decides.
+		if ( ! self::put( $order_id, $token, array( 'status' => 'commit_failed', 'error' => $error->get_error_code() ) ) ) { return true; }
 		\PassCaptain\Log::error( 'voucher_commit_failed', 'Voucher redemption could not be committed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $error->get_error_code(), 'retry' => false ) ) );
 		$order = Orders::get( $order_id );
 		\PassCaptain\Alerts::raise(
@@ -390,14 +436,27 @@ final class Checkout {
 		if ( ! $snapshot || 'reserved' !== $snapshot['status'] ) { return; }
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' === $order->payment_status ) { return; }
+		// Claimed in one atomic UPDATE together with "order not paid": a late payment that is booked
+		// meanwhile finds the claim and commits after the release (reserving the voucher again), and a
+		// release never starts once the payment was booked or a commit runs.
+		$claim = self::claim( $order_id, 'release', array( 'reserved' ), " AND payment_status<>'paid'" );
+		if ( ! $claim ) { return; }
+		list( $snapshot, $token ) = $claim;
+		try {
+			self::release_claimed( $order_id, $order, $snapshot, $token );
+		} finally {
+			self::unclaim( $order_id, $token );
+		}
+	}
+
+	private static function release_claimed( $order_id, $order, array $snapshot, $token ) {
 		$rounds = (int) ( $snapshot['late_rounds'] ?? 0 );
 		$result = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id . ( $rounds > 0 ? '-late-' . $rounds : '' ) );
 		if ( is_wp_error( $result ) ) {
 			\PassCaptain\Log::error( 'voucher_release_failed', 'Voucher reservation could not be released.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'error' => $result->get_error_code() ) ) );
 			return;
 		}
-		$snapshot['status'] = 'released';
-		self::save( $order_id, $snapshot );
+		self::put( $order_id, $token, array( 'status' => 'released' ) );
 	}
 
 	/**
@@ -411,54 +470,100 @@ final class Checkout {
 	 * @return bool True when the voucher share is settled (or nothing is to do), false while a retry is due.
 	 */
 	public static function refund( $refund_id, $order_id, $from_job = false, $final_attempt = false ) {
+		$refund_id = absint( $refund_id );
 		$snapshot = self::snapshot( $order_id );
 		if ( ! $snapshot ) { return true; }
-		$done_ids = array_map( 'absint', (array) ( $snapshot['refund_ids'] ?? array() ) );
-		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return true; }
+		if ( in_array( $refund_id, array_map( 'absint', (array) ( $snapshot['refund_ids'] ?? array() ) ), true ) ) { return true; }
 		if ( 'reserved' === $snapshot['status'] ) {
-			// Commit still pending (retry job): the share is refunded right after the commit.
-			$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
-			if ( ! in_array( absint( $refund_id ), $pending, true ) ) {
-				$snapshot['pending_refund_ids'] = array_merge( $pending, array( absint( $refund_id ) ) );
-				self::save( $order_id, $snapshot );
-			}
-			return true;
+			// Commit still pending (retry job): the share is refunded right after the commit. Queued with a
+			// version check, so a commit that is stored at the same moment either sees the id or this call
+			// sees `committed` and refunds the share itself.
+			$queued = false;
+			self::change(
+				$order_id,
+				static function ( array $fresh ) use ( $refund_id, &$queued ) {
+					$queued = false;
+					if ( 'reserved' !== ( $fresh['status'] ?? '' ) ) { return null; }
+					$queued = true;
+					$pending = array_map( 'absint', (array) ( $fresh['pending_refund_ids'] ?? array() ) );
+					if ( in_array( $refund_id, $pending, true ) ) { return null; }
+					$fresh['pending_refund_ids'] = array_merge( $pending, array( $refund_id ) );
+					return $fresh;
+				}
+			);
+			if ( $queued ) { return true; }
+			$snapshot = self::snapshot( $order_id );
+			if ( ! $snapshot ) { return true; }
 		}
 		if ( 'committed' !== $snapshot['status'] ) { return true; }
 		$plan = self::refund_plan( $refund_id );
-		$snapshot = self::snapshot( $order_id ); // refund_plan() may have stored the plan.
 		if ( ! $plan ) { return true; }
+		$snapshot = self::snapshot( $order_id ); // refund_plan() may have stored the plan.
+		if ( ! $snapshot ) { return true; }
 		$share = (int) $plan['voucher_minor'];
 		if ( $share < 1 ) {
-			$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
-			$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
-			self::save( $order_id, $snapshot );
+			self::book_refund( $order_id, $refund_id, 0, (int) $plan['tickets'] );
 			return true;
 		}
-		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
+		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . $refund_id );
 		if ( is_wp_error( $result ) ) {
 			// Never lose the voucher share: temporary errors are retried with the same refund key (the voucher
 			// system refunds each key once), a final one is flagged and the admin is told.
 			$final = $from_job ? $final_attempt : ! self::is_temporary( $result );
-			\PassCaptain\Log::error( 'voucher_refund_failed', 'Voucher refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) ) );
-			$snapshot['failed_refund_ids'] = array_values( array_unique( array_merge( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) ) );
-			self::save( $order_id, $snapshot );
+			\PassCaptain\Log::error( 'voucher_refund_failed', 'Voucher refund failed.', array( 'object_type' => 'order', 'object_id' => (int) $order_id, 'details' => array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) ) );
+			self::change(
+				$order_id,
+				static function ( array $fresh ) use ( $refund_id ) {
+					$failed = array_map( 'absint', (array) ( $fresh['failed_refund_ids'] ?? array() ) );
+					if ( in_array( $refund_id, $failed, true ) || in_array( $refund_id, array_map( 'absint', (array) ( $fresh['refund_ids'] ?? array() ) ), true ) ) { return null; }
+					$fresh['failed_refund_ids'] = array_values( array_merge( $failed, array( $refund_id ) ) );
+					return $fresh;
+				}
+			);
 			if ( $final ) {
 				$order = \PassCaptain\Orders::get( (int) $order_id );
 				/* translators: 1: order, 2: amount in minor units, 3: error */
 				\PassCaptain\Alerts::raise( 'voucher_refund_failed', __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 			} elseif ( ! $from_job ) {
-				Jobs::enqueue( 'voucher-refund-' . absint( $refund_id ), self::REFUND_JOB, array( 'refund_id' => absint( $refund_id ), 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+				Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			}
 			return $final;
 		}
-		$snapshot['refunded_minor'] = (int) $snapshot['refunded_minor'] + $share;
-		$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
-		$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
-		$snapshot['failed_refund_ids'] = array_values( array_diff( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) );
-		self::save( $order_id, $snapshot );
-		Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'amount_minor' => $share, 'purpose' => self::snapshot_purpose( $snapshot ) ) );
-		return true;
+		$booked = self::book_refund( $order_id, $refund_id, $share, (int) $plan['tickets'] );
+		if ( $booked ) {
+			Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $share, 'purpose' => self::snapshot_purpose( $snapshot ) ) );
+		}
+		if ( false === $booked && ! $from_job ) {
+			Jobs::enqueue( 'voucher-refund-' . $refund_id, self::REFUND_JOB, array( 'refund_id' => $refund_id, 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
+		}
+		return false !== $booked;
+	}
+
+	/**
+	 * Books a settled voucher share into the snapshot exactly once per refund (version-checked: two
+	 * parallel runs for the same refund, e.g. the hook and the retry job, count it once; the provider
+	 * itself refunds each key once).
+	 *
+	 * @return bool|null True when booked now, null when it was already booked, false after conflicts.
+	 */
+	private static function book_refund( $order_id, $refund_id, $share, $tickets ) {
+		$booked = false;
+		$stored = self::change(
+			$order_id,
+			static function ( array $fresh ) use ( $refund_id, $share, $tickets, &$booked ) {
+				$booked = false;
+				$done = array_map( 'absint', (array) ( $fresh['refund_ids'] ?? array() ) );
+				if ( in_array( (int) $refund_id, $done, true ) ) { return null; }
+				$booked = true;
+				if ( $share > 0 ) { $fresh['refunded_minor'] = (int) ( $fresh['refunded_minor'] ?? 0 ) + (int) $share; }
+				$fresh['refunded_tickets'] = (int) ( $fresh['refunded_tickets'] ?? 0 ) + (int) $tickets;
+				$fresh['refund_ids'] = array_merge( $done, array( (int) $refund_id ) );
+				$fresh['failed_refund_ids'] = array_values( array_diff( array_map( 'absint', (array) ( $fresh['failed_refund_ids'] ?? array() ) ), array( (int) $refund_id ) ) );
+				return $fresh;
+			}
+		);
+		if ( false === $stored ) { return false; }
+		return $booked && $stored ? true : null;
 	}
 
 	/**
@@ -475,15 +580,40 @@ final class Checkout {
 	 * @return array|null voucher_minor, cash_minor, tax_minor (full VAT, multi only), tickets, purpose.
 	 */
 	public static function refund_plan( $refund_id ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
 		$refund = \PassCaptain\Refunds::get( $refund_id );
 		if ( ! $refund ) { return null; }
 		$order_id = (int) $refund['order_id'];
 		$snapshot = self::snapshot( $order_id );
 		if ( ! $snapshot || ! in_array( $snapshot['status'] ?? '', array( 'committed', 'commit_failed', 'external' ), true ) ) { return null; }
+		if ( isset( $snapshot['refund_plans'][ (string) absint( $refund_id ) ] ) ) { return (array) $snapshot['refund_plans'][ (string) absint( $refund_id ) ]; }
+		// Computed and stored with a version check: the plan depends on the plans of earlier refunds (the
+		// last refund receives the remainder), so a plan stored meanwhile by a parallel refund makes this
+		// one recompute; the first stored plan of a refund wins and is returned to every caller.
+		$result = null;
+		$stored = self::change(
+			$order_id,
+			static function ( array $fresh ) use ( $refund_id, $refund, $order_id, &$result ) {
+				$result = null;
+				if ( ! in_array( $fresh['status'] ?? '', array( 'committed', 'commit_failed', 'external' ), true ) ) { return null; }
+				$plans = (array) ( $fresh['refund_plans'] ?? array() );
+				if ( isset( $plans[ (string) absint( $refund_id ) ] ) ) {
+					$result = (array) $plans[ (string) absint( $refund_id ) ];
+					return null;
+				}
+				$result = self::compute_plan( $refund_id, $refund, $order_id, $fresh );
+				$plans[ (string) absint( $refund_id ) ] = $result;
+				$fresh['refund_plans'] = $plans;
+				return $fresh;
+			}
+		);
+		return false === $stored ? null : $result;
+	}
+
+	/** refund_plan() for the given snapshot (not stored). */
+	private static function compute_plan( $refund_id, array $refund, $order_id, array $snapshot ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$plans = (array) ( $snapshot['refund_plans'] ?? array() );
-		if ( isset( $plans[ (string) absint( $refund_id ) ] ) ) { return (array) $plans[ (string) absint( $refund_id ) ]; }
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) ) );
 		$items = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
 		// Weight of a ticket = its part of the voucher (voucher_lines, stored at apply time on the line
@@ -550,9 +680,6 @@ final class Checkout {
 			}
 			$plan['tax_minor'] = max( 0, min( $gross, $tax ) );
 		}
-		$plans[ (string) absint( $refund_id ) ] = $plan;
-		$snapshot['refund_plans'] = $plans;
-		self::save( $order_id, $snapshot );
 		return $plan;
 	}
 
@@ -802,13 +929,127 @@ final class Checkout {
 	}
 
 	private static function snapshot( $order_id ) {
-		$order = Orders::get( $order_id );
-		return ( $order && $order->voucher_snapshot ) ? (array) json_decode( $order->voucher_snapshot, true ) : null;
+		return self::read( $order_id )[0];
 	}
 
-	private static function save( $order_id, array $snapshot ) {
+	/* ------------------------------------------------------------------ Concurrency of voucher_snapshot */
+
+	/**
+	 * Fresh read of the stored snapshot.
+	 *
+	 * @return array{0: array|null, 1: string|null} Decoded snapshot and the stored text (for the version check).
+	 */
+	private static function read( $order_id ) {
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'voucher_snapshot' => wp_json_encode( $snapshot ) ), array( 'order_id' => absint( $order_id ) ) );
+		$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT voucher_snapshot FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
+		if ( null === $raw || '' === (string) $raw ) { return array( null, null ); }
+		$snapshot = json_decode( (string) $raw, true );
+		return array( is_array( $snapshot ) ? $snapshot : null, (string) $raw );
+	}
+
+	/**
+	 * Version-checked write (compare and swap): the snapshot is only stored while the column still holds
+	 * $expected, i.e. nobody changed it since it was read. Every write raises `rev`, so two writes never
+	 * store the same text. $extra adds conditions on the order row of the same atomic UPDATE (e.g. "not
+	 * paid"), evaluated under the row lock the UPDATE takes.
+	 */
+	private static function swap( $order_id, array &$snapshot, $expected, $extra = '' ) {
+		global $wpdb;
+		$snapshot['rev'] = (int) ( $snapshot['rev'] ?? 0 ) + 1;
+		$rows = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET voucher_snapshot=%s WHERE order_id=%d AND voucher_snapshot=%s' . $extra, $wpdb->prefix . 'wpcap_orders', wp_json_encode( $snapshot ), absint( $order_id ), (string) $expected ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $extra is a fixed condition from this class.
+		return 1 === $rows;
+	}
+
+	/**
+	 * Read–change–write loop with version check. $change receives the fresh snapshot and returns the
+	 * snapshot to store, or null for "nothing to store". With $token the write only happens while the
+	 * caller still holds the claim (see claim()); the claim itself is left in place.
+	 *
+	 * @param callable(array): (array|null) $change
+	 * @return array|null|false Stored snapshot, null when nothing was stored, false after repeated conflicts.
+	 */
+	private static function change( $order_id, callable $change, $token = null ) {
+		for ( $try = 0; $try < self::CAS_TRIES; $try++ ) {
+			list( $snapshot, $raw ) = self::read( $order_id );
+			if ( ! $snapshot ) { return null; }
+			if ( null !== $token && $token !== (string) ( $snapshot['claim']['token'] ?? '' ) ) {
+				\PassCaptain\Log::error( 'voucher_claim_lost', 'Voucher snapshot claim was lost before the result could be stored.', array( 'object_type' => 'order', 'object_id' => (int) $order_id ) );
+				return null;
+			}
+			$new = $change( $snapshot );
+			if ( null === $new ) { return null; }
+			if ( self::swap( $order_id, $new, $raw ) ) { return $new; }
+		}
+		\PassCaptain\Log::error( 'voucher_snapshot_conflict', 'Voucher snapshot could not be stored after repeated concurrent changes.', array( 'object_type' => 'order', 'object_id' => (int) $order_id ) );
+		return false;
+	}
+
+	/** Whether another operation holds a live claim on the snapshot (claims older than CLAIM_TTL are void). */
+	private static function claimed( array $snapshot ) {
+		return ! empty( $snapshot['claim']['token'] ) && (int) ( $snapshot['claim']['at'] ?? 0 ) > time() - self::CLAIM_TTL;
+	}
+
+	/**
+	 * Claims the snapshot for one provider operation (commit, release, reserve again): only one of them
+	 * runs at a time, so an expiry that releases the voucher and a late payment that commits it can never
+	 * both act on the same reservation. Provider calls run outside any transaction; the claim is a field
+	 * of the snapshot set with a version-checked write and removed by unclaim().
+	 *
+	 * @param string[] $statuses Snapshot states the operation applies to.
+	 * @param string   $extra    Additional condition on the order row (same atomic UPDATE).
+	 * @return array{0: array, 1: string}|null|false [snapshot, token]; null = state does not apply (any
+	 *                                              more); false = another operation is running.
+	 */
+	private static function claim( $order_id, $op, array $statuses, $extra = '' ) {
+		for ( $try = 0; $try < self::CAS_TRIES; $try++ ) {
+			list( $snapshot, $raw ) = self::read( $order_id );
+			if ( ! $snapshot || ! in_array( (string) ( $snapshot['status'] ?? '' ), $statuses, true ) ) { return null; }
+			if ( self::claimed( $snapshot ) ) { return false; }
+			$token = bin2hex( random_bytes( 8 ) );
+			$snapshot['claim'] = array( 'op' => (string) $op, 'token' => $token, 'at' => time() );
+			if ( self::swap( $order_id, $snapshot, $raw, $extra ) ) { return array( $snapshot, $token ); }
+			if ( '' !== $extra ) {
+				// The extra condition may be what failed (e.g. the order was paid meanwhile): re-check it.
+				global $wpdb;
+				if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE order_id=%d' . $extra, $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) ) ) { return null; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $extra is a fixed condition from this class.
+			}
+		}
+		return false;
+	}
+
+	/** Removes the caller's claim (no-op when it is gone or belongs to someone else). */
+	private static function unclaim( $order_id, $token ) {
+		self::change(
+			$order_id,
+			static function ( array $snapshot ) use ( $token ) {
+				if ( $token !== (string) ( $snapshot['claim']['token'] ?? '' ) ) { return null; }
+				unset( $snapshot['claim'] );
+				return $snapshot;
+			}
+		);
+	}
+
+	/**
+	 * Stores fields under the caller's claim on the fresh snapshot (concurrent bookkeeping such as
+	 * pending refund ids or refund plans is kept). Null values remove the field.
+	 *
+	 * @return array|null|false See change().
+	 */
+	private static function put( $order_id, $token, array $fields ) {
+		return self::change(
+			$order_id,
+			static function ( array $snapshot ) use ( $fields ) {
+				foreach ( $fields as $key => $value ) {
+					if ( null === $value ) {
+						unset( $snapshot[ $key ] );
+					} else {
+						$snapshot[ $key ] = $value;
+					}
+				}
+				return $snapshot;
+			},
+			$token
+		);
 	}
 
 	/** Provider errors are shown to customers without internal details. */

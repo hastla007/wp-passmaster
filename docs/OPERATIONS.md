@@ -581,6 +581,14 @@ nicht ausgezahlt, Begründung Pflicht, Recht `wpcap_approve_refunds`). Dieselben
 Erstattungstabelle der Bestellung. Alles wird im Audit-Log protokolliert. Ablauf und Zustände:
 [STATE-MACHINES.md](STATE-MACHINES.md#erstattung-mit-unklarem-ausgang-a272-a350).
 
+### Gutschein-Abgleich
+
+Auf der Seite **Betrieb** (Systemstatus) steht der Abschnitt „Gutschein-Abgleich“, sobald Voucher Captain
+aktiv ist oder eine Bestellung einen Gutschein enthält. Er läuft auf Knopfdruck („Abgleich ausführen“),
+ändert nichts und prüft die neuesten 500 Bestellungen mit Gutschein
+(`PassCaptain\Integrations\Vouchers\ReconciliationReport::report()`). Details in
+[VOUCHERS.md](VOUCHERS.md#gutschein-abgleich).
+
 ### Datenkonsistenz: Diagnose und Reparatur (A204)
 
 `PassCaptain\Operations\Doctor` sucht widersprüchliche Daten. Die Prüfung ändert nichts. Reparaturen gibt es nur, wo der richtige Zustand eindeutig ist und der Plugin-Code ihn selbst hergestellt hätte. Jede Reparatur hat eine Vorschau (Dry Run, nichts wird geschrieben), und jede ausgeführte Reparatur wird auditiert.
