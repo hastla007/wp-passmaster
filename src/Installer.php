@@ -118,48 +118,36 @@ final class Installer {
 	public static function schema_statements() {
 		global $wpdb;
 		$charset = $wpdb->get_charset_collate();
+		// A401: one method per table group, merged in the former order of the statements.
+		$queries = array_merge(
+			self::schema_event_tables( $charset ),
+			self::schema_order_tables( $charset ),
+			self::schema_staff_tables( $charset ),
+			self::schema_seating_tables( $charset ),
+			self::schema_service_tables( $charset ),
+			self::schema_admission_tables( $charset ),
+			self::schema_invoice_tables( $charset ),
+			self::schema_participant_tables( $charset ),
+			self::schema_message_tables( $charset ),
+			self::schema_pass_campaign_tables( $charset ),
+			self::schema_waitlist_tables( $charset ),
+			self::schema_settings_tables( $charset ),
+			self::schema_payment_tables( $charset ),
+			self::schema_operation_tables( $charset )
+		);
+
+		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
+		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
+		return array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
+	}
+
+	/** A401: schema_statements() part: Events, dates and ticket types. */
+	private static function schema_event_tables( $charset ) {
+		global $wpdb;
 		$events = $wpdb->prefix . 'wpcap_events';
 		$occurrences = $wpdb->prefix . 'wpcap_occurrences';
 		$types = $wpdb->prefix . 'wpcap_ticket_types';
-		$orders = $wpdb->prefix . 'wpcap_orders';
-		$items = $wpdb->prefix . 'wpcap_order_items';
-		$reservations = $wpdb->prefix . 'wpcap_reservations';
-		$tickets = $wpdb->prefix . 'wpcap_tickets';
-		$checkins = $wpdb->prefix . 'wpcap_checkins';
-		$staff = $wpdb->prefix . 'wpcap_event_staff';
-		$staff_assignments = $wpdb->prefix . 'wpcap_staff_assignments';
-		$audit = $wpdb->prefix . 'wpcap_audit_logs';
-		$seat_maps = $wpdb->prefix . 'wpcap_seat_maps';
-		$seats = $wpdb->prefix . 'wpcap_seats';
-		$seat_holds = $wpdb->prefix . 'wpcap_seat_holds';
-		$resources = $wpdb->prefix . 'wpcap_resources';
-		$service_slots = $wpdb->prefix . 'wpcap_service_slots';
-		$service_bookings = $wpdb->prefix . 'wpcap_service_bookings';
-		$service_providers = $wpdb->prefix . 'wpcap_service_providers';
-		$resource_providers = $wpdb->prefix . 'wpcap_resource_providers';
-		$occurrence_days = $wpdb->prefix . 'wpcap_occurrence_days';
-		$scanner_devices = $wpdb->prefix . 'wpcap_scanner_devices';
-		$wallet_passes = $wpdb->prefix . 'wpcap_wallet_passes';
-		$invoices = $wpdb->prefix . 'wpcap_invoices';
-		$invoice_lines = $wpdb->prefix . 'wpcap_invoice_lines';
-		$invoice_sequences = $wpdb->prefix . 'wpcap_invoice_sequences';
-		$participant_fields = $wpdb->prefix . 'wpcap_participant_fields';
-		$participant_answers = $wpdb->prefix . 'wpcap_participant_answers';
-		$message_queue = $wpdb->prefix . 'wpcap_message_queue';
-		$ticket_assignments = $wpdb->prefix . 'wpcap_ticket_assignments';
-		$member_passes = $wpdb->prefix . 'wpcap_member_passes';
-		$pass_rules = $wpdb->prefix . 'wpcap_pass_rules';
-		$pass_uses = $wpdb->prefix . 'wpcap_pass_uses';
-		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
-		$campaign_uses = $wpdb->prefix . 'wpcap_campaign_uses';
-		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
-		$api_keys = $wpdb->prefix . 'wpcap_api_keys';
-		$event_translations = $wpdb->prefix . 'wpcap_event_translations';
-		$tax_profiles = $wpdb->prefix . 'wpcap_tax_profiles';
-		$connector_settings = $wpdb->prefix . 'wpcap_connector_settings';
-		$jobs = $wpdb->prefix . 'wpcap_jobs';
-
-		$queries = array(
+		return array(
 			"CREATE TABLE $events (
 				event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				name varchar(190) NOT NULL,
@@ -228,6 +216,18 @@ final class Installer {
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Orders, order lines, holds, tickets and check-ins. */
+	private static function schema_order_tables( $charset ) {
+		global $wpdb;
+		$orders = $wpdb->prefix . 'wpcap_orders';
+		$items = $wpdb->prefix . 'wpcap_order_items';
+		$reservations = $wpdb->prefix . 'wpcap_reservations';
+		$tickets = $wpdb->prefix . 'wpcap_tickets';
+		$checkins = $wpdb->prefix . 'wpcap_checkins';
+		return array(
 			"CREATE TABLE $orders (
 				order_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				public_id char(32) NOT NULL,
@@ -368,6 +368,16 @@ final class Installer {
 				KEY created (created_at,checkin_id),
 				KEY device_event_result (device_id,event_id,result)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Event staff, staff assignments, audit log, date-level staff and support access. */
+	private static function schema_staff_tables( $charset ) {
+		global $wpdb;
+		$staff = $wpdb->prefix . 'wpcap_event_staff';
+		$staff_assignments = $wpdb->prefix . 'wpcap_staff_assignments';
+		$audit = $wpdb->prefix . 'wpcap_audit_logs';
+		return array(
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,
 				user_id bigint(20) unsigned NOT NULL,
@@ -428,6 +438,16 @@ final class Installer {
 				KEY user_status (user_id,status),
 				KEY status_expires (status,expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Seat maps, seats and seat holds. */
+	private static function schema_seating_tables( $charset ) {
+		global $wpdb;
+		$seat_maps = $wpdb->prefix . 'wpcap_seat_maps';
+		$seats = $wpdb->prefix . 'wpcap_seats';
+		$seat_holds = $wpdb->prefix . 'wpcap_seat_holds';
+		return array(
 			"CREATE TABLE $seat_maps (
 				map_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -466,6 +486,18 @@ final class Installer {
 				UNIQUE KEY request_seat (request_key,seat_id),
 				KEY expiry (status,expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Bookable resources, service providers, slots and service bookings. */
+	private static function schema_service_tables( $charset ) {
+		global $wpdb;
+		$resources = $wpdb->prefix . 'wpcap_resources';
+		$service_slots = $wpdb->prefix . 'wpcap_service_slots';
+		$service_bookings = $wpdb->prefix . 'wpcap_service_bookings';
+		$service_providers = $wpdb->prefix . 'wpcap_service_providers';
+		$resource_providers = $wpdb->prefix . 'wpcap_resource_providers';
+		return array(
 			"CREATE TABLE $resources (
 				resource_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -553,6 +585,16 @@ final class Installer {
 				KEY status_confirm (status,confirm_by),
 				UNIQUE KEY idempotency_key (idempotency_key)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Days of multi-day dates, scanner devices and wallet passes. */
+	private static function schema_admission_tables( $charset ) {
+		global $wpdb;
+		$occurrence_days = $wpdb->prefix . 'wpcap_occurrence_days';
+		$scanner_devices = $wpdb->prefix . 'wpcap_scanner_devices';
+		$wallet_passes = $wpdb->prefix . 'wpcap_wallet_passes';
+		return array(
 			"CREATE TABLE $occurrence_days (
 				occurrence_day_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				occurrence_id bigint(20) unsigned NOT NULL,
@@ -595,6 +637,16 @@ final class Installer {
 				UNIQUE KEY serial_number (serial_number),
 				KEY ticket_provider (ticket_id,provider)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Invoices, invoice lines and invoice number sequences. */
+	private static function schema_invoice_tables( $charset ) {
+		global $wpdb;
+		$invoices = $wpdb->prefix . 'wpcap_invoices';
+		$invoice_lines = $wpdb->prefix . 'wpcap_invoice_lines';
+		$invoice_sequences = $wpdb->prefix . 'wpcap_invoice_sequences';
+		return array(
 			"CREATE TABLE $invoices (
 				invoice_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				order_id bigint(20) unsigned NOT NULL,
@@ -628,6 +680,15 @@ final class Installer {
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (year)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Participant fields and answers, consent texts and consent log. */
+	private static function schema_participant_tables( $charset ) {
+		global $wpdb;
+		$participant_fields = $wpdb->prefix . 'wpcap_participant_fields';
+		$participant_answers = $wpdb->prefix . 'wpcap_participant_answers';
+		return array(
 			"CREATE TABLE $participant_fields (
 				field_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				ticket_type_id bigint(20) unsigned NOT NULL,
@@ -696,6 +757,15 @@ final class Installer {
 				KEY order_id (order_id),
 				KEY field_id (field_id)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Message queue and ticket assignments. */
+	private static function schema_message_tables( $charset ) {
+		global $wpdb;
+		$message_queue = $wpdb->prefix . 'wpcap_message_queue';
+		$ticket_assignments = $wpdb->prefix . 'wpcap_ticket_assignments';
+		return array(
 			"CREATE TABLE $message_queue (
 				message_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				dedupe_key char(64) NOT NULL,
@@ -729,6 +799,18 @@ final class Installer {
 				KEY attendee_email (attendee_email,ticket_id),
 				KEY attendee_name (attendee_name,ticket_id)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Member passes, pass rules and uses, campaigns and campaign uses. */
+	private static function schema_pass_campaign_tables( $charset ) {
+		global $wpdb;
+		$member_passes = $wpdb->prefix . 'wpcap_member_passes';
+		$pass_rules = $wpdb->prefix . 'wpcap_pass_rules';
+		$pass_uses = $wpdb->prefix . 'wpcap_pass_uses';
+		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
+		$campaign_uses = $wpdb->prefix . 'wpcap_campaign_uses';
+		return array(
 			"CREATE TABLE $member_passes (
 				pass_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				public_id char(32) NOT NULL,
@@ -821,6 +903,14 @@ final class Installer {
 				UNIQUE KEY campaign_order (campaign_id,order_id),
 				KEY order_status (order_id,status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Ticket and service waitlists. */
+	private static function schema_waitlist_tables( $charset ) {
+		global $wpdb;
+		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
+		return array(
 			"CREATE TABLE $waitlist (
 				waitlist_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
@@ -876,6 +966,17 @@ final class Installer {
 				KEY offer_expiry (status,offer_expires_at),
 				KEY confirm_expiry (status,confirm_expires_at)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: API keys, event translations, tax profiles and connector settings. */
+	private static function schema_settings_tables( $charset ) {
+		global $wpdb;
+		$api_keys = $wpdb->prefix . 'wpcap_api_keys';
+		$event_translations = $wpdb->prefix . 'wpcap_event_translations';
+		$tax_profiles = $wpdb->prefix . 'wpcap_tax_profiles';
+		$connector_settings = $wpdb->prefix . 'wpcap_connector_settings';
+		return array(
 			"CREATE TABLE $api_keys (
 				api_key_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				user_id bigint(20) unsigned NOT NULL,
@@ -944,6 +1045,13 @@ final class Installer {
 				UNIQUE KEY connector_site (connector_key,site_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Payment events, refunds, credit notes, payment cases and document sequences. */
+	private static function schema_payment_tables( $charset ) {
+		global $wpdb;
+		return array(
 			"CREATE TABLE {$wpdb->prefix}wpcap_payment_events (
 				payment_event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				provider varchar(32) NOT NULL,
@@ -1046,6 +1154,14 @@ final class Installer {
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (series,year)
 			) ENGINE=InnoDB $charset;",
+		);
+	}
+
+	/** A401: schema_statements() part: Device pairings, jobs, support log, bulk runs, code history, legal versions and the tables owned by other classes (outbox, action keys, rate limits, check-in claims, mail suppressions). */
+	private static function schema_operation_tables( $charset ) {
+		global $wpdb;
+		$jobs = $wpdb->prefix . 'wpcap_jobs';
+		return array(
 			"CREATE TABLE {$wpdb->prefix}wpcap_device_pairings (
 				pairing_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				code_hash char(64) NOT NULL,
@@ -1159,10 +1275,6 @@ final class Installer {
 			// Reminder unsubscribes and bounce/complaint reports, address hashes only (DB 3.17.2, src/Mail/Suppression.php).
 			Mail\Suppression::schema( $wpdb->prefix . 'wpcap_mail_suppressions', $charset ),
 		);
-
-		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
-		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
-		return array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
 	}
 
 	/** Option: schema line a site came from when the merged code first ran (fresh, base, ours, theirs, merged). */
