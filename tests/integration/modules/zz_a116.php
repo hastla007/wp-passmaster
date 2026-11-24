@@ -40,8 +40,12 @@ $wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $a116_
 $a116_news = (int) $wpdb->insert_id;
 
 $GLOBALS['a116_hooks'] = array();
-add_action( 'wpcap_consent_granted', static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'granted', $r ); } );
-add_action( 'wpcap_consent_withdrawn', static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'withdrawn', $r ); } );
+// Recording listeners; removed again at the end of the module, so later modules (A612: webhook listener guard)
+// do not see foreign callbacks on the consent hooks.
+$a116_on_granted = static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'granted', $r ); };
+$a116_on_withdrawn = static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'withdrawn', $r ); };
+add_action( 'wpcap_consent_granted', $a116_on_granted );
+add_action( 'wpcap_consent_withdrawn', $a116_on_withdrawn );
 $a116_log = static function ( $where = '1=1' ) use ( $wpdb, $p ) { return $wpdb->get_results( "SELECT * FROM {$p}wpcap_consent_log WHERE $where ORDER BY log_id" ); };
 $a116_end = static function ( $where ) use ( $a116_log ) { $rows = $a116_log( $where ); return $rows ? $rows[ count( $rows ) - 1 ] : null; };
 $a116_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_consent_log" );
@@ -193,3 +197,8 @@ check( 'A116 erasure: other tickets\' records untouched', '' !== (string) $wpdb-
 // ---- Docs.
 $a116_docs = (string) file_get_contents( WPCAP_PATH . 'docs/HOOKS.md' ) . (string) file_get_contents( WPCAP_PATH . 'docs/BETREIBERPFLICHTEN.md' );
 check( 'A116 hooks and the erasure decision are documented', false !== strpos( $a116_docs, '| `wpcap_consent_granted` |' ) && false !== strpos( $a116_docs, '| `wpcap_consent_withdrawn` |' ) && false !== strpos( $a116_docs, '### 5.3 Entscheidung: Datenschutz-Löschung und Nachweis' ) );
+
+// ---- Cleanup: detach the recording listeners (test isolation).
+remove_action( 'wpcap_consent_granted', $a116_on_granted );
+remove_action( 'wpcap_consent_withdrawn', $a116_on_withdrawn );
+unset( $GLOBALS['a116_hooks'] );
