@@ -1,8 +1,10 @@
 # Ereignisse des Kerns für andere Captain-Plugins (Ist-Stand)
 
-Stand: 16.11.2026, Plugin 1.5.0. Dieses Dokument beschreibt nur, was Pass Captain **heute** aussendet. Es ist
-kein Vertrag mit Workflow Captain, Review Captain oder Form Captain: Eine gemeinsame Spezifikation der Suite
-gibt es noch nicht (siehe [Was vor einer Anbindung festzulegen ist](#was-vor-einer-anbindung-festzulegen-ist)).
+Stand: 24.11.2026, Plugin 1.7.0 (Erweiterungsvertrag `WPCAP_CONTRACT_VERSION` 1.4.0, siehe
+[CONTRACTS.md](CONTRACTS.md)). Dieses Dokument beschreibt, was Pass Captain **heute** aussendet. Die gemeinsame
+Spezifikation der Suite liegt in Workflow Captain (`wp-workflowmaster`, `docs/SPEC-suite-events.md`,
+1.0.0-draft.13); Pass Captain liefert dafür nach Entscheidung PC-7 keinen eigenen Workflow-Vertrag, sondern die
+`wpcap_*`-Actions, die Lesefassade `wpcap_get_*_state()` und die Aktionsfunktionen (`src/Api/Actions.php`).
 
 Der Kern sendet seine Ereignisse immer und ohne Bedingung. Er prüft nicht, ob ein anderes Plugin oder ein
 Add-on aktiv oder lizenziert ist; ob ein Empfänger ein Ereignis verarbeiten darf, entscheidet der Empfänger.
