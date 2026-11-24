@@ -56,6 +56,49 @@ final class Service {
 		add_filter( 'wpcap_ticket_known_code', array( __CLASS__, 'known_code' ), 10, 2 );
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 		add_action( 'shutdown', array( __CLASS__, 'flush_on_shutdown' ), 5 );
+		// Wallet buttons per ticket in the order portal (only tickets the buyer still holds).
+		add_filter( 'wpcap_order_portal_sections', array( __CLASS__, 'portal_section' ), 15, 2 );
+	}
+
+	/**
+	 * Tickets of an order whose wallet passes belong to the buyer: valid, never transferred and the
+	 * current code with the buyer (no other attendee address, or A581: code_with_attendee=0) – the
+	 * same rule as order_ticket_ids(), with a wallet state but without a provider's pass row.
+	 *
+	 * @return object[] ticket_id, event_name, ticket_name, starts_at, timezone
+	 */
+	private static function buyer_wallet_tickets( $order ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$with_buyer = \PassCaptain\TicketCodes::holder_ready() ? ' OR t.code_with_attendee=0' : '';
+		return (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' AND t.transfer_count=0 AND (t.attendee_email IS NULL OR t.attendee_email='' OR LOWER(t.attendee_email)=LOWER(%s)$with_buyer) ORDER BY o.starts_at,t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed SQL fragment.
+			(int) $order->order_id,
+			(string) $order->customer_email
+		) );
+	}
+
+	/**
+	 * Filter wpcap_order_portal_sections: "Zu Apple Wallet hinzufügen" / "In Google Wallet speichern" per
+	 * ticket of a paid order, for the tickets the buyer still holds (buyer_wallet_tickets()) and only where
+	 * a pass exists (ticket_links(), the same links as on the ticket page). Nothing without passes.
+	 *
+	 * @param string $html  Sections so far.
+	 * @param object $order Order row.
+	 */
+	public static function portal_section( $html, $order = null ) {
+		if ( ! is_object( $order ) || 'paid' !== (string) ( $order->payment_status ?? '' ) || ( ! self::provider( 'apple' ) && ! self::provider( 'google' ) ) ) { return $html; }
+		$items = '';
+		foreach ( self::buyer_wallet_tickets( $order ) as $ticket ) {
+			$links = self::ticket_links( (int) $ticket->ticket_id );
+			if ( ! $links ) { continue; }
+			$items .= '<li><strong>' . esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ) . '</strong><br><small class="muted">' . esc_html( \PassCaptain\Frontend\Format::event_start( (string) $ticket->starts_at, (string) $ticket->timezone ) ) . '</small><br>';
+			if ( ! empty( $links['apple'] ) ) { $items .= '<a class="wpcap-wallet-apple" href="' . esc_url( $links['apple'] ) . '">' . esc_html__( 'Zu Apple Wallet hinzufügen', 'pass-captain' ) . '</a> '; }
+			if ( ! empty( $links['google'] ) ) { $items .= '<a class="wpcap-wallet-google" href="' . esc_url( $links['google'] ) . '">' . esc_html__( 'In Google Wallet speichern', 'pass-captain' ) . '</a>'; }
+			$items .= '</li>';
+		}
+		if ( '' === $items ) { return $html; }
+		return $html . '<section class="card wpcap-wallet" aria-labelledby="wpcap-wallet-title"><h2 id="wpcap-wallet-title">' . esc_html__( 'Wallet-Pässe deiner Tickets', 'pass-captain' ) . '</h2><ul>' . $items . '</ul><p class="muted"><small>' . esc_html__( 'Übertragene oder neu ausgestellte Tickets erhalten ihre Pässe mit der jeweiligen E-Mail.', 'pass-captain' ) . '</small></p></section>';
 	}
 
 	public static function default_provider( $provider, $key ) {

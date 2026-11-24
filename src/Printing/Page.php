@@ -389,6 +389,14 @@ final class Page {
 	public static function handle_attendee_list() {
 		check_admin_referer( 'wpcap_attendee_list' );
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
+		$event_id = absint( $_GET['event_id'] ?? 0 );
+		if ( ! $occurrence_id && $event_id ) {
+			// PASS-FE-05: CSV over all dates of the event the user may export (same columns plus the date).
+			$scope = AttendeeList::event_scope( $event_id );
+			if ( '' === $scope['level'] ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+			Audit::record( 'attendee_list_csv', 'event', $event_id, array( 'level' => $scope['level'], 'occurrences' => count( $scope['occurrences'] ) ) );
+			Scope::stream_csv( self::with_header( AttendeeList::event_header( $scope['occurrences'], $scope['level'] ), AttendeeList::event_row_stream( $scope['occurrences'], $scope['level'] ) ), 'teilnehmer-event-' . $event_id . '.csv', AttendeeList::chunk_size() );
+		}
 		$level = AttendeeList::access_level( $occurrence_id );
 		if ( '' === $level ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$format = sanitize_key( wp_unslash( $_GET['format'] ?? '' ) );

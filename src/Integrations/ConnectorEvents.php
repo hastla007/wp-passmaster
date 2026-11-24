@@ -16,6 +16,11 @@
  * - ticket_checked_in     ← wpcap_ticket_checked_in
  * - occurrence_rescheduled← wpcap_occurrence_rescheduled
  * - occurrence_cancelled  ← wpcap_occurrence_cancelled
+ * - ticket_checked_out    ← wpcap_ticket_checked_out (contract 1.2.0, like the webhook ticket.checked_out)
+ * - event_cancelled       ← wpcap_event_cancelled (contract 1.2.0; every date also sends occurrence_cancelled)
+ * - attendance_confirmed  ← first wpcap_ticket_checked_in of a ticket or wpcap_attendance_confirmed, once per
+ *                           ticket (contract 1.2.0, like the webhook attendance.confirmed)
+ * - ticket_transferred    ← wpcap_ticket_transferred (contract 1.2.0; portal transfer, assignment, admin holder change)
  *
  * One `connector_delivery` job per event and connector: a connector that fails is retried on its
  * own without delivering the event to the others twice. The job key is derived from the event's
@@ -51,12 +56,12 @@ final class ConnectorEvents {
 	/**
 	 * Version of the connector contract (ConnectorInterface, events, payload fields; payload key
 	 * `contract_version`). 1.0.0: eight events; 1.1.0: voucher_redeemed, ticket_revoked, reason codes,
-	 * `contract_version`.
+	 * `contract_version`; 1.2.0: ticket_checked_out, event_cancelled, attendance_confirmed, ticket_transferred.
 	 */
-	const CONTRACT_VERSION = '1.1.0';
+	const CONTRACT_VERSION = '1.2.0';
 
 	/** Event names a connector can receive. */
-	const EVENTS = array( 'order_paid', 'order_refunded', 'order_cancelled', 'refund_completed', 'tickets_issued', 'voucher_redeemed', 'ticket_revoked', 'ticket_checked_in', 'occurrence_rescheduled', 'occurrence_cancelled' );
+	const EVENTS = array( 'order_paid', 'order_refunded', 'order_cancelled', 'refund_completed', 'tickets_issued', 'voucher_redeemed', 'ticket_revoked', 'ticket_checked_in', 'occurrence_rescheduled', 'occurrence_cancelled', 'ticket_checked_out', 'event_cancelled', 'attendance_confirmed', 'ticket_transferred' );
 
 	/** @var bool */
 	private static $registered = false;
@@ -74,6 +79,11 @@ final class ConnectorEvents {
 		add_action( 'wpcap_ticket_checked_in', array( __CLASS__, 'ticket_checked_in' ), 50, 2 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'occurrence_rescheduled' ), 50, 3 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), 50, 2 );
+		// Contract 1.2.0: the events that already existed as webhooks.
+		add_action( 'wpcap_ticket_checked_out', array( __CLASS__, 'ticket_checked_out' ), 50, 2 );
+		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'event_cancelled' ), 50, 2 );
+		add_action( 'wpcap_attendance_confirmed', array( __CLASS__, 'attendance_confirmed' ), 50, 2 );
+		add_action( 'wpcap_ticket_transferred', array( __CLASS__, 'ticket_transferred' ), 50, 2 );
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
@@ -165,6 +175,67 @@ final class ConnectorEvents {
 			'source'         => sanitize_key( (string) ( $context['source'] ?? 'web' ) ),
 			'device_id'      => absint( $context['device_id'] ?? 0 ),
 			'area_id'        => absint( $context['area_id'] ?? 0 ),
+		) );
+		// Contract 1.2.0: attendance_confirmed once per ticket, at its first admission (webhook attendance.confirmed).
+		self::attendance_confirmed( $ticket_id, array( 'method' => 'check_in', 'source' => $context['source'] ?? 'web' ) );
+	}
+
+	/** Contract 1.2.0: one event per check-out (key from the check-out row, else the scan key). */
+	public static function ticket_checked_out( $ticket_id, $context = array() ) {
+		$context = (array) $context;
+		$ticket = self::ticket_row( $ticket_id );
+		if ( ! $ticket ) { return; }
+		$scan = (string) ( $context['idempotency_key'] ?? '' );
+		$checkin = absint( $context['checkin_id'] ?? 0 );
+		$key = 'ticket_checked_out|' . absint( $ticket_id ) . '|' . ( $checkin ? 'checkin_' . $checkin : ( '' !== $scan ? hash( 'sha256', $scan ) : uniqid( '', true ) ) );
+		self::queue( 'ticket_checked_out', $key, self::ticket_data( $ticket ) + array(
+			'source'    => sanitize_key( (string) ( $context['source'] ?? 'web' ) ),
+			'device_id' => absint( $context['device_id'] ?? 0 ),
+			'area_id'   => absint( $context['area_id'] ?? 0 ),
+		) );
+	}
+
+	/**
+	 * Contract 1.2.0: the participation of a ticket is confirmed – by its first admission (method check_in)
+	 * or by wpcap_confirm_attendance() (wpcap_attendance_confirmed, method from the call). Once per ticket:
+	 * the event key is the ticket, so a later admission or confirmation queues nothing new.
+	 */
+	public static function attendance_confirmed( $ticket_id, $context = array() ) {
+		$context = (array) $context;
+		$ticket = self::ticket_row( $ticket_id );
+		if ( ! $ticket ) { return; }
+		self::queue( 'attendance_confirmed', 'attendance_confirmed|' . absint( $ticket_id ), self::ticket_data( $ticket ) + array(
+			'method' => sanitize_key( (string) ( $context['method'] ?? 'check_in' ) ),
+			'source' => sanitize_key( (string) ( $context['source'] ?? 'web' ) ),
+		) );
+	}
+
+	/**
+	 * Contract 1.2.0: another person holds the ticket (source portal, assign or admin). One event per holder
+	 * change (key with the number of changes so far); no addresses, no code.
+	 */
+	public static function ticket_transferred( $ticket_id, $context = array() ) {
+		$context = (array) $context;
+		$ticket = self::ticket_row( $ticket_id );
+		if ( ! $ticket ) { return; }
+		$changes = absint( $context['holder_changes'] ?? 0 );
+		$source = sanitize_key( (string) ( $context['source'] ?? 'portal' ) );
+		self::queue( 'ticket_transferred', 'ticket_transferred|' . absint( $ticket_id ) . '|' . $source . '|' . $changes, self::ticket_data( $ticket ) + array(
+			'source'         => $source,
+			'holder_changes' => $changes,
+		) );
+	}
+
+	/** Contract 1.2.0: a whole event was cancelled (after all its dates; each date sends occurrence_cancelled too). */
+	public static function event_cancelled( $event_id, $context = array() ) {
+		global $wpdb;
+		$context = (array) $context;
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', absint( $event_id ) ) );
+		if ( ! $event ) { return; }
+		self::queue( 'event_cancelled', 'event_cancelled|' . absint( $event_id ), array(
+			'event_id'       => (int) $event->event_id,
+			'status'         => (string) $event->status,
+			'occurrence_ids' => array_values( array_map( 'intval', (array) ( $context['occurrence_ids'] ?? array() ) ) ),
 		) );
 	}
 
@@ -281,6 +352,17 @@ final class ConnectorEvents {
 	private static function ticket_row( $ticket_id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.public_id,t.order_id,t.ticket_type_id,t.status,tt.occurrence_id FROM %i t LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_ticket_types', absint( $ticket_id ) ) );
+	}
+
+	/** Identifier fields of a ticket (ticket_row()) shared by the ticket events. */
+	private static function ticket_data( $ticket ) {
+		return array(
+			'ticket_id'      => (int) $ticket->ticket_id,
+			'public_id'      => (string) $ticket->public_id,
+			'order_id'       => (int) $ticket->order_id,
+			'ticket_type_id' => (int) $ticket->ticket_type_id,
+			'occurrence_id'  => (int) $ticket->occurrence_id,
+		);
 	}
 
 	/** Voucher fields of a ticket-service order: provider, voucher id, purpose, value – no code, code hint or redemption key. */

@@ -3182,29 +3182,133 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return Admission\CodeRotationLock::error( $locked );
 		}
+		$moved = self::move_ticket( $order, $ticket, $recipient_email, array( 'source' => 'portal' ) );
+		if ( is_wp_error( $moved ) ) { return $moved; }
+		if ( ! $moved['mailed'] ) {
+			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
+		}
+		return array( 'status' => 'transferred' );
+	}
+
+	/**
+	 * PASS-FE-03: staff change the holder of a ticket to another person (admin "Inhaber ändern"). Same
+	 * effect as a buyer transfer in the order portal (move_ticket()): new code (the previous holder's
+	 * link and wallet pass stop working), counted as a transfer (the buyer's order link can no longer
+	 * re-target the ticket), the previous holder's name, answers and consents end, `wpcap_ticket_code_rotated`
+	 * and `wpcap_ticket_transferred` (source "admin") fire. Unlike the portal, staff are not bound to the
+	 * holder-change limit or the start of the date; open refunds and the code rotation lock (admission begun,
+	 * offline scanners) still refuse. The caller checks permissions.
+	 *
+	 * @param int    $ticket_id Ticket.
+	 * @param string $email     New holder address (required, must differ from the current holder).
+	 * @param string $name      New attendee name (required).
+	 * @param array  $context   reason (required), notify (bool, default true: the new holder gets the ticket, the buyer a notice).
+	 * @return array|\WP_Error {status, ticket_id, mailed}
+	 */
+	public static function change_ticket_holder( $ticket_id, $email, $name, array $context = array() ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_id = absint( $ticket_id );
+		$email = Http::email( $email );
+		$name = Text::limit( sanitize_text_field( Http::str( $name ) ), TicketAssignments::NAME_MAX );
+		$reason = sanitize_text_field( (string) ( $context['reason'] ?? '' ) );
+		if ( '' === $reason ) {
+			return new \WP_Error( 'wpcap_holder_change_reason', __( 'Bitte einen Grund für den Inhaberwechsel angeben.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( Http::email_too_long( $email ) ) {
+			return new \WP_Error( 'wpcap_holder_change_invalid', self::email_too_long_message(), array( 'status' => 400, 'field' => 'attendee_email' ) );
+		}
+		if ( ! is_email( $email ) || '' === $name ) {
+			return new \WP_Error( 'wpcap_holder_change_invalid', __( 'Bitte Name und eine gültige E-Mail-Adresse der neuen Person angeben.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $p . 'wpcap_tickets', $ticket_id ) );
+		self::begin();
+		// Same lock order as the portal transfer and refunds: order row first, then the ticket.
+		$order = $order_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) ) : null;
+		$ticket = $order ? $wpdb->get_row( $wpdb->prepare(
+			'SELECT t.ticket_id,t.status,t.attendee_email,t.transfer_count,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.ticket_id=%d AND t.order_id=%d FOR UPDATE', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events',
+			$ticket_id,
+			(int) $order->order_id
+		) ) : null;
+		if ( ! $order || ! $ticket ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+		}
+		// transfer_count is a tinyint: a ticket moved 255 times cannot be counted any further.
+		if ( 'valid' !== $ticket->status || 'paid' !== $order->payment_status || (int) $ticket->transfer_count >= 255 ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_holder_change_not_allowed', __( 'Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können an eine andere Person gehen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$holder = is_email( (string) $ticket->attendee_email ) ? (string) $ticket->attendee_email : (string) $order->customer_email;
+		if ( 0 === strcasecmp( $holder, $email ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_holder_change_same', __( 'Das ist bereits die Adresse der Inhaber:in. Für Tippfehler derselben Person „Teilnehmerdaten korrigieren“ verwenden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		// A537: while a refund of the ticket is pending or running, it stays with its holder.
+		$open_refund = Refunds::ticket_has_open_refund( (int) $order->order_id, (int) $ticket->ticket_id );
+		if ( false !== $open_refund ) {
+			$wpdb->query( 'ROLLBACK' );
+			return null === $open_refund
+				? Errors::busy( __( 'Der Inhaber konnte gerade nicht geändert werden. Bitte erneut versuchen.', 'pass-captain' ) )
+				: new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		// A593: the change rotates the code – not once admission has begun or the code is on offline scanners.
+		$locked = Admission\CodeRotationLock::reason( (int) $ticket->ticket_id );
+		if ( '' !== $locked ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Admission\CodeRotationLock::error( $locked );
+		}
+		return self::move_ticket( $order, $ticket, $email, array( 'source' => 'admin', 'attendee_name' => $name, 'notify' => (bool) ( $context['notify'] ?? true ), 'reason' => $reason ) );
+	}
+
+	/**
+	 * Moves a ticket to another holder (portal transfer and admin holder change): new code, transfer
+	 * counted, the previous holder's name, answers and consents end, hooks fire after the commit, mails.
+	 * Call inside the transaction that holds the order and ticket row locks (checks done); it commits, or
+	 * rolls back on a failed write.
+	 *
+	 * @param object $order           Order row.
+	 * @param object $ticket          Locked ticket row (ticket_id, transfer_count, event_name, ticket_name, starts_at, timezone, location).
+	 * @param string $recipient_email New holder.
+	 * @param array  $opts            source (portal|admin), attendee_name (admin: the new name; portal: cleared),
+	 *                                notify (bool, default true), reason (admin audit).
+	 * @return array|\WP_Error {status: transferred, ticket_id, mailed}
+	 */
+	private static function move_ticket( $order, $ticket, $recipient_email, array $opts ) {
+		global $wpdb;
+		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
+		$admin = 'admin' === ( $opts['source'] ?? '' );
+		$notify = (bool) ( $opts['notify'] ?? true );
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
 		CodeHistory::replacing( (int) $ticket->ticket_id, 'transfer' ); // A543: the old code says "transferred".
+		// A581: the portal recipient is never the buyer; staff may move a ticket back to the buyer.
+		$with_attendee = $admin ? TicketCodes::to_attendee( $recipient_email, (string) $order->customer_email ) : 1;
 		$set = array(
 			'token_hash' => hash( 'sha256', $token ),
 			'attendee_email' => $recipient_email,
 			'transfer_count' => (int) $ticket->transfer_count + 1,
-		) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => 1 ) : array() ); // A581.
+		) + ( TicketCodes::holder_ready() ? array( 'code_with_attendee' => $with_attendee ) : array() ); // A581.
 		$updated = $wpdb->update( $tickets_table, $set, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array_slice( array( '%s', '%s', '%d', '%d' ), 0, count( $set ) ), array( '%d', '%s', '%d' ) );
 		if ( false === $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
-		// The previous holder's name and custom answers must not stay on the transferred ticket.
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $wpdb->prefix . 'wpcap_ticket_assignments', $recipient_email, (int) $ticket->ticket_id ) );
+		// The previous holder's name and custom answers must not stay on the transferred ticket; staff set the new name.
+		if ( $admin ) {
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $wpdb->prefix . 'wpcap_ticket_assignments', (int) $ticket->ticket_id, (string) $order->customer_email, $recipient_email, (string) ( $opts['attendee_name'] ?? '' ), Clock::mysql() ) );
+		} else {
+			$wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $wpdb->prefix . 'wpcap_ticket_assignments', $recipient_email, (int) $ticket->ticket_id ) );
+		}
 		$wpdb->delete( $wpdb->prefix . 'wpcap_participant_answers', array( 'ticket_id' => (int) $ticket->ticket_id ) );
+		if ( $admin ) { TicketAssignments::touch( array( (int) $ticket->ticket_id ) ); } // A574: the name lives outside wpcap_tickets.
 		$wpdb->query( 'COMMIT' );
 		// The previous holder's consents end with the ticket (logged, hooks fire).
 		Consents::end_for_ticket( (int) $ticket->ticket_id, 'transfer', $previous_holder );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
 		/** A674: another person holds the ticket now (after the commit; no code, no addresses). */
-		do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'portal', 'holder_changes' => (int) $ticket->transfer_count + 1 + TicketAssignments::holder_changes( (int) $ticket->ticket_id ) ) );
+		do_action( 'wpcap_ticket_transferred', (int) $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => $admin ? 'admin' : 'portal', 'holder_changes' => (int) $ticket->transfer_count + 1 + TicketAssignments::holder_changes( (int) $ticket->ticket_id ) ) );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
 		$vars = array(
 			'order_id' => (string) $order->public_id,
@@ -3216,14 +3320,22 @@ final class Orders {
 			'ticket_extras' => Mail\Blocks::extra( self::code_mail_section( (int) $ticket->ticket_id, (string) $order->locale ) ),
 			'recipient_email' => $recipient_email,
 		);
+		$audit = array( 'order_id' => (int) $order->order_id ) + ( $admin ? array( 'source' => 'admin', 'reason' => (string) ( $opts['reason'] ?? '' ), 'notified' => $notify ) : array() );
+		$result = array( 'status' => 'transferred', 'ticket_id' => (int) $ticket->ticket_id, 'mailed' => false );
+		if ( ! $notify ) {
+			Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit );
+			return $result;
+		}
 		// The recipient's language is unknown; the order's locale is the best available guess.
 		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale, (int) $order->order_id ) ) {
-			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
+			if ( $admin ) { Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit + array( 'mailed' => false ) ); }
+			return $result;
 		}
 		// A652: the previous holder learns that the ticket moved – never the new code (link, help code).
 		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, self::without_code_vars( $vars ), array(), (string) $order->locale, (int) $order->order_id );
-		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
-		return array( 'status' => 'transferred' );
+		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, $audit );
+		$result['mailed'] = true;
+		return $result;
 	}
 
 	/**
