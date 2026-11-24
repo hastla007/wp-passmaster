@@ -59,7 +59,8 @@ final class OrderAdapter {
 	/**
 	 * Version of the "wpcap_woocommerce_hold_fulfilment" contract (since 1.4): a filter returning true keeps the
 	 * tickets of a paid order reserved until the order is set to processing/completed again. Integrations
-	 * (Voucher Captain) check this constant before relying on the hold.
+	 * (Voucher Captain) check isset( PublicApi::hooks()['wpcap_woocommerce_hold_fulfilment'] ) (public add-on
+	 * API 1.1) or this constant before relying on the hold.
 	 */
 	const HOLD_FULFILMENT = 1;
 

@@ -59,7 +59,7 @@ Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 
 ## Öffentliche Add-on-API
 
-Vertrag `addon`, Version **1.0.0** (`PassCaptain\PublicApi::VERSION`, Tabelle in [CONTRACTS.md](CONTRACTS.md)).
+Vertrag `addon`, Version **1.1.0** (`PassCaptain\PublicApi::VERSION`; 1.1.0: `wpcap_woocommerce_hold_fulfilment`, Tabelle in [CONTRACTS.md](CONTRACTS.md)).
 Versionsregel: Eine Minor-Version fügt nur Hooks oder Argumente am Ende hinzu. Innerhalb einer Hauptversion
 wird ein öffentlicher Hook nie entfernt, umbenannt oder mit anderen Argumenttypen aufgerufen; ein Hook, der
 wegfallen soll, bleibt mindestens eine Minor-Version lang als veraltet bestehen (`apply_filters_deprecated`,
@@ -67,7 +67,8 @@ Hinweis bei `WP_DEBUG`) und verschwindet erst mit der nächsten Hauptversion –
 
 **Einstieg:** Das Add-on hängt sich beim Laden seiner Hauptdatei an `wpcap_loaded` (bzw. prüft
 `did_action( 'wpcap_loaded' )`) und vergleicht die übergebene Version mit
-`PassCaptain\PublicApi::compatible( '1.0' )`. Ist der Kern nicht aktiv oder die Hauptversion anders, steigt
+`PassCaptain\PublicApi::compatible( '1.0' )`. Braucht es einen Hook, der erst mit einer Minor-Version dazukam
+(Spalte „Seit“), prüft es zusätzlich `isset( PassCaptain\PublicApi::hooks()[ $hook ] )`. Ist der Kern nicht aktiv oder die Hauptversion anders, steigt
 das Add-on mit einem Admin-Hinweis aus. Der Kern selbst kennt das Add-on nicht, prüft keine Lizenzen und
 funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
 
@@ -108,6 +109,7 @@ funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
 | `wpcap_export_formats` | Filter | 1.0 | Exporte | Weitere Formate des Buchhaltungsexports: `id => ['label', 'rows' => callable( $from, $to ): array[]]` (erste Zeile = Kopf). Schaltfläche auf der Berichtsseite; Download als UTF-8-CSV (Semikolon) mit derselben Berechtigung, Nonce und Audit-Eintrag (`accounting_exported`, `format` = id) wie der eingebaute Export; Formelzeichen am Zellanfang werden entschärft. `csv` und `datev` sind reserviert. |
 | `wpcap_payment_gateways` | Filter | 1.0 | Zahlungen | Zahlungsadapter registrieren (`GatewayInterface`). |
 | `wp_pass_captain_checkin_service_v1` | Filter | 1.0 | Scanner | Check-in-Dienst für fremde Scanner ([VOUCHERS.md](VOUCHERS.md)). |
+| `wpcap_woocommerce_hold_fulfilment` | Filter | 1.1 | Bestellungen | Ticketausgabe einer bezahlten WooCommerce-Bestellung zurückhalten (`bool $hold`, `WC_Order $wc_order`; z. B. Voucher Captain bei nicht belastbarer Geschenkkarte). Die Reservierung bleibt; die Tickets folgen, wenn die Bestellung wieder auf „In Bearbeitung“/„Abgeschlossen“ gesetzt wird. Eine Integration prüft vorher `isset( PassCaptain\PublicApi::hooks()['wpcap_woocommerce_hold_fulfilment'] )`: ein älterer Kern kennt das Zurückhalten nicht oder nicht verlässlich und stellt die Tickets trotz Fehlbetrag aus. |
 
 Nicht enthalten ist ein Gebühren-Filter `wpcap_order_fees` (A331): Bestellgebühren brauchen ein eigenes
 Datenmodell (eigene Rechnungszeile, USt-Behandlung, Erstattung, Preisangabe im Checkout) – das ist eine offene

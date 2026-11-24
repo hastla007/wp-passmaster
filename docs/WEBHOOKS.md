@@ -26,7 +26,7 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 | `consent.withdrawn` | `wpcap_consent_withdrawn` (A612: Widerruf oder Ende durch Inhaberwechsel) | wie `consent.granted`, `state` `withdrawn` |
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass); derselbe Einlass doppelt gemeldet bleibt ein Ereignis | Ticket + `checked_in_at`, `source` |
 | `ticket.checked_out` | `wpcap_ticket_checked_out` – jeder Auslass ein Ereignis | Ticket + `checked_out_at`, `source` |
-| `attendance.confirmed` | erster gültiger Einlass eines Tickets – höchstens einmal je Ticket | Ticket + `confirmed_at`, `method` (`check_in`), `source` |
+| `attendance.confirmed` | erster gültiger Einlass eines Tickets oder zulässige Teilnahmebestätigung ohne Scan (`wpcap_confirm_attendance()`) – höchstens einmal je Ticket, je nachdem, was zuerst geschieht | Ticket + `confirmed_at`, `method` (`check_in`, bzw. `manual`, `list`, `session`, `online`), `source` (`api` bei der Bestätigung ohne Scan) |
 | `ticket.transferred` | `wpcap_ticket_transferred` (Übertragung im Bestellportal, Inhaberwechsel bei der Zuweisung, „Inhaber ändern“ im Admin) | Ticket + `source` (`portal`, `assign`, `admin`), `holder_changes` |
 | `ticket.revoked` | `wpcap_ticket_revoked` (Admin, Erstattung, Stornierung, Absage) | Ticket + `reason` |
 | `ticket.exchanged` | `wpcap_ticket_exchanged` (Umtausch abgeschlossen: Admin, Portal, Kasse) | neues Ticket + `previous_ticket_id` (öffentliche ID des alten Tickets) + `exchange` (`from_ticket_type_id`, `to_ticket_type_id`, `channel`, `currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) |
