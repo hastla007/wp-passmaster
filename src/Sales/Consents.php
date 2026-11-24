@@ -17,6 +17,12 @@
  * - Privacy: own exporter and eraser (wp_privacy_personal_data_*) and deletion together with the
  *   participant answers after the retention period (Privacy\Retention::HOOK).
  *
+ * N03: this class is the store of these records only. PassCaptain\Consents is the one entry point
+ * for showing and managing consents: the order portal renders this class's content inside its single
+ * consent card (portal_items()), the admin order detail lists and withdraws these records (source
+ * "admin") and the event consent CSV includes them. PassCaptain\Consents never logs a field of type
+ * `consent`, so no consent is recorded twice.
+ *
  * @package PassCaptain
  */
 
@@ -352,12 +358,23 @@ final class Consents {
 
 	/** Portal section listing the consents of the order with a withdraw button each and open consents of buyer-held tickets ('' without any). */
 	public static function portal_section( $order ) {
+		$items = self::portal_items( $order );
+		return '' === $items ? '' : '<section class="card" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>' . $items . '</section>';
+	}
+
+	/**
+	 * Content of the portal consent card without the section (N03: the order portal shows it inside
+	 * the one card of PassCaptain\Consents::portal_html()). '' without records and open consents.
+	 *
+	 * @param bool $intro Include the withdrawal hint (the shared card has its own).
+	 */
+	public static function portal_items( $order, $intro = true ) {
 		$consents = self::for_order( (int) $order->order_id );
 		$open = self::open_for_buyer( $order );
 		if ( ! $consents && ! $open ) { return ''; }
 
 		$state = sanitize_key( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
-		$html = '<section class="card" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
+		$html = '';
 		if ( 'withdrawn' === $state ) { $html .= '<p role="status">' . esc_html__( 'Die Einwilligung wurde widerrufen.', 'pass-captain' ) . '</p>'; }
 		if ( 'error' === $state ) { $html .= '<p role="alert">' . esc_html__( 'Die Einwilligung konnte nicht widerrufen werden.', 'pass-captain' ) . '</p>'; }
 		if ( 'granted' === $state ) { $html .= '<p role="status">' . esc_html__( 'Danke, deine Einwilligung wurde gespeichert.', 'pass-captain' ) . '</p>'; }
@@ -369,7 +386,7 @@ final class Consents {
 				$html .= '<form method="post"><input type="hidden" name="wpcap_consent_grant" value="' . (int) $ticket_id . '"><input type="hidden" name="wpcap_consent_field" value="' . (int) $field->field_id . '"><button type="submit">' . esc_html__( 'Einwilligung erteilen', 'pass-captain' ) . '</button></form></div>';
 			}
 		}
-		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst erteilte Einwilligungen jederzeit mit Wirkung für die Zukunft widerrufen.', 'pass-captain' ) . '</small></p>';
+		if ( $intro ) { $html .= '<p class="muted"><small>' . esc_html__( 'Du kannst erteilte Einwilligungen jederzeit mit Wirkung für die Zukunft widerrufen.', 'pass-captain' ) . '</small></p>'; }
 
 		foreach ( $consents as $consent ) {
 			$html .= '<div class="card"><p><strong>' . esc_html( $consent->consent_label ) . '</strong>';
@@ -386,7 +403,7 @@ final class Consents {
 			}
 			$html .= '</div>';
 		}
-		return $html . '</section>';
+		return $html;
 	}
 
 	/**
