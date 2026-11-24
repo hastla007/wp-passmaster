@@ -39,6 +39,9 @@
 ### Admin-Listen
 - Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
 
+### Zusatzprodukte (Schema 3.18.5)
+- Ticketart-Art „Zusatzprodukt“ (Parken, Merch …): nur zusammen mit einem Ticket desselben Termins, optional höchstens n je Ticket, ohne Ticket/QR, ohne Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt; `GET /events` liefert `kind` und `addon_max_per_ticket`.
+
 ### Kasse
 - Hinweis „keine Registrierkasse“ verschwindet bei eingerichteter Fiskalisierung (A257).
 - Ohne Netz: Hinweis und gesperrte Verkaufs-, Storno- und Auszahlungsknöpfe, keine Offline-Verkäufe (A527, E-13).

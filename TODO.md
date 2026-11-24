@@ -1771,7 +1771,7 @@ Bericht mit allen 12 Expertenurteilen, Messwerten und „geprüft OK“: `docs/a
 - [x] **[PRIO: MITTEL]** | **[Experte #9]** | **[Kategorie: UX]** – 35 flache Admin-Menüpunkte, kein Dashboard, kein Einrichtungsassistent, kein Duplizieren
   - *Problem:* Admin/Menu.php:126-145 + Modulseiten; Module nur per Filter abschaltbar (Modules.php:32); Start = Eventliste ohne KPIs; kein Onboarding; 3 Seitenwechsel bis zur ersten Ticketart; kein „Event/Termin duplizieren“.
   - *Lösung:* Menü gruppieren; Einstellungen „Funktionen“ mit Schaltern; Dashboard mit KPIs + Setup-Checkliste; „Duplizieren“ inkl. Typen, Felder, Preisregeln.
-- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Zusatzprodukte (Parken, Merch) und Kombi-/Paket-Tickets
+- [ ] **[PRIO: MITTEL]** | **[Experte #12]** | **[Kategorie: Feature]** – Zusatzprodukte (Parken, Merch) und Kombi-/Paket-Tickets *24.11.2026 teilweise: Zusatzprodukte als Ticketart-Art „Zusatzprodukt“ (nur mit Ticket desselben Termins, optional n je Ticket, kein Ticket/QR, keine Termin-Plätze, eigene Rechnungszeile, Bericht getrennt; `src/Sales/Addons.php`, Schema 3.18.5, Test `zz_addons`); Kombi-/Paket-Tickets offen (E-05).*
   - *Problem:* Kein Add-on-/Bundle-Modell im eigenen Checkout; Merch nur über WooCommerce; Kombi über mehrere Termine fehlt als Verkaufsobjekt.
   - *Lösung:* Ticketart-Typ addon (an Hauptticket gebunden) und bundle (n Termine/Typen, ein Preis, gemeinsames Kontingent); einfache Zusatzprodukte Kern, Bundle Add-on (L).
   - *Stand:* Offen (R7): Zusatzprodukte und Kombi-/Paket-Tickets nicht gebaut; als Add-on-Kandidat in docs/FREE-PREMIUM.md vermerkt.
