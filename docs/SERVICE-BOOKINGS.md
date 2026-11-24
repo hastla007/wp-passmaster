@@ -175,6 +175,15 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
 
 ### Zugang für Kund:innen
 
+- **Buchungsseite für Besucher:innen (A268)**: Shortcode `[wpcap_service_booking event="ID" resource="ID"]`
+  bzw. Block `pass-captain/service-booking` (`src/Frontend/ServiceBooking.php`, `assets/service-booking.js`).
+  Zeigt die buchbaren Ressourcen und freie Zeitfenster wochenweise, bucht über die öffentlichen Routen
+  `GET /events/{id}/service-slots`, `POST /service-slots/{id}/bookings` und `POST /service-bookings/{id}/confirm`
+  (bezahlte Ressourcen über den normalen Checkout) und verwaltet die Buchung danach über die
+  Buchungs-Token-Routen (Umbuchen auf Ziele zum gleichen Preis, Stornieren). Kein Inline-JavaScript (strikte
+  CSP), Skript mit Plugin-Version versioniert und nur dort geladen, wo ein Formular erscheint; Radiogruppen
+  mit Beschriftungen, Live-Region für Ladezustand und Wochenwechsel. Einrichtung und Ablauf:
+  `docs/OPERATIONS.md`, „Buchungsseite für Kund:innen (A268)“.
 - **Bestellportal**: Buchungen erscheinen im Bestellportal (Filter `wpcap_order_portal_sections`) mit Formularen
   zum Umbuchen/Stornieren (POST an `admin-post.php`, Nonce, ohne JavaScript).
 - **REST mit Bestellzugang** (Header `X-WPCAP-Access-Token`, alternativ Parameter `access_token`): `GET /orders/{public_id}/service-bookings`,
@@ -283,10 +292,20 @@ des Passes.
 `_b_lifecycle.php` (Zahlung, Stornierung/Erstattung inkl. Gutschein, Umbuchung, Bestätigung, No-Show,
 Kundenzugang; Fehlerinjektion Anbieter/Datenbank), `_c_waitlist.php` (beide Wartelisten),
 `_d_passes.php` (Service-/Eventpässe), `_e_concurrency.php` (echte Parallelprozesse über
-`tests/integration/workers/service_worker.php`: Kapazität, Kollisionen, Umbuchung, parallele Annahmen).
+`tests/integration/workers/service_worker.php`: Kapazität, Kollisionen, Umbuchung, parallele Annahmen),
+`_f_supplement.php` (Umbuchung mit Zuzahlung: Zuzahlungsbestellung, Zahlung, Ablauf, verspätete Zahlung,
+Stornierung, parallele Zuzahlungen), `zz_a268.php` und `tests/js/service-booking.test.js` (Buchungsseite),
+`zz_fe_17_widget.php` (Buchungsseite: strikte CSP ohne Inline-Handler, versionierte Assets, Beschriftungen und
+Live-Region, Du-Form, REST-Routen mit Berechtigungsprüfung; No-Show-Gebühr ohne Einzug).
 
 ## Offene Punkte
 
-- Umbuchung auf ein **teureres** Zeitfenster mit Nachzahlung ist nicht umgesetzt (abgelehnt mit Hinweis).
-- Die No-Show-Gebühr wird nur vermerkt, nicht eingezogen.
-- Kein Frontend-Buchungswidget; Buchung über REST bzw. eigene Oberfläche.
+- **Einzug der No-Show-Gebühr**: Die Gebühr (`noshow_fee_minor`, Regel `forfeit`) wird nur an der Buchung
+  vermerkt und in der Mail genannt, nicht eingezogen. Ein Einzug bräuchte eine Entscheidung (Zahlungsmittel
+  hinterlegen oder Zahlungslink, Einwilligung/AGB, Umgang mit Rechnung und Steuer, Mahnung bei Nichtzahlung)
+  und ist deshalb nicht gebaut.
+- **Verkauf von Zeitfenstern über WooCommerce**: nicht gebaut; bezahlte Zeitfenster laufen über den
+  eigenen Checkout (`ServiceBookingFlow::checkout()`).
+- Die Verwaltungsansicht der Buchungsseite (Buchungs-Token) bietet nur Ziele zum gleichen Preis an; eine
+  Umbuchung auf ein teureres Zeitfenster mit Zuzahlung geht über das Bestellportal bzw. die REST-Routen mit
+  Bestellzugang.
