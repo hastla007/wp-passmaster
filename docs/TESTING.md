@@ -634,6 +634,13 @@ Automatische Prüfungen ersetzen keine Screenreader-Tests ([ACCESSIBILITY.md](AC
 Playwright + `node:test`, Screenshots nur bei Fehlschlag (`tests/e2e/artifacts/`). `helper.php` legt
 serverseitig Kopplungscodes, Zuweisungen und Termine an; `mu-plugin/wpcap-e2e.php` bietet nur auf der Testseite
 eine Fake-Zahlungsseite (Cookie `wpcap_e2e=1`).
+Seit 24.11.2026 hat das Bestellformular einen Bot-Schutz (Mindest-Ausfüllzeit 3 Sekunden). Das mu-plugin setzt
+`checkout_min_fill_seconds` für Web-Anfragen der Testseite auf 0; ein Browser mit Cookie `wpcap_e2e_guard=1` bekommt
+die echte Schwelle (Test des Hinweises „zu schnell“). `helper.php` kennt außerdem `checkin`, `paid-order`, `refunds`,
+`booking` und `seated`. Unter realen Bedingungen (320 px, Tastatur, langsames Netz, offline, Dunkelmodus) prüfen
+`conditions.test.js` und `conditions-widgets.test.js` alle Käufer-Widgets; `offline-checkout.test.js` und
+`flows.test.js` decken Check-out offline, Erstattung bis ins Portal und Umbuchung einer Servicebuchung ab
+(Stand 24.11.2026: Chromium 33 bestanden, 1 übersprungen ohne `WPCAP_WOO_ZIP`, etwa 72 s).
 
 ```bash
 tests/e2e/run.sh                                        # startet die Testseite selbst

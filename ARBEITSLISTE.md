@@ -278,7 +278,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen
 - [x] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
   - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
-- [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit)
+- [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit) *24.11.2026: Code-Teil erledigt (E2E Check-out offline mit Konflikt, Erstattung bis ins Portal, Umbuchung einer Servicebuchung); offen bleiben PSP-Sandbox und echte Hardware.*
   - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs
 - [x] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
   - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
@@ -319,7 +319,7 @@ Abgleich nach der Zusammenführung mit der Audit-Linie (16.11.2026, Merge `06e66
   - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
 - [x] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
-- [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+- [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen) *24.11.2026: Code-Teil erledigt (E2E Check-out offline mit Konflikt, Erstattung bis ins Portal, Umbuchung einer Servicebuchung); offen bleiben PSP-Sandbox und echte Hardware.*
   - Einzeltests vorhanden (tests/integration/modules, tests/load); keine Slot-Kollisionstests, kein realer POS, Mock-WP statt echter Installation
 - [x] **A143** Rollen inkl. Partner/Leistungserbringer definieren — _TEILWEISE_ (TODO L147; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Installer.php:849-856 alle Rollen bis auf Leistungserbringer; wpcap_partner ist Veranstalter, keine Rolle für Servicepartner
@@ -721,7 +721,7 @@ Gesamt: 262 Aufgaben.
   - assets/offline-scanner/app.css:8, 34: --warn/--ok für Text abdunkeln
 - [x] **A320** [WICHTIG] Druck-/Belegseiten mit festem lang="de" — _R2 Frontend_ (TODO L666; Audit Runde 4)
   - src/Printing/AttendeeList.php:74, NoShowList.php:62, GuestLists/Page.php:158, BoxOffice/ZReport.php:439/466, Service.php:736, Reports/Settlement.php:297: determine_locale() verwenden
-- [ ] **A321** [WICHTIG] *Teilweise erledigt 23.11.: tests/e2e/conditions.test.js; weitere Widgets offen.* A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4)
+- [x] **A321** [WICHTIG] *Teilweise erledigt 23.11.: tests/e2e/conditions.test.js; weitere Widgets offen.* A11y-/E2E-Tests decken reale Bedingungen nicht ab — _R2 Frontend_ (TODO L667; Audit Runde 4) *Erledigt 24.11.2026 (siehe TODO.md).*
   - tests/a11y/run.js, keyboard.js: Kalender, Saalplan, Portal-Dialoge, PWA, Kasse, Mobile/Reflow 320 px/400 %, Dark Mode, RTL, Live-Regionen, Nicht-JSON-Fehler, Tastatur-Scanner, bfcache, mehrere Shortcodes
 - [x] **A322** [WICHTIG] Checkout-Fehler ohne Spur verschluckt — _R2 Support_ (TODO L668; Audit Runde 4)
   - src/Orders.php:319–347 (catch Throwable): Zentrales Fehlerprotokoll (Klasse, Code, Datei:Zeile, last_error) + Fehler-ID für Käufer

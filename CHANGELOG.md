@@ -39,6 +39,11 @@
 ### Admin-Listen
 - Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
 
+### Browser-Fehler und Tests
+- Bestellportal und Warteliste zeigen offline ihre eigene Fehlermeldung statt „Failed to fetch“.
+- Saalplan-Zoom zeigte „%%“; Saalplan und Datumsauswahl des Web-Scanners machen die Seite bei 320 px nicht mehr breiter.
+- E2E-Tests unter realen Bedingungen für alle Käufer-Widgets sowie Check-out offline, Erstattung und Umbuchung einer Servicebuchung.
+
 ### Code, Build und Lieferkette
 - Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
 - CI/Release: alle Composer-Installationen ohne Skripte und Plugins, Release-Checkout ohne gespeichertes Token, Build-Provenance-Attestierung für das Release-ZIP (A653).
