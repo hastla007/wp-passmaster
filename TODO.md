@@ -530,7 +530,7 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 - [x] Betriebsüberwachung für WP-Cron/Action Scheduler, Mail-, SMS-, Webhook- und Job-Rückstände einrichten; ausbleibende Ausführung oder dauerhaft fehlerhafte Jobs müssen erkennbar sein.
 - [ ] Käufer-Sprachauswahl sowie Übersetzungen für E-Mails, Tickets und Käuferansichten ergänzen; Übersetzungsverwaltung im Admin und vollständige String-Prüfung für alle unterstützten Sprachen hinzufügen. *Stand 23.11.2026: Sprachauswahl im Checkout wirkt (`buyer_locale`), Prüfung aller Frontend-Textschlüssel in `consistency.php` (A165, Test `zz_a165`). Offen: Übersetzungsverwaltung im Admin.*
 - [x] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen. *(umgesetzt im zusammengeführten Stand, siehe den abgehakten gleichlautenden Eintrag oben; doppelt durch die Zusammenführung)*
-- [ ] Native Scanner-Apps selbst entwickeln oder explizit als separates Produkt/Projekt ausweisen; die Mobile-REST-API allein ist keine Scanner-App.
+- [x] Native Scanner-Apps selbst entwickeln oder explizit als separates Produkt/Projekt ausweisen; die Mobile-REST-API allein ist keine Scanner-App. *Erledigt (24.11.2026): als separates Produkt/Projekt ausgewiesen – `docs/MOBILE-API.md` (Abschnitt „Keine native App im Lieferumfang“) und FAQ in `readme.txt`: keine native App im Lieferumfang, Einlass im Browser (Web-Scanner, Offline-Scanner-Web-App), die API ist der Vertrag für eigene Apps; Wächtertest `zz_p4_offline_pos_docs`. Eine eigene App wäre ein neues Projekt (Entscheidung Produktverantwortung).*
 
 ### Abnahme, Barrierefreiheit und Releasebetrieb
 

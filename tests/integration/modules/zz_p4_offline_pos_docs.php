@@ -2,7 +2,7 @@
 /**
  * PASS-FE-16 / E-13: the shipped texts say explicitly that without network only admissions are possible
  * (offline scanner) and that box office sales, stornos and refunds need the network. Guards against a
- * later text that promises offline sales.
+ * later text that promises offline sales. L533: native scanner apps are declared a separate project.
  *
  * @package PassCaptain
  */
@@ -19,3 +19,8 @@ check( 'PASS-FE-16: readme.txt says only admissions work without network', str_c
 check( 'PASS-FE-16: docs/OFFLINE-SCANNER.md states E-13 (only admissions offline)', str_contains( $fe16_scanner, 'Entscheidung E-13' ) && str_contains( $fe16_scanner, '**nur Einlässe**' ) );
 check( 'PASS-FE-16: docs/OPERATIONS.md states that sales, stornos and refunds need the network', str_contains( $fe16_ops, 'Entscheidung E-13' ) && str_contains( $fe16_ops, '**Verkäufe, Stornos und Erstattungen**' ) && str_contains( $fe16_ops, 'Ein Barverkauf ohne Netz ist nicht vorgesehen.' ) );
 check( 'PASS-FE-16: no shipped text promises offline sales', ! preg_match( '/offline (sales|selling) (is|are) (possible|supported)|offline verkaufen|Offline-Verkauf (ist )?möglich/i', $fe16_readme . $fe16_scanner . $fe16_ops ) );
+
+// L533: native scanner apps are declared a separate product/project; the mobile API alone is no app.
+$fe16_mobile = (string) file_get_contents( $fe16_root . 'docs/MOBILE-API.md' );
+check( 'L533: docs/MOBILE-API.md says no native app ships and apps are a separate project', str_contains( $fe16_mobile, '## Keine native App im Lieferumfang' ) && str_contains( $fe16_mobile, '**keine native Scanner-App**' ) && str_contains( $fe16_mobile, '**eigenes, separates Produkt bzw. Projekt**' ) );
+check( 'L533: readme.txt FAQ says there is no native app and the API alone is not an app', str_contains( $fe16_readme, '= Is there a native scanner app for iOS or Android? =' ) && str_contains( $fe16_readme, 'the API alone is not an app' ) );
