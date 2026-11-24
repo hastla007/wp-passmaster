@@ -110,10 +110,10 @@ msgstr "Attivazione rifiutata"
 #: src/Passes/Definitions.php:322
 #: src/Reports/Page.php:94
 #: src/Reports/Page.php:369
-#: src/Rest/Controller.php:1183
-#: src/Rest/Controller.php:1245
-#: src/Rest/Controller.php:1297
-#: src/Rest/Controller.php:1344
+#: src/Rest/Controller.php:1189
+#: src/Rest/Controller.php:1251
+#: src/Rest/Controller.php:1303
+#: src/Rest/Controller.php:1350
 #: src/Sales/AdminSections.php:50
 #: src/Sales/BuyerLimits.php:105
 #: src/Sales/BuyerLimits.php:133
@@ -137,7 +137,7 @@ msgstr "Non hai l'autorizzazione per questo evento."
 #: src/Admin/ApiKeysPage.php:50
 #: src/Admin/DeveloperKeysPage.php:46
 #: src/DeveloperKeys.php:88
-#: src/Rest/Controller.php:1298
+#: src/Rest/Controller.php:1304
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La data di scadenza deve essere nel futuro."
 
@@ -181,7 +181,7 @@ msgstr "Chiave API revocata."
 #: src/Admin/ApiKeysPage.php:99
 #: src/Admin/AssignmentsPage.php:107
 #: src/Admin/AuditLogPage.php:177
-#: src/Admin/AuditLogPage.php:351
+#: src/Admin/AuditLogPage.php:353
 #: src/Admin/CampaignsPage.php:171
 #: src/Admin/CampaignsPage.php:227
 #: src/Admin/CheckinsPage.php:59
@@ -189,6 +189,7 @@ msgstr "Chiave API revocata."
 #: src/Admin/EventsPage.php:1347
 #: src/Admin/Forms.php:435
 #: src/Admin/Forms.php:458
+#: src/Admin/ManualHoldsRelease.php:155
 #: src/Admin/MembershipsPage.php:215
 #: src/Admin/Menu.php:198
 #: src/Admin/Menu.php:278
@@ -207,8 +208,8 @@ msgstr "Chiave API revocata."
 #: src/Admin/SecurityScreens.php:90
 #: src/Admin/ServiceSlotsPage.php:351
 #: src/Admin/ServicesPage.php:228
-#: src/Admin/SettingsPage.php:878
-#: src/Admin/SettingsPage.php:916
+#: src/Admin/SettingsPage.php:881
+#: src/Admin/SettingsPage.php:919
 #: src/Admin/SettingsTools.php:48
 #: src/Admin/SettingsTools.php:57
 #: src/Admin/SettingsTools.php:107
@@ -384,7 +385,7 @@ msgstr "Nome"
 #: src/Admin/ApiKeysPage.php:121
 #: src/Admin/ApiKeysPage.php:142
 #: src/Admin/AssignmentsPage.php:115
-#: src/Admin/AuditLogPage.php:312
+#: src/Admin/AuditLogPage.php:314
 #: src/Admin/CampaignsPage.php:286
 #: src/Admin/CheckinsPage.php:90
 #: src/Admin/CheckinsPage.php:102
@@ -528,8 +529,8 @@ msgstr "Valido fino al"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MyServicesPage.php:107
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:260
-#: src/Admin/OperationsPage.php:299
+#: src/Admin/OperationsPage.php:261
+#: src/Admin/OperationsPage.php:300
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/OrdersPage.php:666
 #: src/Admin/OrdersPage.php:724
@@ -550,9 +551,9 @@ msgstr "Valido fino al"
 #: src/Admin/ServicesPage.php:436
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/ServicesPage.php:498
-#: src/Admin/StatusPage.php:301
-#: src/Admin/StatusPage.php:328
-#: src/Admin/StatusPage.php:447
+#: src/Admin/StatusPage.php:302
+#: src/Admin/StatusPage.php:329
+#: src/Admin/StatusPage.php:448
 #: src/Admin/SuiteStatus.php:126
 #: src/Admin/TaxPage.php:101
 #: src/Admin/TicketsPage.php:611
@@ -613,8 +614,8 @@ msgstr "Stato"
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:227
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:228
+#: src/Admin/OperationsPage.php:434
 #: src/Admin/OrdersPage.php:1260
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:379
@@ -624,7 +625,7 @@ msgstr "Stato"
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/ServicesPage.php:498
 #: src/Admin/SettingsTools.php:262
-#: src/Admin/StatusPage.php:355
+#: src/Admin/StatusPage.php:356
 #: src/Admin/TaxPage.php:101
 #: src/Admin/WaitlistsPage.php:167
 #: src/Admission/RulesPage.php:202
@@ -684,7 +685,7 @@ msgid "Speichern"
 msgstr "Salva"
 
 #: src/Admin/ApiKeysPage.php:161
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:176
 #: src/Allocations/AdminPage.php:270
 #: src/Operations/SiteHealth.php:592
 #: src/Operations/SiteHealth.php:633
@@ -808,6 +809,7 @@ msgstr "– Scegli evento –"
 
 #: src/Admin/AssignmentsPage.php:117
 #: src/Admin/Forms.php:637
+#: src/Admin/ManualHoldsRelease.php:196
 #: src/Admin/ServiceSlotsPage.php:362
 #: src/Admin/WaitlistsPage.php:149
 #: src/Admission/RulesPage.php:181
@@ -877,7 +879,7 @@ msgstr "Una persona con almeno un'assegnazione di data per un permesso raggiunge
 
 #: src/Admin/AssignmentsPage.php:157
 #: src/Admin/AssignmentsPage.php:178
-#: src/Admin/AuditLogPage.php:313
+#: src/Admin/AuditLogPage.php:315
 #: src/Admin/CheckinsPage.php:46
 #: src/Admin/OrdersPage.php:1092
 #: src/Admin/TicketsPage.php:608
@@ -899,8 +901,8 @@ msgstr "Una persona con almeno un'assegnazione di data per un permesso raggiunge
 #: src/Printing/Page.php:126
 #: src/Printing/Page.php:151
 #: src/Printing/Page.php:357
-#: src/PublicEvents.php:1219
-#: src/PublicEvents.php:1525
+#: src/PublicEvents.php:1222
+#: src/PublicEvents.php:1528
 #: src/Reports/Data.php:782
 #: src/Reports/Data.php:803
 #: src/Reports/Data.php:844
@@ -920,8 +922,8 @@ msgid "Termin"
 msgstr "Data"
 
 #: src/Admin/AssignmentsPage.php:157
-#: src/Admin/AuditLogPage.php:377
-#: src/Admin/AuditLogPage.php:388
+#: src/Admin/AuditLogPage.php:379
+#: src/Admin/AuditLogPage.php:390
 #: src/Admin/EventsPage.php:1481
 #: src/Admin/EventsPage.php:1642
 #: src/Admin/EventsPage.php:1762
@@ -929,7 +931,7 @@ msgstr "Data"
 #: src/Admin/OrdersPage.php:1392
 #: src/Admin/SecurityScreens.php:111
 #: src/Admin/SecurityScreens.php:212
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:403
 #: src/Admin/TicketsPage.php:632
 #: src/BulkRuns.php:717
 #: src/Consents.php:531
@@ -967,10 +969,10 @@ msgid "Wer einem oder mehreren Bereichen zugewiesen ist, kann für dieses Event 
 msgstr "Chi è assegnato a una o più aree può scansionare per questo evento solo lì (scanner web, app scanner, abbinamento dispositivi)."
 
 #: src/Admin/AssignmentsPage.php:189
-#: src/Admin/AuditLogPage.php:375
+#: src/Admin/AuditLogPage.php:377
 #: src/Admin/DevicesPage.php:90
-#: src/Admin/OperationsPage.php:184
-#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:185
+#: src/Admin/OperationsPage.php:203
 #: src/Admin/SettingsTools.php:371
 #: src/Admission/RulesPage.php:202
 #: src/Printing/AttendeeList.php:42
@@ -1196,170 +1198,171 @@ msgstr "Pagamento confermato"
 msgid "Überweisung als bezahlt markiert"
 msgstr "Bonifico segnato come pagato"
 
-#: src/Admin/AuditLogPage.php:230
+#: src/Admin/AuditLogPage.php:232
 msgid "Zahlung ohne freies Kontingent"
 msgstr "Pagamento senza contingente disponibile"
 
-#: src/Admin/AuditLogPage.php:231
+#: src/Admin/AuditLogPage.php:233
 msgid "Zahlung für geschlossene Bestellung"
 msgstr "Pagamento per un ordine chiuso"
 
-#: src/Admin/AuditLogPage.php:232
+#: src/Admin/AuditLogPage.php:234
 msgid "Zahlungsbetrag weicht ab"
 msgstr "L'importo del pagamento non corrisponde"
 
-#: src/Admin/AuditLogPage.php:233
+#: src/Admin/AuditLogPage.php:235
 msgid "Erstattung angefordert"
 msgstr "Rimborso richiesto"
 
-#: src/Admin/AuditLogPage.php:234
+#: src/Admin/AuditLogPage.php:236
 msgid "Stornierung im Bestellportal angefragt"
 msgstr "Annullamento richiesto nel portale ordini"
 
-#: src/Admin/AuditLogPage.php:235
+#: src/Admin/AuditLogPage.php:237
 msgid "Erstattung freigegeben"
 msgstr "Rimborso approvato"
 
-#: src/Admin/AuditLogPage.php:236
+#: src/Admin/AuditLogPage.php:238
 msgid "Erstattung abgelehnt"
 msgstr "Rimborso rifiutato"
 
-#: src/Admin/AuditLogPage.php:237
+#: src/Admin/AuditLogPage.php:239
 msgid "Erstattung durchgeführt"
 msgstr "Rimborso eseguito"
 
-#: src/Admin/AuditLogPage.php:238
+#: src/Admin/AuditLogPage.php:240
 msgid "Erstattung fehlgeschlagen"
 msgstr "Rimborso non riuscito"
 
-#: src/Admin/AuditLogPage.php:239
+#: src/Admin/AuditLogPage.php:241
 msgid "Rechnung ausgestellt"
 msgstr "Fattura emessa"
 
-#: src/Admin/AuditLogPage.php:240
+#: src/Admin/AuditLogPage.php:242
 msgid "Rechnungskorrektur ausgestellt"
 msgstr "Rettifica della fattura emessa"
 
-#: src/Admin/AuditLogPage.php:241
+#: src/Admin/AuditLogPage.php:243
 msgid "Rechnungskorrektur storniert"
 msgstr "Rettifica della fattura stornata"
 
-#: src/Admin/AuditLogPage.php:242
+#: src/Admin/AuditLogPage.php:244
 #: src/Integrations/HttpJson/Endpoints.php:106
 msgid "Ticket eingecheckt"
 msgstr "Biglietto convalidato"
 
-#: src/Admin/AuditLogPage.php:243
+#: src/Admin/AuditLogPage.php:245
 msgid "Ticket ausgecheckt"
 msgstr "Check-out del biglietto effettuato"
 
-#: src/Admin/AuditLogPage.php:244
+#: src/Admin/AuditLogPage.php:246
 msgid "Check-in zurückgenommen"
 msgstr "Check-in annullato"
 
-#: src/Admin/AuditLogPage.php:245
+#: src/Admin/AuditLogPage.php:247
 msgid "Ticket übertragen"
 msgstr "Biglietto trasferito"
 
-#: src/Admin/AuditLogPage.php:246
+#: src/Admin/AuditLogPage.php:248
 msgid "Ticket zugewiesen"
 msgstr "Biglietto assegnato"
 
-#: src/Admin/AuditLogPage.php:247
+#: src/Admin/AuditLogPage.php:249
 msgid "Ticketinhaber:in geändert"
 msgstr "Titolare del biglietto modificato"
 
-#: src/Admin/AuditLogPage.php:248
+#: src/Admin/AuditLogPage.php:250
 msgid "Teilnehmername geändert"
 msgstr "Nome del partecipante modificato"
 
-#: src/Admin/AuditLogPage.php:249
+#: src/Admin/AuditLogPage.php:251
 msgid "Teilnehmerangaben geändert"
 msgstr "Dati del partecipante modificati"
 
-#: src/Admin/AuditLogPage.php:250
+#: src/Admin/AuditLogPage.php:252
 msgid "Ticket neu ausgestellt"
 msgstr "Biglietto riemesso"
 
-#: src/Admin/AuditLogPage.php:251
+#: src/Admin/AuditLogPage.php:253
 msgid "Ticket widerrufen"
 msgstr "Biglietto revocato"
 
-#: src/Admin/AuditLogPage.php:252
+#: src/Admin/AuditLogPage.php:254
 #: src/BulkRuns.php:695
 #: src/BulkRuns.php:702
 msgid "Tickets widerrufen"
 msgstr "Biglietti revocati"
 
-#: src/Admin/AuditLogPage.php:253
+#: src/Admin/AuditLogPage.php:255
 msgid "Tickets erneut gesendet"
 msgstr "Biglietti inviati di nuovo"
 
-#: src/Admin/AuditLogPage.php:254
+#: src/Admin/AuditLogPage.php:256
 msgid "Ticketcodes erneuert"
 msgstr "Codici dei biglietti rinnovati"
 
-#: src/Admin/AuditLogPage.php:255
+#: src/Admin/AuditLogPage.php:257
 msgid "Ticket umgetauscht"
 msgstr "Biglietto cambiato"
 
-#: src/Admin/AuditLogPage.php:256
+#: src/Admin/AuditLogPage.php:258
 msgid "Umtausch angefragt"
 msgstr "Cambio richiesto"
 
-#: src/Admin/AuditLogPage.php:257
+#: src/Admin/AuditLogPage.php:259
 msgid "Ticketmail fehlgeschlagen"
 msgstr "E-mail dei biglietti non riuscita"
 
-#: src/Admin/AuditLogPage.php:258
+#: src/Admin/AuditLogPage.php:260
 msgid "Ticketausstellung fehlgeschlagen"
 msgstr "Emissione del biglietto non riuscita"
 
-#: src/Admin/AuditLogPage.php:259
+#: src/Admin/AuditLogPage.php:261
 msgid "Ticket-PDF in der Verwaltung erstellt"
 msgstr "PDF del biglietto creato nell'amministrazione"
 
-#: src/Admin/AuditLogPage.php:260
+#: src/Admin/AuditLogPage.php:262
 msgid "Ticket-PDF im Bestellportal heruntergeladen"
 msgstr "PDF del biglietto scaricato nel portale ordini"
 
-#: src/Admin/AuditLogPage.php:261
+#: src/Admin/AuditLogPage.php:263
 msgid "Event angelegt"
 msgstr "Evento creato"
 
-#: src/Admin/AuditLogPage.php:262
+#: src/Admin/AuditLogPage.php:264
 msgid "Event geändert"
 msgstr "Evento modificato"
 
-#: src/Admin/AuditLogPage.php:263
+#: src/Admin/AuditLogPage.php:265
 msgid "Event abgesagt"
 msgstr "Evento annullato"
 
-#: src/Admin/AuditLogPage.php:264
+#: src/Admin/AuditLogPage.php:266
 msgid "Einstellungen geändert"
 msgstr "Impostazioni modificate"
 
-#: src/Admin/AuditLogPage.php:265
+#: src/Admin/AuditLogPage.php:267
 msgid "Kassenverkauf"
 msgstr "Vendita alla cassa"
 
-#: src/Admin/AuditLogPage.php:266
+#: src/Admin/AuditLogPage.php:268
 msgid "Kassenverkauf storniert"
 msgstr "Vendita alla cassa stornata"
 
-#: src/Admin/AuditLogPage.php:267
+#: src/Admin/AuditLogPage.php:269
 msgid "Datenbank-Update fehlgeschlagen"
 msgstr "Aggiornamento del database non riuscito"
 
-#: src/Admin/AuditLogPage.php:310
-#: src/Admin/OperationsPage.php:227
-#: src/Admin/OperationsPage.php:270
+#: src/Admin/AuditLogPage.php:312
+#: src/Admin/ManualHoldsRelease.php:208
+#: src/Admin/OperationsPage.php:228
+#: src/Admin/OperationsPage.php:271
 #: src/Admin/OrdersPage.php:719
 #: src/Admin/OrdersPage.php:1386
 #: src/Admin/ServiceSlotsPage.php:300
 #: src/Admin/ServicesPage.php:451
-#: src/Admin/StatusPage.php:377
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:378
+#: src/Admin/StatusPage.php:403
 #: src/Allocations/AdminPage.php:346
 #: src/Consents.php:619
 #: src/Modules/Fiscalization.php:1428
@@ -1373,7 +1376,7 @@ msgstr "Aggiornamento del database non riuscito"
 msgid "Bestellung"
 msgstr "Ordine"
 
-#: src/Admin/AuditLogPage.php:311
+#: src/Admin/AuditLogPage.php:313
 #: src/Admin/CheckinsPage.php:103
 #: src/Admin/OrdersPage.php:1176
 #: src/Admin/TicketsPage.php:517
@@ -1391,8 +1394,8 @@ msgstr "Ordine"
 msgid "Ticket"
 msgstr "Biglietto"
 
-#: src/Admin/AuditLogPage.php:314
-#: src/Admin/AuditLogPage.php:388
+#: src/Admin/AuditLogPage.php:316
+#: src/Admin/AuditLogPage.php:390
 #: src/Admin/ChangeHistory.php:283
 #: src/Admin/EventsPage.php:1762
 #: src/Admin/SecurityScreens.php:111
@@ -1401,7 +1404,7 @@ msgstr "Biglietto"
 msgid "Benutzer"
 msgstr "Utente"
 
-#: src/Admin/AuditLogPage.php:315
+#: src/Admin/AuditLogPage.php:317
 #: src/Admin/Menu.php:105
 #: src/Admin/Menu.php:606
 #: src/Allocations/AdminPage.php:226
@@ -1411,12 +1414,12 @@ msgstr "Utente"
 msgid "Einstellungen"
 msgstr "Impostazioni"
 
-#: src/Admin/AuditLogPage.php:316
-#: src/Admin/AuditLogPage.php:345
+#: src/Admin/AuditLogPage.php:318
+#: src/Admin/AuditLogPage.php:347
 msgid "System"
 msgstr "Sistema"
 
-#: src/Admin/AuditLogPage.php:317
+#: src/Admin/AuditLogPage.php:319
 #: src/Admin/OrdersPage.php:1047
 #: src/BoxOffice/Service.php:38
 #: src/Invoices.php:871
@@ -1424,9 +1427,9 @@ msgstr "Sistema"
 msgid "Rechnung"
 msgstr "Fattura"
 
-#: src/Admin/AuditLogPage.php:318
-#: src/Admin/OperationsPage.php:227
-#: src/Admin/StatusPage.php:377
+#: src/Admin/AuditLogPage.php:320
+#: src/Admin/OperationsPage.php:228
+#: src/Admin/StatusPage.php:378
 #: src/BoxOffice/ZReport.php:420
 #: src/Modules/Fiscalization.php:1498
 #: src/Partners/Settlements.php:68
@@ -1435,11 +1438,11 @@ msgstr "Fattura"
 msgid "Erstattung"
 msgstr "Rimborso"
 
-#: src/Admin/AuditLogPage.php:319
+#: src/Admin/AuditLogPage.php:321
 msgid "Serie"
 msgstr "Serie"
 
-#: src/Admin/AuditLogPage.php:320
+#: src/Admin/AuditLogPage.php:322
 #: src/Admin/Menu.php:678
 #: src/Admin/ServicesPage.php:343
 #: src/Admin/ServicesPage.php:494
@@ -1448,11 +1451,11 @@ msgstr "Serie"
 #: src/Services/Portal.php:200
 #: src/Services/Portal.php:220
 #: src/Waitlists/AdminPage.php:121
-#: templates/event-card.php:228
+#: templates/event-card.php:229
 msgid "Warteliste"
 msgstr "Lista d'attesa"
 
-#: src/Admin/AuditLogPage.php:321
+#: src/Admin/AuditLogPage.php:323
 #: src/Admin/ServiceSlotsPage.php:261
 #: src/Admin/ServicesPage.php:261
 #: src/Admin/UserScope.php:49
@@ -1467,7 +1470,7 @@ msgid "Veranstalter"
 msgstr "Organizzatore"
 
 #. translators: 1: entries, 2: tickets
-#: src/Admin/AuditLogPage.php:322
+#: src/Admin/AuditLogPage.php:324
 #: src/GuestLists/Page.php:164
 #: src/GuestLists/Page.php:221
 #: src/GuestLists/Page.php:332
@@ -1477,55 +1480,55 @@ msgstr "Organizzatore"
 msgid "Liste"
 msgstr "Elenco"
 
-#: src/Admin/AuditLogPage.php:360
+#: src/Admin/AuditLogPage.php:362
 msgid "Alle Aktionen"
 msgstr "Tutte le azioni"
 
-#: src/Admin/AuditLogPage.php:362
+#: src/Admin/AuditLogPage.php:364
 msgid "Alle Objekte"
 msgstr "Tutti gli oggetti"
 
-#: src/Admin/AuditLogPage.php:365
+#: src/Admin/AuditLogPage.php:367
 #: src/Admin/Menu.php:609
 #: src/Admin/SecurityScreens.php:45
 #: src/Privacy/Retention.php:235
 msgid "Audit-Log"
 msgstr "Registro di audit"
 
-#: src/Admin/AuditLogPage.php:366
+#: src/Admin/AuditLogPage.php:368
 msgid "Nachvollziehbarkeit von Änderungen, Exporten und Zugriffen auf personenbezogene Daten. Details sind redigiert (keine Secrets, Codes oder E-Mail-Adressen). Jeder Export wird selbst protokolliert."
 msgstr "Tracciabilità di modifiche, esportazioni e accessi ai dati personali. I dettagli sono oscurati (nessun segreto, codice o indirizzo e-mail). Ogni esportazione viene a sua volta registrata."
 
 #. translators: %d: number of days
-#: src/Admin/AuditLogPage.php:369
+#: src/Admin/AuditLogPage.php:371
 #, php-format
 msgid "Einträge werden nach %d Tag automatisch gelöscht."
 msgid_plural "Einträge werden nach %d Tagen automatisch gelöscht."
 msgstr[0] "Le voci vengono eliminate automaticamente dopo %d giorno."
 msgstr[1] "Le voci vengono eliminate automaticamente dopo %d giorni."
 
-#: src/Admin/AuditLogPage.php:371
+#: src/Admin/AuditLogPage.php:373
 msgid "Einträge werden nicht automatisch gelöscht."
 msgstr "Le voci non vengono eliminate automaticamente."
 
-#: src/Admin/AuditLogPage.php:375
+#: src/Admin/AuditLogPage.php:377
 msgid "Alle Bereiche"
 msgstr "Tutte le sezioni"
 
-#: src/Admin/AuditLogPage.php:379
-#: src/Admin/AuditLogPage.php:388
+#: src/Admin/AuditLogPage.php:381
+#: src/Admin/AuditLogPage.php:390
 msgid "Objekt"
 msgstr "Oggetto"
 
-#: src/Admin/AuditLogPage.php:380
+#: src/Admin/AuditLogPage.php:382
 msgid "Objekt-ID"
 msgstr "ID oggetto"
 
-#: src/Admin/AuditLogPage.php:381
+#: src/Admin/AuditLogPage.php:383
 msgid "Benutzer-ID"
 msgstr "ID utente"
 
-#: src/Admin/AuditLogPage.php:382
+#: src/Admin/AuditLogPage.php:384
 #: src/Ops/Network.php:321
 #: src/Reports/Page.php:120
 #: src/Reports/Page.php:344
@@ -1533,50 +1536,50 @@ msgstr "ID utente"
 msgid "Von"
 msgstr "Da"
 
-#: src/Admin/AuditLogPage.php:383
+#: src/Admin/AuditLogPage.php:385
 #: src/Ops/Network.php:321
 #: src/Reports/Page.php:121
 #: src/Reports/Page.php:345
 msgid "Bis"
 msgstr "A"
 
-#: src/Admin/AuditLogPage.php:384
+#: src/Admin/AuditLogPage.php:386
 #: src/Admin/CheckinsPage.php:94
-#: src/Admin/OperationsPage.php:187
+#: src/Admin/OperationsPage.php:188
 #: src/Admin/OrdersPage.php:892
 #: src/Admin/ServicesPage.php:254
 #: src/Admission/ConflictsPage.php:76
 msgid "Filtern"
 msgstr "Filtra"
 
-#: src/Admin/AuditLogPage.php:385
+#: src/Admin/AuditLogPage.php:387
 msgid "CSV-Export (wird protokolliert)"
 msgstr "Esportazione CSV (registrata)"
 
 #. translators: 1: number of entries, 2: time zone
-#: src/Admin/AuditLogPage.php:387
+#: src/Admin/AuditLogPage.php:389
 #, php-format
 msgid "%1$d Einträge · Zeiten in %2$s"
 msgstr "%1$d voci · orari in %2$s"
 
-#: src/Admin/AuditLogPage.php:388
-#: src/Admin/OperationsPage.php:202
+#: src/Admin/AuditLogPage.php:390
+#: src/Admin/OperationsPage.php:203
 #: src/Admin/OrderHistory.php:141
-#: src/Admin/StatusPage.php:289
-#: src/Admin/StatusPage.php:355
+#: src/Admin/StatusPage.php:290
+#: src/Admin/StatusPage.php:356
 #: src/BoxOffice/ShiftPage.php:191
 #: src/Integrations/ConnectorsPage.php:207
 msgid "Zeit"
 msgstr "Ora"
 
-#: src/Admin/AuditLogPage.php:388
+#: src/Admin/AuditLogPage.php:390
 #: src/Admin/OrderHistory.php:141
 #: src/Modules/Fiscalization.php:1475
 #: src/Series/AdminPage.php:374
 msgid "Details"
 msgstr "Dettagli"
 
-#: src/Admin/AuditLogPage.php:389
+#: src/Admin/AuditLogPage.php:391
 msgid "Keine Einträge gefunden."
 msgstr "Nessuna voce trovata."
 
@@ -1596,7 +1599,7 @@ msgstr "La fine del periodo di validità deve essere successiva all'inizio."
 
 #: src/Admin/CampaignsPage.php:58
 #: src/Allocations/BuyerLimits.php:93
-#: src/Rest/Controller.php:1196
+#: src/Rest/Controller.php:1202
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Il tipo di biglietto non appartiene a questo evento."
 
@@ -1776,7 +1779,7 @@ msgstr "Limite raggiunto"
 #: src/Admin/MembershipsPage.php:211
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:166
-#: src/Admin/SettingsPage.php:1201
+#: src/Admin/SettingsPage.php:1204
 #: src/Admin/TaxPage.php:64
 #: src/Allocations/AdminPage.php:278
 #: src/BoxOffice/ShiftPage.php:489
@@ -2058,11 +2061,11 @@ msgid "Erzeugt einmal einlösbare Codes mit den Einstellungen dieser Kampagne (z
 msgstr "Genera codici utilizzabili una sola volta con le impostazioni di questa campagna (ad es. per mailing o partner)."
 
 #: src/Admin/CampaignsPage.php:321
-#: src/Admin/OperationsPage.php:260
-#: src/Admin/OperationsPage.php:299
+#: src/Admin/OperationsPage.php:261
+#: src/Admin/OperationsPage.php:300
 #: src/Admin/ServicesPage.php:451
-#: src/Admin/StatusPage.php:328
-#: src/Admin/StatusPage.php:447
+#: src/Admin/StatusPage.php:329
+#: src/Admin/StatusPage.php:448
 #: src/Allocations/AdminPage.php:318
 #: src/BoxOffice/Page.php:120
 #: src/BoxOffice/ShiftPage.php:47
@@ -2071,7 +2074,7 @@ msgstr "Genera codici utilizzabili una sola volta con le impostazioni di questa 
 #: src/Waitlists.php:454
 #: src/Waitlists.php:1486
 #: src/Waitlists/AdminPage.php:168
-#: templates/event-card.php:239
+#: templates/event-card.php:240
 msgid "Anzahl"
 msgstr "Quantità"
 
@@ -2237,7 +2240,7 @@ msgstr "Fuso orario"
 #: src/Mail/Types.php:599
 #: src/Modules/Fiscalization.php:1354
 #: src/Notifications.php:186
-#: src/PublicEvents.php:1220
+#: src/PublicEvents.php:1223
 #: src/Reminders/Placeholders.php:15
 #: src/Waitlists.php:452
 #: src/WalletPasses/AppleProvider.php:74
@@ -2448,7 +2451,7 @@ msgstr "Etichetta"
 #: src/Series/AdminPage.php:714
 #: src/Waitlists.php:453
 #: src/Waitlists/AdminPage.php:168
-#: templates/event-card.php:233
+#: templates/event-card.php:234
 msgid "Ticketart"
 msgstr "Tipo di biglietto"
 
@@ -2797,8 +2800,8 @@ msgstr "Pagamenti in sospeso"
 
 #: src/Admin/Dashboard.php:98
 #: src/Admin/Menu.php:122
-#: src/Admin/SettingsPage.php:201
-#: src/Admin/SettingsPage.php:1079
+#: src/Admin/SettingsPage.php:203
+#: src/Admin/SettingsPage.php:1082
 #: src/Admin/StatusPage.php:247
 #: src/Reports/Page.php:108
 msgid "Übersicht"
@@ -3520,7 +3523,7 @@ msgstr "L'evento è pubblicato, ma non è ancora prenotabile:"
 #: src/OfflineScanner/AdminPage.php:36
 #: src/OfflineScanner/AdminPage.php:54
 #: src/Partners/Api.php:180
-#: src/Rest/Controller.php:1317
+#: src/Rest/Controller.php:1323
 #: src/Sales/BuyerLimits.php:104
 #: src/Sales/PriceRules.php:111
 #: src/Seating/Layouts.php:494
@@ -3761,6 +3764,7 @@ msgstr "Testo"
 #. translators: %s: ticket type
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/EventsPage.php:1047
+#: src/Admin/ManualHoldsRelease.php:208
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MyServicesPage.php:118
 #: src/Admin/OrderHistory.php:125
@@ -3795,7 +3799,7 @@ msgid "Checkbox"
 msgstr "Checkbox"
 
 #: src/Admin/EventsPage.php:1050
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:434
 #: src/blocks/events/editor.js:60
 msgid "Auswahl"
 msgstr "Selezione"
@@ -4457,7 +4461,7 @@ msgid "leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termin
 msgstr "vuoto = fino all'inizio della data; una fine della vendita successiva all'inizio (date di più giorni) vale online al massimo fino alla fine della data"
 
 #: src/Admin/EventsPage.php:1870
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:281
 msgid "Servicegebühr je Ticket"
 msgstr "Commissione di servizio per biglietto"
 
@@ -4633,9 +4637,9 @@ msgstr "Chiave tecnica"
 
 #: src/Admin/EventsPage.php:1938
 #: src/Admin/EventsPage.php:1977
-#: src/Admin/OperationsPage.php:433
-#: src/Admin/StatusPage.php:328
-#: src/Admin/StatusPage.php:355
+#: src/Admin/OperationsPage.php:434
+#: src/Admin/StatusPage.php:329
+#: src/Admin/StatusPage.php:356
 msgid "Typ"
 msgstr "Tipo"
 
@@ -5208,6 +5212,7 @@ msgstr "Nascondi checklist"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/GettingStarted.php:364
+#: src/Admin/ManualHoldsRelease.php:208
 #: src/Admin/Menu.php:577
 #: src/Admin/OrdersPage.php:1140
 #: src/Admin/OrdersPage.php:1388
@@ -5329,7 +5334,7 @@ msgstr "L’importazione non è riuscita; non è stato salvato nulla."
 #: src/Memberships.php:481
 #: src/Memberships.php:499
 #: src/Passes/Definitions.php:305
-#: src/Rest/Controller.php:1160
+#: src/Rest/Controller.php:1166
 msgid "Pass nicht gefunden."
 msgstr "Pass non trovato."
 
@@ -5465,13 +5470,13 @@ msgstr "Inserisci un periodo valido: «Valido fino al» deve essere successivo a
 #: src/Admin/MembershipsPage.php:152
 #: src/Memberships.php:243
 #: src/Memberships.php:258
-#: src/Rest/Controller.php:1163
-#: src/Rest/Controller.php:1164
+#: src/Rest/Controller.php:1169
+#: src/Rest/Controller.php:1170
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Non hai l'autorizzazione per questo pass."
 
 #: src/Admin/MembershipsPage.php:161
-#: src/Admin/SettingsPage.php:658
+#: src/Admin/SettingsPage.php:661
 #: src/Integrations/WooCommerce/Attendees.php:482
 msgid "Bitte eine gültige E-Mail-Adresse angeben."
 msgstr "Inserisci un indirizzo e-mail valido."
@@ -5515,7 +5520,7 @@ msgstr "Cerca e-mail"
 #: src/Exchange/AdminPage.php:210
 #: src/GuestLists/Page.php:322
 #: src/OfflineScanner/I18n.php:225
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Suchen"
 msgstr "Cerca"
 
@@ -5647,7 +5652,7 @@ msgid "Passregeln"
 msgstr "Regole del pass"
 
 #: src/Admin/MembershipsPage.php:303
-#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:261
 msgid "Eingelöst"
 msgstr "Riscattato"
 
@@ -5807,7 +5812,7 @@ msgstr "Vendita"
 
 #: src/Admin/Menu.php:496
 #: src/Admin/SecurityScreens.php:92
-#: src/Admin/SettingsPage.php:506
+#: src/Admin/SettingsPage.php:509
 msgctxt "admission (check-in area of work)"
 msgid "Einlass"
 msgstr "Ingresso"
@@ -5827,7 +5832,7 @@ msgstr "Impostazioni e integrazioni"
 #: src/Admin/Menu.php:568
 #: src/Admin/Menu.php:579
 #: src/Admin/OrdersPage.php:1249
-#: src/Admin/SettingsPage.php:261
+#: src/Admin/SettingsPage.php:264
 #: src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:153
 #: src/Reports/Page.php:195
@@ -6115,97 +6120,98 @@ msgstr "%1$d h %2$d min"
 msgid "Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder."
 msgstr "Stato dell'elaborazione in background: qui vedi gli arretrati e le voci definitivamente non riuscite e puoi riprovarle o scartarle. I contenuti non vengono mostrati, solo i nomi dei campi contenuti."
 
-#: src/Admin/OperationsPage.php:146
+#: src/Admin/OperationsPage.php:147
 msgid "Überwachung"
 msgstr "Monitoraggio"
 
-#: src/Admin/OperationsPage.php:148
-#: src/Admin/OperationsPage.php:302
+#: src/Admin/OperationsPage.php:149
+#: src/Admin/OperationsPage.php:303
 msgid "in Ordnung"
 msgstr "in ordine"
 
-#: src/Admin/OperationsPage.php:149
+#: src/Admin/OperationsPage.php:150
 msgid "empfohlen"
 msgstr "consigliato"
 
-#: src/Admin/OperationsPage.php:150
-#: src/Admin/OperationsPage.php:296
+#: src/Admin/OperationsPage.php:151
+#: src/Admin/OperationsPage.php:297
 msgid "kritisch"
 msgstr "critico"
 
-#: src/Admin/OperationsPage.php:156
+#: src/Admin/OperationsPage.php:157
 msgid "Alle Prüfungen im Website-Zustand ansehen"
 msgstr "Visualizza tutti i controlli in Salute del sito"
 
 #. translators: 1: period of the support log, 2: period of debug/info entries in days
-#: src/Admin/OperationsPage.php:165
+#: src/Admin/OperationsPage.php:166
 #: src/Privacy/Retention.php:238
 msgid "Support-Protokoll"
 msgstr "Registro di supporto"
 
-#: src/Admin/OperationsPage.php:167
+#: src/Admin/OperationsPage.php:168
 msgid "Das Support-Protokoll steht nach dem Datenbank-Update zur Verfügung; bis dahin landen Einträge im PHP-Fehlerprotokoll."
 msgstr "Il registro di supporto è disponibile dopo l'aggiornamento del database; fino ad allora le voci finiscono nel registro degli errori di PHP."
 
-#: src/Admin/OperationsPage.php:180
+#: src/Admin/OperationsPage.php:181
 msgid "Fehler, Warnungen und Hinweise des Plugins mit Fehler-ID (die Käufer:innen bei Fehlern angezeigt bekommen). Geheimnisse, Ticketcodes und E-Mail-Adressen werden nicht gespeichert."
 msgstr "Errori, avvisi e note del plugin con ID errore (che viene mostrato agli acquirenti in caso di errore). Segreti, codici dei biglietti e indirizzi e-mail non vengono salvati."
 
-#: src/Admin/OperationsPage.php:180
+#: src/Admin/OperationsPage.php:181
 msgid "Der Debug-Modus ist eingeschaltet."
 msgstr "La modalità di debug è attiva."
 
-#: src/Admin/OperationsPage.php:180
+#: src/Admin/OperationsPage.php:181
 msgid "Der Debug-Modus ist aus (Einstellungen → Support und Fehlersuche)."
 msgstr "La modalità di debug è disattivata (Impostazioni → Supporto e risoluzione dei problemi)."
 
-#: src/Admin/OperationsPage.php:182
-#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:183
+#: src/Admin/OperationsPage.php:203
 msgid "Fehler-ID"
 msgstr "ID errore"
 
-#: src/Admin/OperationsPage.php:183
+#: src/Admin/OperationsPage.php:184
 msgid "Bestellung (ID)"
 msgstr "Ordine (ID)"
 
-#: src/Admin/OperationsPage.php:185
+#: src/Admin/OperationsPage.php:186
 msgid "ab Stufe"
 msgstr "dal livello"
 
-#: src/Admin/OperationsPage.php:198
+#: src/Admin/OperationsPage.php:199
 msgid "Keine passenden Einträge."
 msgstr "Nessuna voce corrispondente."
 
-#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:203
 msgid "Stufe"
 msgstr "Livello"
 
-#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:203
 msgid "Meldung"
 msgstr "Messaggio"
 
-#: src/Admin/OperationsPage.php:202
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:203
+#: src/Admin/OperationsPage.php:434
 msgid "Bezug"
 msgstr "Riferimento"
 
-#: src/Admin/OperationsPage.php:221
+#: src/Admin/OperationsPage.php:222
 msgid "Erstattungen mit unklarem Ausgang"
 msgstr "Rimborsi con esito incerto"
 
-#: src/Admin/OperationsPage.php:223
+#: src/Admin/OperationsPage.php:224
 msgid "Keine Erstattungen mit unklarem Ausgang."
 msgstr "Nessun rimborso con esito incerto."
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 msgid "Der Zahlungsanbieter hat bei diesen Erstattungen nicht eindeutig geantwortet (Zeitüberschreitung, Verbindungs- oder Serverfehler). Sie werden automatisch beim Anbieter abgeglichen und nie ein zweites Mal ausgezahlt. Bleibt der Abgleich ohne Ergebnis, bitte im Konto des Anbieters prüfen und hier bestätigen."
 msgstr "Per questi rimborsi il fornitore di pagamenti non ha risposto in modo univoco (timeout, errore di connessione o del server). Vengono riconciliati automaticamente con il fornitore e non vengono mai pagati una seconda volta. Se la riconciliazione non dà esito, verifica nell'account del fornitore e conferma qui."
 
-#: src/Admin/OperationsPage.php:227
+#: src/Admin/ManualHoldsRelease.php:208
+#: src/Admin/OperationsPage.php:228
 #: src/Admin/OrdersPage.php:1387
 #: src/Admin/ServicesPage.php:451
-#: src/Admin/StatusPage.php:377
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:378
+#: src/Admin/StatusPage.php:403
 #: src/BoxOffice/ShiftPage.php:191
 #: src/BoxOffice/ShiftPage.php:203
 #: src/BoxOffice/ShiftPage.php:210
@@ -6218,73 +6224,73 @@ msgstr "Per questi rimborsi il fornitore di pagamenti non ha risposto in modo un
 msgid "Betrag"
 msgstr "Importo"
 
-#: src/Admin/OperationsPage.php:227
+#: src/Admin/OperationsPage.php:228
 #: src/Admin/OrdersPage.php:666
 #: src/Reports/Data.php:782
 #: src/Reports/Page.php:223
 msgid "Zahlungsanbieter"
 msgstr "Fornitore di pagamenti"
 
-#: src/Admin/OperationsPage.php:227
-#: src/Admin/StatusPage.php:377
+#: src/Admin/OperationsPage.php:228
+#: src/Admin/StatusPage.php:378
 msgid "Seit"
 msgstr "Dal"
 
-#: src/Admin/OperationsPage.php:285
+#: src/Admin/OperationsPage.php:286
 msgid "Datenkonsistenz"
 msgstr "Coerenza dei dati"
 
-#: src/Admin/OperationsPage.php:286
+#: src/Admin/OperationsPage.php:287
 msgid "Sucht nach widersprüchlichen Daten (Tickets, Bestellungen, Erstattungen, Reservierungen, Warteschlangen, Zähler, Nummernkreise, Servicebuchungen, Audit-Log). Die Prüfung ändert nichts; Reparaturen gibt es nur, wo das Ergebnis eindeutig ist, mit Vorschau und Eintrag im Audit-Log. Dasselbe per WP-CLI: wp pass-captain doctor"
 msgstr "Cerca dati contraddittori (biglietti, ordini, rimborsi, prenotazioni, code, contatori, serie di numerazione, prenotazioni di servizi, registro di audit). La verifica non modifica nulla; le riparazioni sono disponibili solo dove il risultato è univoco, con anteprima e voce nel registro di audit. Lo stesso tramite WP-CLI: wp pass-captain doctor"
 
-#: src/Admin/OperationsPage.php:289
+#: src/Admin/OperationsPage.php:290
 msgid "Prüfung ausführen"
 msgstr "Esegui verifica"
 
-#: src/Admin/OperationsPage.php:297
-#: src/Admin/SettingsPage.php:358
+#: src/Admin/OperationsPage.php:298
+#: src/Admin/SettingsPage.php:361
 #: src/Admin/StatusPage.php:219
 #: src/Log.php:394
 msgid "Warnung"
 msgstr "Avviso"
 
-#: src/Admin/OperationsPage.php:299
-#: src/Admin/StatusPage.php:447
+#: src/Admin/OperationsPage.php:300
+#: src/Admin/StatusPage.php:448
 #: src/Sales/TaxProfilesPage.php:79
 msgid "Prüfung"
 msgstr "Controllo"
 
-#: src/Admin/OperationsPage.php:299
+#: src/Admin/OperationsPage.php:300
 msgid "Beispiele und Hinweis"
 msgstr "Esempi e nota"
 
-#: src/Admin/OperationsPage.php:299
+#: src/Admin/OperationsPage.php:300
 msgid "Reparatur"
 msgstr "Riparazione"
 
-#: src/Admin/OperationsPage.php:315
+#: src/Admin/OperationsPage.php:316
 msgid "manuell prüfen"
 msgstr "verifica manualmente"
 
-#: src/Admin/OperationsPage.php:326
+#: src/Admin/OperationsPage.php:327
 #: src/Series/AdminPage.php:411
 msgid "Vorschau"
 msgstr "Anteprima"
 
 #. translators: 1: repair name, 2: number of objects
-#: src/Admin/OperationsPage.php:332
+#: src/Admin/OperationsPage.php:333
 #, php-format
 msgid "%1$s – Vorschau: %2$d Objekte würden geändert."
 msgstr "%1$s – Anteprima: %2$d oggetti verrebbero modificati."
 
-#: src/Admin/OperationsPage.php:339
+#: src/Admin/OperationsPage.php:340
 msgid "Reparatur jetzt ausführen? Die Änderung wird im Audit-Log protokolliert."
 msgstr "Eseguire ora la riparazione? La modifica viene registrata nel registro di audit."
 
 #. translators: %d: internal order id
 #. translators: %d: order ID
-#: src/Admin/OperationsPage.php:382
+#: src/Admin/OperationsPage.php:383
 #: src/Integrations/FormCaptain/EventRequests.php:524
 #, php-format
 msgid "Bestellung #%d"
@@ -6295,7 +6301,7 @@ msgstr "Ordine #%d"
 #. translators: %s: short order number
 #. translators: %s: order number (shortened)
 #. translators: %s: short order number, e.g. AB12-CD34
-#: src/Admin/OperationsPage.php:385
+#: src/Admin/OperationsPage.php:386
 #: src/Admin/OrdersPage.php:972
 #: src/Admin/TicketsPage.php:651
 #: src/BoxOffice/Service.php:716
@@ -6313,123 +6319,123 @@ msgid "Bestellung %s"
 msgstr "Ordine %s"
 
 #. translators: %d: ticket id
-#: src/Admin/OperationsPage.php:391
+#: src/Admin/OperationsPage.php:392
 #: src/Admin/OrderHistory.php:44
 #, php-format
 msgid "Ticket #%d"
 msgstr "Biglietto #%d"
 
 #. translators: %d: occurrence id
-#: src/Admin/OperationsPage.php:396
+#: src/Admin/OperationsPage.php:397
 #: src/blocks/events/editor.js:52
 #, php-format, js-format
 msgid "Termin #%d"
 msgstr "Data #%d"
 
 #. translators: %d: event id
-#: src/Admin/OperationsPage.php:400
+#: src/Admin/OperationsPage.php:401
 #, php-format
 msgid "Event #%d"
 msgstr "Evento #%d"
 
 #. translators: %d: refund id
-#: src/Admin/OperationsPage.php:403
+#: src/Admin/OperationsPage.php:404
 #, php-format
 msgid "Erstattung #%d"
 msgstr "Rimborso #%d"
 
 #. translators: %d: id of a cancellation/notification run
-#: src/Admin/OperationsPage.php:406
+#: src/Admin/OperationsPage.php:407
 #, php-format
 msgid "Lauf #%d"
 msgstr "Esecuzione #%d"
 
-#: src/Admin/OperationsPage.php:418
+#: src/Admin/OperationsPage.php:419
 msgid "Einträge nach Status:"
 msgstr "Voci per stato:"
 
 #. translators: %s: number of due items
-#: src/Admin/OperationsPage.php:420
+#: src/Admin/OperationsPage.php:421
 #, php-format
 msgid "Fällig und wartend: %s"
 msgstr "In scadenza e in attesa: %s"
 
 #. translators: %s: age, e.g. "1 h 5 min"
-#: src/Admin/OperationsPage.php:423
+#: src/Admin/OperationsPage.php:424
 #, php-format
 msgid "ältester fälliger Eintrag wartet seit %s"
 msgstr "la voce in scadenza più vecchia è in attesa da %s"
 
-#: src/Admin/OperationsPage.php:427
-#: src/Admin/StatusPage.php:366
+#: src/Admin/OperationsPage.php:428
+#: src/Admin/StatusPage.php:367
 msgid "Keine fehlgeschlagenen Einträge."
 msgstr "Nessuna voce non riuscita."
 
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:434
 msgid "ID"
 msgstr "ID"
 
-#: src/Admin/OperationsPage.php:433
-#: src/Admin/StatusPage.php:355
+#: src/Admin/OperationsPage.php:434
+#: src/Admin/StatusPage.php:356
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Modules/Webhooks.php:490
 msgid "Versuche"
 msgstr "Tentativi"
 
-#: src/Admin/OperationsPage.php:433
-#: src/Admin/StatusPage.php:355
+#: src/Admin/OperationsPage.php:434
+#: src/Admin/StatusPage.php:356
 #: src/Admin/SuiteStatus.php:126
 msgid "Letzter Fehler"
 msgstr "Ultimo errore"
 
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:434
 msgid "Inhalt (nur Feldnamen)"
 msgstr "Contenuto (solo nomi dei campi)"
 
-#: src/Admin/OperationsPage.php:433
+#: src/Admin/OperationsPage.php:434
 msgid "Erstellt"
 msgstr "Creato"
 
 #. translators: %d: item id
-#: src/Admin/OperationsPage.php:436
+#: src/Admin/OperationsPage.php:437
 #, php-format
 msgid "Eintrag %d auswählen"
 msgstr "Seleziona voce %d"
 
-#: src/Admin/OperationsPage.php:443
-#: src/Admin/OperationsPage.php:453
-#: src/Admin/StatusPage.php:360
+#: src/Admin/OperationsPage.php:444
+#: src/Admin/OperationsPage.php:454
+#: src/Admin/StatusPage.php:361
 #: src/Modules/Fiscalization.php:1438
 msgid "Erneut versuchen"
 msgstr "Riprova"
 
-#: src/Admin/OperationsPage.php:444
+#: src/Admin/OperationsPage.php:445
 msgid "Diesen Eintrag endgültig verwerfen?"
 msgstr "Scartare definitivamente questa voce?"
 
-#: src/Admin/OperationsPage.php:444
-#: src/Admin/OperationsPage.php:453
-#: src/Admin/StatusPage.php:361
+#: src/Admin/OperationsPage.php:445
+#: src/Admin/OperationsPage.php:454
+#: src/Admin/StatusPage.php:362
 msgid "Verwerfen"
 msgstr "Scarta"
 
 #. translators: 1: shown items, 2: total failed items
-#: src/Admin/OperationsPage.php:449
+#: src/Admin/OperationsPage.php:450
 #, php-format
 msgid "Angezeigt werden die neuesten %1$d von %2$d fehlgeschlagenen Einträgen."
 msgstr "Vengono mostrate le %1$d voci non riuscite più recenti su %2$d."
 
-#: src/Admin/OperationsPage.php:452
+#: src/Admin/OperationsPage.php:453
 msgid "Mehrfachaktion"
 msgstr "Azione multipla"
 
 #. translators: %d: maximum number of items
-#: src/Admin/OperationsPage.php:456
+#: src/Admin/OperationsPage.php:457
 #, php-format
 msgid "alle fehlgeschlagenen Einträge dieser Warteschlange (höchstens %d)"
 msgstr "tutte le voci non riuscite di questa coda (al massimo %d)"
 
-#: src/Admin/OperationsPage.php:457
+#: src/Admin/OperationsPage.php:458
 msgid "Ausführen"
 msgstr "Esegui"
 
@@ -6514,12 +6520,12 @@ msgid "Bestellung %s auswählen"
 msgstr "Seleziona ordine %s"
 
 #: src/Admin/OrdersPage.php:38
-#: src/Orders.php:2130
+#: src/Orders.php:2131
 #: src/ParticipantFields.php:348
 #: src/Partners/Sales.php:447
 #: src/Payments/PayPalGateway.php:218
-#: src/Rest/Controller.php:855
-#: src/Rest/Controller.php:1008
+#: src/Rest/Controller.php:861
+#: src/Rest/Controller.php:1014
 msgid "Bestellung nicht gefunden."
 msgstr "Ordine non trovato."
 
@@ -6528,9 +6534,9 @@ msgstr "Ordine non trovato."
 #: src/Admin/OrdersPage.php:481
 #: src/Api/Actions.php:96
 #: src/Consents.php:586
-#: src/Rest/Controller.php:1011
-#: src/Rest/Controller.php:1012
-#: src/Rest/Controller.php:1013
+#: src/Rest/Controller.php:1017
+#: src/Rest/Controller.php:1018
+#: src/Rest/Controller.php:1019
 #: src/Security/DataPolicy.php:133
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Non hai l'autorizzazione per questo ordine."
@@ -6546,11 +6552,11 @@ msgid "Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung fr
 msgstr "Il buono (%2$s, %1$s) è stato liberato con la scadenza o l'annullamento dell'ordine. L'importo in sospeso mostrato include ancora la detrazione del buono; senza buono ammonta a %3$s. Un pagamento tardivo emette i biglietti solo se il buono ha potuto essere prenotato di nuovo, altrimenti l'ordine viene contrassegnato per la verifica."
 
 #: src/Admin/OrdersPage.php:89
-#: src/Orders.php:2142
-#: src/Orders.php:2442
-#: src/Orders.php:2659
-#: src/Orders.php:2756
-#: src/Orders.php:3179
+#: src/Orders.php:2143
+#: src/Orders.php:2443
+#: src/Orders.php:2717
+#: src/Orders.php:2814
+#: src/Orders.php:3237
 #: src/Partners/Sales.php:694
 #: src/Partners/Sales.php:743
 #: src/Payments/ReturnNotice.php:441
@@ -6666,7 +6672,7 @@ msgid "Keine Berechtigung für Erstattungen."
 msgstr "Non hai l'autorizzazione per effettuare rimborsi."
 
 #: src/Admin/OrdersPage.php:264
-#: src/Orders.php:2445
+#: src/Orders.php:2446
 #: src/Refunds.php:65
 #: src/Refunds.php:237
 #: src/Services/Refunder.php:60
@@ -7145,7 +7151,7 @@ msgstr "Mostra il testo di questa versione (versione attualmente valida, non anc
 #: src/LegalVersions.php:137
 #: src/Mail/Blocks.php:112
 #: src/Waitlists.php:1786
-#: templates/event-card.php:203
+#: templates/event-card.php:204
 msgid "Bedingungen"
 msgstr "Condizioni"
 
@@ -7155,7 +7161,7 @@ msgstr "Condizioni"
 #: src/LegalVersions.php:123
 #: src/Mail/Blocks.php:112
 #: src/Waitlists.php:1788
-#: templates/event-card.php:199
+#: templates/event-card.php:200
 msgid "Verbraucherinformationen"
 msgstr "Informazioni per i consumatori"
 
@@ -7282,7 +7288,7 @@ msgid "Höchstbetrag (optional, Kulanz)"
 msgstr "Importo massimo (facoltativo, a titolo di cortesia)"
 
 #: src/Admin/OrdersPage.php:1216
-#: src/Admin/SettingsPage.php:275
+#: src/Admin/SettingsPage.php:278
 #: src/ServiceFee.php:427
 msgid "Servicegebühr"
 msgstr "Commissione di servizio"
@@ -7296,12 +7302,12 @@ msgid "automatisch (bei Absage erstatten, sonst einbehalten)"
 msgstr "automatico (rimborsa in caso di annullamento, altrimenti trattieni)"
 
 #: src/Admin/OrdersPage.php:1218
-#: src/Admin/SettingsPage.php:306
+#: src/Admin/SettingsPage.php:309
 msgid "mit erstatten"
 msgstr "includi nel rimborso"
 
 #: src/Admin/OrdersPage.php:1219
-#: src/Admin/SettingsPage.php:305
+#: src/Admin/SettingsPage.php:308
 msgid "einbehalten"
 msgstr "trattieni"
 
@@ -8803,761 +8809,761 @@ msgstr "I codici creati come «non cumulabili» valgono sempre solo da soli."
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
 msgstr "Principio dei quattro occhi per i biglietti omaggio (lista ospiti: chi fa la richiesta non può approvarla; amministratori esclusi)"
 
-#: src/Admin/SettingsPage.php:128
+#: src/Admin/SettingsPage.php:130
 msgid "Proxy / Client-Adresse"
 msgstr "Proxy / indirizzo del client"
 
-#: src/Admin/SettingsPage.php:131
+#: src/Admin/SettingsPage.php:133
 msgid "Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)"
 msgstr "Proxy attendibili (indirizzi IP o intervalli CIDR)"
 
-#: src/Admin/SettingsPage.php:131
+#: src/Admin/SettingsPage.php:133
 msgid "Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse."
 msgstr "Un indirizzo o un intervallo per riga, ad es. 10.0.0.0/8 o gli intervalli di indirizzi della CDN. L'header di inoltro viene valutato solo se il peer diretto (REMOTE_ADDR) è elencato qui; vuoto = sempre REMOTE_ADDR. I limiti di frequenza e le prove di consenso usano questo indirizzo."
 
-#: src/Admin/SettingsPage.php:134
+#: src/Admin/SettingsPage.php:136
 msgid "Header mit der Client-Adresse"
 msgstr "Header con l'indirizzo del client"
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:138
 msgid "X-Forwarded-For (rechteste nicht vertrauenswürdige Adresse)"
 msgstr "X-Forwarded-For (indirizzo non attendibile più a destra)"
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:139
 msgid "Forwarded (RFC 7239, rechteste nicht vertrauenswürdige Adresse)"
 msgstr "Forwarded (RFC 7239, indirizzo non attendibile più a destra)"
 
-#: src/Admin/SettingsPage.php:138
+#: src/Admin/SettingsPage.php:140
 msgid "CF-Connecting-IP (Cloudflare)"
 msgstr "CF-Connecting-IP (Cloudflare)"
 
-#: src/Admin/SettingsPage.php:142
+#: src/Admin/SettingsPage.php:144
 msgid "Auch per Konstante WPCAP_CLIENT_IP_HEADER oder Filter wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), solange hier X-Forwarded-For gewählt ist."
 msgstr "Anche tramite la costante WPCAP_CLIENT_IP_HEADER o il filtro wpcap_client_ip_header (x-forwarded-for, forwarded, cf-connecting-ip), purché qui sia selezionato X-Forwarded-For."
 
-#: src/Admin/SettingsPage.php:147
+#: src/Admin/SettingsPage.php:149
 msgid "Funktionen"
 msgstr "Funzionalità"
 
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:152
 msgid "Funktionen abschalten"
 msgstr "Disattiva funzioni"
 
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:152
 msgid "Abgeschaltete Funktionen registrieren keine Menüs, Seiten, Shortcodes, REST-Routen und Hintergrundaufgaben mehr. Tabellen und Einstellungen bleiben erhalten; nach dem Wiedereinschalten geht es dort weiter."
 msgstr "Le funzioni disattivate non registrano più menu, pagine, shortcode, route REST né attività in background. Tabelle e impostazioni restano; riattivandole si riprende da dove si era rimasti."
 
-#: src/Admin/SettingsPage.php:151
+#: src/Admin/SettingsPage.php:153
 msgid "Im Menü ausblenden"
 msgstr "Nascondi nel menu"
 
-#: src/Admin/SettingsPage.php:155
+#: src/Admin/SettingsPage.php:157
 msgid "Begriffe"
 msgstr "Termini"
 
-#: src/Admin/SettingsPage.php:160
+#: src/Admin/SettingsPage.php:162
 msgid "Bezeichnung der Personen auf den Tickets"
 msgstr "Denominazione delle persone sui biglietti"
 
-#: src/Admin/SettingsPage.php:162
+#: src/Admin/SettingsPage.php:164
 msgid "Gilt für Eventseiten, Checkout, Bestellportal, Ticketseite und E-Mails (nicht für die Verwaltung). Die Vorgaben ersetzen die deutschen Wortformen; für andere Sprachen eigene Ersetzungen eintragen."
 msgstr "Vale per pagine evento, checkout, portale ordini, pagina del biglietto ed e-mail (non per l'amministrazione). Le preimpostazioni sostituiscono le forme tedesche delle parole; per le altre lingue inserisci sostituzioni personalizzate."
 
-#: src/Admin/SettingsPage.php:164
+#: src/Admin/SettingsPage.php:166
 msgid "Eigene Ersetzungen"
 msgstr "Sostituzioni personalizzate"
 
-#: src/Admin/SettingsPage.php:164
+#: src/Admin/SettingsPage.php:166
 msgid "Eine Ersetzung je Zeile im Format „Alt = Neu“, z. B. „Teilnehmende = Kursteilnehmende“ oder „attendee = guest“. Ganze Wörter, Groß- und Kleinschreibung beachten; ergänzt die gewählte Vorgabe und hat Vorrang. Höchstens 60 Zeilen."
 msgstr "Una sostituzione per riga nel formato «Vecchio = Nuovo», ad es. «partecipanti = corsisti» oppure «attendee = guest». Solo parole intere, distingue tra maiuscole e minuscole; integra la preimpostazione scelta e ha la precedenza. Al massimo 60 righe."
 
-#: src/Admin/SettingsPage.php:178
+#: src/Admin/SettingsPage.php:180
 msgid "Eventseiten"
 msgstr "Pagine evento"
 
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:183
 msgid "Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)"
 msgstr "Pagina dedicata per ogni evento con indirizzo condivisibile e dati strutturati (schema.org/Event)"
 
-#: src/Admin/SettingsPage.php:182
+#: src/Admin/SettingsPage.php:184
 msgid "Adress-Basis der Eventseiten"
 msgstr "Indirizzo base delle pagine evento"
 
-#: src/Admin/SettingsPage.php:182
+#: src/Admin/SettingsPage.php:184
 msgid "Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen."
 msgstr "Esempio: «event» produce https://example.com/event/sommerfest-ab12cd/. Solo lettere minuscole, cifre e trattini; non deve chiamarsi come una pagina esistente."
 
-#: src/Admin/SettingsPage.php:186
+#: src/Admin/SettingsPage.php:188
 #: src/Security/Policy.php:92
 msgid "Einlass / Scanner-Geräte"
 msgstr "Ingresso / Dispositivi scanner"
 
-#: src/Admin/SettingsPage.php:189
+#: src/Admin/SettingsPage.php:191
 msgid "Teilnehmernamen beim Scannen anzeigen"
 msgstr "Mostra i nomi dei partecipanti durante la scansione"
 
-#: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:192
 msgid "Signierte QR-Codes ausgeben (PC1, Ed25519)"
 msgstr "Emetti codici QR firmati (PC1, Ed25519)"
 
-#: src/Admin/SettingsPage.php:190
+#: src/Admin/SettingsPage.php:192
 msgid "Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können."
 msgstr "I nuovi codici QR contengono, al posto del codice del biglietto, un'indicazione firmata (ID biglietto, data, periodo di validità, versione del codice) senza dati personali; gli scanner possono verificare la firma offline. I codici classici restano validi. Disattivato per impostazione predefinita, affinché i sistemi di scansione di terzi possano continuare a leggere il codice del biglietto."
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:193
 msgid "Maximale Gültigkeit einer Gerätekopplung (Stunden)"
 msgstr "Validità massima dell'abbinamento di un dispositivo (ore)"
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:194
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
 msgstr "Cambio giorno d'ingresso (orario, ora intera)"
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:194
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
 msgstr "0 = mezzanotte. Esempio 6: le scansioni fino alle 05:59 contano ancora per il giorno precedente (festival, eventi notturni). Vale per i biglietti giornalieri e i limiti giornalieri."
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:195
 msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
 msgstr "Finestra di ingresso predefinita per i tipi di biglietto senza regola di ingresso propria"
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:196
 msgid "Einlass ab (Minuten vor Beginn)"
 msgstr "Ingresso da (minuti prima dell'inizio)"
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:197
 msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
 msgstr "Ingresso fino a (minuti dopo la fine; senza fine: dopo la fine della giornata dell'evento)"
 
-#: src/Admin/SettingsPage.php:204
+#: src/Admin/SettingsPage.php:206
 msgid "Aktive Zahlungsarten"
 msgstr "Metodi di pagamento attivi"
 
-#: src/Admin/SettingsPage.php:209
+#: src/Admin/SettingsPage.php:211
 #: src/Payments/ManualGateway.php:12
 msgid "Überweisung"
 msgstr "Bonifico"
 
-#: src/Admin/SettingsPage.php:213
+#: src/Admin/SettingsPage.php:215
 msgid "Zahlungshinweis"
 msgstr "Istruzioni di pagamento"
 
-#: src/Admin/SettingsPage.php:213
+#: src/Admin/SettingsPage.php:215
 msgid "Wird Käufern nach der Bestellung angezeigt. Ohne IBAN und Empfänger ersetzt er die Überweisungsdaten."
 msgstr "Vengono mostrate agli acquirenti dopo l'ordine. Senza IBAN e beneficiario sostituiscono i dati del bonifico."
 
-#: src/Admin/SettingsPage.php:214
+#: src/Admin/SettingsPage.php:216
 msgid "Überweisung: Empfänger (Kontoinhaber)"
 msgstr "Bonifico: destinatario (intestatario del conto)"
 
-#: src/Admin/SettingsPage.php:214
+#: src/Admin/SettingsPage.php:216
 msgid "Leer = Name / Firma des Rechnungsstellers."
 msgstr "Vuoto = nome / azienda dell'emittente della fattura."
 
-#: src/Admin/SettingsPage.php:215
+#: src/Admin/SettingsPage.php:217
 msgid "Überweisung: IBAN"
 msgstr "Bonifico: IBAN"
 
-#: src/Admin/SettingsPage.php:215
+#: src/Admin/SettingsPage.php:217
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
 msgstr "Viene mostrato dopo l'ordine e nell'e-mail dell'ordine con importo, causale e termine di pagamento."
 
-#: src/Admin/SettingsPage.php:216
+#: src/Admin/SettingsPage.php:218
 msgid "Überweisung: BIC"
 msgstr "Bonifico: BIC"
 
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:219
 msgid "Reservierung bei manueller Zahlung (Stunden)"
 msgstr "Prenotazione con pagamento manuale (ore)"
 
-#: src/Admin/SettingsPage.php:217
+#: src/Admin/SettingsPage.php:219
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
 msgstr "Termina al più tardi all'inizio della (prima) data."
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:220
 msgid "Überweisung: höchstens so viel Prozent eines Kontingents unbezahlt reservieren"
 msgstr "Bonifico: riserva senza pagamento al massimo questa percentuale di un contingente"
 
-#: src/Admin/SettingsPage.php:218
+#: src/Admin/SettingsPage.php:220
 msgid "Gilt je Ticketart und je Termin mit Kapazität. Offene, unbezahlte Überweisungsbestellungen halten zusammen höchstens diesen Anteil (mindestens aber 10 Tickets); danach ist Überweisung für diesen Termin erst wieder möglich, wenn Bestellungen bezahlt werden oder ablaufen. 0 oder 100 = keine Obergrenze."
 msgstr "Vale per tipo di biglietto e per data con capacità. Gli ordini con bonifico aperti e non pagati occupano insieme al massimo questa quota (ma almeno 10 biglietti); dopo, il bonifico per questa data torna disponibile solo quando gli ordini vengono pagati o scadono. 0 o 100 = nessun limite massimo."
 
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:222
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
 msgstr "Offri il bonifico solo fino a … ore prima dell'inizio"
 
-#: src/Admin/SettingsPage.php:219
+#: src/Admin/SettingsPage.php:222
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
 msgstr "0 = fino all'inizio. Consigliato: 24–48 ore, affinché il pagamento arrivi in tempo."
 
-#: src/Admin/SettingsPage.php:224
+#: src/Admin/SettingsPage.php:227
 msgid "Stripe"
 msgstr "Stripe"
 
-#: src/Admin/SettingsPage.php:229
-#: src/Admin/SettingsPage.php:240
+#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:243
 msgid "Modus"
 msgstr "Modalità"
 
-#: src/Admin/SettingsPage.php:229
+#: src/Admin/SettingsPage.php:232
 #: src/Mail/Admin.php:118
 #: src/Modules/Fiscalization.php:1363
 #: src/Operations/SiteHealth.php:713
 msgid "Test"
 msgstr "Test"
 
-#: src/Admin/SettingsPage.php:229
-#: src/Admin/SettingsPage.php:240
+#: src/Admin/SettingsPage.php:232
+#: src/Admin/SettingsPage.php:243
 #: src/Operations/SiteHealth.php:712
 msgid "Live"
 msgstr "Live"
 
-#: src/Admin/SettingsPage.php:230
+#: src/Admin/SettingsPage.php:233
 msgid "Geheimer API-Schlüssel (Secret Key)"
 msgstr "Chiave API segreta (Secret Key)"
 
-#: src/Admin/SettingsPage.php:230
+#: src/Admin/SettingsPage.php:233
 msgid "Stripe-Dashboard → Entwickler → API-Schlüssel. Beginnt mit sk_test_ bzw. sk_live_ (eingeschränkter Schlüssel: rk_…)."
 msgstr "Dashboard di Stripe → Sviluppatori → Chiavi API. Inizia con sk_test_ o sk_live_ (chiave limitata: rk_…)."
 
-#: src/Admin/SettingsPage.php:231
+#: src/Admin/SettingsPage.php:234
 msgid "Webhook-Signaturgeheimnis (Signing Secret)"
 msgstr "Segreto di firma del webhook (Signing Secret)"
 
-#: src/Admin/SettingsPage.php:231
+#: src/Admin/SettingsPage.php:234
 msgid "Wird beim Webhook-Endpunkt im Stripe-Dashboard angezeigt und beginnt mit whsec_. Ohne dieses Geheimnis werden Zahlungen nie bestätigt."
 msgstr "Viene mostrato presso l'endpoint webhook nella dashboard di Stripe e inizia con whsec_. Senza questo segreto i pagamenti non vengono mai confermati."
 
-#: src/Admin/SettingsPage.php:235
+#: src/Admin/SettingsPage.php:238
 #: src/Payments/PayPalGateway.php:46
 msgid "PayPal"
 msgstr "PayPal"
 
-#: src/Admin/SettingsPage.php:240
+#: src/Admin/SettingsPage.php:243
 #: src/WalletPasses/AdminPage.php:192
 msgid "Sandbox"
 msgstr "Sandbox"
 
-#: src/Admin/SettingsPage.php:241
+#: src/Admin/SettingsPage.php:244
 #: src/Payments/PayPalGateway.php:71
 msgid "Client-ID"
 msgstr "Client ID"
 
-#: src/Admin/SettingsPage.php:241
+#: src/Admin/SettingsPage.php:244
 msgid "PayPal Developer Dashboard → Apps & Credentials → eigene App (Sandbox bzw. Live passend zum Modus)."
 msgstr "PayPal Developer Dashboard → Apps & Credentials → la tua app (Sandbox o Live in base alla modalità)."
 
-#: src/Admin/SettingsPage.php:242
+#: src/Admin/SettingsPage.php:245
 #: src/Payments/PayPalGateway.php:72
 msgid "Client-Geheimnis (Secret)"
 msgstr "Client secret (Secret)"
 
-#: src/Admin/SettingsPage.php:242
+#: src/Admin/SettingsPage.php:245
 msgid "Steht in derselben App unter der Client-ID."
 msgstr "Si trova nella stessa app sotto il Client ID."
 
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:246
 msgid "Webhook-ID"
 msgstr "Webhook ID"
 
-#: src/Admin/SettingsPage.php:243
+#: src/Admin/SettingsPage.php:246
 msgid "Nach dem Anlegen des Webhooks in der App angezeigt (eine Kennung, nicht die URL). Ohne sie werden Zahlungen nie bestätigt."
 msgstr "Mostrato nell'app dopo la creazione del webhook (un identificativo, non l'URL). Senza di esso i pagamenti non vengono mai confermati."
 
-#: src/Admin/SettingsPage.php:247
-#: src/Admin/SettingsPage.php:508
+#: src/Admin/SettingsPage.php:250
+#: src/Admin/SettingsPage.php:511
 msgid "Rechtstexte"
 msgstr "Testi legali"
 
-#: src/Admin/SettingsPage.php:252
+#: src/Admin/SettingsPage.php:255
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Richiedi il consenso al checkout"
 
-#: src/Admin/SettingsPage.php:252
+#: src/Admin/SettingsPage.php:255
 msgid "Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer)."
 msgstr "Mostra le condizioni generali / condizioni di partecipazione al checkout e richiede la conferma. Senza questa opzione le condizioni generali non compaiono al checkout (le informazioni per i consumatori sì, sempre)."
 
-#: src/Admin/SettingsPage.php:253
-#: src/Admin/SettingsPage.php:1137
+#: src/Admin/SettingsPage.php:256
+#: src/Admin/SettingsPage.php:1140
 #: src/Diagnostics.php:207
 msgid "AGB / Teilnahmebedingungen"
 msgstr "Condizioni generali / Condizioni di partecipazione"
 
-#: src/Admin/SettingsPage.php:254
-#: src/Admin/SettingsPage.php:1137
+#: src/Admin/SettingsPage.php:257
+#: src/Admin/SettingsPage.php:1140
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informazioni per i consumatori (es. informativa sul diritto di recesso)"
 
-#: src/Admin/SettingsPage.php:255
+#: src/Admin/SettingsPage.php:258
 msgid "Hinweis „kein Widerrufsrecht“ neben dem Bestellbutton zeigen"
 msgstr "Mostra l’avviso «nessun diritto di recesso» accanto al pulsante d’ordine"
 
-#: src/Admin/SettingsPage.php:255
+#: src/Admin/SettingsPage.php:258
 msgid "Nur wenn alle Positionen einen festen Veranstaltungstermin haben. Standardtext, bitte prüfen und anpassen – keine Rechtsberatung."
 msgstr "Solo se tutte le righe hanno una data dell’evento fissa. Testo predefinito, verificalo e adattalo – non costituisce consulenza legale."
 
-#: src/Admin/SettingsPage.php:256
+#: src/Admin/SettingsPage.php:259
 msgid "Text: kein Widerrufsrecht (terminierte Tickets)"
 msgstr "Testo: nessun diritto di recesso (biglietti con data)"
 
-#: src/Admin/SettingsPage.php:257
+#: src/Admin/SettingsPage.php:260
 msgid "Text: Widerrufsrecht besteht (Produkte ohne Termin, z. B. Pässe, Gutscheine)"
 msgstr "Testo: diritto di recesso applicabile (prodotti senza data, ad es. pass, buoni)"
 
-#: src/Admin/SettingsPage.php:257
+#: src/Admin/SettingsPage.php:260
 msgid "Wird gezeigt, wenn eine Position keinen festen Termin hat. Hier z. B. die Widerrufsbelehrung oder einen Verweis darauf eintragen."
 msgstr "Viene mostrato quando una riga non ha una data fissa. Inserisci qui, ad es., l’informativa sul recesso o un rimando a essa."
 
-#: src/Admin/SettingsPage.php:264
+#: src/Admin/SettingsPage.php:267
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Seconda approvazione a partire dall'importo"
 
-#: src/Admin/SettingsPage.php:264
+#: src/Admin/SettingsPage.php:267
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = nessuna seconda approvazione. Importo nella valuta dell'ordine, es. 100,00."
 
-#: src/Admin/SettingsPage.php:265
+#: src/Admin/SettingsPage.php:268
 msgid "Vier-Augen-Prinzip auch für Freigebende"
 msgstr "Principio dei quattro occhi anche per chi approva"
 
-#: src/Admin/SettingsPage.php:265
+#: src/Admin/SettingsPage.php:268
 msgid "Ohne diese Option führen Personen mit Freigabeberechtigung eigene Erstattungen über dem Betrag sofort aus. Mit der Option wartet jede Erstattung über dem Betrag auf die Freigabe einer anderen berechtigten Person."
 msgstr "Senza questa opzione le persone con autorizzazione all'approvazione eseguono subito i propri rimborsi superiori all'importo. Con l'opzione ogni rimborso superiore all'importo attende l'approvazione di un'altra persona autorizzata."
 
-#: src/Admin/SettingsPage.php:266
+#: src/Admin/SettingsPage.php:269
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Richiedi l'autenticazione a due fattori per i rimborsi"
 
-#: src/Admin/SettingsPage.php:267
+#: src/Admin/SettingsPage.php:270
 msgid "Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten"
 msgstr "Rimborsa automaticamente i pagamenti doppi e i pagamenti su ordini annullati/scaduti"
 
-#: src/Admin/SettingsPage.php:267
+#: src/Admin/SettingsPage.php:270
 msgid "Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter."
 msgstr "Disattivato per impostazione predefinita: i casi compaiono nello stato del sistema e vengono gestiti manualmente. Se attivato, un’attività in background rimborsa l’importo presso il fornitore di pagamenti."
 
-#: src/Admin/SettingsPage.php:268
+#: src/Admin/SettingsPage.php:271
 msgid "Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben"
 msgstr "Consenti richieste di rimborso nel portale ordini dopo lo spostamento di una data"
 
-#: src/Admin/SettingsPage.php:268
+#: src/Admin/SettingsPage.php:271
 msgid "Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“."
 msgstr "I titolari dei biglietti possono richiedere un rimborso entro la scadenza; ogni richiesta deve essere approvata in «Rimborsi»."
 
-#: src/Admin/SettingsPage.php:269
+#: src/Admin/SettingsPage.php:272
 msgid "Antragsfrist: Stunden vor dem neuen Termin"
 msgstr "Scadenza richiesta: ore prima della nuova data"
 
-#: src/Admin/SettingsPage.php:269
+#: src/Admin/SettingsPage.php:272
 msgid "0 = bis zum Beginn des neuen Termins."
 msgstr "0 = fino all’inizio della nuova data."
 
-#: src/Admin/SettingsPage.php:270
+#: src/Admin/SettingsPage.php:273
 msgid "Erstattungshinweis in der Verschiebungs-Mail"
 msgstr "Avviso di rimborso nell’e-mail di spostamento"
 
-#: src/Admin/SettingsPage.php:270
+#: src/Admin/SettingsPage.php:273
 msgid "Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen."
 msgstr "Segnaposto {refund_deadline} (scadenza). Vuoto = avviso di rivolgersi all’organizzatore. Non è consulenza legale – verifica i diritti di recesso in caso di spostamento rilevante."
 
-#: src/Admin/SettingsPage.php:271
+#: src/Admin/SettingsPage.php:274
 msgid "Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)"
 msgstr "Richieste di annullamento nel portale ordini fino a (ore prima dell'inizio)"
 
-#: src/Admin/SettingsPage.php:271
+#: src/Admin/SettingsPage.php:274
 msgid "0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe."
 msgstr "0 = disattivato. Gli acquirenti possono richiedere l'annullamento con rimborso di biglietti validi e non utilizzati fino a questo termine (non per biglietti omaggio e ordini WooCommerce). Ogni richiesta attende una decisione in «Rimborsi da approvare»; il pagamento avviene solo dopo l'approvazione."
 
-#: src/Admin/SettingsPage.php:278
+#: src/Admin/SettingsPage.php:281
 msgid "0 = keine. Gilt im eigenen Online-Checkout für kostenpflichtige Tickets; je Ticketart abweichend einstellbar. Nicht bei Kasse, WooCommerce, Partnern, Freikarten und Servicebuchungen."
 msgstr "0 = nessuna. Vale nel checkout online proprio per i biglietti a pagamento; impostabile diversamente per ogni tipo di biglietto. Non per cassa, WooCommerce, partner, biglietti omaggio e prenotazioni di servizi."
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:282
 #: src/ServiceFee.php:422
 msgid "Servicegebühr je Bestellung"
 msgstr "Commissione di servizio per ordine"
 
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:282
 msgid "0 = keine. Einmal je kostenpflichtiger Bestellung im eigenen Online-Checkout; Käufer sehen sie als „Bearbeitungsgebühr je Bestellung“ neben den Preisen."
 msgstr "0 = nessuna. Una volta per ogni ordine a pagamento nel checkout online proprio; gli acquirenti la vedono come «commissione di gestione per ordine» accanto ai prezzi."
 
-#: src/Admin/SettingsPage.php:282
+#: src/Admin/SettingsPage.php:285
 msgid "Steuer der Servicegebühr"
 msgstr "Imposta sulla commissione di servizio"
 
-#: src/Admin/SettingsPage.php:284
+#: src/Admin/SettingsPage.php:287
 msgid "wie das Ticket (Nebenleistung)"
 msgstr "come il biglietto (prestazione accessoria)"
 
-#: src/Admin/SettingsPage.php:285
+#: src/Admin/SettingsPage.php:288
 msgid "eigenes Steuerprofil"
 msgstr "profilo fiscale proprio"
 
-#: src/Admin/SettingsPage.php:287
+#: src/Admin/SettingsPage.php:290
 msgid "„Wie das Ticket“: Steuersatz und Steuerprofil der zugehörigen Ticketposition. „Eigenes Steuerprofil“: Steuerklasse unten, Satz aus dem aktiven Steuerprofil des Leistungsorts. Gilt für neue Bestellungen; Rechnungen, Fiskalbelege und Berichte folgen der Bestellzeile."
 msgstr "«Come il biglietto»: aliquota e profilo fiscale della relativa voce del biglietto. «Profilo fiscale proprio»: classe fiscale qui sotto, aliquota dal profilo fiscale attivo del luogo della prestazione. Vale per i nuovi ordini; fatture, ricevute fiscali e report seguono la riga d'ordine."
 
-#: src/Admin/SettingsPage.php:291
+#: src/Admin/SettingsPage.php:294
 msgid "Steuerklasse der Servicegebühr"
 msgstr "Classe fiscale della commissione di servizio"
 
-#: src/Admin/SettingsPage.php:293
+#: src/Admin/SettingsPage.php:296
 msgid "Nur bei „eigenes Steuerprofil“. Steuerprofile je Land und Steuerklasse unter Verkauf → Steuerprofile anlegen und freigeben."
 msgstr "Solo con «profilo fiscale proprio». Crea e approva i profili fiscali per paese e classe fiscale in Vendita → Profili fiscali."
 
-#: src/Admin/SettingsPage.php:297
+#: src/Admin/SettingsPage.php:300
 msgid "Steuersatz der Servicegebühr ohne passendes Steuerprofil (%)"
 msgstr "Aliquota della commissione di servizio senza profilo fiscale corrispondente (%)"
 
-#: src/Admin/SettingsPage.php:298
+#: src/Admin/SettingsPage.php:301
 msgid "Nur bei „eigenes Steuerprofil“, wenn für Leistungsort und Steuerklasse kein aktives Profil gilt. Leer = Satz der Ticketposition."
 msgstr "Solo con «profilo fiscale proprio», se per il luogo della prestazione e la classe fiscale non vale alcun profilo attivo. Vuoto = aliquota della voce del biglietto."
 
-#: src/Admin/SettingsPage.php:303
+#: src/Admin/SettingsPage.php:306
 msgid "Servicegebühr bei Erstattung auf Käuferwunsch"
 msgstr "Commissione di servizio in caso di rimborso su richiesta dell'acquirente"
 
-#: src/Admin/SettingsPage.php:308
+#: src/Admin/SettingsPage.php:311
 msgid "Für Erstattungen, die nicht durch eine Absage verursacht sind (Stornierungsanfrage im Bestellportal, Erstattung durch das Team ohne Absage). Bei Absage eines Termins oder Events durch den Veranstalter wird die Gebühr immer erstattet."
 msgstr "Per i rimborsi non dovuti a un annullamento (richiesta di annullamento nel portale ordini, rimborso da parte del team senza annullamento). Se l'organizzatore annulla una data o un evento, la commissione viene sempre rimborsata."
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:313
 msgid "Servicegebühr an Partner weitergeben"
 msgstr "Trasferisci la commissione di servizio ai partner"
 
-#: src/Admin/SettingsPage.php:310
+#: src/Admin/SettingsPage.php:313
 msgid "Standard aus: Die Servicegebühr ist Umsatz des Betreibers und zählt in Partnerabrechnungen und in der Deal-Basis des Abrechnungsblatts nicht als Veranstaltererlös; beide weisen sie getrennt aus. Eingeschaltet zählt sie wie der Ticketpreis zum Veranstaltererlös."
 msgstr "Disattivato per impostazione predefinita: la commissione di servizio è un ricavo del gestore e non rientra nei ricavi dell'organizzatore nei rendiconti dei partner né nella base del deal del foglio di rendiconto; entrambi la riportano separatamente. Se attivato, rientra nei ricavi dell'organizzatore come il prezzo del biglietto."
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:315
 msgid "Eigene Position in Bestellung, Rechnung und Berichten. Bei Erstattungen geht die Gebühr je Ticket mit dem Ticket zurück, die Gebühr je Bestellung mit dem letzten Ticket – bei Absage immer, auf Käuferwunsch nach der Einstellung unten. Rechtliche und steuerliche Einordnung bitte mit der Steuerberatung prüfen."
 msgstr "Voce separata in ordine, fattura e report. In caso di rimborso, la commissione per biglietto viene restituita insieme al biglietto, quella per ordine con l'ultimo biglietto – sempre in caso di annullamento, su richiesta dell'acquirente secondo l'impostazione qui sotto. Verifica con il tuo consulente fiscale l'inquadramento giuridico e fiscale."
 
-#: src/Admin/SettingsPage.php:315
+#: src/Admin/SettingsPage.php:318
 msgid "Gutscheine"
 msgstr "Buoni"
 
-#: src/Admin/SettingsPage.php:320
+#: src/Admin/SettingsPage.php:323
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
 msgstr "Tratta i buoni come buoni multiuso per impostazione predefinita"
 
-#: src/Admin/SettingsPage.php:322
+#: src/Admin/SettingsPage.php:325
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
 msgstr "Sì – buono multiuso (mezzo di pagamento, IVA al momento del riscatto)"
 
-#: src/Admin/SettingsPage.php:323
+#: src/Admin/SettingsPage.php:326
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "No – buono monouso (IVA già dovuta al momento della vendita del buono)"
 
-#: src/Admin/SettingsPage.php:325
+#: src/Admin/SettingsPage.php:328
 msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären."
 msgstr "Vale solo se Voucher Captain non comunica alcun tipo per il buono. Buono multiuso: i biglietti mantengono il prezzo e l’IVA per intero e il buono compare in fattura come pagamento. Buono monouso (luogo della prestazione e aliquota erano noti al momento della vendita, ad es. buono per un determinato evento nazionale): l’IVA è già stata versata con la vendita del buono e il riscatto riduce il prezzo. In caso di dubbio chiarisci con il tuo consulente fiscale."
 
-#: src/Admin/SettingsPage.php:330
-#: src/Admin/SettingsPage.php:510
+#: src/Admin/SettingsPage.php:333
+#: src/Admin/SettingsPage.php:513
 msgid "Datenschutz"
 msgstr "Privacy"
 
-#: src/Admin/SettingsPage.php:333
+#: src/Admin/SettingsPage.php:336
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Elimina i dati dei partecipanti dopo l'evento dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:333
+#: src/Admin/SettingsPage.php:336
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = usa l'impostazione del campo."
 
-#: src/Admin/SettingsPage.php:334
+#: src/Admin/SettingsPage.php:337
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Dati dei partecipanti modificabili fino a (ore prima dell'inizio)"
 
-#: src/Admin/SettingsPage.php:335
+#: src/Admin/SettingsPage.php:338
 msgid "E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)"
 msgstr "Pseudonimizza gli indirizzi e-mail degli ordini mai pagati dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:335
-#: src/Admin/SettingsPage.php:344
+#: src/Admin/SettingsPage.php:338
+#: src/Admin/SettingsPage.php:347
 msgid "0 = nie."
 msgstr "0 = mai."
 
-#: src/Admin/SettingsPage.php:336
+#: src/Admin/SettingsPage.php:339
 msgid "Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)"
 msgstr "Elimina contenuto e destinatario dei messaggi inviati dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:337
+#: src/Admin/SettingsPage.php:340
 msgid "Versandprotokoll der Nachrichten löschen nach (Tagen)"
 msgstr "Elimina il registro di invio dei messaggi dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:338
+#: src/Admin/SettingsPage.php:341
 msgid "Personal und Gerät an Check-ins entfernen nach (Tagen)"
 msgstr "Rimuovi personale e dispositivo dai check-in dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:342
 msgid "Protokolleinträge (Audit-Log) löschen nach (Tagen)"
 msgstr "Elimina le voci del registro di audit dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:340
+#: src/Admin/SettingsPage.php:343
 msgid "Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)"
 msgstr "Elimina i codici dei biglietti venduti dai partner (giorni dopo la data)"
 
-#: src/Admin/SettingsPage.php:340
+#: src/Admin/SettingsPage.php:343
 msgid "0 = direkt nach Ende des Termins."
 msgstr "0 = subito dopo la fine della data."
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:344
 msgid "Rechnungen und Rechnungskorrekturen löschen nach (Jahren)"
 msgstr "Elimina fatture e rettifiche fattura dopo (anni)"
 
-#: src/Admin/SettingsPage.php:341
+#: src/Admin/SettingsPage.php:344
 msgid "0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert."
 msgstr "0 = non eliminare mai. Il termine decorre dalla fine dell'anno di emissione. Rispetta i termini legali di conservazione (ad es. Austria 7 anni, Germania 8 o 10 anni) e archivia prima i documenti nel tuo sistema contabile. I dati dell'acquirente degli ordini interessati vengono pseudonimizzati contestualmente."
 
-#: src/Admin/SettingsPage.php:342
+#: src/Admin/SettingsPage.php:345
 msgid "Käuferdaten in Bestellungen entfernen nach (Jahren ab Ende des Bestelljahres)"
 msgstr "Rimuovi i dati dell’acquirente dagli ordini dopo (anni dalla fine dell’anno dell’ordine)"
 
-#: src/Admin/SettingsPage.php:343
+#: src/Admin/SettingsPage.php:346
 msgid "Wartelisteneinträge nach dem Termin anonymisieren nach (Tagen)"
 msgstr "Anonimizza le iscrizioni in lista d’attesa dopo la data dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:343
+#: src/Admin/SettingsPage.php:346
 msgid "Gilt für Event- und Termin-Wartelisten. 0 = nie."
 msgstr "Vale per le liste d’attesa di eventi e appuntamenti. 0 = mai."
 
-#: src/Admin/SettingsPage.php:344
+#: src/Admin/SettingsPage.php:347
 msgid "Mitgliedspässe nach Ablauf der Gültigkeit anonymisieren nach (Tagen)"
 msgstr "Anonimizza le tessere socio dopo la scadenza dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:368
+#: src/Admin/SettingsPage.php:371
 msgid "E-Mail-Versand"
 msgstr "Invio e-mail"
 
-#: src/Admin/SettingsPage.php:371
+#: src/Admin/SettingsPage.php:374
 msgid "Absenderadresse"
 msgstr "Indirizzo del mittente"
 
-#: src/Admin/SettingsPage.php:372
+#: src/Admin/SettingsPage.php:375
 msgid "Absendername"
 msgstr "Nome del mittente"
 
-#: src/Admin/SettingsPage.php:372
+#: src/Admin/SettingsPage.php:375
 msgid "Name, den Käufer als Absender sehen. Leer = Name / Firma des Rechnungsstellers, sonst der Name der Website. Die Absenderadresse selbst kommt von WordPress bzw. dem SMTP-Plugin (passend zu SPF/DKIM der Domain)."
 msgstr "Nome che gli acquirenti vedono come mittente. Vuoto = nome / azienda dell'emittente della fattura, altrimenti il nome del sito. L'indirizzo del mittente stesso proviene da WordPress o dal plugin SMTP (in linea con SPF/DKIM del dominio)."
 
-#: src/Admin/SettingsPage.php:373
+#: src/Admin/SettingsPage.php:376
 msgid "Antwort an (E-Mail-Adresse)"
 msgstr "Rispondi a (indirizzo e-mail)"
 
-#: src/Admin/SettingsPage.php:373
+#: src/Admin/SettingsPage.php:376
 msgid "Antworten der Käufer gehen an diese Adresse. Leer = die Absenderadresse; ist keine eigene Absenderadresse gesetzt, die Administrator-E-Mail der Website."
 msgstr "Le risposte degli acquirenti vanno a questo indirizzo. Vuoto = l'indirizzo del mittente; se non è impostato un indirizzo del mittente proprio, l'e-mail dell'amministratore del sito."
 
-#: src/Admin/SettingsPage.php:374
+#: src/Admin/SettingsPage.php:377
 msgid "Betriebsalarme an"
 msgstr "Avvisi operativi a"
 
-#: src/Admin/SettingsPage.php:374
+#: src/Admin/SettingsPage.php:377
 msgid "Hinweise, die ein Eingreifen erfordern (Erstattung wartet auf Freigabe, Zahlung prüfen, bezahlte Bestellung ohne Tickets, Webhook deaktiviert …). Leer = die Administrator-E-Mail der Website. Die letzten Alarme stehen auch im Systemstatus."
 msgstr "Avvisi che richiedono un intervento (rimborso in attesa di approvazione, verificare pagamento, ordine pagato senza biglietti, webhook disattivato…). Vuoto = l'e-mail dell'amministratore del sito. Gli ultimi avvisi compaiono anche nello stato del sistema."
 
-#: src/Admin/SettingsPage.php:375
+#: src/Admin/SettingsPage.php:378
 msgid "Bounce-/Beschwerde-Webhook des Versanddienstes annehmen"
 msgstr "Accetta il webhook di bounce/reclami del servizio di invio"
 
 #. translators: %s: webhook URL with token
-#: src/Admin/SettingsPage.php:377
+#: src/Admin/SettingsPage.php:380
 #, php-format
 msgid "Diese URL beim Versanddienst (Postmark, SendGrid, Mailgun, Amazon SES/SNS) als Webhook für Bounces und Spam-Beschwerden eintragen: %s – unzustellbare Mails werden als fehlgeschlagen markiert und bei der Bestellung angezeigt; nach einer Beschwerde gehen keine Erinnerungen mehr an die Adresse. Die URL enthält ein geheimes Token."
 msgstr "Inserisci questo URL nel servizio di invio (Postmark, SendGrid, Mailgun, Amazon SES/SNS) come webhook per bounce e reclami per spam: %s – le e-mail non recapitabili vengono contrassegnate come non riuscite e mostrate nell’ordine; dopo un reclamo non vengono più inviati promemoria all’indirizzo. L’URL contiene un token segreto."
 
-#: src/Admin/SettingsPage.php:378
+#: src/Admin/SettingsPage.php:381
 msgid "Nach dem Aktivieren erscheint hier die Webhook-URL (mit geheimem Token) für den Versanddienst."
 msgstr "Dopo l’attivazione qui compare l’URL del webhook (con token segreto) per il servizio di invio."
 
-#: src/Admin/SettingsPage.php:379
+#: src/Admin/SettingsPage.php:382
 msgid "Geplante Mails je Minute (höchstens)"
 msgstr "E-mail programmate al minuto (massimo)"
 
-#: src/Admin/SettingsPage.php:379
+#: src/Admin/SettingsPage.php:382
 msgid "0 = ohne Begrenzung. Begrenzt Erinnerungen und andere Mails aus der Warteschlange auf das Limit deines Mail-Anbieters; der Rest geht in den nächsten Läufen hinaus. Meldet der Anbieter ein Limit, wird die Mail später erneut versucht statt verworfen."
 msgstr "0 = senza limite. Limita i promemoria e le altre e-mail in coda al limite del tuo fornitore di posta; il resto viene inviato nelle esecuzioni successive. Se il fornitore segnala un limite, l'e-mail viene ritentata più tardi anziché scartata."
 
-#: src/Admin/SettingsPage.php:383
+#: src/Admin/SettingsPage.php:386
 #: src/Partners/Settlements.php:1049
 msgid "Rechnungssteller"
 msgstr "Emittente della fattura"
 
-#: src/Admin/SettingsPage.php:386
+#: src/Admin/SettingsPage.php:389
 msgid "Name / Firma"
 msgstr "Nome / Ragione sociale"
 
-#: src/Admin/SettingsPage.php:387
+#: src/Admin/SettingsPage.php:390
 msgid "Anschrift"
 msgstr "Indirizzo"
 
-#: src/Admin/SettingsPage.php:388
+#: src/Admin/SettingsPage.php:391
 #: src/Partners/AdminPage.php:331
 msgid "USt-IdNr."
 msgstr "Partita IVA"
 
-#: src/Admin/SettingsPage.php:389
+#: src/Admin/SettingsPage.php:392
 #: src/Partners/AdminPage.php:593
 msgid "Steuernummer"
 msgstr "Codice fiscale"
 
-#: src/Admin/SettingsPage.php:389
+#: src/Admin/SettingsPage.php:392
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Indicazione obbligatoria in fattura se non è indicata la partita IVA."
 
-#: src/Admin/SettingsPage.php:390
+#: src/Admin/SettingsPage.php:393
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "Paese (codice ISO, ad es. DE o AT)"
 
-#: src/Admin/SettingsPage.php:390
+#: src/Admin/SettingsPage.php:393
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet und gilt als Leistungsort für Termine ohne eigenes Veranstaltungsland (Steuerprofile)."
 msgstr "Viene usato per la verifica dell'inversione contabile per gli organizzatori di altri paesi UE e vale come luogo della prestazione per le date senza un proprio paese dell'evento (profili fiscali)."
 
-#: src/Admin/SettingsPage.php:393
+#: src/Admin/SettingsPage.php:396
 msgid "Vier-Augen-Prinzip für Steuerprofile (wer ein Profil anlegt oder bearbeitet, darf es nicht selbst aktivieren; Administratoren ausgenommen)"
 msgstr "Principio dei quattro occhi per i profili fiscali (chi crea o modifica un profilo non può attivarlo; amministratori esclusi)"
 
-#: src/Admin/SettingsPage.php:394
+#: src/Admin/SettingsPage.php:397
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Piccola impresa (nessuna IVA sulle proprie fatture)"
 
-#: src/Admin/SettingsPage.php:394
+#: src/Admin/SettingsPage.php:397
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "Le fatture della piattaforma riportano quindi la nota piccola impresa e vengono rifiutate finché i tipi di biglietto contengono IVA (crea i tipi di biglietto con lo 0 %)."
 
-#: src/Admin/SettingsPage.php:395
+#: src/Admin/SettingsPage.php:398
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Nota piccola impresa (vuoto = testo predefinito per il paese)"
 
-#: src/Admin/SettingsPage.php:395
+#: src/Admin/SettingsPage.php:398
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE: «Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.» – AT: «Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.»"
 
-#: src/Admin/SettingsPage.php:396
+#: src/Admin/SettingsPage.php:399
 msgid "Präfix Rechnungsnummer"
 msgstr "Prefisso numero fattura"
 
-#: src/Admin/SettingsPage.php:397
+#: src/Admin/SettingsPage.php:400
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
 msgstr "Richiedi nome e indirizzo al checkout a partire da un importo d’ordine di (0 = mai; DE: 250 €, AT: 400 €)"
 
-#: src/Admin/SettingsPage.php:398
+#: src/Admin/SettingsPage.php:401
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Prefisso rettifica fattura (documento di storno / rettifica)"
 
-#: src/Admin/SettingsPage.php:399
+#: src/Admin/SettingsPage.php:402
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Crea automaticamente la fattura dopo il pagamento"
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:403
 msgid "Kontenrahmen für den DATEV-Buchungsstapel"
 msgstr "Piano dei conti per il batch di registrazioni DATEV"
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:403
 msgid "SKR03 (Erlöse 8400/8300, Geldtransit 1360)"
 msgstr "SKR03 (ricavi 8400/8300, fondi in transito 1360)"
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:403
 msgid "SKR04 (Erlöse 4400/4300, Geldtransit 1460)"
 msgstr "SKR04 (ricavi 4400/4300, fondi in transito 1460)"
 
-#: src/Admin/SettingsPage.php:400
+#: src/Admin/SettingsPage.php:403
 msgid "Eigene Konten, BU-Schlüssel und ein Konto je Zahlungsanbieter über den Filter wpcap_datev_accounts."
 msgstr "Conti propri, codici IVA e un conto per fornitore di pagamento tramite il filtro wpcap_datev_accounts."
 
-#: src/Admin/SettingsPage.php:401
+#: src/Admin/SettingsPage.php:404
 msgid "Geldkonto im Buchungsstapel (leer = Geldtransit des Kontenrahmens)"
 msgstr "Conto di liquidità nel batch (vuoto = fondi in transito del piano)"
 
-#: src/Admin/SettingsPage.php:401
+#: src/Admin/SettingsPage.php:404
 msgid "4 bis 8 Ziffern, z. B. das Verrechnungskonto des Zahlungsdienstleisters."
 msgstr "Da 4 a 8 cifre, ad es. il conto di compensazione del fornitore di pagamenti."
 
-#: src/Admin/SettingsPage.php:405
+#: src/Admin/SettingsPage.php:408
 #: src/Security/Policy.php:90
 msgid "Sicherheit"
 msgstr "Sicurezza"
 
-#: src/Admin/SettingsPage.php:408
+#: src/Admin/SettingsPage.php:411
 msgid "Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)"
 msgstr "Consenti servizio fiscale locale (HTTP verso indirizzi loopback/privati)"
 
-#: src/Admin/SettingsPage.php:408
+#: src/Admin/SettingsPage.php:411
 msgid "Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden."
 msgstr "Solo per un servizio fiscale sullo stesso server o nella rete locale (es. efsta EFR su http://127.0.0.1:5618). Tutte le altre connessioni in uscita verso destinazioni configurabili devono usare HTTPS verso indirizzi pubblici."
 
-#: src/Admin/SettingsPage.php:412
+#: src/Admin/SettingsPage.php:415
 msgid "Support und Fehlersuche"
 msgstr "Supporto e risoluzione dei problemi"
 
-#: src/Admin/SettingsPage.php:415
+#: src/Admin/SettingsPage.php:418
 msgid "Fehlersuche-Protokoll (Debug-Modus) für 24 Stunden einschalten"
 msgstr "Attiva il registro di diagnostica (modalità di debug) per 24 ore"
 
-#: src/Admin/SettingsPage.php:415
+#: src/Admin/SettingsPage.php:418
 msgid "Speichert zusätzlich ausführliche Diagnose-Einträge im Support-Protokoll (Betrieb → Support-Protokoll). Schaltet sich 24 Stunden nach dem Einschalten von selbst ab; zum erneuten Einschalten aus- und wieder einschalten. Fehler und Warnungen werden immer protokolliert. Geheimnisse, Ticketcodes und E-Mail-Adressen werden nie gespeichert. Die Konstante WPCAP_DEBUG in wp-config.php hat Vorrang."
 msgstr "Salva inoltre voci di diagnostica dettagliate nel registro di supporto (Operatività → Registro di supporto). Si disattiva automaticamente 24 ore dopo l'attivazione; per riattivarla, disattivala e attivala di nuovo. Errori e avvisi vengono sempre registrati. Segreti, codici dei biglietti e indirizzi e-mail non vengono mai salvati. La costante WPCAP_DEBUG in wp-config.php ha la precedenza."
 
-#: src/Admin/SettingsPage.php:419
+#: src/Admin/SettingsPage.php:422
 msgid "Deinstallation"
 msgstr "Disinstallazione"
 
-#: src/Admin/SettingsPage.php:422
+#: src/Admin/SettingsPage.php:425
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Rimuovi tutti i dati quando il plugin viene eliminato"
 
-#: src/Admin/SettingsPage.php:422
+#: src/Admin/SettingsPage.php:425
 msgid "Achtung: Events, Bestellungen, Tickets, Rechnungen, Rechnungskorrekturen, Kassen- und Fiskalbelege werden beim Löschen des Plugins unwiderruflich gelöscht. Rechnungen und Buchungsbelege unterliegen gesetzlichen Aufbewahrungspflichten (DE 10 Jahre, AT 7 Jahre): vorher Rechnungen und das Fiskal-Archiv exportieren und sicher aufbewahren."
 msgstr "Attenzione: eliminando il plugin vengono cancellati in modo irreversibile eventi, ordini, biglietti, fatture, rettifiche, scontrini di cassa e documenti fiscali. Fatture e documenti contabili sono soggetti a obblighi legali di conservazione (DE 10 anni, AT 7 anni): esporta prima le fatture e l’archivio fiscale e conservali in modo sicuro."
 
-#: src/Admin/SettingsPage.php:490
+#: src/Admin/SettingsPage.php:493
 msgid "Weitere Einstellungen"
 msgstr "Altre impostazioni"
 
-#: src/Admin/SettingsPage.php:505
+#: src/Admin/SettingsPage.php:508
 #: src/WalletPasses/AdminPage.php:180
 msgid "Allgemein"
 msgstr "Generale"
 
-#: src/Admin/SettingsPage.php:507
+#: src/Admin/SettingsPage.php:510
 msgid "Zahlungsarten"
 msgstr "Metodi di pagamento"
 
-#: src/Admin/SettingsPage.php:509
+#: src/Admin/SettingsPage.php:512
 msgid "Rechnungen"
 msgstr "Fatture"
 
-#: src/Admin/SettingsPage.php:511
+#: src/Admin/SettingsPage.php:514
 msgid "Erweitert"
 msgstr "Avanzate"
 
-#: src/Admin/SettingsPage.php:613
+#: src/Admin/SettingsPage.php:616
 msgid "Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten"
 msgstr "Inserisci un nuovo valore per sostituirlo; lascia vuoto per mantenerlo"
 
-#: src/Admin/SettingsPage.php:613
+#: src/Admin/SettingsPage.php:616
 #: src/Secrets.php:480
 msgid "Nicht gesetzt"
 msgstr "Non impostato"
 
 #. translators: %s: masked value, e.g. ••••1234
-#: src/Admin/SettingsPage.php:619
+#: src/Admin/SettingsPage.php:622
 #, php-format
 msgid "gespeichert %s"
 msgstr "salvato %s"
 
-#: src/Admin/SettingsPage.php:621
+#: src/Admin/SettingsPage.php:624
 msgid "Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben"
 msgstr "Il valore salvato non può essere decifrato: inseriscilo di nuovo"
 
-#: src/Admin/SettingsPage.php:623
+#: src/Admin/SettingsPage.php:626
 #: src/Secrets.php:458
 msgid "Kein Wert gespeichert"
 msgstr "Nessun valore salvato"
 
-#: src/Admin/SettingsPage.php:626
+#: src/Admin/SettingsPage.php:629
 msgid "Gespeicherten Wert entfernen"
 msgstr "Rimuovi il valore salvato"
 
@@ -9576,15 +9582,15 @@ msgstr "«%s» non è un importo valido."
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "«%s» non è un indirizzo e-mail valido."
 
-#: src/Admin/SettingsPage.php:744
+#: src/Admin/SettingsPage.php:747
 msgid "„Beim Löschen des Plugins alle Daten entfernen“ wurde nicht aktiviert: Bitte zur Bestätigung LÖSCHEN eintragen."
 msgstr "“Rimuovi tutti i dati quando il plugin viene eliminato” non è stato attivato: per confermare digita LÖSCHEN o DELETE."
 
-#: src/Admin/SettingsPage.php:795
+#: src/Admin/SettingsPage.php:798
 msgid "Die Zustimmung im Checkout ist aktiv, aber für die Standardsprache ist kein AGB-Text hinterlegt. Käufer müssten Bedingungen bestätigen, die sie nicht sehen – bitte AGB/Teilnahmebedingungen eintragen."
 msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è stato inserito alcun testo delle condizioni generali. Gli acquirenti dovrebbero accettare condizioni che non vedono: inserisci le condizioni generali / condizioni di partecipazione."
 
-#: src/Admin/SettingsPage.php:854
+#: src/Admin/SettingsPage.php:857
 #: src/Admission/RulesPage.php:122
 #: src/Allocations/AdminPage.php:188
 #: src/BoxOffice/Page.php:600
@@ -9599,147 +9605,147 @@ msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è s
 msgid "Einstellungen gespeichert."
 msgstr "Impostazioni salvate."
 
-#: src/Admin/SettingsPage.php:890
+#: src/Admin/SettingsPage.php:893
 msgid "Pass Captain Einstellungen"
 msgstr "Impostazioni di Pass Captain"
 
-#: src/Admin/SettingsPage.php:897
+#: src/Admin/SettingsPage.php:900
 msgid "Einstellungsbereiche"
 msgstr "Sezioni delle impostazioni"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:951
+#: src/Admin/SettingsPage.php:954
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "I testi seguenti valgono per la lingua predefinita (%s) e per ogni lingua senza una versione propria."
 
-#: src/Admin/SettingsPage.php:963
+#: src/Admin/SettingsPage.php:966
 #: src/Partners/AdminPage.php:289
 msgid "Einstellungen speichern"
 msgstr "Salva impostazioni"
 
-#: src/Admin/SettingsPage.php:1021
+#: src/Admin/SettingsPage.php:1024
 msgid "Webhook-URL:"
 msgstr "URL del webhook:"
 
-#: src/Admin/SettingsPage.php:1023
+#: src/Admin/SettingsPage.php:1026
 msgid "In der PayPal-App unter „Webhooks“ einen Webhook mit dieser URL und diesen Ereignissen anlegen; die angezeigte Webhook-ID unten eintragen:"
 msgstr "Nell'app PayPal, in «Webhooks», crea un webhook con questo URL e questi eventi; inserisci qui sotto il Webhook ID mostrato:"
 
-#: src/Admin/SettingsPage.php:1023
+#: src/Admin/SettingsPage.php:1026
 msgid "Im Stripe-Dashboard unter Entwickler → Webhooks einen Endpunkt mit dieser URL und diesen Ereignissen anlegen; das angezeigte Signaturgeheimnis unten eintragen:"
 msgstr "Nella dashboard di Stripe, in Sviluppatori → Webhook, crea un endpoint con questo URL e questi eventi; inserisci qui sotto il segreto di firma mostrato:"
 
 #. translators: %s: field names
-#: src/Admin/SettingsPage.php:1031
+#: src/Admin/SettingsPage.php:1034
 #, php-format
 msgid "Noch nicht vollständig eingerichtet. Es fehlen: %s."
 msgstr "Non ancora configurato completamente. Mancano: %s."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1032
+#: src/Admin/SettingsPage.php:1035
 #, php-format
 msgid "%s wird im Checkout erst danach angeboten."
 msgstr "%s verrà offerto al checkout solo dopo."
 
-#: src/Admin/SettingsPage.php:1039
-#: src/Admin/SettingsPage.php:1043
+#: src/Admin/SettingsPage.php:1042
+#: src/Admin/SettingsPage.php:1046
 msgid "Verbindung testen"
 msgstr "Verifica connessione"
 
-#: src/Admin/SettingsPage.php:1040
+#: src/Admin/SettingsPage.php:1043
 msgid "Prüft mit den gespeicherten Zugangsdaten die Anmeldung beim Anbieter und ob der Webhook mit dieser URL und allen nötigen Ereignissen eingerichtet ist. Es wird nichts verändert; vorher speichern."
 msgstr "Verifica con le credenziali salvate l'accesso presso il fornitore e se il webhook è configurato con questo URL e tutti gli eventi necessari. Non viene modificato nulla; salva prima."
 
-#: src/Admin/SettingsPage.php:1057
+#: src/Admin/SettingsPage.php:1060
 msgid "Für diese Zahlungsart gibt es keinen Verbindungstest."
 msgstr "Per questo metodo di pagamento non è disponibile alcuna verifica della connessione."
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1107
+#: src/Admin/SettingsPage.php:1110
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Offri %s al checkout"
 
-#: src/Admin/SettingsPage.php:1109
-#: src/Admin/SettingsPage.php:1217
+#: src/Admin/SettingsPage.php:1112
+#: src/Admin/SettingsPage.php:1220
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(non completamente configurato)"
 
-#: src/Admin/SettingsPage.php:1118
+#: src/Admin/SettingsPage.php:1121
 msgid "Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen."
 msgstr "Modalità di test attiva: non vengono addebitati pagamenti reali. Al checkout gli acquirenti vedono l'avviso «Modalità di test». Per vendere, passa a «Live» e inserisci le credenziali live."
 
-#: src/Admin/SettingsPage.php:1121
+#: src/Admin/SettingsPage.php:1124
 msgid "Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind."
 msgstr "Il bonifico viene offerto al checkout solo quando sono inseriti il beneficiario (o l'emittente della fattura) e l'IBAN oppure le istruzioni di pagamento."
 
-#: src/Admin/SettingsPage.php:1130
+#: src/Admin/SettingsPage.php:1133
 #: src/SettingsSchema.php:411
 msgid "Rechtstexte je Sprache"
 msgstr "Testi legali per lingua"
 
-#: src/Admin/SettingsPage.php:1131
+#: src/Admin/SettingsPage.php:1134
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Gli acquirenti vedono i testi nella propria lingua (lingua della pagina o di WPML/Polylang). I campi vuoti riprendono il testo della lingua predefinita. Ogni lingua ha una propria versione, che viene salvata con l'ordine."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:1143
+#: src/Admin/SettingsPage.php:1146
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vuoto: vale il testo di %s."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:1150
+#: src/Admin/SettingsPage.php:1153
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Versione attuale per %1$s: %2$s"
 
-#: src/Admin/SettingsPage.php:1156
+#: src/Admin/SettingsPage.php:1159
 msgid "Archivierte Fassungen"
 msgstr "Versioni archiviate"
 
-#: src/Admin/SettingsPage.php:1156
+#: src/Admin/SettingsPage.php:1159
 msgid "Jede Fassung, die in Kraft war, bleibt unverändert gespeichert. In der Bestellübersicht steht, welche Fassung für die Bestellung galt, und ihr Text lässt sich dort anzeigen."
 msgstr "Ogni versione che è stata in vigore resta salvata senza modifiche. Nel riepilogo dell'ordine è indicato quale versione valeva per l'ordine, e lì è possibile visualizzarne il testo."
 
-#: src/Admin/SettingsPage.php:1157
+#: src/Admin/SettingsPage.php:1160
 msgid "Fassung"
 msgstr "Versione"
 
-#: src/Admin/SettingsPage.php:1157
+#: src/Admin/SettingsPage.php:1160
 #: src/Consents.php:619
 #: src/Mail/Admin.php:234
 msgid "Sprache"
 msgstr "Lingua"
 
-#: src/Admin/SettingsPage.php:1157
+#: src/Admin/SettingsPage.php:1160
 msgid "Archiviert am"
 msgstr "Archiviata il"
 
-#: src/Admin/SettingsPage.php:1165
+#: src/Admin/SettingsPage.php:1168
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Aggiungi un'altra lingua (locale, ad es. en_US):"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:1223
+#: src/Admin/SettingsPage.php:1226
 #, php-format
 msgid "%s einrichten"
 msgstr "Configura %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:1247
+#: src/Admin/SettingsPage.php:1250
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Versione attuale: %s (salvata con ogni ordine)"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:1273
+#: src/Admin/SettingsPage.php:1276
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Sovrascritto da %s (wp-config.php o variabile d'ambiente); il valore salvato qui non viene utilizzato."
 
-#: src/Admin/SettingsPage.php:1279
+#: src/Admin/SettingsPage.php:1282
 msgid "Zum Aktivieren LÖSCHEN eintragen:"
 msgstr "Digita LÖSCHEN o DELETE per attivare:"
 
@@ -9824,9 +9830,9 @@ msgstr "Pass Captain: l'elaborazione in background richiede attenzione."
 msgid "OK"
 msgstr "OK"
 
-#: src/Admin/SettingsPage.php:359
+#: src/Admin/SettingsPage.php:362
 #: src/Admin/StatusPage.php:219
-#: src/Admin/StatusPage.php:336
+#: src/Admin/StatusPage.php:337
 #: src/Log.php:395
 #: src/OfflineScanner/I18n.php:146
 msgid "Fehler"
@@ -9840,210 +9846,210 @@ msgstr "Operatività"
 msgid "Bereiche des Systemstatus"
 msgstr "Sezioni dello stato del sistema"
 
-#: src/Admin/StatusPage.php:270
+#: src/Admin/StatusPage.php:271
 msgid "Keine Auffälligkeiten im Hintergrundbetrieb."
 msgstr "Nessuna anomalia nell'elaborazione in background."
 
-#: src/Admin/StatusPage.php:281
+#: src/Admin/StatusPage.php:282
 msgid "Letzte Betriebsalarme"
 msgstr "Ultimi avvisi operativi"
 
 #. translators: %s: e-mail address(es)
-#: src/Admin/StatusPage.php:284
+#: src/Admin/StatusPage.php:285
 #, php-format
 msgid "Alarme gehen per E-Mail an: %s (Einstellungen → E-Mail-Versand)."
 msgstr "Gli avvisi vengono inviati via e-mail a: %s (Impostazioni → Invio e-mail)."
 
 #. translators: %s: e-mail address(es)
-#: src/Admin/StatusPage.php:284
+#: src/Admin/StatusPage.php:285
 msgid "Keine gültige Empfängeradresse für Alarme eingestellt."
 msgstr "Nessun indirizzo destinatario valido impostato per gli avvisi."
 
-#: src/Admin/StatusPage.php:286
+#: src/Admin/StatusPage.php:287
 msgid "Bisher keine Alarme."
 msgstr "Nessun avviso finora."
 
-#: src/Admin/StatusPage.php:289
+#: src/Admin/StatusPage.php:290
 msgid "Alarm"
 msgstr "Avviso"
 
-#: src/Admin/StatusPage.php:297
+#: src/Admin/StatusPage.php:298
 msgid "WP-Cron und Worker"
 msgstr "WP-Cron e worker"
 
-#: src/Admin/StatusPage.php:299
+#: src/Admin/StatusPage.php:300
 msgid "WP-Cron ist deaktiviert (DISABLE_WP_CRON). Ein externer Cron-Job muss wp-cron.php regelmäßig (mindestens alle 5 Minuten) aufrufen."
 msgstr "WP-Cron è disattivato (DISABLE_WP_CRON). Un cron job esterno deve richiamare wp-cron.php regolarmente (almeno ogni 5 minuti)."
 
-#: src/Admin/StatusPage.php:301
+#: src/Admin/StatusPage.php:302
 msgid "Aufgabe"
 msgstr "Attività"
 
-#: src/Admin/StatusPage.php:301
+#: src/Admin/StatusPage.php:302
 msgid "Cron-Hook"
 msgstr "Hook cron"
 
-#: src/Admin/StatusPage.php:301
+#: src/Admin/StatusPage.php:302
 msgid "Nächster Lauf"
 msgstr "Prossima esecuzione"
 
-#: src/Admin/StatusPage.php:301
+#: src/Admin/StatusPage.php:302
 msgid "Letzter erfolgreicher Lauf"
 msgstr "Ultima esecuzione riuscita"
 
-#: src/Admin/StatusPage.php:306
+#: src/Admin/StatusPage.php:307
 msgid "Weitere Worker:"
 msgstr "Altri worker:"
 
-#: src/Admin/StatusPage.php:310
+#: src/Admin/StatusPage.php:311
 msgid "noch kein Lauf"
 msgstr "ancora nessuna esecuzione"
 
-#: src/Admin/StatusPage.php:316
+#: src/Admin/StatusPage.php:317
 msgid "Warteschlangen"
 msgstr "Code"
 
-#: src/Admin/StatusPage.php:317
+#: src/Admin/StatusPage.php:318
 msgid "Queue"
 msgstr "Coda"
 
-#: src/Admin/StatusPage.php:317
+#: src/Admin/StatusPage.php:318
 msgid "Offen nach Status"
 msgstr "Aperti per stato"
 
-#: src/Admin/StatusPage.php:317
+#: src/Admin/StatusPage.php:318
 msgid "Überfällig (> 30 Min.)"
 msgstr "Scaduti (> 30 min)"
 
-#: src/Admin/StatusPage.php:317
+#: src/Admin/StatusPage.php:318
 msgid "Lange in Bearbeitung (> 5 Min.)"
 msgstr "In elaborazione da molto (> 5 min)"
 
-#: src/Admin/StatusPage.php:328
+#: src/Admin/StatusPage.php:329
 msgid "Jobs nach Status und Typ"
 msgstr "Job per stato e tipo"
 
-#: src/Admin/StatusPage.php:328
+#: src/Admin/StatusPage.php:329
 msgid "Ältester fälliger"
 msgstr "Più vecchio in scadenza"
 
-#: src/Admin/StatusPage.php:336
+#: src/Admin/StatusPage.php:337
 msgid "E-Mail-Versandfehler"
 msgstr "Errori di invio e-mail"
 
-#: src/Admin/StatusPage.php:336
+#: src/Admin/StatusPage.php:337
 msgid "Nachrichten"
 msgstr "Messaggi"
 
-#: src/Admin/StatusPage.php:336
+#: src/Admin/StatusPage.php:337
 #: src/Admission/ConflictsPage.php:88
 msgid "Zuletzt"
 msgstr "Ultimo"
 
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 msgid "Häufige Ursachen: SMTP-Plugin falsch konfiguriert, Absenderadresse nicht erlaubt, Versandlimit des Hosters."
 msgstr "Cause frequenti: plugin SMTP configurato male, indirizzo mittente non consentito, limite di invio dell'hosting."
 
-#: src/Admin/StatusPage.php:345
+#: src/Admin/StatusPage.php:346
 msgid "Fehlgeschlagene Einträge"
 msgstr "Voci non riuscite"
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:354
+#: src/Admin/StatusPage.php:355
 #, php-format
 msgid "Alle %1$d erneut versuchen (höchstens %2$d pro Klick)"
 msgstr "Ritenta tutte le %1$d (al massimo %2$d per clic)"
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:354
+#: src/Admin/StatusPage.php:355
 msgid "Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?"
 msgstr "Ritentare tutte le voci non riuscite di questa coda?"
 
-#: src/Admin/StatusPage.php:361
+#: src/Admin/StatusPage.php:362
 msgid "Eintrag endgültig verwerfen?"
 msgstr "Scartare definitivamente questa voce?"
 
-#: src/Admin/StatusPage.php:371
+#: src/Admin/StatusPage.php:372
 msgid "Erstattungen zur manuellen Prüfung"
 msgstr "Rimborsi da verificare manualmente"
 
-#: src/Admin/StatusPage.php:373
+#: src/Admin/StatusPage.php:374
 msgid "Keine Erstattung wartet auf eine manuelle Prüfung."
 msgstr "Nessun rimborso è in attesa di verifica manuale."
 
-#: src/Admin/StatusPage.php:376
+#: src/Admin/StatusPage.php:377
 msgid "Bei diesen Erstattungen brach der Ablauf während des Aufrufs beim Zahlungsanbieter ab. Bitte im Konto des Anbieters prüfen, ob ausgezahlt wurde: „Erledigt“ verbucht die Erstattung (Tickets werden widerrufen), „Fehlgeschlagen“ gibt sie für einen neuen Versuch frei."
 msgstr "Per questi rimborsi il processo si è interrotto durante la chiamata al fornitore di pagamenti. Verifica nell'account del fornitore se il pagamento è stato effettuato: «Completato» registra il rimborso (i biglietti vengono revocati), «Non riuscito» lo libera per un nuovo tentativo."
 
-#: src/Admin/StatusPage.php:377
+#: src/Admin/StatusPage.php:378
 msgid "Entscheidung"
 msgstr "Decisione"
 
-#: src/Admin/StatusPage.php:382
+#: src/Admin/StatusPage.php:383
 msgid "Anbieter-Referenz oder Notiz"
 msgstr "Riferimento del fornitore o nota"
 
-#: src/Admin/StatusPage.php:382
+#: src/Admin/StatusPage.php:383
 msgid "Anbieter-Referenz / Notiz"
 msgstr "Riferimento del fornitore / nota"
 
-#: src/Admin/StatusPage.php:383
+#: src/Admin/StatusPage.php:384
 msgid "Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht."
 msgstr "Il rimborso è stato davvero pagato dal fornitore di pagamenti? Ora verrà registrato."
 
-#: src/Admin/StatusPage.php:383
+#: src/Admin/StatusPage.php:384
 msgid "Manuell als erledigt markieren"
 msgstr "Contrassegna manualmente come completato"
 
-#: src/Admin/StatusPage.php:384
+#: src/Admin/StatusPage.php:385
 msgid "Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?"
 msgstr "Sei sicuro che il fornitore di pagamenti non abbia pagato nulla?"
 
-#: src/Admin/StatusPage.php:384
+#: src/Admin/StatusPage.php:385
 msgid "Als fehlgeschlagen markieren"
 msgstr "Contrassegna come non riuscito"
 
-#: src/Admin/StatusPage.php:392
+#: src/Admin/StatusPage.php:393
 msgid "Zahlungen zur Klärung"
 msgstr "Pagamenti da chiarire"
 
-#: src/Admin/StatusPage.php:394
+#: src/Admin/StatusPage.php:395
 msgid "Keine offenen Fälle."
 msgstr "Nessun caso aperto."
 
-#: src/Admin/StatusPage.php:398
+#: src/Admin/StatusPage.php:399
 msgid "Zahlung auf stornierte/abgelaufene Bestellung"
 msgstr "Pagamento su ordine annullato/scaduto"
 
-#: src/Admin/StatusPage.php:399
+#: src/Admin/StatusPage.php:400
 msgid "Doppelzahlung"
 msgstr "Pagamento doppio"
 
-#: src/Admin/StatusPage.php:400
+#: src/Admin/StatusPage.php:401
 msgid "Erstattung beim Anbieter fehlgeschlagen"
 msgstr "Rimborso presso il fornitore non riuscito"
 
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:403
 msgid "Fall"
 msgstr "Caso"
 
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:403
 msgid "Anbieter / Referenz"
 msgstr "Fornitore / riferimento"
 
-#: src/Admin/StatusPage.php:404
+#: src/Admin/StatusPage.php:405
 msgid "automatische Erstattung fehlgeschlagen"
 msgstr "rimborso automatico non riuscito"
 
-#: src/Admin/StatusPage.php:408
+#: src/Admin/StatusPage.php:409
 msgid "Betrag jetzt beim Zahlungsanbieter erstatten?"
 msgstr "Rimborsare ora l’importo presso il fornitore di pagamenti?"
 
-#: src/Admin/StatusPage.php:408
+#: src/Admin/StatusPage.php:409
 msgid "Beim Anbieter erstatten"
 msgstr "Rimborsa presso il fornitore"
 
-#: src/Admin/StatusPage.php:410
+#: src/Admin/StatusPage.php:411
 #: src/Admission/ConflictsPage.php:113
 #: src/Allocations/AdminPage.php:325
 #: src/BoxOffice/ShiftPage.php:109
@@ -10054,79 +10060,79 @@ msgstr "Rimborsa presso il fornitore"
 msgid "Notiz"
 msgstr "Nota"
 
-#: src/Admin/StatusPage.php:411
+#: src/Admin/StatusPage.php:412
 msgid "Als erledigt markieren"
 msgstr "Segna come risolto"
 
-#: src/Admin/StatusPage.php:417
+#: src/Admin/StatusPage.php:418
 #: src/Operations/SiteHealth.php:692
 msgid "Datenbankschema"
 msgstr "Schema del database"
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:420
+#: src/Admin/StatusPage.php:421
 #, php-format
 msgid "Transaktions-Isolation des Servers: %s (Bestell- und Zahlungstransaktionen laufen immer mit REPEATABLE READ)."
 msgstr "Isolamento delle transazioni del server: %s (le transazioni di ordini e pagamenti vengono sempre eseguite con REPEATABLE READ)."
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:420
+#: src/Admin/StatusPage.php:421
 #: src/Operations/SiteHealth.php:715
 msgid "unbekannt"
 msgstr "sconosciuto"
 
-#: src/Admin/StatusPage.php:424
+#: src/Admin/StatusPage.php:425
 msgid "Aktuell."
 msgstr "Aggiornato."
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:430
+#: src/Admin/StatusPage.php:431
 #, php-format
 msgid "Die Aktualisierung ist %1$d-mal in Folge fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr "L'aggiornamento non è riuscito %1$d volte di seguito. Prossimo tentativo automatico: %2$s."
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:430
+#: src/Admin/StatusPage.php:431
 msgid "bei der nächsten Admin- oder Cron-Anfrage"
 msgstr "alla prossima richiesta di amministrazione o cron"
 
 #. translators: 1: stored schema version, 2: expected schema version
-#: src/Admin/StatusPage.php:434
+#: src/Admin/StatusPage.php:435
 #, php-format
 msgid "Gespeicherte Version %1$s, erwartet %2$s."
 msgstr "Versione salvata %1$s, prevista %2$s."
 
-#: src/Admin/StatusPage.php:436
+#: src/Admin/StatusPage.php:437
 msgid "Jetzt erneut versuchen"
 msgstr "Riprova ora"
 
-#: src/Admin/StatusPage.php:440
+#: src/Admin/StatusPage.php:441
 msgid "Diagnose und Abgleich"
 msgstr "Diagnostica e riconciliazione"
 
-#: src/Admin/StatusPage.php:441
+#: src/Admin/StatusPage.php:442
 msgid "Sucht nach inkonsistenten Daten. Die Prüfung ändert nichts; Reparaturen gibt es nur, wo sie gefahrlos wiederholbar sind, und sie werden im Audit-Log protokolliert. Auch per WP-CLI: wp pass-captain diagnose"
 msgstr "Cerca dati incoerenti. Il controllo non modifica nulla; le riparazioni sono disponibili solo dove possono essere ripetute senza rischi e vengono registrate nel registro di audit. Anche tramite WP-CLI: wp pass-captain diagnose"
 
-#: src/Admin/StatusPage.php:442
+#: src/Admin/StatusPage.php:443
 msgid "Diagnose ausführen"
 msgstr "Esegui diagnostica"
 
 #. translators: %s: date and time
-#: src/Admin/StatusPage.php:446
+#: src/Admin/StatusPage.php:447
 #, php-format
 msgid "Letzte Diagnose: %s"
 msgstr "Ultima diagnostica: %s"
 
-#: src/Admin/StatusPage.php:447
+#: src/Admin/StatusPage.php:448
 msgid "Beispiele und empfohlene Maßnahme"
 msgstr "Esempi e azione consigliata"
 
-#: src/Admin/StatusPage.php:465
+#: src/Admin/StatusPage.php:466
 msgid "Reparieren"
 msgstr "Ripara"
 
-#: src/Admin/StatusPage.php:465
+#: src/Admin/StatusPage.php:466
 msgid "Reparatur jetzt ausführen?"
 msgstr "Eseguire ora la riparazione?"
 
@@ -10405,7 +10411,7 @@ msgstr "Crea bozza"
 #: src/Exchange/Service.php:184
 #: src/Exchange/Service.php:1270
 #: src/Mobile/Api.php:411
-#: src/Orders.php:4456
+#: src/Orders.php:4514
 #: src/PortalSelfService.php:218
 #: src/PortalSelfService.php:474
 #: src/PortalSelfService.php:690
@@ -10426,7 +10432,7 @@ msgstr "Al momento non è stato possibile revocare il biglietto. Riprova."
 
 #: src/Admin/TicketsPage.php:63
 #: src/Exchange/Service.php:602
-#: src/Orders.php:2992
+#: src/Orders.php:3050
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr "Per questo biglietto è in corso un rimborso oppure è in attesa di approvazione. Fino alla decisione non può essere trasferito, cambiato o revocato."
 
@@ -10605,8 +10611,8 @@ msgstr "Risultato dell'azione di gruppo"
 msgid "%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen."
 msgstr "%1$d completati, %2$d già nello stato di destinazione, %3$d rifiutati, %4$d da riprovare."
 
-#: src/Admin/OperationsPage.php:270
-#: src/Admin/SettingsPage.php:357
+#: src/Admin/OperationsPage.php:271
+#: src/Admin/SettingsPage.php:360
 #: src/Admin/TicketsPage.php:517
 #: src/Log.php:393
 #: src/WalletPasses/AppleProvider.php:81
@@ -10811,7 +10817,7 @@ msgid "Angebot abgelaufen"
 msgstr "Offerta scaduta"
 
 #: src/Admin/WaitlistsPage.php:65
-#: src/Rest/Controller.php:1226
+#: src/Rest/Controller.php:1232
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Non hai l'autorizzazione per questo tipo di biglietto."
 
@@ -11150,7 +11156,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Troppi giorni (massimo 366)."
 
 #: src/Admission/Rest.php:64
-#: src/Rest/Controller.php:1079
+#: src/Rest/Controller.php:1085
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Il batch di scansioni offline deve contenere da 1 a 100 codici."
 
@@ -12028,10 +12034,10 @@ msgstr "Compila solo se l’acquirente ha bisogno di una fattura con nome e indi
 #: src/Frontend/ServiceBooking.php:545
 #: src/Integrations/WooCommerce/Attendees.php:477
 #: src/OrderPortal.php:244
-#: templates/event-card.php:117
-#: templates/event-card.php:150
-#: templates/event-card.php:163
-#: templates/event-card.php:168
+#: templates/event-card.php:118
+#: templates/event-card.php:151
+#: templates/event-card.php:164
+#: templates/event-card.php:169
 msgid "(optional)"
 msgstr "(facoltativo)"
 
@@ -14024,7 +14030,7 @@ msgstr "Seleziona almeno un biglietto."
 
 #: src/Campaigns.php:699
 #: src/PublicEvents.php:162
-#: src/Rest/Controller.php:592
+#: src/Rest/Controller.php:598
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "Il codice sconto non è valido o non corrisponde ai biglietti selezionati."
 
@@ -14630,7 +14636,7 @@ msgstr "Ingresso dalle %s"
 #: src/Exchange/Service.php:604
 #: src/Orders.php:256
 #: src/Orders.php:1306
-#: src/Orders.php:1771
+#: src/Orders.php:1772
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Al momento c'è molta richiesta. Riprova tra un momento."
 
@@ -14932,7 +14938,7 @@ msgid "Event-Regeln speichern"
 msgstr "Salva regole dell'evento"
 
 #: src/Exchange/Portal.php:54
-#: src/Orders.php:2971
+#: src/Orders.php:3029
 #: src/PortalSelfService.php:70
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L'accesso all'ordine non è valido."
@@ -14940,16 +14946,16 @@ msgstr "L'accesso all'ordine non è valido."
 #: src/Exchange/Portal.php:56
 #: src/Frontend/Availability.php:123
 #: src/Payments/ReturnNotice.php:406
-#: src/PublicEvents.php:1071
-#: src/Rest/Controller.php:762
-#: src/Rest/Controller.php:894
-#: src/Rest/Controller.php:940
-#: src/Rest/Controller.php:945
-#: src/Rest/Controller.php:958
-#: src/Rest/Controller.php:970
-#: src/Rest/Controller.php:985
-#: src/Rest/Controller.php:998
-#: src/Rest/Controller.php:1174
+#: src/PublicEvents.php:1074
+#: src/Rest/Controller.php:768
+#: src/Rest/Controller.php:900
+#: src/Rest/Controller.php:946
+#: src/Rest/Controller.php:951
+#: src/Rest/Controller.php:964
+#: src/Rest/Controller.php:976
+#: src/Rest/Controller.php:991
+#: src/Rest/Controller.php:1004
+#: src/Rest/Controller.php:1180
 #: src/Sales/CheckoutThrottle.php:132
 #: src/Seating/Rest.php:22
 msgid "Bitte warte kurz und versuche es erneut."
@@ -15464,11 +15470,11 @@ msgid "Sprache speichern"
 msgstr "Salva lingua"
 
 #: src/Frontend/Language.php:94
-#: src/Rest/Controller.php:857
-#: src/Rest/Controller.php:897
-#: src/Rest/Controller.php:943
-#: src/Rest/Controller.php:961
-#: src/Rest/Controller.php:973
+#: src/Rest/Controller.php:863
+#: src/Rest/Controller.php:903
+#: src/Rest/Controller.php:949
+#: src/Rest/Controller.php:967
+#: src/Rest/Controller.php:979
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "L'accesso all'ordine non è valido o è scaduto."
 
@@ -15858,7 +15864,7 @@ msgstr "2. I tuoi dati"
 #: src/Frontend/ServiceBooking.php:441
 #: src/Sales/AdminSections.php:202
 #: src/TicketRecovery.php:166
-#: templates/event-card.php:243
+#: templates/event-card.php:244
 msgid "E-Mail-Adresse"
 msgstr "Indirizzo e-mail"
 
@@ -15900,31 +15906,31 @@ msgstr[1] "%d posti liberi"
 #: src/Reports/Settlement.php:276
 #: src/Reports/Settlement.php:350
 #: src/Waitlists.php:1707
-#: templates/event-card.php:189
+#: templates/event-card.php:190
 msgid "Zahlungsart"
 msgstr "Metodo di pagamento"
 
 #: src/Frontend/ServiceBooking.php:528
-#: templates/event-card.php:139
+#: templates/event-card.php:140
 msgid "Rechnung mit Firmen-/Adressdaten"
 msgstr "Fattura con dati di azienda/indirizzo"
 
 #. translators: %s: amount
 #: src/Frontend/ServiceBooking.php:532
-#: templates/event-card.php:145
+#: templates/event-card.php:146
 #, php-format
 msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift."
 msgstr "Per ordini di importo superiore a %s ci servono nome e indirizzo per la fattura."
 
 #: src/Frontend/ServiceBooking.php:554
 #: src/Waitlists.php:1789
-#: templates/event-card.php:206
+#: templates/event-card.php:207
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr "Accetto le condizioni e ho letto le informazioni per i consumatori."
 
 #: src/Frontend/ServiceBooking.php:554
 #: src/Waitlists.php:1789
-#: templates/event-card.php:206
+#: templates/event-card.php:207
 msgid "Ich akzeptiere die Bedingungen."
 msgstr "Accetto le condizioni."
 
@@ -17240,7 +17246,7 @@ msgstr "Nessun biglietto trovato per questo buono."
 
 #. translators: %d: allowed resends per hour
 #: src/Integrations/Vouchers/TicketService.php:453
-#: src/Rest/Controller.php:901
+#: src/Rest/Controller.php:907
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
@@ -21178,7 +21184,7 @@ msgid "Unerwartete Antwort von Mollie."
 msgstr "Risposta imprevista da Mollie."
 
 #: src/Mollie/MollieGateway.php:210
-#: src/Rest/Controller.php:585
+#: src/Rest/Controller.php:591
 #: src/Waitlists.php:959
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Il pagamento tramite bonifico non è più possibile così a ridosso dell'inizio. Scegli un altro metodo di pagamento."
@@ -21449,7 +21455,7 @@ msgid "Bereit"
 msgstr "Pronto"
 
 #: src/OfflineScanner/I18n.php:107
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Kamera starten"
 msgstr "Avvia fotocamera"
 
@@ -21674,7 +21680,7 @@ msgid "Offline"
 msgstr "Offline"
 
 #: src/OfflineScanner/I18n.php:184
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Kamera stoppen"
 msgstr "Ferma fotocamera"
 
@@ -22769,7 +22775,7 @@ msgstr "non configurato"
 msgid "Zahlungsarten (Modus)"
 msgstr "Metodi di pagamento (modalità)"
 
-#: src/Admin/SettingsPage.php:168
+#: src/Admin/SettingsPage.php:170
 #: src/Operations/SiteHealth.php:727
 msgid "WooCommerce"
 msgstr "WooCommerce"
@@ -23334,8 +23340,8 @@ msgid "Eine Ticketposition ist ungültig."
 msgstr "Una voce di biglietto non è valida."
 
 #: src/Orders.php:424
-#: src/Rest/Controller.php:563
-#: src/Rest/Controller.php:577
+#: src/Rest/Controller.php:569
+#: src/Rest/Controller.php:583
 #: src/ServiceBookings.php:743
 #: src/ServiceBookings.php:757
 #: src/ServiceBookings.php:856
@@ -23433,12 +23439,12 @@ msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt
 msgstr "I biglietti con valute diverse non possono essere ordinati insieme."
 
 #: src/Orders.php:1310
-#: src/Orders.php:1772
+#: src/Orders.php:1773
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Non sono più disponibili biglietti sufficienti per questo tipo di biglietto."
 
 #: src/Orders.php:1311
-#: src/Orders.php:1773
+#: src/Orders.php:1774
 #: src/Passes/Capacity.php:180
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Per questa data non sono più disponibili posti sufficienti."
@@ -23455,174 +23461,174 @@ msgstr "Non è stato possibile applicare lo sconto all'ordine in modo sicuro."
 msgid "Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Con il bonifico al momento non è possibile riservare altri biglietti per questa data. Scegli un altro metodo di pagamento o una quantità minore."
 
-#: src/Orders.php:1339
+#: src/Orders.php:1340
 msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben."
 msgstr "Un dato è troppo lungo o contiene caratteri non validi. Controlla i tuoi inserimenti."
 
-#: src/Orders.php:1343
+#: src/Orders.php:1344
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Per questo importo d’ordine ci servono il tuo nome e il tuo indirizzo per la fattura. Attiva «Ho bisogno di una fattura intestata a un’azienda/indirizzo» e compila i campi."
 
-#: src/Orders.php:1347
+#: src/Orders.php:1348
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "Impossibile creare l'ordine."
 
 #. translators: 1: error message, 2: error reference for support
-#: src/Orders.php:1371
+#: src/Orders.php:1372
 #, php-format
 msgid "%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s."
 msgstr "%1$s Riprova. Se non funziona di nuovo, comunicaci l'ID errore %2$s."
 
-#: src/Orders.php:1434
+#: src/Orders.php:1435
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile registrare il pagamento. Riprova."
 
-#: src/Orders.php:2301
+#: src/Orders.php:2302
 msgid "Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden."
 msgstr "La prenotazione era scaduta e i biglietti non possono più essere emessi. L'ordine deve essere verificato manualmente."
 
-#: src/Orders.php:2329
+#: src/Orders.php:2330
 msgid "Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf."
 msgstr "La data o l'evento nel frattempo è stato annullato o non è più in vendita."
 
-#: src/Orders.php:2331
+#: src/Orders.php:2332
 msgid "Der Termin ist bereits vorbei."
 msgstr "La data è già passata."
 
-#: src/Orders.php:2333
+#: src/Orders.php:2334
 msgid "Die Ticketart ist nicht mehr vorhanden."
 msgstr "Il tipo di biglietto non esiste più."
 
-#: src/Orders.php:2335
+#: src/Orders.php:2336
 msgid "Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft."
 msgstr "Il limite di utilizzo del codice sconto nel frattempo è esaurito."
 
-#: src/Orders.php:2338
+#: src/Orders.php:2339
 msgid "Die maximale Anzahl an Tickets pro Person wäre überschritten."
 msgstr "Il numero massimo di biglietti per persona verrebbe superato."
 
-#: src/Orders.php:2340
+#: src/Orders.php:2341
 msgid "Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf."
 msgstr "La data nel frattempo è stata annullata o è passata, oppure il tipo di biglietto non è più in vendita."
 
-#: src/Orders.php:2342
+#: src/Orders.php:2343
 msgid "Die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei."
 msgstr "I posti a sedere nel frattempo sono stati assegnati e non ci sono più posti adatti liberi."
 
-#: src/Orders.php:2344
+#: src/Orders.php:2345
 msgid "Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug."
 msgstr "Il buono dell'ordine è stato liberato alla scadenza della prenotazione e non è stato possibile prenotarlo di nuovo; il pagamento copre solo l'importo al netto della detrazione del buono."
 
-#: src/Orders.php:2346
+#: src/Orders.php:2347
 msgid "Es ist kein Kontingent mehr frei."
 msgstr "Non c'è più contingente disponibile."
 
 #. translators: 1: order number, 2: payment reference, 3: reason
-#: src/Orders.php:2359
+#: src/Orders.php:2360
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s"
 msgstr "Il pagamento per l'ordine %1$s (riferimento %2$s) è arrivato dopo la scadenza della prenotazione. Non sono stati emessi biglietti: %3$s"
 
-#: src/Orders.php:2365
+#: src/Orders.php:2366
 msgid "Die Zahlung wird automatisch erstattet."
 msgstr "Il pagamento verrà rimborsato automaticamente."
 
-#: src/Orders.php:2366
+#: src/Orders.php:2367
 msgid "Bitte manuell klären (Zuteilung erneut versuchen oder erstatten)."
 msgstr "Verifica manualmente (riprova l'assegnazione o rimborsa)."
 
-#: src/Orders.php:2369
+#: src/Orders.php:2370
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr "Pass Captain: ordine pagato senza biglietti"
 
-#: src/Orders.php:2451
+#: src/Orders.php:2452
 msgid "Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden."
 msgstr "Questo metodo di pagamento non può rimborsare automaticamente. Restituisci il pagamento al di fuori del plugin e usa «Rimborsato esternamente – chiudi»."
 
-#: src/Orders.php:2460
+#: src/Orders.php:2461
 msgid "Unbekannte Art der Erstattung."
 msgstr "Tipo di rimborso sconosciuto."
 
-#: src/Orders.php:2641
+#: src/Orders.php:2699
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile annullare l'ordine. Riprova."
 
-#: src/Orders.php:2746
+#: src/Orders.php:2804
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "Al momento non è stato possibile contrassegnare l'ordine come rimborsato; l'operazione verrà ripetuta automaticamente."
 
-#: src/Orders.php:2967
+#: src/Orders.php:3025
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "I dati di trasferimento non sono validi."
 
-#: src/Orders.php:2974
+#: src/Orders.php:3032
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "I biglietti possono essere trasferiti solo dopo la conferma del pagamento."
 
-#: src/Orders.php:2987
+#: src/Orders.php:3045
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Questo biglietto non può più essere trasferito."
 
-#: src/Orders.php:2997
+#: src/Orders.php:3055
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "Il titolare di questo biglietto è già stato modificato; un ulteriore trasferimento non è possibile."
 
-#: src/Orders.php:3016
+#: src/Orders.php:3074
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il trasferimento del biglietto."
 
-#: src/Orders.php:3041
+#: src/Orders.php:3099
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Il trasferimento del biglietto è stato salvato, ma non è stato possibile consegnare l'e-mail. Contatta l'organizzatore per un nuovo invio."
 
-#: src/Orders.php:3066
-#: src/Orders.php:3076
+#: src/Orders.php:3124
+#: src/Orders.php:3134
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Questo evento non può essere annullato."
 
-#: src/Orders.php:3110
+#: src/Orders.php:3168
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Questo evento non è annullato."
 
-#: src/Orders.php:3626
+#: src/Orders.php:3684
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Non è stato possibile emettere i biglietti in questo momento. Riprova."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:3874
+#: src/Orders.php:3932
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "Il passaggio non è riuscito senza indicazione di errore. %s"
 
-#: src/Orders.php:4138
+#: src/Orders.php:4196
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile rinnovare i biglietti. Riprova."
 
-#: src/Orders.php:4142
+#: src/Orders.php:4200
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "I biglietti possono essere inviati di nuovo solo dopo la conferma del pagamento."
 
-#: src/Orders.php:4160
+#: src/Orders.php:4218
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Questo modulo è già stato inviato; i biglietti sono già stati inviati di nuovo. Per un ulteriore invio ricarica la pagina."
 
-#: src/Orders.php:4221
-#: src/Orders.php:4300
-#: src/Orders.php:4471
+#: src/Orders.php:4279
+#: src/Orders.php:4358
+#: src/Orders.php:4529
 #: src/PortalSelfService.php:251
 #: src/PortalSelfService.php:264
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Impossibile rinnovare il codice del biglietto."
 
-#: src/Orders.php:4248
+#: src/Orders.php:4306
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Nessun biglietto valido trovato per il nuovo invio."
 
-#: src/Orders.php:4324
+#: src/Orders.php:4382
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Non è stato possibile recapitare almeno un'e-mail. I codici dei biglietti precedenti restano validi; l'invio verrà ripetuto automaticamente."
 
-#: src/Orders.php:4460
+#: src/Orders.php:4518
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Possono essere riemessi solo i biglietti validi e non ancora registrati di ordini pagati."
 
@@ -27857,7 +27863,7 @@ msgstr "Nota per i redattori sullo shortcode [%1$s]: %2$s. I visitatori non vedo
 #. translators: %s: date and time
 #: src/PublicEvents.php:490
 #: src/PublicEvents.php:905
-#: src/PublicEvents.php:1214
+#: src/PublicEvents.php:1217
 #, php-format
 msgid "Vorverkauf ab %s"
 msgstr "Prevendita dal %s"
@@ -27912,55 +27918,55 @@ msgstr "Scegli data"
 msgid "Tickets für %1$s am %2$s"
 msgstr "Biglietti per %1$s il %2$s"
 
-#: src/PublicEvents.php:1486
+#: src/PublicEvents.php:1489
 msgid "Ticket suchen (Name, E-Mail oder Bestellnummer)"
 msgstr "Cerca biglietto (nome, e-mail o numero d'ordine)"
 
-#: src/PublicEvents.php:1487
+#: src/PublicEvents.php:1490
 msgid "Ticket suchen (Name oder Bestellnummer)"
 msgstr "Cerca biglietto (nome o numero d'ordine)"
 
-#: src/PublicEvents.php:1488
+#: src/PublicEvents.php:1491
 msgid "Ticket suchen (E-Mail oder Bestellnummer)"
 msgstr "Cerca biglietto (e-mail o numero d'ordine)"
 
-#: src/PublicEvents.php:1489
+#: src/PublicEvents.php:1492
 msgid "Ticket suchen (Bestellnummer)"
 msgstr "Cerca biglietto (numero d'ordine)"
 
-#: src/PublicEvents.php:1519
+#: src/PublicEvents.php:1522
 msgid "Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich."
 msgstr "Per lo scanner è necessario un accesso con autorizzazione all'ingresso."
 
-#: src/PublicEvents.php:1526
+#: src/PublicEvents.php:1529
 msgid "Alle Termine (keine Terminprüfung)"
 msgstr "Tutte le date (nessun controllo della data)"
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Pass Captain Check-in"
 msgstr "Check-in Pass Captain"
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Scanne den Ticketcode oder gib ihn manuell ein."
 msgstr "Scansiona il codice del biglietto oppure inseriscilo manualmente."
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Licht"
 msgstr "Luce"
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Ton"
 msgstr "Audio"
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Ticket-Code oder Hilfscode"
 msgstr "Codice del biglietto o codice di supporto"
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA)."
 msgstr "Se il codice QR non è leggibile, digita il codice di supporto di 8 caratteri sotto il codice QR (ad es. K7QM-4XWA)."
 
-#: src/PublicEvents.php:1535
+#: src/PublicEvents.php:1538
 msgid "Ticket prüfen und einchecken"
 msgstr "Verifica il biglietto ed effettua il check-in"
 
@@ -28745,97 +28751,97 @@ msgstr "Al momento non è possibile richiedere un rimborso per questo ordine (ne
 msgid "Erstattungsantrag nach Terminverschiebung (Bestellportal)"
 msgstr "Richiesta di rimborso dopo lo spostamento (portale ordini)"
 
-#: src/Rest/Controller.php:569
+#: src/Rest/Controller.php:575
 msgid "Der Bestellversuch ist ungültig. Bitte lade die Seite neu und versuche es erneut."
 msgstr "Il tentativo di ordine non è valido. Ricarica la pagina e riprova."
 
-#: src/Rest/Controller.php:593
+#: src/Rest/Controller.php:599
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
 msgstr "Non è stato possibile applicare in modo affidabile il codice sconto all'ordine. Riprova."
 
-#: src/Rest/Controller.php:615
+#: src/Rest/Controller.php:621
 msgid "Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen."
 msgstr "Questo tentativo di ordine è già in corso con un altro metodo di pagamento. Ricarica la pagina per ordinare con un altro metodo di pagamento."
 
-#: src/Rest/Controller.php:619
+#: src/Rest/Controller.php:625
 msgid "Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab."
 msgstr "Questo ordine è stato avviato con dati diversi. Ricarica la pagina e invia di nuovo il modulo."
 
-#: src/Rest/Controller.php:625
-#: src/Rest/Controller.php:662
+#: src/Rest/Controller.php:631
+#: src/Rest/Controller.php:668
 msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
 msgstr "Questo tentativo di ordine è stato interrotto. Invia di nuovo il modulo."
 
-#: src/Rest/Controller.php:646
+#: src/Rest/Controller.php:652
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "Questo metodo di pagamento non supporta la valuta."
 
-#: src/Rest/Controller.php:756
+#: src/Rest/Controller.php:762
 msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
 msgstr "Per questo indirizzo e-mail ci sono già ordini aperti non pagati. Pagali prima o lasciali scadere."
 
-#: src/Rest/Controller.php:1035
+#: src/Rest/Controller.php:1041
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Le voci di vendita POS o l'idempotency key non sono validi."
 
-#: src/Rest/Controller.php:1037
+#: src/Rest/Controller.php:1043
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Le vendite alla cassa passano dal modulo cassa (turno, numero ricevuta, report Z)."
 
-#: src/Rest/Controller.php:1045
+#: src/Rest/Controller.php:1051
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "Tutte le voci di una vendita alla cassa devono appartenere alla stessa data."
 
-#: src/Rest/Controller.php:1049
+#: src/Rest/Controller.php:1055
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "Per questo evento manca l'autorizzazione POS."
 
-#: src/Rest/Controller.php:1105
+#: src/Rest/Controller.php:1111
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "Per questo evento manca l'autorizzazione all'ingresso."
 
-#: src/Rest/Controller.php:1114
-#: src/Rest/Controller.php:1124
+#: src/Rest/Controller.php:1120
+#: src/Rest/Controller.php:1130
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "È necessaria almeno una regola del pass."
 
-#: src/Rest/Controller.php:1119
+#: src/Rest/Controller.php:1125
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Non hai l'autorizzazione per una regola del pass."
 
-#: src/Rest/Controller.php:1270
+#: src/Rest/Controller.php:1276
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "Il periodo del report deve essere valido e al massimo di 90 giorni."
 
-#: src/Rest/Controller.php:1338
+#: src/Rest/Controller.php:1344
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduzione non trovata."
 
-#: src/Rest/Controller.php:1348
+#: src/Rest/Controller.php:1354
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale o titolo tradotto non valido."
 
-#: src/Rest/Controller.php:1387
+#: src/Rest/Controller.php:1393
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Non hai l'autorizzazione per questa data."
 
-#: src/Rest/Controller.php:1390
+#: src/Rest/Controller.php:1396
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Indica da 1 a 31 giorni di evento."
 
-#: src/Rest/Controller.php:1399
+#: src/Rest/Controller.php:1405
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un giorno di evento o una regola di ingresso non è valido."
 
-#: src/Rest/Controller.php:1401
+#: src/Rest/Controller.php:1407
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Impossibile salvare le regole di ingresso."
 
-#: src/Rest/Controller.php:1415
+#: src/Rest/Controller.php:1421
 msgid "Ungültige Woche."
 msgstr "Settimana non valida."
 
-#: src/Rest/Controller.php:1426
+#: src/Rest/Controller.php:1432
 #: src/Waitlists.php:154
 msgid "Bitte eine gültige Anzahl angeben."
 msgstr "Indica una quantità valida."
@@ -29571,7 +29577,7 @@ msgstr "Categorie"
 msgid "Stehbereiche"
 msgstr "Aree in piedi"
 
-#: src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:515
 #: src/Seating/AdminPage.php:163
 msgid "Werkzeuge"
 msgstr "Strumenti"
@@ -31897,15 +31903,15 @@ msgstr "Grazie! Se l'indirizzo non era ancora iscritto, riceverai la tua posizio
 msgid "Der Bestätigungslink ist ungültig, abgelaufen oder wurde bereits verwendet."
 msgstr "Il link di conferma non è valido, è scaduto o è già stato utilizzato."
 
-#: src/Settings.php:92
+#: src/Settings.php:94
 msgid "Hinweis: Bei Tickets für Veranstaltungen mit festem Termin besteht in der Regel kein Widerrufsrecht (§ 312g Abs. 2 Nr. 9 BGB / § 18 Abs. 1 Z 10 FAGG). Deine Bestellung ist nach dem Absenden verbindlich."
 msgstr "Nota: per i biglietti di eventi con data fissa di norma non sussiste il diritto di recesso (§ 312g comma 2 n. 9 BGB / § 18 comma 1 n. 10 FAGG). Il tuo ordine è vincolante dopo l’invio."
 
-#: src/Settings.php:93
+#: src/Settings.php:95
 msgid "Für Produkte ohne festen Veranstaltungstermin (z. B. Mitgliedspässe oder Gutscheine) besteht ein gesetzliches Widerrufsrecht. Einzelheiten findest du in der Widerrufsbelehrung in den Verbraucherinformationen."
 msgstr "Per i prodotti senza data dell’evento fissa (ad es. pass associativi o buoni) sussiste il diritto di recesso previsto dalla legge. Trovi i dettagli nell’informativa sul recesso contenuta nelle informazioni per i consumatori."
 
-#: src/Settings.php:113
+#: src/Settings.php:115
 msgid "Kannst du den neuen Termin nicht wahrnehmen? Dann kannst du bis {refund_deadline} über den persönlichen Link zu deiner Bestellung eine Erstattung beantragen; der Veranstalter prüft den Antrag."
 msgstr "Non puoi partecipare nella nuova data? Puoi richiedere un rimborso entro il {refund_deadline} tramite il link personale del tuo ordine; l’organizzatore esamina la richiesta."
 
@@ -32565,6 +32571,7 @@ msgstr "%1$s – biglietto %2$d"
 msgid "Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste."
 msgstr "Per te sono stati prenotati dei biglietti. Accetta l'offerta entro il termine indicato, altrimenti passerà alla persona successiva in lista d'attesa."
 
+#: src/Admin/ManualHoldsRelease.php:208
 #: src/Waitlists.php:1772
 #: src/Waitlists/AdminPage.php:168
 msgid "Reserviert bis"
@@ -32981,6 +32988,7 @@ msgstr "Nuova data: %@"
 msgid "Ticket: %s"
 msgstr "Biglietto: %s"
 
+#: src/Admin/ManualHoldsRelease.php:193
 #: src/WalletPasses/AppleProvider.php:103
 msgid "Veranstaltung"
 msgstr "Evento"
@@ -33257,51 +33265,51 @@ msgstr "Vendita online al momento non disponibile. Riprova più tardi o rivolgit
 msgid "Deine E-Mail-Adresse (für Tickets und Bestätigung)"
 msgstr "Il tuo indirizzo e-mail (per biglietti e conferma)"
 
-#: templates/event-card.php:117
+#: templates/event-card.php:118
 msgid "Dein Name"
 msgstr "Il tuo nome"
 
-#: templates/event-card.php:165
+#: templates/event-card.php:166
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
 msgstr "Con il prefisso del paese, ad es. ATU12345678 o DE123456789."
 
-#: templates/event-card.php:177
+#: templates/event-card.php:178
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Codice buono o sconto (facoltativo)"
 
-#: templates/event-card.php:183
+#: templates/event-card.php:184
 msgid "Rabattcode (optional)"
 msgstr "Codice sconto (facoltativo)"
 
-#: templates/event-card.php:210
+#: templates/event-card.php:211
 msgid "Zahlungspflichtig bestellen"
 msgstr "Ordina con obbligo di pagamento"
 
-#: templates/event-card.php:210
+#: templates/event-card.php:211
 msgid "Kostenlos anmelden"
 msgstr "Iscriviti gratuitamente"
 
-#: templates/event-card.php:216
+#: templates/event-card.php:217
 msgid "Zum Bestellen wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser."
 msgstr "Per ordinare è necessario JavaScript. Attiva JavaScript nel tuo browser."
 
 #. translators: %d: hours an offer can be accepted
-#: templates/event-card.php:230
+#: templates/event-card.php:231
 #, php-format
 msgid "Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunde lang annehmen, höchstens bis zum Beginn des Termins."
 msgid_plural "Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail. Du kannst es %d Stunden lang annehmen, höchstens bis zum Beginn des Termins."
 msgstr[0] "Se si libera un posto, ti invieremo un'offerta via e-mail. Potrai accettarla per %d ora, al massimo fino all'inizio della data."
 msgstr[1] "Se si libera un posto, ti invieremo un'offerta via e-mail. Potrai accettarla per %d ore, al massimo fino all'inizio della data."
 
-#: templates/event-card.php:246
+#: templates/event-card.php:247
 msgid "Wir verwenden deine E-Mail-Adresse nur für die Warteliste dieses Termins. Ein Angebot kannst du annehmen oder ablehnen."
 msgstr "Usiamo il tuo indirizzo e-mail solo per la lista d'attesa di questa data. Puoi accettare o rifiutare un'offerta."
 
-#: templates/event-card.php:247
+#: templates/event-card.php:248
 msgid "Auf die Warteliste setzen"
 msgstr "Iscriviti alla lista d'attesa"
 
-#: templates/event-card.php:248
+#: templates/event-card.php:249
 msgid "Für die Warteliste wird JavaScript benötigt. Bitte aktiviere JavaScript in deinem Browser."
 msgstr "Per la lista d'attesa è necessario JavaScript. Attiva JavaScript nel tuo browser."
 
@@ -33498,79 +33506,79 @@ msgstr "Per quanto tempo i biglietti scelti restano riservati alla persona nel c
 msgid "So viele Rabattcodes darf eine Person in einer Bestellung eingeben."
 msgstr "Numero massimo di codici sconto che una persona può inserire in un ordine."
 
-#: src/Admin/SettingsPage.php:191
+#: src/Admin/SettingsPage.php:193
 msgid "Danach muss ein gekoppeltes Scanner-Gerät neu gekoppelt werden."
 msgstr "Dopo questo periodo, un dispositivo scanner associato deve essere associato di nuovo."
 
-#: src/Admin/SettingsPage.php:194
+#: src/Admin/SettingsPage.php:196
 msgid "Ab diesem Zeitpunkt vor Beginn nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "A partire da questo tempo prima dell’inizio, lo scanner accetta i biglietti di una data se la finestra di ingresso è attiva."
 
-#: src/Admin/SettingsPage.php:195
+#: src/Admin/SettingsPage.php:197
 msgid "Bis zu diesem Zeitpunkt nach Ende nimmt der Scanner Tickets eines Termins an, wenn das Einlassfenster eingeschaltet ist."
 msgstr "Fino a questo tempo dopo la fine, lo scanner accetta i biglietti di una data se la finestra di ingresso è attiva."
 
-#: src/Admin/SettingsPage.php:204
+#: src/Admin/SettingsPage.php:206
 msgid "Diese Zahlungsarten stehen im Checkout zur Auswahl; jede braucht zusätzlich ihre Zugangsdaten."
 msgstr "Questi metodi di pagamento sono disponibili nel checkout; ognuno richiede anche le proprie credenziali."
 
-#: src/Admin/SettingsPage.php:216
+#: src/Admin/SettingsPage.php:218
 msgid "BIC der Bank für Überweisungen; erscheint auf der Zahlungsseite und im GiroCode."
 msgstr "BIC della banca per i bonifici; compare nella pagina di pagamento e nel GiroCode."
 
-#: src/Admin/SettingsPage.php:253
+#: src/Admin/SettingsPage.php:256
 msgid "Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen."
 msgstr "Testo che gli acquirenti confermano nel checkout quando «Richiedi accettazione delle condizioni» è attivo. Da far verificare legalmente."
 
-#: src/Admin/SettingsPage.php:254
+#: src/Admin/SettingsPage.php:257
 msgid "Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen."
 msgstr "Informazioni obbligatorie per i consumatori, collegate nel checkout e nella conferma. Da far verificare legalmente."
 
-#: src/Admin/SettingsPage.php:256
+#: src/Admin/SettingsPage.php:259
 msgid "Hinweis im Checkout, dass für Tickets mit festem Termin in der Regel kein Widerrufsrecht besteht. Rechtlich prüfen lassen."
 msgstr "Avviso nel checkout che per i biglietti con data fissa di norma non è previsto il diritto di recesso. Da far verificare legalmente."
 
-#: src/Admin/SettingsPage.php:334
+#: src/Admin/SettingsPage.php:337
 msgid "Bis zu diesem Zeitpunkt vor Beginn dürfen Käufer Teilnehmerangaben im Bestellportal ändern."
 msgstr "Fino a questo tempo prima dell’inizio, gli acquirenti possono modificare i dati dei partecipanti nel portale ordini."
 
-#: src/Admin/SettingsPage.php:336
+#: src/Admin/SettingsPage.php:339
 msgid "Danach werden Betreff, Text und Empfängeradresse versendeter Nachrichten gelöscht; der Versand selbst bleibt protokolliert."
 msgstr "Dopo questo periodo vengono eliminati oggetto, testo e indirizzo del destinatario dei messaggi inviati; l’invio resta registrato."
 
-#: src/Admin/SettingsPage.php:337
+#: src/Admin/SettingsPage.php:340
 msgid "Danach werden die Einträge im Versandprotokoll vollständig gelöscht."
 msgstr "Dopo questo periodo le voci del registro di invio vengono eliminate completamente."
 
-#: src/Admin/SettingsPage.php:338
+#: src/Admin/SettingsPage.php:341
 msgid "Danach wird an Check-ins nicht mehr gespeichert, welche Person oder welches Gerät eingelassen hat."
 msgstr "Dopo questo periodo, nei check-in non viene più memorizzato quale persona o dispositivo ha consentito l’ingresso."
 
-#: src/Admin/SettingsPage.php:339
+#: src/Admin/SettingsPage.php:342
 msgid "Danach werden Einträge des Audit-Logs gelöscht."
 msgstr "Dopo questo periodo le voci dell’audit log vengono eliminate."
 
-#: src/Admin/SettingsPage.php:386
+#: src/Admin/SettingsPage.php:389
 msgid "Erscheint als Verkäufer auf Rechnungen, Kassenbons und in E-Mails."
 msgstr "Compare come venditore su fatture, scontrini ed e-mail."
 
-#: src/Admin/SettingsPage.php:387
+#: src/Admin/SettingsPage.php:390
 msgid "Erscheint als Anschrift des Verkäufers auf Rechnungen."
 msgstr "Compare come indirizzo del venditore sulle fatture."
 
-#: src/Admin/SettingsPage.php:388
+#: src/Admin/SettingsPage.php:391
 msgid "Umsatzsteuer-Identifikationsnummer des Verkäufers für Rechnungen. Rechtlich prüfen lassen."
 msgstr "Partita IVA del venditore per le fatture. Da far verificare legalmente."
 
-#: src/Admin/SettingsPage.php:396
+#: src/Admin/SettingsPage.php:399
 msgid "Vorangestellt vor die fortlaufende Rechnungsnummer. Rechtlich prüfen lassen, bevor ein bestehendes Präfix geändert wird."
 msgstr "Anteposto al numero progressivo della fattura. Da far verificare legalmente prima di modificare un prefisso esistente."
 
-#: src/Admin/SettingsPage.php:397
+#: src/Admin/SettingsPage.php:400
 msgid "Ab diesem Bestellbetrag fragt der Checkout Name und Anschrift für die Rechnung ab. Die Grenze hängt vom Land ab; rechtlich prüfen lassen."
 msgstr "A partire da questo importo dell’ordine, il checkout richiede nome e indirizzo per la fattura. La soglia dipende dal paese; da far verificare legalmente."
 
-#: src/Admin/SettingsPage.php:398
+#: src/Admin/SettingsPage.php:401
 msgid "Vorangestellt vor die Nummer von Storno- und Korrekturbelegen."
 msgstr "Anteposto al numero dei documenti di storno e rettifica."
 
@@ -33928,35 +33936,35 @@ msgstr "Se annulli una data, Pass Captain avvia subito il rimborso degli ordini 
 msgid "Empfohlen, wenn mehrere Personen Freikarten vergeben: Jede Freigabe braucht eine zweite Person und wird protokolliert."
 msgstr "Consigliato se più persone assegnano biglietti omaggio: ogni approvazione richiede una seconda persona e viene registrata."
 
-#: src/Admin/SettingsPage.php:181
+#: src/Admin/SettingsPage.php:183
 msgid "Jedes Event bekommt eine eigene Adresse, die Suchmaschinen als Veranstaltung erkennen. Ausschalten, wenn du Events nur über Blöcke oder Shortcodes zeigst."
 msgstr "Ogni evento riceve un proprio indirizzo che i motori di ricerca riconoscono come evento. Disattivalo se mostri gli eventi solo tramite blocchi o shortcode."
 
-#: src/Admin/SettingsPage.php:189
+#: src/Admin/SettingsPage.php:191
 msgid "Zeigt beim Einlass den Namen auf dem Ticket, damit das Personal ihn mit einem Ausweis vergleichen kann. Aus Datenschutzgründen nur einschalten, wenn du das brauchst."
 msgstr "Mostra all’ingresso il nome sul biglietto, così il personale può confrontarlo con un documento. Per motivi di privacy attivalo solo se ti serve."
 
-#: src/Admin/SettingsPage.php:193
+#: src/Admin/SettingsPage.php:195
 msgid "Gilt für Ticketarten ohne eigene Regel: Einlass ab „Einlass öffnet“ vor Beginn bis „Einlass schließt“ nach Beginn."
 msgstr "Vale per i tipi di biglietto senza regola propria: ingresso da «Apertura ingresso» prima dell’inizio fino a «Chiusura ingresso» dopo l’inizio."
 
-#: src/Admin/SettingsPage.php:229
+#: src/Admin/SettingsPage.php:232
 msgid "„Test“ nutzt die Testschlüssel von Stripe, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Schlüssel eingetragen sind."
 msgstr "«Test» usa le chiavi di test di Stripe; non si muove denaro. Passa a «Live» solo dopo aver inserito le chiavi live."
 
-#: src/Admin/SettingsPage.php:240
+#: src/Admin/SettingsPage.php:243
 msgid "„Sandbox“ nutzt die Testumgebung von PayPal, es fließt kein Geld. Stelle erst auf „Live“, wenn die Live-Zugangsdaten eingetragen sind."
 msgstr "«Sandbox» usa l’ambiente di test di PayPal; non si muove denaro. Passa a «Live» solo dopo aver inserito le credenziali live."
 
-#: src/Admin/SettingsPage.php:266
+#: src/Admin/SettingsPage.php:269
 msgid "Wer eine Erstattung auslöst, muss sich zusätzlich mit einem zweiten Faktor anmelden. Schützt vor Missbrauch eines gestohlenen Passworts."
 msgstr "Chi avvia un rimborso deve accedere anche con un secondo fattore. Protegge dall’uso improprio di una password rubata."
 
-#: src/Admin/SettingsPage.php:393
+#: src/Admin/SettingsPage.php:396
 msgid "Empfohlen, wenn mehrere Personen Steuerprofile pflegen: Ein neues oder geändertes Profil wird erst nach Freigabe durch eine zweite Person wirksam."
 msgstr "Consigliato se più persone gestiscono i profili fiscali: un profilo nuovo o modificato diventa effettivo solo dopo l’approvazione di una seconda persona."
 
-#: src/Admin/SettingsPage.php:399
+#: src/Admin/SettingsPage.php:402
 msgid "Erstellt nach jeder bezahlten Bestellung eine fortlaufend nummerierte Rechnung und hängt sie an die Bestätigungsmail. Rechtsprüfung: Ob du Rechnungen ausstellen musst, hängt von Land und Kundschaft ab."
 msgstr "Crea dopo ogni ordine pagato una fattura con numerazione progressiva e la allega all’e-mail di conferma. Verifica legale: l’obbligo di emettere fatture dipende dal paese e dalla clientela."
 
@@ -34067,7 +34075,7 @@ msgid_plural "%d Einstellungen"
 msgstr[0] "%d impostazione"
 msgstr[1] "%d impostazioni"
 
-#: src/Admin/SettingsPage.php:986
+#: src/Admin/SettingsPage.php:989
 #: src/Admin/SettingsTools.php:262
 #: src/Admin/SettingsTools.php:297
 #: src/Admin/SettingsTools.php:320
@@ -34388,11 +34396,11 @@ msgstr "«%s» deve essere un codice valuta di tre lettere (ad es. EUR)."
 msgid "„%1$s“: „%2$s“ ist kein Währungscode aus drei Buchstaben."
 msgstr "«%1$s»: «%2$s» non è un codice valuta di tre lettere."
 
-#: src/Admin/SettingsPage.php:151
+#: src/Admin/SettingsPage.php:153
 msgid "Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die du nicht nutzt."
 msgstr "Vengono nascoste solo le voci di menu; le funzionalità continuano a funzionare, i dati restano conservati e i link diretti funzionano. Per le funzionalità che non usi."
 
-#: src/Admin/SettingsPage.php:371
+#: src/Admin/SettingsPage.php:374
 msgid "Absender (From) und Envelope-Sender (Return-Path) aller Kunden-E-Mails, z. B. tickets@deine-domain.de. Die Domain sollte die der Website sein und per SPF, DKIM und DMARC für den Versand über diesen Server bzw. deinen SMTP-Dienst freigegeben sein. Leer: WordPress-Standard (wordpress@…). Ein SMTP-Plugin, das einen eigenen Absender erzwingt, hat Vorrang."
 msgstr "Mittente (From) e mittente della busta (Return-Path) di tutte le e-mail ai clienti, ad es. tickets@tuo-dominio.it. Il dominio dovrebbe essere quello del sito ed essere autorizzato tramite SPF, DKIM e DMARC all’invio da questo server o dal tuo servizio SMTP. Vuoto: predefinito di WordPress (wordpress@…). Un plugin SMTP che impone un proprio mittente ha la precedenza."
 
@@ -34502,7 +34510,7 @@ msgstr "I tuoi diritti"
 msgid "Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO). Hast du Tickets für künftige Termine, bleiben diese gültig, und wir löschen die zugehörigen Bestelldaten automatisch nach dem letzten Termin; möchtest du die Tickets sofort aufgeben, teile uns das bitte mit. Du kannst dich bei einer Datenschutzaufsichtsbehörde beschweren."
 msgstr "Hai il diritto di accesso, rettifica, cancellazione, limitazione del trattamento, portabilità dei dati e opposizione, nonché il diritto di revocare i consensi prestati con effetto per il futuro. In caso di cancellazione, le fatture e i dati contabili restano conservati fino alla scadenza del termine legale di conservazione (art. 17, par. 3, lett. b GDPR). Se possiedi biglietti per date future, questi restano validi e cancelliamo automaticamente i relativi dati dell'ordine dopo l'ultima data; se desideri rinunciare subito ai biglietti, comunicacelo. Puoi presentare reclamo a un'autorità di controllo per la protezione dei dati."
 
-#: src/Admin/SettingsPage.php:342
+#: src/Admin/SettingsPage.php:345
 msgid "Gesetzliche Aufbewahrungsfrist für Buchungsbelege: Deutschland 10 Jahre (§ 147 AO, § 257 HGB), Österreich 7 Jahre (§ 132 BAO). Danach werden Käufer-E-Mail, Rechnungsanschrift und Teilnehmerangaben der Bestellung, ihrer Tickets und Terminbuchungen entfernt. Beträge, Positionen, Erstattungen, Rechnungen, Gutschriften und Fiskalbelege bleiben unverändert; über deren Löschung nach Fristablauf entscheidest du selbst (laufende Prüfungen verlängern die Frist). 0 = nie."
 msgstr "Termine legale di conservazione dei documenti contabili: Germania 10 anni (§ 147 AO, § 257 HGB), Austria 7 anni (§ 132 BAO). Dopo vengono rimossi l’e-mail dell’acquirente, l’indirizzo di fatturazione e i dati dei partecipanti dell’ordine, dei suoi biglietti e delle prenotazioni di appuntamenti. Importi, righe, rimborsi, fatture, note di credito e documenti fiscali restano invariati; decidi tu quando eliminarli dopo il termine (le verifiche in corso lo prolungano). 0 = mai."
 
@@ -34525,19 +34533,19 @@ msgstr "Nascondi nota «%s»"
 msgid "Ausblenden"
 msgstr "Nascondi"
 
-#: src/Admin/SettingsPage.php:250
+#: src/Admin/SettingsPage.php:253
 msgid "Impressum (Adresse)"
 msgstr "Note legali (indirizzo)"
 
-#: src/Admin/SettingsPage.php:250
+#: src/Admin/SettingsPage.php:253
 msgid "Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht."
 msgstr "Link alle note legali; compare nel checkout, nel piè di pagina delle e-mail e come segnaposto {imprint_url}. Vuoto = nessun link. Verifica legale: in molti paesi le note legali sono obbligatorie."
 
-#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:254
 msgid "Datenschutzerklärung (Adresse)"
 msgstr "Informativa sulla privacy (indirizzo)"
 
-#: src/Admin/SettingsPage.php:251
+#: src/Admin/SettingsPage.php:254
 msgid "Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz)."
 msgstr "Link all’informativa sulla privacy nel checkout, nel piè di pagina delle e-mail e come segnaposto {privacy_url}. Vuoto = la pagina privacy di WordPress (Impostazioni → Privacy)."
 
@@ -34561,59 +34569,59 @@ msgstr "Link all’informativa sulla privacy"
 msgid "„%s“ muss eine vollständige Adresse mit http:// oder https:// sein."
 msgstr "«%s» deve essere un indirizzo completo con http:// o https://."
 
-#: src/Admin/SettingsPage.php:170
+#: src/Admin/SettingsPage.php:172
 msgid "Gilt nur, wenn Tickets über WooCommerce verkauft werden. Ticketpreise aus Pass Captain, gemischte Rechnungssteller und Erstattungen nach dem Einlass stellst du unter WooCommerce → Einstellungen → Produkte ein."
 msgstr "Vale solo se i biglietti sono venduti tramite WooCommerce. Prezzi da Pass Captain, venditori misti e rimborsi dopo l’ingresso si impostano in WooCommerce → Impostazioni → Prodotti."
 
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:174
 msgid "Reservierung bei WooCommerce-Bestellungen (Minuten)"
 msgstr "Prenotazione per ordini WooCommerce (minuti)"
 
-#: src/Admin/SettingsPage.php:173
+#: src/Admin/SettingsPage.php:175
 msgid "Tickets erst bei Status „Abgeschlossen“ für diese Zahlungsarten"
 msgstr "Emetti i biglietti solo con stato «Completato» per questi metodi di pagamento"
 
-#: src/Admin/SettingsPage.php:173
+#: src/Admin/SettingsPage.php:175
 msgid "Kennungen der WooCommerce-Zahlungsarten, durch Komma getrennt, z. B. „cod, bacs“. Bei allen anderen Zahlungsarten werden Tickets nach der Zahlung ausgestellt."
 msgstr "ID dei metodi di pagamento WooCommerce separati da virgola, ad es. «cod, bacs». Con gli altri metodi i biglietti vengono emessi dopo il pagamento."
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:176
 msgid "Teilnehmerdaten im WooCommerce-Checkout"
 msgstr "Dati dei partecipanti nel checkout WooCommerce"
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:176
 msgid "nur wenn die Ticketart Teilnehmerfelder hat (Standard)"
 msgstr "solo se il tipo di biglietto ha campi partecipante (predefinito)"
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:176
 msgid "immer (Name und E-Mail je Ticket)"
 msgstr "sempre (nome ed e-mail per biglietto)"
 
-#: src/Admin/SettingsPage.php:174
+#: src/Admin/SettingsPage.php:176
 msgid "Ob der WooCommerce-Checkout je Ticket Name, E-Mail und Teilnehmerfelder abfragt."
 msgstr "Se il checkout WooCommerce chiede nome, e-mail e campi partecipante per biglietto."
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "Regeln für Zahlungsarten"
 msgstr "Regole dei metodi di pagamento"
 
-#: src/Admin/SettingsPage.php:205
+#: src/Admin/SettingsPage.php:207
 msgid "Optional, eine Regel je Zeile: Zahlungsart | events=Event-IDs | min=Betrag | max=Betrag | countries=Ländercodes. Beispiel: „manual | max=500 | countries=DE,AT“. Eine Zahlungsart ohne Regel gilt überall; mehrere Zeilen für dieselbe Zahlungsart sind Alternativen."
 msgstr "Facoltativo, una regola per riga: metodo | events=ID eventi | min=importo | max=importo | countries=codici paese. Esempio: «manual | max=500 | countries=DE,AT». Un metodo senza regola vale ovunque; più righe per lo stesso metodo sono alternative."
 
-#: src/Admin/SettingsPage.php:391
+#: src/Admin/SettingsPage.php:394
 msgid "Länder der Rechnungsadresse"
 msgstr "Paesi dell’indirizzo di fatturazione"
 
-#: src/Admin/SettingsPage.php:391
+#: src/Admin/SettingsPage.php:394
 msgid "Ländercodes, durch Komma getrennt, z. B. „AT, DE, CH“. Nur diese Länder stehen in der Rechnungsadresse zur Auswahl. Leer = EU-Länder und häufige Nachbarländer."
 msgstr "Codici paese separati da virgola, ad es. «AT, DE, CH». Solo questi paesi sono selezionabili nell’indirizzo di fatturazione. Vuoto = paesi UE e vicini frequenti."
 
-#: src/Admin/SettingsPage.php:392
+#: src/Admin/SettingsPage.php:395
 msgid "Feld „Region / Bundesland“ in der Rechnungsadresse anzeigen"
 msgstr "Mostra il campo «Regione / provincia» nell’indirizzo di fatturazione"
 
-#: src/Admin/SettingsPage.php:392
+#: src/Admin/SettingsPage.php:395
 msgid "Optionales Feld, z. B. für Kanton oder Provinz; erscheint auf der Rechnung unter dem Ort."
 msgstr "Campo facoltativo, ad es. per cantone o provincia; compare in fattura sotto la città."
 
@@ -34627,7 +34635,7 @@ msgstr "Regione / provincia"
 msgid "Zahlungsart-Regeln: Zeile %d ist nicht lesbar. Format: Zahlungsart | events=1,2 | min=10,00 | max=500 | countries=DE,AT"
 msgstr "Regole dei metodi di pagamento: la riga %d non è leggibile. Formato: metodo | events=1,2 | min=10,00 | max=500 | countries=DE,AT"
 
-#: src/Rest/Controller.php:651
+#: src/Rest/Controller.php:657
 msgid "Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart."
 msgstr "Questo metodo di pagamento non è disponibile per questo ordine. Scegli un altro metodo."
 
@@ -34663,7 +34671,7 @@ msgstr "netto (senza imposte)"
 msgid "Ob du Ticketpreise mit oder ohne Steuer einträgst. Gespeichert und Käufern angezeigt wird immer der Bruttopreis; bei netto rechnet Pass Captain den Steuersatz der Ticketart dazu (auf den Cent gerundet)."
 msgstr "Se inserisci i prezzi con o senza imposte. Viene sempre salvato e mostrato il prezzo lordo; con inserimento netto Pass Captain aggiunge l’aliquota del tipo di biglietto (arrotondata al centesimo)."
 
-#: src/Admin/SettingsPage.php:932
+#: src/Admin/SettingsPage.php:935
 msgid "Bitte prüfe diese Felder:"
 msgstr "Controlla questi campi:"
 
@@ -34727,87 +34735,87 @@ msgstr "Quantità massima per riga d’ordine"
 msgid "Absolute Obergrenze der Tickets je Position einer Bestellung, als Schutz gegen versehentliche oder missbräuchliche Mengen. Die Höchstmenge je Bestellung der Ticketart gilt zusätzlich. Standard: 100. Ein Filter (wpcap_max_line_quantity) hat Vorrang."
 msgstr "Limite massimo assoluto di biglietti per riga di un ordine, come protezione contro quantità accidentali o abusive. Si applica inoltre la quantità massima per ordine del tipo di biglietto. Predefinito: 100. Un filtro (wpcap_max_line_quantity) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Offline-Scanner: Standard-Paketdauer (Stunden)"
 msgstr "Scanner offline: durata predefinita del pacchetto (ore)"
 
-#: src/Admin/SettingsPage.php:196
+#: src/Admin/SettingsPage.php:198
 msgid "Vorschlag für die maximale Offline-Dauer, wenn du ein Event zum ersten Mal für den Offline-Scanner einrichtest: So lange gilt ein Prüfpaket auf dem Gerät. Bereits eingerichtete Events behalten ihren Wert. Standard: 12."
 msgstr "Durata offline massima suggerita quando configuri un evento per la prima volta per lo scanner offline: per questo tempo un pacchetto di verifica resta valido sul dispositivo. Gli eventi già configurati mantengono il loro valore. Predefinito: 12."
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:199
 msgid "No-Show-Kulanz nach Terminende (Stunden)"
 msgstr "Tolleranza per mancata presenza dopo la fine della data (ore)"
 
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:199
 msgid "Erst so lange nach dem Ende eines Termins gilt ein gültiges Ticket ohne Einlass als „nicht erschienen“ und bekommt keine Bewertungsanfrage. Standard: 6. Ein Filter (wpcap_review_no_show_grace_hours) hat Vorrang."
 msgstr "Solo trascorso questo tempo dalla fine di una data un biglietto valido senza ingresso viene considerato «non presentato» e non riceve una richiesta di recensione. Predefinito: 6. Un filtro (wpcap_review_no_show_grace_hours) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:223
 msgid "Überweisung: offene Bestellungen je E-Mail-Adresse (höchstens)"
 msgstr "Bonifico: ordini aperti per indirizzo email (massimo)"
 
-#: src/Admin/SettingsPage.php:220
+#: src/Admin/SettingsPage.php:223
 msgid "So viele unbezahlte Überweisungsbestellungen darf eine E-Mail-Adresse gleichzeitig haben; darüber lehnt der Checkout ab. Bezahlte und abgelaufene Bestellungen zählen nicht. Standard: 2. Ein Filter (wpcap_manual_open_orders_per_email) hat Vorrang."
 msgstr "Quanti ordini con bonifico non pagati può avere contemporaneamente un indirizzo email; oltre questo limite il checkout li rifiuta. Gli ordini pagati e scaduti non contano. Predefinito: 2. Un filtro (wpcap_manual_open_orders_per_email) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:348
+#: src/Admin/SettingsPage.php:351
 msgid "Protokolle und Druckdateien"
 msgstr "Registri e file di stampa"
 
-#: src/Admin/SettingsPage.php:351
+#: src/Admin/SettingsPage.php:354
 msgid "Support-Protokoll löschen nach (Tagen)"
 msgstr "Elimina il registro di supporto dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:351
+#: src/Admin/SettingsPage.php:354
 msgid "Einträge des Support-Protokolls (Betrieb → Support) werden danach gelöscht; Einträge der Stufen „debug“ und „info“ spätestens nach 7 Tagen. Standard: 30. Ein Filter (wpcap_log_retention_days) hat Vorrang."
 msgstr "Le voci del registro di supporto (Operatività → Supporto) vengono eliminate dopo questo periodo; quelle dei livelli «debug» e «info» al più tardi dopo 7 giorni. Predefinito: 30. Un filtro (wpcap_log_retention_days) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:354
+#: src/Admin/SettingsPage.php:357
 msgid "Support-Protokoll: niedrigste gespeicherte Stufe"
 msgstr "Registro di supporto: livello minimo salvato"
 
-#: src/Admin/SettingsPage.php:356
+#: src/Admin/SettingsPage.php:359
 msgid "Info (Standard)"
 msgstr "Info (predefinito)"
 
-#: src/Admin/SettingsPage.php:361
+#: src/Admin/SettingsPage.php:364
 msgid "Einträge unterhalb dieser Stufe werden nicht gespeichert. Der Debug-Modus (Erweitert → Support und Fehlersuche) speichert für 24 Stunden alles. Ein Filter (wpcap_log_min_level) hat Vorrang."
 msgstr "Le voci al di sotto di questo livello non vengono salvate. La modalità debug (Avanzate → Supporto e risoluzione dei problemi) salva tutto per 24 ore. Un filtro (wpcap_log_min_level) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:363
+#: src/Admin/SettingsPage.php:366
 msgid "Zustellprotokoll der Connectors löschen nach (Tagen)"
 msgstr "Elimina il registro di consegna dei connettori dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:363
+#: src/Admin/SettingsPage.php:366
 msgid "Zugestellte und endgültig fehlgeschlagene Einträge der HTTP/JSON-Connectors werden danach gelöscht. Standard: 30. Ein Filter (wpcap_connector_log_days) hat Vorrang."
 msgstr "Le voci consegnate e quelle definitivamente non riuscite dei connettori HTTP/JSON vengono eliminate dopo questo periodo. Predefinito: 30. Un filtro (wpcap_connector_log_days) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:364
+#: src/Admin/SettingsPage.php:367
 msgid "Druckstapel und ihre PDF-Dateien löschen nach (Tagen)"
 msgstr "Elimina i lotti di stampa e i relativi file PDF dopo (giorni)"
 
-#: src/Admin/SettingsPage.php:364
+#: src/Admin/SettingsPage.php:367
 msgid "Gerechnet ab der letzten Änderung des Stapels. Die Dateien enthalten Ticketcodes und Namen; lade sie rechtzeitig herunter. Standard: 7. Ein Filter (wpcap_print_batch_keep_days) hat Vorrang."
 msgstr "Calcolato dall’ultima modifica del lotto. I file contengono codici dei biglietti e nomi; scaricali per tempo. Predefinito: 7. Un filtro (wpcap_print_batch_keep_days) ha la precedenza."
 
-#: src/Admin/SettingsPage.php:984
+#: src/Admin/SettingsPage.php:987
 msgid "Was wird wann gelöscht"
 msgstr "Cosa viene eliminato e quando"
 
-#: src/Admin/SettingsPage.php:985
+#: src/Admin/SettingsPage.php:988
 msgid "Übersicht der gespeicherten Fristen (nur Anzeige). Gelöscht oder anonymisiert wird im täglichen Datenschutz-Lauf bzw. im stündlichen Aufräumlauf. Ein Filter kann eine Frist abweichend festlegen; die Tabelle zeigt den wirksamen Wert."
 msgstr "Panoramica dei termini salvati (solo visualizzazione). L’eliminazione o l’anonimizzazione avviene nell’esecuzione giornaliera per la privacy o nella pulizia oraria. Un filtro può stabilire un termine diverso; la tabella mostra il valore effettivo."
 
-#: src/Admin/SettingsPage.php:986
+#: src/Admin/SettingsPage.php:989
 msgid "Daten"
 msgstr "Dati"
 
-#: src/Admin/SettingsPage.php:986
+#: src/Admin/SettingsPage.php:989
 msgid "Gelöscht bzw. anonymisiert"
 msgstr "Eliminati o anonimizzati"
 
-#: src/Admin/SettingsPage.php:989
+#: src/Admin/SettingsPage.php:992
 msgid "fest (Filter wpcap_privacy_retention_days)"
 msgstr "fisso (filtro wpcap_privacy_retention_days)"
 
@@ -35087,15 +35095,15 @@ msgstr "Portale ordini: modifiche di nome e intestatario per ordine e ora"
 msgid "Jede Inhaberänderung schickt eine E-Mail. Mindestens 5. Filter wpcap_portal_assign_rate_limit."
 msgstr "Ogni modifica dell’intestatario invia un’e-mail. Almeno 5. Filtro wpcap_portal_assign_rate_limit."
 
-#: src/Admin/SettingsPage.php:124
+#: src/Admin/SettingsPage.php:126
 msgid "Bestellportal: Ticket-PDFs je Bestellung und Stunde"
 msgstr "Portale ordini: PDF dei biglietti per ordine e ora"
 
-#: src/Admin/SettingsPage.php:124
+#: src/Admin/SettingsPage.php:126
 msgid "Mindestens 5. Filter wpcap_portal_pdf_rate_limit."
 msgstr "Almeno 5. Filtro wpcap_portal_pdf_rate_limit."
 
-#: src/Admin/SettingsPage.php:648
+#: src/Admin/SettingsPage.php:651
 msgid "Bitte ein gültiges PHP-Datums- oder Zeitformat angeben, z. B. „d.m.Y“ oder „H:i“ (höchstens 40 Zeichen)."
 msgstr "Indica un formato data o ora PHP valido, ad es. «d.m.Y» o «H:i» (massimo 40 caratteri)."
 
@@ -35275,7 +35283,7 @@ msgstr "Collega note legali e informativa sulla privacy nel piè di pagina e nel
 msgid "Adressen unter Einstellungen → Rechtstexte. Ohne Adresse erscheint kein Link."
 msgstr "Indirizzi in Impostazioni → Testi legali. Senza indirizzo non compare alcun link."
 
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:174
 msgid "0 = automatisch: die Reservierungsdauer von Pass Captain, mindestens aber „Lagerbestand halten“ aus WooCommerce. Ein eigener Wert verlängert die Reservierung, verkürzt sie aber nie."
 msgstr "0 = automatico: la durata di prenotazione di Pass Captain, ma almeno «Mantieni scorte» di WooCommerce. Un valore proprio prolunga la prenotazione ma non la accorcia mai."
 
@@ -35299,53 +35307,53 @@ msgstr "Ingresso: %s"
 msgid "Personal: %s"
 msgstr "Personale: %s"
 
-#: src/Rest/Controller.php:1101
+#: src/Rest/Controller.php:1107
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Non puoi riscattare pass."
 
-#: src/Admin/OperationsPage.php:250
+#: src/Admin/OperationsPage.php:251
 msgid "Gutschein-Abgleich"
 msgstr "Riconciliazione buoni"
 
-#: src/Admin/OperationsPage.php:251
+#: src/Admin/OperationsPage.php:252
 msgid "Vergleicht die in Bestellungen gespeicherten Gutschein-Einlösungen (reserviert, belastet, freigegeben, zurückgebucht) mit dem Bestellstatus und zeigt offene Gutschein-Rückbuchungen. Der Stand in Voucher Captain wird nur verglichen, wenn Voucher Captain ihn bereitstellt; sonst siehst du die Abweichungskandidaten aus Pass-Captain-Sicht. Die Prüfung ändert nichts."
 msgstr "Confronta i riscatti di buoni salvati negli ordini (riservato, addebitato, rilasciato, stornato) con lo stato dell’ordine e mostra gli storni di buoni aperti. Lo stato in Voucher Captain viene confrontato solo se Voucher Captain lo fornisce; altrimenti vedi le possibili discrepanze dal lato di Pass Captain. Il controllo non modifica nulla."
 
-#: src/Admin/OperationsPage.php:253
+#: src/Admin/OperationsPage.php:254
 msgid "Abgleich ausführen"
 msgstr "Esegui riconciliazione"
 
 #. translators: 1: number of orders checked, 2: maximum
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:259
 #, php-format
 msgid "%1$d Bestellungen mit Gutschein geprüft (höchstens die neuesten %2$d)."
 msgstr "%1$d ordini con buono controllati (al massimo i %2$d più recenti)."
 
-#: src/Admin/OperationsPage.php:259
+#: src/Admin/OperationsPage.php:260
 msgid "Stand in Voucher Captain: verglichen."
 msgstr "Stato in Voucher Captain: confrontato."
 
-#: src/Admin/OperationsPage.php:259
+#: src/Admin/OperationsPage.php:260
 msgid "Stand in Voucher Captain: nicht verfügbar, nur Pass-Captain-Sicht."
 msgstr "Stato in Voucher Captain: non disponibile, solo il lato di Pass Captain."
 
-#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:261
 msgid "Zurückgebucht"
 msgstr "Stornato"
 
-#: src/Admin/OperationsPage.php:264
+#: src/Admin/OperationsPage.php:265
 msgid "Beträge in der kleinsten Währungseinheit, über alle Währungen summiert."
 msgstr "Importi nella più piccola unità di valuta, sommati su tutte le valute."
 
-#: src/Admin/OperationsPage.php:266
+#: src/Admin/OperationsPage.php:267
 msgid "Keine Abweichungen gefunden."
 msgstr "Nessuna discrepanza trovata."
 
-#: src/Admin/OperationsPage.php:270
+#: src/Admin/OperationsPage.php:271
 msgid "Abweichung"
 msgstr "Discrepanza"
 
-#: src/Admin/OperationsPage.php:270
+#: src/Admin/OperationsPage.php:271
 msgid "Gutschein"
 msgstr "Buono"
 
@@ -35480,3 +35488,133 @@ msgstr "Pass Captain: %1$s, Voucher Captain: %2$s."
 #, php-format
 msgid "Zurückgebucht laut Pass Captain: %1$d, laut Voucher Captain: %2$d (kleinste Einheit)."
 msgstr "Stornato secondo Pass Captain: %1$d, secondo Voucher Captain: %2$d (unità minima)."
+
+#: src/Admin/AuditLogPage.php:230
+msgid "Offene Überweisung vorzeitig freigegeben"
+msgstr "Bonifico aperto rilasciato in anticipo"
+
+#: src/Admin/AuditLogPage.php:231
+msgid "Offene Überweisungen gesammelt freigegeben"
+msgstr "Bonifici aperti rilasciati in blocco"
+
+#. translators: 1: event name, 2: number of tickets
+#: src/Admin/ManualHoldsRelease.php:85
+#, php-format
+msgid "%1$s (%2$d Tickets)"
+msgstr "%1$s (%2$d biglietti)"
+
+#: src/Admin/ManualHoldsRelease.php:144
+msgid "Bitte bestätige, dass die gezeigten Bestellungen freigegeben werden sollen."
+msgstr "Conferma che gli ordini mostrati devono essere rilasciati."
+
+#: src/Admin/ManualHoldsRelease.php:148
+msgid "Keine Bestellungen ausgewählt."
+msgstr "Nessun ordine selezionato."
+
+#. translators: %d: number of orders
+#: src/Admin/ManualHoldsRelease.php:162
+#, php-format
+msgid "%d Überweisungsbestellung wurde freigegeben (wie bei Ablauf der Reservierung)."
+msgid_plural "%d Überweisungsbestellungen wurden freigegeben (wie bei Ablauf der Reservierung)."
+msgstr[0] "%d ordine con bonifico è stato rilasciato (come alla scadenza della prenotazione)."
+msgstr[1] "%d ordini con bonifico sono stati rilasciati (come alla scadenza della prenotazione)."
+
+#. translators: %d: number of orders
+#: src/Admin/ManualHoldsRelease.php:165
+#, php-format
+msgid "%d Bestellung wurde übersprungen (inzwischen bezahlt, abgelaufen oder geändert)."
+msgid_plural "%d Bestellungen wurden übersprungen (inzwischen bezahlt, abgelaufen oder geändert)."
+msgstr[0] "%d ordine è stato saltato (nel frattempo pagato, scaduto o modificato)."
+msgstr[1] "%d ordini sono stati saltati (nel frattempo pagati, scaduti o modificati)."
+
+#. translators: %d: number of events
+#: src/Admin/ManualHoldsRelease.php:178
+#, php-format
+msgid "Offene Überweisungsbestellungen halten Tickets für %d Veranstaltung – ansehen und freigeben"
+msgid_plural "Offene Überweisungsbestellungen halten Tickets für %d Veranstaltungen – ansehen und freigeben"
+msgstr[0] "Ordini con bonifico aperti trattengono biglietti per %d evento – visualizza e rilascia"
+msgstr[1] "Ordini con bonifico aperti trattengono biglietti per %d eventi – visualizza e rilascia"
+
+#: src/Admin/ManualHoldsRelease.php:187
+msgid "Offene Überweisungen freigeben"
+msgstr "Rilascia bonifici aperti"
+
+#: src/Admin/ManualHoldsRelease.php:188
+msgid "Unbezahlte Überweisungsbestellungen halten ihre Tickets bis zum Ende der Reservierung. Hier kannst du mehrere davon vorzeitig freigeben, z. B. wenn ein Event durch viele offene Überweisungen blockiert ist. Die Freigabe wirkt wie ein normaler Ablauf der Reservierung: Die Tickets werden wieder verkäuflich, die Bestellung gilt als abgelaufen, und eine später eingehende Zahlung wird wie bei jeder abgelaufenen Bestellung geprüft."
+msgstr "Gli ordini con bonifico non pagati trattengono i biglietti fino alla fine della prenotazione. Qui puoi rilasciarne diversi in anticipo, ad es. se un evento è bloccato da molti bonifici aperti. Il rilascio funziona come una normale scadenza della prenotazione: i biglietti tornano in vendita, l’ordine risulta scaduto e un pagamento che arriva dopo viene verificato come per qualsiasi ordine scaduto."
+
+#: src/Admin/ManualHoldsRelease.php:194
+msgid "Alle Veranstaltungen"
+msgstr "Tutti gli eventi"
+
+#: src/Admin/ManualHoldsRelease.php:195
+msgid "Bestellt vor mindestens … Stunden"
+msgstr "Ordinato almeno … ore fa"
+
+#: src/Admin/ManualHoldsRelease.php:199
+msgid "Keine offenen Überweisungsbestellungen für diese Auswahl."
+msgstr "Nessun ordine con bonifico aperto per questa selezione."
+
+#. translators: 1: number of orders, 2: number of tickets
+#: src/Admin/ManualHoldsRelease.php:204
+#, php-format
+msgid "%1$d offene Überweisungsbestellungen mit %2$d Tickets jetzt freigeben? Das lässt sich nicht rückgängig machen."
+msgstr "Rilasciare ora %1$d ordini con bonifico aperti con %2$d biglietti? L’operazione non si può annullare."
+
+#: src/Admin/ManualHoldsRelease.php:208
+msgid "Bestellt"
+msgstr "Ordinato"
+
+#. translators: %d: maximum number of orders
+#: src/Admin/ManualHoldsRelease.php:220
+#, php-format
+msgid "Es werden höchstens %d Bestellungen auf einmal angezeigt und freigegeben."
+msgstr "Vengono mostrati e rilasciati al massimo %d ordini alla volta."
+
+#: src/Admin/ManualHoldsRelease.php:222
+msgid "Ich habe die Liste geprüft: Diese Bestellungen sollen freigegeben werden."
+msgstr "Ho controllato l’elenco: questi ordini devono essere rilasciati."
+
+#: src/Admin/ManualHoldsRelease.php:223
+msgid "Gezeigte Bestellungen freigeben"
+msgstr "Rilascia gli ordini mostrati"
+
+#: src/Admin/SettingsPage.php:124
+msgid "Checkout: Schutz vor Bots im Bestellformular"
+msgstr "Checkout: protezione dai bot nel modulo d’ordine"
+
+#: src/Admin/SettingsPage.php:124
+msgid "Unsichtbares Fangfeld und Mindest-Ausfüllzeit im Bestellformular der Eventseiten (Block und Shortcode), ohne Cookies und ohne externen Dienst. Geprüft werden nur Bestellungen aus diesem Formular; die REST-API für eigene Integrationen, Partner, WooCommerce, Kasse und Admin sind nicht betroffen. Wer zu schnell absendet, bekommt einen Hinweis und kann sofort noch einmal absenden."
+msgstr "Campo trappola invisibile e tempo minimo di compilazione nel modulo d’ordine delle pagine evento (blocco e shortcode), senza cookie e senza servizi esterni. Vengono controllati solo gli ordini da questo modulo; l’API REST per integrazioni proprie, partner, WooCommerce, cassa e amministrazione non è interessata. Chi invia troppo in fretta riceve un avviso e può inviare di nuovo subito."
+
+#: src/Admin/SettingsPage.php:125
+msgid "Checkout: Mindest-Ausfüllzeit (Sekunden)"
+msgstr "Checkout: tempo minimo di compilazione (secondi)"
+
+#: src/Admin/SettingsPage.php:125
+msgid "So viele Sekunden müssen zwischen dem Laden des Formulars und dem Absenden liegen. Standard: 3. 0 = nur das Fangfeld prüfen."
+msgstr "Devono trascorrere questi secondi tra il caricamento del modulo e l’invio. Predefinito: 3. 0 = controlla solo il campo trappola."
+
+#: src/Admin/SettingsPage.php:221
+msgid "Überweisung: höchstens so viele Tickets je Veranstaltung unbezahlt reservieren"
+msgstr "Bonifico: riservare al massimo questi biglietti non pagati per evento"
+
+#: src/Admin/SettingsPage.php:221
+msgid "Gilt je Veranstaltung über alle Termine, auch ohne Kapazität. Halten offene, unbezahlte Überweisungsbestellungen zusammen so viele Tickets, wird Überweisung im Checkout nicht mehr angeboten (andere Zahlungsarten bleiben) und neue Überweisungsbestellungen werden mit einem Hinweis abgelehnt, bis Bestellungen bezahlt werden oder ablaufen. 0 = keine Obergrenze. Offene Überweisungen kannst du unter „Systemstatus → Betrieb“ gesammelt freigeben."
+msgstr "Vale per evento su tutte le date, anche senza capacità. Se gli ordini con bonifico aperti e non pagati trattengono insieme questi biglietti, il bonifico non viene più offerto al checkout (gli altri metodi di pagamento restano) e i nuovi ordini con bonifico vengono rifiutati con un avviso finché gli ordini non vengono pagati o scadono. 0 = nessun limite. Puoi rilasciare i bonifici aperti in blocco in «Stato del sistema → Operatività»."
+
+#: src/Orders.php:1315
+msgid "Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
+msgstr "Al momento non è possibile riservare altri biglietti con bonifico per questo evento perché molti bonifici sono già aperti. Scegli un altro metodo di pagamento o una quantità minore."
+
+#: src/Security/FormGuard.php:51
+msgid "Dieses Feld bitte leer lassen"
+msgstr "Lascia vuoto questo campo"
+
+#: src/Security/FormGuard.php:68
+msgid "Die Bestellung konnte nicht gesendet werden. Bitte lade die Seite neu und versuche es erneut."
+msgstr "Non è stato possibile inviare l’ordine. Ricarica la pagina e riprova."
+
+#: src/Security/FormGuard.php:74
+msgid "Das ging sehr schnell. Bitte prüfe deine Angaben und sende das Formular noch einmal ab."
+msgstr "È stato molto veloce. Controlla i tuoi dati e invia di nuovo il modulo."
