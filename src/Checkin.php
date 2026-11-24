@@ -602,13 +602,23 @@ final class Checkin {
 	}
 
 	/**
+	 * Whether the current user may check tickets out by role (setting checkout_roles): true without a
+	 * role list, for administrators and for users with one of the listed roles. Event/date scope and
+	 * area binding are checked per ticket (deny()). Also reported to apps (/app/me permissions.check_out,
+	 * offline package permissions.check_out).
+	 */
+	public static function checkout_allowed() {
+		$allowed = array_filter( array_map( 'trim', explode( ',', (string) Security\Policy::get( 'checkout_roles' ) ) ) );
+		if ( ! $allowed || current_user_can( 'manage_options' ) ) { return true; }
+		return (bool) array_intersect( $allowed, self::current_roles() );
+	}
+
+	/**
 	 * Role check of check-out (setting checkout_roles): with a role list, only users with one of these
 	 * roles (or administrators) may check out; event/date scope is checked before in deny().
 	 */
 	private static function checkout_role_denied( array $found ) {
-		$allowed = array_filter( array_map( 'trim', explode( ',', (string) Security\Policy::get( 'checkout_roles' ) ) ) );
-		if ( ! $allowed || current_user_can( 'manage_options' ) ) { return null; }
-		if ( array_intersect( $allowed, self::current_roles() ) ) { return null; }
+		if ( self::checkout_allowed() ) { return null; }
 		return new \WP_Error( 'wpcap_checkout_forbidden', __( 'Check-out ist für deine Rolle nicht freigegeben.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden', 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] ) );
 	}
 
