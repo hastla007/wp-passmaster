@@ -84,7 +84,8 @@
 		node.setAttribute('class', 'wpcap-seat-shape');
 		return node;
 	}
-	function format(text) { const args = Array.prototype.slice.call(arguments, 1); let i = 0; return String(text).replace(/%(\d\$)?[sd]/g, function (m, pos) { return pos ? args[parseInt(pos, 10) - 1] : args[i++]; }); }
+	// "%%" is a literal percent sign (printf style, e.g. "Zoom %d %%" from the catalogue).
+	function format(text) { const args = Array.prototype.slice.call(arguments, 1); let i = 0; return String(text).replace(/%%|%(\d\$)?[sd]/g, function (m, pos) { if (m === '%%') return '%'; return pos ? args[parseInt(pos, 10) - 1] : args[i++]; }); }
 
 	function Picker(box) {
 		this.box = box;
@@ -370,7 +371,7 @@
 		const zoom = this.zoomValue;
 		this.svg.style.width = Math.round(100 * zoom) + '%';
 		this.svg.style.minWidth = Math.round(this.baseWidth * zoom) + 'px';
-		if (this.zoomLabel) this.zoomLabel.textContent = format(this.t.zoomLevel || '%d %', Math.round(zoom * 100));
+		if (this.zoomLabel) this.zoomLabel.textContent = format(this.t.zoomLevel || '%d %%', Math.round(zoom * 100));
 		if (this.zoomButtons) {
 			this.zoomButtons[0].disabled = zoom <= ZOOMS[0] + 0.001;
 			this.zoomButtons[1].disabled = zoom >= ZOOMS[ZOOMS.length - 1] - 0.001;

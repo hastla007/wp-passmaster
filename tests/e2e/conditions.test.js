@@ -13,15 +13,7 @@
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
-const path = require('path');
-const { BASE, BROWSER, installMuPlugin, fixture, helper, launch, context, withPage } = require('./lib');
-
-let axePath = '';
-for (const candidate of [path.join(__dirname, '..', 'a11y', 'node_modules', 'axe-core', 'axe.min.js'), path.join(__dirname, 'node_modules', 'axe-core', 'axe.min.js')]) {
-	if (fs.existsSync(candidate)) { axePath = candidate; break; }
-}
-if (!axePath) { try { axePath = require.resolve('axe-core/axe.min.js'); } catch (e) { axePath = ''; } }
+const { BASE, BROWSER, installMuPlugin, fixture, helper, launch, context, withPage, assertReflow, contrast } = require('./lib');
 
 let browser, ctx, fx, twoCardsUrl;
 /** Context with the e2e cookie: paid ticket types are only on sale with a payment method (the fake one, mu-plugin). */
@@ -40,34 +32,6 @@ test.before(async () => {
 test.after(async () => { if (browser) await browser.close(); });
 const page = (name, fn) => withPage(() => ctx, name, fn);
 
-/** Horizontal overflow at the current viewport: [scrollWidth, clientWidth, widest elements]. */
-async function overflow(p) {
-	return p.evaluate(() => {
-		const width = document.documentElement.clientWidth;
-		const rtl = getComputedStyle(document.documentElement).direction === 'rtl';
-		const wide = Array.from(document.querySelectorAll('body *')).filter((el) => {
-			const r = el.getBoundingClientRect();
-			if (!r.width || getComputedStyle(el).position === 'fixed') return false;
-			return rtl ? r.left < -1 : r.right > width + 1;
-		}).slice(0, 5).map((el) => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : ''));
-		// Elements whose own content (e.g. an unbreakable word) is wider than their box.
-		const over = Array.from(document.querySelectorAll('body *')).filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX === 'visible').slice(0, 5).map((el) => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).join('.') : '') + ' (content ' + el.scrollWidth + ' > ' + el.clientWidth + ' px)');
-		return { scroll: document.documentElement.scrollWidth, width, wide: wide.concat(over) };
-	});
-}
-async function assertReflow(p, what) {
-	const r = await overflow(p);
-	assert.ok(r.scroll <= r.width + 1, what + ': scrolls horizontally at ' + r.width + ' px (' + r.scroll + ' px): ' + r.wide.join(', '));
-}
-/** axe colour contrast (WCAG 1.4.3) of the page or a part of it; null when axe-core is not installed. */
-async function contrast(p, include) {
-	if (!axePath) return null;
-	await p.addScriptTag({ path: axePath });
-	return p.evaluate(async (inc) => {
-		const r = await window.axe.run(inc && document.querySelector(inc) ? { include: [[inc]] } : document, { runOnly: { type: 'rule', values: ['color-contrast'] } });
-		return r.violations.flatMap((v) => v.nodes.map((n) => n.target.join(' ') + ': ' + (n.failureSummary || '').split('\n').slice(-1)[0]));
-	}, include || null);
-}
 function eventForm(p) {
 	return p.locator('.wpcap-checkout-form').filter({ has: p.locator(`.wpcap-qty[data-type="${fx.ticket_types.Standard}"]`) }).first();
 }

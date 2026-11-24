@@ -225,7 +225,8 @@ jobs:
 
   browser:
     # Release gates in the browser (docs/RELEASE.md): Playwright E2E (checkout, order portal, web scanner, offline
-    # PWA) in Chromium, Firefox and WebKit, plus mobile emulation (Pixel 7 on Chromium, iPhone 14 on WebKit) for
+    # PWA incl. offline check-out, refund and service rebooking flows, A321 real-condition checks of every buyer
+    # widget – all tests/e2e/*.test.js, no extra services) in Chromium, Firefox and WebKit, plus mobile emulation (Pixel 7 on Chromium, iPhone 14 on WebKit) for
     # checkout, portal and offline-scanner pairing. The axe accessibility gate (all admin screens + keyboard
     # walkthrough) and the WooCommerce Blocks E2E run only in the Chromium desktop leg.
     name: browser (${{ matrix.label }})
