@@ -528,7 +528,8 @@ msgstr "Valable jusqu’au"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MyServicesPage.php:107
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/OrdersPage.php:666
 #: src/Admin/OrdersPage.php:724
@@ -612,8 +613,8 @@ msgstr "Statut"
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:226
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:227
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/OrdersPage.php:1260
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:379
@@ -968,8 +969,8 @@ msgstr "Toute personne affectée à une ou plusieurs zones ne peut scanner que l
 #: src/Admin/AssignmentsPage.php:189
 #: src/Admin/AuditLogPage.php:375
 #: src/Admin/DevicesPage.php:90
-#: src/Admin/OperationsPage.php:183
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:184
+#: src/Admin/OperationsPage.php:202
 #: src/Admin/SettingsTools.php:371
 #: src/Admission/RulesPage.php:202
 #: src/Printing/AttendeeList.php:42
@@ -1351,7 +1352,8 @@ msgid "Datenbank-Update fehlgeschlagen"
 msgstr "Échec de la mise à jour de la base de données"
 
 #: src/Admin/AuditLogPage.php:310
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
+#: src/Admin/OperationsPage.php:270
 #: src/Admin/OrdersPage.php:719
 #: src/Admin/OrdersPage.php:1386
 #: src/Admin/ServiceSlotsPage.php:300
@@ -1423,7 +1425,7 @@ msgid "Rechnung"
 msgstr "Facture"
 
 #: src/Admin/AuditLogPage.php:318
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/StatusPage.php:377
 #: src/BoxOffice/ZReport.php:420
 #: src/Modules/Fiscalization.php:1498
@@ -1540,7 +1542,7 @@ msgstr "Au"
 
 #: src/Admin/AuditLogPage.php:384
 #: src/Admin/CheckinsPage.php:94
-#: src/Admin/OperationsPage.php:186
+#: src/Admin/OperationsPage.php:187
 #: src/Admin/OrdersPage.php:892
 #: src/Admin/ServicesPage.php:254
 #: src/Admission/ConflictsPage.php:76
@@ -1558,7 +1560,7 @@ msgid "%1$d Einträge · Zeiten in %2$s"
 msgstr "%1$d entrées · heures en %2$s"
 
 #: src/Admin/AuditLogPage.php:388
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/StatusPage.php:289
 #: src/Admin/StatusPage.php:355
@@ -2056,7 +2058,8 @@ msgid "Erzeugt einmal einlösbare Codes mit den Einstellungen dieser Kampagne (z
 msgstr "Génère des codes utilisables une seule fois avec les réglages de cette campagne (p. ex. pour des mailings ou des partenaires)."
 
 #: src/Admin/CampaignsPage.php:321
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:328
 #: src/Admin/StatusPage.php:447
@@ -3792,7 +3795,7 @@ msgid "Checkbox"
 msgstr "Case à cocher"
 
 #: src/Admin/EventsPage.php:1050
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/blocks/events/editor.js:60
 msgid "Auswahl"
 msgstr "Sélection"
@@ -4630,7 +4633,7 @@ msgstr "Clé technique"
 
 #: src/Admin/EventsPage.php:1938
 #: src/Admin/EventsPage.php:1977
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:328
 #: src/Admin/StatusPage.php:355
 msgid "Typ"
@@ -5644,6 +5647,7 @@ msgid "Passregeln"
 msgstr "Règles de la carte"
 
 #: src/Admin/MembershipsPage.php:303
+#: src/Admin/OperationsPage.php:260
 msgid "Eingelöst"
 msgstr "Utilisé"
 
@@ -6111,93 +6115,93 @@ msgstr "%1$d h %2$d min"
 msgid "Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder."
 msgstr "État du traitement en arrière-plan : vous voyez ici les retards et les entrées définitivement en échec, et pouvez les relancer ou les abandonner. Les contenus ne sont pas affichés, seulement les noms des champs qu’ils contiennent."
 
-#: src/Admin/OperationsPage.php:145
+#: src/Admin/OperationsPage.php:146
 msgid "Überwachung"
 msgstr "Surveillance"
 
-#: src/Admin/OperationsPage.php:147
-#: src/Admin/OperationsPage.php:261
+#: src/Admin/OperationsPage.php:148
+#: src/Admin/OperationsPage.php:302
 msgid "in Ordnung"
 msgstr "OK"
 
-#: src/Admin/OperationsPage.php:148
+#: src/Admin/OperationsPage.php:149
 msgid "empfohlen"
 msgstr "recommandé"
 
-#: src/Admin/OperationsPage.php:149
-#: src/Admin/OperationsPage.php:255
+#: src/Admin/OperationsPage.php:150
+#: src/Admin/OperationsPage.php:296
 msgid "kritisch"
 msgstr "critique"
 
-#: src/Admin/OperationsPage.php:155
+#: src/Admin/OperationsPage.php:156
 msgid "Alle Prüfungen im Website-Zustand ansehen"
 msgstr "Voir toutes les vérifications dans l’état de santé du site"
 
 #. translators: 1: period of the support log, 2: period of debug/info entries in days
-#: src/Admin/OperationsPage.php:164
+#: src/Admin/OperationsPage.php:165
 #: src/Privacy/Retention.php:238
 msgid "Support-Protokoll"
 msgstr "Journal de support"
 
-#: src/Admin/OperationsPage.php:166
+#: src/Admin/OperationsPage.php:167
 msgid "Das Support-Protokoll steht nach dem Datenbank-Update zur Verfügung; bis dahin landen Einträge im PHP-Fehlerprotokoll."
 msgstr "Le journal de support est disponible après la mise à jour de la base de données ; d’ici là, les entrées sont écrites dans le journal d’erreurs PHP."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Fehler, Warnungen und Hinweise des Plugins mit Fehler-ID (die Käufer:innen bei Fehlern angezeigt bekommen). Geheimnisse, Ticketcodes und E-Mail-Adressen werden nicht gespeichert."
 msgstr "Erreurs, avertissements et avis du plugin avec ID d’erreur (affiché aux acheteurs en cas d’erreur). Les secrets, codes de ticket et adresses e-mail ne sont pas enregistrés."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Der Debug-Modus ist eingeschaltet."
 msgstr "Le mode débogage est activé."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Der Debug-Modus ist aus (Einstellungen → Support und Fehlersuche)."
 msgstr "Le mode débogage est désactivé (Réglages → Support et dépannage)."
 
-#: src/Admin/OperationsPage.php:181
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:182
+#: src/Admin/OperationsPage.php:202
 msgid "Fehler-ID"
 msgstr "ID d’erreur"
 
-#: src/Admin/OperationsPage.php:182
+#: src/Admin/OperationsPage.php:183
 msgid "Bestellung (ID)"
 msgstr "Commande (ID)"
 
-#: src/Admin/OperationsPage.php:184
+#: src/Admin/OperationsPage.php:185
 msgid "ab Stufe"
 msgstr "à partir du niveau"
 
-#: src/Admin/OperationsPage.php:197
+#: src/Admin/OperationsPage.php:198
 msgid "Keine passenden Einträge."
 msgstr "Aucune entrée correspondante."
 
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 msgid "Stufe"
 msgstr "Niveau"
 
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 msgid "Meldung"
 msgstr "Message"
 
-#: src/Admin/OperationsPage.php:201
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:433
 msgid "Bezug"
 msgstr "Référence"
 
-#: src/Admin/OperationsPage.php:220
+#: src/Admin/OperationsPage.php:221
 msgid "Erstattungen mit unklarem Ausgang"
 msgstr "Remboursements à l’issue incertaine"
 
-#: src/Admin/OperationsPage.php:222
+#: src/Admin/OperationsPage.php:223
 msgid "Keine Erstattungen mit unklarem Ausgang."
 msgstr "Aucun remboursement à l’issue incertaine."
 
-#: src/Admin/OperationsPage.php:225
+#: src/Admin/OperationsPage.php:226
 msgid "Der Zahlungsanbieter hat bei diesen Erstattungen nicht eindeutig geantwortet (Zeitüberschreitung, Verbindungs- oder Serverfehler). Sie werden automatisch beim Anbieter abgeglichen und nie ein zweites Mal ausgezahlt. Bleibt der Abgleich ohne Ergebnis, bitte im Konto des Anbieters prüfen und hier bestätigen."
 msgstr "Le prestataire de paiement n’a pas répondu clairement pour ces remboursements (délai dépassé, erreur de connexion ou de serveur). Ils sont automatiquement rapprochés auprès du prestataire et ne sont jamais versés une deuxième fois. Si le rapprochement reste sans résultat, veuillez vérifier dans le compte du prestataire et confirmer ici."
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/OrdersPage.php:1387
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:377
@@ -6214,73 +6218,73 @@ msgstr "Le prestataire de paiement n’a pas répondu clairement pour ces rembou
 msgid "Betrag"
 msgstr "Montant"
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/OrdersPage.php:666
 #: src/Reports/Data.php:782
 #: src/Reports/Page.php:223
 msgid "Zahlungsanbieter"
 msgstr "Prestataire de paiement"
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/StatusPage.php:377
 msgid "Seit"
 msgstr "Depuis"
 
-#: src/Admin/OperationsPage.php:244
+#: src/Admin/OperationsPage.php:285
 msgid "Datenkonsistenz"
 msgstr "Cohérence des données"
 
-#: src/Admin/OperationsPage.php:245
+#: src/Admin/OperationsPage.php:286
 msgid "Sucht nach widersprüchlichen Daten (Tickets, Bestellungen, Erstattungen, Reservierungen, Warteschlangen, Zähler, Nummernkreise, Servicebuchungen, Audit-Log). Die Prüfung ändert nichts; Reparaturen gibt es nur, wo das Ergebnis eindeutig ist, mit Vorschau und Eintrag im Audit-Log. Dasselbe per WP-CLI: wp pass-captain doctor"
 msgstr "Recherche les données contradictoires (tickets, commandes, remboursements, réservations, files d’attente, compteurs, séries de numérotation, réservations de service, journal d’audit). La vérification ne modifie rien ; des réparations ne sont proposées que lorsque le résultat est univoque, avec aperçu et entrée dans le journal d’audit. Même chose via WP-CLI : wp pass-captain doctor"
 
-#: src/Admin/OperationsPage.php:248
+#: src/Admin/OperationsPage.php:289
 msgid "Prüfung ausführen"
 msgstr "Lancer la vérification"
 
-#: src/Admin/OperationsPage.php:256
+#: src/Admin/OperationsPage.php:297
 #: src/Admin/SettingsPage.php:358
 #: src/Admin/StatusPage.php:219
 #: src/Log.php:394
 msgid "Warnung"
 msgstr "Avertissement"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/StatusPage.php:447
 #: src/Sales/TaxProfilesPage.php:79
 msgid "Prüfung"
 msgstr "Vérification"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 msgid "Beispiele und Hinweis"
 msgstr "Exemples et remarque"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 msgid "Reparatur"
 msgstr "Réparation"
 
-#: src/Admin/OperationsPage.php:274
+#: src/Admin/OperationsPage.php:315
 msgid "manuell prüfen"
 msgstr "vérifier manuellement"
 
-#: src/Admin/OperationsPage.php:285
+#: src/Admin/OperationsPage.php:326
 #: src/Series/AdminPage.php:411
 msgid "Vorschau"
 msgstr "Aperçu"
 
 #. translators: 1: repair name, 2: number of objects
-#: src/Admin/OperationsPage.php:291
+#: src/Admin/OperationsPage.php:332
 #, php-format
 msgid "%1$s – Vorschau: %2$d Objekte würden geändert."
 msgstr "%1$s – Aperçu : %2$d objets seraient modifiés."
 
-#: src/Admin/OperationsPage.php:298
+#: src/Admin/OperationsPage.php:339
 msgid "Reparatur jetzt ausführen? Die Änderung wird im Audit-Log protokolliert."
 msgstr "Lancer la réparation maintenant ? La modification sera journalisée dans le journal d’audit."
 
 #. translators: %d: internal order id
 #. translators: %d: order ID
-#: src/Admin/OperationsPage.php:341
+#: src/Admin/OperationsPage.php:382
 #: src/Integrations/FormCaptain/EventRequests.php:524
 #, php-format
 msgid "Bestellung #%d"
@@ -6291,7 +6295,7 @@ msgstr "Commande n° %d"
 #. translators: %s: short order number
 #. translators: %s: order number (shortened)
 #. translators: %s: short order number, e.g. AB12-CD34
-#: src/Admin/OperationsPage.php:344
+#: src/Admin/OperationsPage.php:385
 #: src/Admin/OrdersPage.php:972
 #: src/Admin/TicketsPage.php:651
 #: src/BoxOffice/Service.php:716
@@ -6309,123 +6313,123 @@ msgid "Bestellung %s"
 msgstr "Commande %s"
 
 #. translators: %d: ticket id
-#: src/Admin/OperationsPage.php:350
+#: src/Admin/OperationsPage.php:391
 #: src/Admin/OrderHistory.php:44
 #, php-format
 msgid "Ticket #%d"
 msgstr "Ticket n° %d"
 
 #. translators: %d: occurrence id
-#: src/Admin/OperationsPage.php:355
+#: src/Admin/OperationsPage.php:396
 #: src/blocks/events/editor.js:52
 #, php-format, js-format
 msgid "Termin #%d"
 msgstr "Date n° %d"
 
 #. translators: %d: event id
-#: src/Admin/OperationsPage.php:359
+#: src/Admin/OperationsPage.php:400
 #, php-format
 msgid "Event #%d"
 msgstr "Événement n° %d"
 
 #. translators: %d: refund id
-#: src/Admin/OperationsPage.php:362
+#: src/Admin/OperationsPage.php:403
 #, php-format
 msgid "Erstattung #%d"
 msgstr "Remboursement n° %d"
 
 #. translators: %d: id of a cancellation/notification run
-#: src/Admin/OperationsPage.php:365
+#: src/Admin/OperationsPage.php:406
 #, php-format
 msgid "Lauf #%d"
 msgstr "Exécution n° %d"
 
-#: src/Admin/OperationsPage.php:377
+#: src/Admin/OperationsPage.php:418
 msgid "Einträge nach Status:"
 msgstr "Entrées par statut :"
 
 #. translators: %s: number of due items
-#: src/Admin/OperationsPage.php:379
+#: src/Admin/OperationsPage.php:420
 #, php-format
 msgid "Fällig und wartend: %s"
 msgstr "Échues et en attente : %s"
 
 #. translators: %s: age, e.g. "1 h 5 min"
-#: src/Admin/OperationsPage.php:382
+#: src/Admin/OperationsPage.php:423
 #, php-format
 msgid "ältester fälliger Eintrag wartet seit %s"
 msgstr "l’entrée échue la plus ancienne attend depuis %s"
 
-#: src/Admin/OperationsPage.php:386
+#: src/Admin/OperationsPage.php:427
 #: src/Admin/StatusPage.php:366
 msgid "Keine fehlgeschlagenen Einträge."
 msgstr "Aucune entrée en échec."
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "ID"
 msgstr "ID"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:355
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Modules/Webhooks.php:490
 msgid "Versuche"
 msgstr "Tentatives"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:355
 #: src/Admin/SuiteStatus.php:126
 msgid "Letzter Fehler"
 msgstr "Dernière erreur"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "Inhalt (nur Feldnamen)"
 msgstr "Contenu (noms des champs uniquement)"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "Erstellt"
 msgstr "Créée"
 
 #. translators: %d: item id
-#: src/Admin/OperationsPage.php:395
+#: src/Admin/OperationsPage.php:436
 #, php-format
 msgid "Eintrag %d auswählen"
 msgstr "Sélectionner l’entrée %d"
 
-#: src/Admin/OperationsPage.php:402
-#: src/Admin/OperationsPage.php:412
+#: src/Admin/OperationsPage.php:443
+#: src/Admin/OperationsPage.php:453
 #: src/Admin/StatusPage.php:360
 #: src/Modules/Fiscalization.php:1438
 msgid "Erneut versuchen"
 msgstr "Réessayer"
 
-#: src/Admin/OperationsPage.php:403
+#: src/Admin/OperationsPage.php:444
 msgid "Diesen Eintrag endgültig verwerfen?"
 msgstr "Abandonner définitivement cette entrée ?"
 
-#: src/Admin/OperationsPage.php:403
-#: src/Admin/OperationsPage.php:412
+#: src/Admin/OperationsPage.php:444
+#: src/Admin/OperationsPage.php:453
 #: src/Admin/StatusPage.php:361
 msgid "Verwerfen"
 msgstr "Abandonner"
 
 #. translators: 1: shown items, 2: total failed items
-#: src/Admin/OperationsPage.php:408
+#: src/Admin/OperationsPage.php:449
 #, php-format
 msgid "Angezeigt werden die neuesten %1$d von %2$d fehlgeschlagenen Einträgen."
 msgstr "Affichage des %1$d entrées en échec les plus récentes sur %2$d."
 
-#: src/Admin/OperationsPage.php:411
+#: src/Admin/OperationsPage.php:452
 msgid "Mehrfachaktion"
 msgstr "Action groupée"
 
 #. translators: %d: maximum number of items
-#: src/Admin/OperationsPage.php:415
+#: src/Admin/OperationsPage.php:456
 #, php-format
 msgid "alle fehlgeschlagenen Einträge dieser Warteschlange (höchstens %d)"
 msgstr "toutes les entrées en échec de cette file d’attente (%d au maximum)"
 
-#: src/Admin/OperationsPage.php:416
+#: src/Admin/OperationsPage.php:457
 msgid "Ausführen"
 msgstr "Exécuter"
 
@@ -10601,6 +10605,7 @@ msgstr "Résultat de l’action groupée"
 msgid "%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen."
 msgstr "%1$d effectués, %2$d déjà dans l’état cible, %3$d refusés, %4$d à réessayer."
 
+#: src/Admin/OperationsPage.php:270
 #: src/Admin/SettingsPage.php:357
 #: src/Admin/TicketsPage.php:517
 #: src/Log.php:393
@@ -17085,49 +17090,49 @@ msgstr "Le service de bons a renvoyé une réponse non valide."
 msgid "Du darfst keine Pass-Captain-Tickets einchecken."
 msgstr "Vous n’êtes pas autorisé à effectuer le check-in des tickets Pass Captain."
 
-#: src/Integrations/Vouchers/Checkout.php:96
+#: src/Integrations/Vouchers/Checkout.php:108
 msgid "Der Gutschein der Bestellung ist nicht mehr reserviert."
 msgstr "Le bon de la commande n’est plus réservé."
 
-#: src/Integrations/Vouchers/Checkout.php:120
-#: src/Integrations/Vouchers/Checkout.php:311
+#: src/Integrations/Vouchers/Checkout.php:132
+#: src/Integrations/Vouchers/Checkout.php:358
 msgid "Gutscheine können derzeit nicht eingelöst werden."
 msgstr "Les bons ne peuvent pas être utilisés pour le moment."
 
-#: src/Integrations/Vouchers/Checkout.php:124
-#: src/Integrations/Vouchers/Checkout.php:233
+#: src/Integrations/Vouchers/Checkout.php:136
+#: src/Integrations/Vouchers/Checkout.php:245
 msgid "Der Gutschein kann auf diese Bestellung nicht angewendet werden."
 msgstr "Le bon ne peut pas être appliqué à cette commande."
 
-#: src/Integrations/Vouchers/Checkout.php:142
+#: src/Integrations/Vouchers/Checkout.php:154
 msgid "Der Gutschein passt nicht zu dieser Bestellung."
 msgstr "Le bon ne correspond pas à cette commande."
 
-#: src/Integrations/Vouchers/Checkout.php:188
+#: src/Integrations/Vouchers/Checkout.php:200
 msgid "Der Gutschein kann nicht mehr angewendet werden, weil für diese Bestellung bereits ein Fiskalbeleg übermittelt wird."
 msgstr "Le bon ne peut plus être appliqué, car un justificatif fiscal est déjà en cours de transmission pour cette commande."
 
-#: src/Integrations/Vouchers/Checkout.php:318
+#: src/Integrations/Vouchers/Checkout.php:365
 msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
 msgstr "Le bon ne couvre plus le montant initial."
 
-#: src/Integrations/Vouchers/Checkout.php:369
+#: src/Integrations/Vouchers/Checkout.php:415
 msgid "Pass Captain: Gutschein konnte nicht belastet werden"
 msgstr "Pass Captain : le bon n’a pas pu être débité"
 
 #. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
-#: src/Integrations/Vouchers/Checkout.php:372
+#: src/Integrations/Vouchers/Checkout.php:418
 #, php-format
 msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
 msgstr "La commande %1$s est payée et les tickets ont été émis, mais le bon (…%3$s, %2$s) n’a pas pu être débité dans Voucher Captain (erreur : %4$s). Veuillez réclamer le montant au client ou débiter manuellement le bon."
 
 #. translators: 1: order, 2: amount in minor units, 3: error
-#: src/Integrations/Vouchers/Checkout.php:449
+#: src/Integrations/Vouchers/Checkout.php:526
 msgid "Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
 msgstr "Pass Captain : échec du recrédit du bon"
 
 #. translators: 1: order, 2: amount in minor units, 3: error
-#: src/Integrations/Vouchers/Checkout.php:449
+#: src/Integrations/Vouchers/Checkout.php:526
 #, php-format
 msgid ""
 "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n"
@@ -17142,7 +17147,7 @@ msgstr ""
 "\n"
 "Veuillez corriger le bon manuellement dans le plugin de bons."
 
-#: src/Integrations/Vouchers/Checkout.php:816
+#: src/Integrations/Vouchers/Checkout.php:1057
 msgid "Der Gutschein konnte nicht eingelöst werden."
 msgstr "Le bon n’a pas pu être utilisé."
 
@@ -35297,3 +35302,181 @@ msgstr "Personnel : %s"
 #: src/Rest/Controller.php:1101
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Tu ne peux pas utiliser de pass."
+
+#: src/Admin/OperationsPage.php:250
+msgid "Gutschein-Abgleich"
+msgstr "Rapprochement des bons"
+
+#: src/Admin/OperationsPage.php:251
+msgid "Vergleicht die in Bestellungen gespeicherten Gutschein-Einlösungen (reserviert, belastet, freigegeben, zurückgebucht) mit dem Bestellstatus und zeigt offene Gutschein-Rückbuchungen. Der Stand in Voucher Captain wird nur verglichen, wenn Voucher Captain ihn bereitstellt; sonst siehst du die Abweichungskandidaten aus Pass-Captain-Sicht. Die Prüfung ändert nichts."
+msgstr "Compare les utilisations de bons enregistrées dans les commandes (réservé, débité, libéré, annulé) avec le statut de la commande et affiche les annulations de bons en attente. L’état dans Voucher Captain n’est comparé que si Voucher Captain le fournit ; sinon tu vois les écarts possibles du point de vue de Pass Captain. La vérification ne modifie rien."
+
+#: src/Admin/OperationsPage.php:253
+msgid "Abgleich ausführen"
+msgstr "Lancer le rapprochement"
+
+#. translators: 1: number of orders checked, 2: maximum
+#: src/Admin/OperationsPage.php:258
+#, php-format
+msgid "%1$d Bestellungen mit Gutschein geprüft (höchstens die neuesten %2$d)."
+msgstr "%1$d commandes avec bon vérifiées (au plus les %2$d plus récentes)."
+
+#: src/Admin/OperationsPage.php:259
+msgid "Stand in Voucher Captain: verglichen."
+msgstr "État dans Voucher Captain : comparé."
+
+#: src/Admin/OperationsPage.php:259
+msgid "Stand in Voucher Captain: nicht verfügbar, nur Pass-Captain-Sicht."
+msgstr "État dans Voucher Captain : non disponible, uniquement le point de vue de Pass Captain."
+
+#: src/Admin/OperationsPage.php:260
+msgid "Zurückgebucht"
+msgstr "Annulé"
+
+#: src/Admin/OperationsPage.php:264
+msgid "Beträge in der kleinsten Währungseinheit, über alle Währungen summiert."
+msgstr "Montants dans la plus petite unité monétaire, additionnés sur toutes les devises."
+
+#: src/Admin/OperationsPage.php:266
+msgid "Keine Abweichungen gefunden."
+msgstr "Aucun écart trouvé."
+
+#: src/Admin/OperationsPage.php:270
+msgid "Abweichung"
+msgstr "Écart"
+
+#: src/Admin/OperationsPage.php:270
+msgid "Gutschein"
+msgstr "Bon"
+
+#: src/Integrations/Vouchers/Checkout.php:369
+msgid "Der Gutschein wird gerade anderweitig bearbeitet. Bitte versuche es gleich noch einmal."
+msgstr "Le bon est en cours de traitement ailleurs. Réessaie dans un instant."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:79
+msgid "Bezahlt, Gutschein nur reserviert (Belastung steht aus)"
+msgstr "Payé, bon seulement réservé (débit en attente)"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:80
+msgid "Bestellung beendet, Reservierung nicht freigegeben"
+msgstr "Commande terminée, réservation non libérée"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:81
+msgid "Unbezahlt, Reservierung älter als 24 Stunden"
+msgstr "Non payé, réservation de plus de 24 heures"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:82
+msgid "Bezahlt, Gutschein freigegeben (Rabatt ohne Belastung)"
+msgstr "Payé, bon libéré (remise sans débit)"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:83
+msgid "Gutschein konnte nicht belastet werden"
+msgstr "Le bon n’a pas pu être débité"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:84
+msgid "Gutschein belastet, Bestellung nicht bezahlt"
+msgstr "Bon débité, commande non payée"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:85
+msgid "Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "Échec de l’annulation du bon"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:86
+msgid "Gutschein-Rückbuchung offen"
+msgstr "Annulation du bon en attente"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:87
+msgid "Rückbuchung wartet auf die Belastung"
+msgstr "Annulation en attente du débit"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:88
+msgid "Mehr zurückgebucht als eingelöst"
+msgstr "Plus annulé qu’utilisé"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:89
+msgid "Abgebrochene Gutschein-Bearbeitung"
+msgstr "Traitement de bon interrompu"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:90
+msgid "Bei Voucher Captain nicht gefunden"
+msgstr "Introuvable dans Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:91
+msgid "Status weicht von Voucher Captain ab"
+msgstr "Le statut diffère de Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:92
+msgid "Rückbuchungsbetrag weicht von Voucher Captain ab"
+msgstr "Le montant annulé diffère de Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:116
+msgid "Die Belastung wird über die Job-Warteschlange wiederholt (voucher_commit); bleibt sie aus, die Warteschlange prüfen."
+msgstr "Le débit est relancé via la file de tâches (voucher_commit) ; s’il n’a pas lieu, vérifie la file."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:118
+msgid "Die Freigabe ist fehlgeschlagen; die Reservierung bei Voucher Captain prüfen und dort freigeben."
+msgstr "La libération a échoué ; vérifie la réservation dans Voucher Captain et libère-la là-bas."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:120
+msgid "Die Bestellung ist noch offen; läuft sie ab, wird die Reservierung freigegeben."
+msgstr "La commande est encore ouverte ; si elle expire, la réservation est libérée."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:124
+msgid "Der offene Betrag enthält den Gutscheinabzug, der Gutschein wurde aber nicht belastet. Gutschein bei Voucher Captain prüfen und manuell belasten oder den Betrag nachfordern."
+msgstr "Le montant restant inclut la déduction du bon, mais le bon n’a pas été débité. Vérifie le bon dans Voucher Captain et débite-le manuellement ou réclame le montant."
+
+#. translators: %s: error code
+#: src/Integrations/Vouchers/ReconciliationReport.php:128
+#, php-format
+msgid "Fehler: %s. Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr "Erreur : %s. Réclame le montant au client ou débite le bon manuellement."
+
+#. translators: %s: payment status
+#: src/Integrations/Vouchers/ReconciliationReport.php:132
+#, php-format
+msgid "Zahlungsstatus: %s. Gutschein bei Voucher Captain zurückbuchen, falls die Bestellung nicht bezahlt wird."
+msgstr "Statut de paiement : %s. Annule le bon dans Voucher Captain si la commande n’est pas payée."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:136
+#, php-format
+msgid "Erstattung(en) %s: Der Gutscheinanteil wird wiederholt (voucher_refund) bzw. ist manuell zurückzubuchen."
+msgstr "Remboursement(s) %s : la part du bon est relancée (voucher_refund) ou doit être annulée manuellement."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:140
+#, php-format
+msgid "Erstattung(en) %s: Der Gutscheinanteil wird nach der Belastung zurückgebucht."
+msgstr "Remboursement(s) %s : la part du bon est annulée après le débit."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:154
+#, php-format
+msgid "Erstattung(en) %s: Gutscheinanteil noch nicht zurückgebucht."
+msgstr "Remboursement(s) %s : part du bon pas encore annulée."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:158
+msgid "Die Summe der Rückbuchungen ist größer als der eingelöste Betrag."
+msgstr "La somme des annulations dépasse le montant utilisé."
+
+#. translators: %s: operation (commit, release, reserve)
+#: src/Integrations/Vouchers/ReconciliationReport.php:162
+#, php-format
+msgid "Vorgang „%s“ wurde nicht abgeschlossen; der nächste Versuch übernimmt ihn."
+msgstr "L’opération « %s » n’a pas été terminée ; la prochaine tentative la reprend."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:177
+msgid "Voucher Captain kennt diese Einlösung nicht."
+msgstr "Voucher Captain ne connaît pas cette utilisation."
+
+#. translators: 1: status at Pass Captain, 2: status at Voucher Captain
+#: src/Integrations/Vouchers/ReconciliationReport.php:192
+#, php-format
+msgid "Pass Captain: %1$s, Voucher Captain: %2$s."
+msgstr "Pass Captain : %1$s, Voucher Captain : %2$s."
+
+#. translators: 1: amount refunded at Pass Captain, 2: amount refunded at Voucher Captain (minor units)
+#: src/Integrations/Vouchers/ReconciliationReport.php:196
+#, php-format
+msgid "Zurückgebucht laut Pass Captain: %1$d, laut Voucher Captain: %2$d (kleinste Einheit)."
+msgstr "Annulé selon Pass Captain : %1$d, selon Voucher Captain : %2$d (plus petite unité)."

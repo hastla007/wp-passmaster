@@ -528,7 +528,8 @@ msgstr "Geldig tot"
 #: src/Admin/MembershipsPage.php:235
 #: src/Admin/MyServicesPage.php:107
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/OrdersPage.php:666
 #: src/Admin/OrdersPage.php:724
@@ -612,8 +613,8 @@ msgstr "Status"
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/MembershipsPage.php:77
 #: src/Admin/MyServicesPage.php:118
-#: src/Admin/OperationsPage.php:226
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:227
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/OrdersPage.php:1260
 #: src/Admin/ServiceSlotsPage.php:234
 #: src/Admin/ServiceSlotsPage.php:379
@@ -968,8 +969,8 @@ msgstr "Wie aan een of meer gebieden is toegewezen, kan voor dit evenement allee
 #: src/Admin/AssignmentsPage.php:189
 #: src/Admin/AuditLogPage.php:375
 #: src/Admin/DevicesPage.php:90
-#: src/Admin/OperationsPage.php:183
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:184
+#: src/Admin/OperationsPage.php:202
 #: src/Admin/SettingsTools.php:371
 #: src/Admission/RulesPage.php:202
 #: src/Printing/AttendeeList.php:42
@@ -1351,7 +1352,8 @@ msgid "Datenbank-Update fehlgeschlagen"
 msgstr "Database-update mislukt"
 
 #: src/Admin/AuditLogPage.php:310
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
+#: src/Admin/OperationsPage.php:270
 #: src/Admin/OrdersPage.php:719
 #: src/Admin/OrdersPage.php:1386
 #: src/Admin/ServiceSlotsPage.php:300
@@ -1423,7 +1425,7 @@ msgid "Rechnung"
 msgstr "Factuur"
 
 #: src/Admin/AuditLogPage.php:318
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/StatusPage.php:377
 #: src/BoxOffice/ZReport.php:420
 #: src/Modules/Fiscalization.php:1498
@@ -1540,7 +1542,7 @@ msgstr "Tot"
 
 #: src/Admin/AuditLogPage.php:384
 #: src/Admin/CheckinsPage.php:94
-#: src/Admin/OperationsPage.php:186
+#: src/Admin/OperationsPage.php:187
 #: src/Admin/OrdersPage.php:892
 #: src/Admin/ServicesPage.php:254
 #: src/Admission/ConflictsPage.php:76
@@ -1558,7 +1560,7 @@ msgid "%1$d Einträge · Zeiten in %2$s"
 msgstr "%1$d items · tijden in %2$s"
 
 #: src/Admin/AuditLogPage.php:388
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 #: src/Admin/OrderHistory.php:141
 #: src/Admin/StatusPage.php:289
 #: src/Admin/StatusPage.php:355
@@ -2056,7 +2058,8 @@ msgid "Erzeugt einmal einlösbare Codes mit den Einstellungen dieser Kampagne (z
 msgstr "Maakt codes aan die één keer kunnen worden ingewisseld, met de instellingen van deze campagne (bijv. voor mailings of partners)."
 
 #: src/Admin/CampaignsPage.php:321
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:260
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:328
 #: src/Admin/StatusPage.php:447
@@ -3792,7 +3795,7 @@ msgid "Checkbox"
 msgstr "Selectievakje"
 
 #: src/Admin/EventsPage.php:1050
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/blocks/events/editor.js:60
 msgid "Auswahl"
 msgstr "Selectie"
@@ -4630,7 +4633,7 @@ msgstr "Technische sleutel"
 
 #: src/Admin/EventsPage.php:1938
 #: src/Admin/EventsPage.php:1977
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:328
 #: src/Admin/StatusPage.php:355
 msgid "Typ"
@@ -5644,6 +5647,7 @@ msgid "Passregeln"
 msgstr "Pasregels"
 
 #: src/Admin/MembershipsPage.php:303
+#: src/Admin/OperationsPage.php:260
 msgid "Eingelöst"
 msgstr "Ingewisseld"
 
@@ -6111,93 +6115,93 @@ msgstr "%1$d u %2$d min"
 msgid "Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder."
 msgstr "Status van de achtergrondverwerking: hier zie je achterstanden en definitief mislukte items, en kun je ze opnieuw proberen of verwerpen. Inhoud wordt niet getoond, alleen de namen van de velden die erin zitten."
 
-#: src/Admin/OperationsPage.php:145
+#: src/Admin/OperationsPage.php:146
 msgid "Überwachung"
 msgstr "Bewaking"
 
-#: src/Admin/OperationsPage.php:147
-#: src/Admin/OperationsPage.php:261
+#: src/Admin/OperationsPage.php:148
+#: src/Admin/OperationsPage.php:302
 msgid "in Ordnung"
 msgstr "in orde"
 
-#: src/Admin/OperationsPage.php:148
+#: src/Admin/OperationsPage.php:149
 msgid "empfohlen"
 msgstr "aanbevolen"
 
-#: src/Admin/OperationsPage.php:149
-#: src/Admin/OperationsPage.php:255
+#: src/Admin/OperationsPage.php:150
+#: src/Admin/OperationsPage.php:296
 msgid "kritisch"
 msgstr "kritiek"
 
-#: src/Admin/OperationsPage.php:155
+#: src/Admin/OperationsPage.php:156
 msgid "Alle Prüfungen im Website-Zustand ansehen"
 msgstr "Alle controles bekijken in Sitediagnose"
 
 #. translators: 1: period of the support log, 2: period of debug/info entries in days
-#: src/Admin/OperationsPage.php:164
+#: src/Admin/OperationsPage.php:165
 #: src/Privacy/Retention.php:238
 msgid "Support-Protokoll"
 msgstr "Supportlogboek"
 
-#: src/Admin/OperationsPage.php:166
+#: src/Admin/OperationsPage.php:167
 msgid "Das Support-Protokoll steht nach dem Datenbank-Update zur Verfügung; bis dahin landen Einträge im PHP-Fehlerprotokoll."
 msgstr "Het supportlogboek is beschikbaar na de database-update; tot die tijd komen items in het PHP-foutenlogboek terecht."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Fehler, Warnungen und Hinweise des Plugins mit Fehler-ID (die Käufer:innen bei Fehlern angezeigt bekommen). Geheimnisse, Ticketcodes und E-Mail-Adressen werden nicht gespeichert."
 msgstr "Fouten, waarschuwingen en meldingen van de plugin met fout-ID (die kopers bij fouten te zien krijgen). Secrets, ticketcodes en e-mailadressen worden niet opgeslagen."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Der Debug-Modus ist eingeschaltet."
 msgstr "De debugmodus is ingeschakeld."
 
-#: src/Admin/OperationsPage.php:179
+#: src/Admin/OperationsPage.php:180
 msgid "Der Debug-Modus ist aus (Einstellungen → Support und Fehlersuche)."
 msgstr "De debugmodus staat uit (Instellingen → Support en foutopsporing)."
 
-#: src/Admin/OperationsPage.php:181
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:182
+#: src/Admin/OperationsPage.php:202
 msgid "Fehler-ID"
 msgstr "Fout-ID"
 
-#: src/Admin/OperationsPage.php:182
+#: src/Admin/OperationsPage.php:183
 msgid "Bestellung (ID)"
 msgstr "Bestelling (ID)"
 
-#: src/Admin/OperationsPage.php:184
+#: src/Admin/OperationsPage.php:185
 msgid "ab Stufe"
 msgstr "vanaf niveau"
 
-#: src/Admin/OperationsPage.php:197
+#: src/Admin/OperationsPage.php:198
 msgid "Keine passenden Einträge."
 msgstr "Geen passende items."
 
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 msgid "Stufe"
 msgstr "Niveau"
 
-#: src/Admin/OperationsPage.php:201
+#: src/Admin/OperationsPage.php:202
 msgid "Meldung"
 msgstr "Melding"
 
-#: src/Admin/OperationsPage.php:201
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:202
+#: src/Admin/OperationsPage.php:433
 msgid "Bezug"
 msgstr "Verwijzing"
 
-#: src/Admin/OperationsPage.php:220
+#: src/Admin/OperationsPage.php:221
 msgid "Erstattungen mit unklarem Ausgang"
 msgstr "Terugbetalingen met onduidelijke uitkomst"
 
-#: src/Admin/OperationsPage.php:222
+#: src/Admin/OperationsPage.php:223
 msgid "Keine Erstattungen mit unklarem Ausgang."
 msgstr "Geen terugbetalingen met onduidelijke uitkomst."
 
-#: src/Admin/OperationsPage.php:225
+#: src/Admin/OperationsPage.php:226
 msgid "Der Zahlungsanbieter hat bei diesen Erstattungen nicht eindeutig geantwortet (Zeitüberschreitung, Verbindungs- oder Serverfehler). Sie werden automatisch beim Anbieter abgeglichen und nie ein zweites Mal ausgezahlt. Bleibt der Abgleich ohne Ergebnis, bitte im Konto des Anbieters prüfen und hier bestätigen."
 msgstr "De betaalprovider heeft bij deze terugbetalingen geen eenduidig antwoord gegeven (time-out, verbindings- of serverfout). Ze worden automatisch met de provider afgestemd en nooit een tweede keer uitbetaald. Levert de afstemming geen resultaat op, controleer dan het account bij de provider en bevestig hier."
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/OrdersPage.php:1387
 #: src/Admin/ServicesPage.php:451
 #: src/Admin/StatusPage.php:377
@@ -6214,73 +6218,73 @@ msgstr "De betaalprovider heeft bij deze terugbetalingen geen eenduidig antwoord
 msgid "Betrag"
 msgstr "Bedrag"
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/OrdersPage.php:666
 #: src/Reports/Data.php:782
 #: src/Reports/Page.php:223
 msgid "Zahlungsanbieter"
 msgstr "Betaalaanbieder"
 
-#: src/Admin/OperationsPage.php:226
+#: src/Admin/OperationsPage.php:227
 #: src/Admin/StatusPage.php:377
 msgid "Seit"
 msgstr "Sinds"
 
-#: src/Admin/OperationsPage.php:244
+#: src/Admin/OperationsPage.php:285
 msgid "Datenkonsistenz"
 msgstr "Gegevensconsistentie"
 
-#: src/Admin/OperationsPage.php:245
+#: src/Admin/OperationsPage.php:286
 msgid "Sucht nach widersprüchlichen Daten (Tickets, Bestellungen, Erstattungen, Reservierungen, Warteschlangen, Zähler, Nummernkreise, Servicebuchungen, Audit-Log). Die Prüfung ändert nichts; Reparaturen gibt es nur, wo das Ergebnis eindeutig ist, mit Vorschau und Eintrag im Audit-Log. Dasselbe per WP-CLI: wp pass-captain doctor"
 msgstr "Zoekt naar tegenstrijdige gegevens (tickets, bestellingen, terugbetalingen, reserveringen, wachtrijen, tellers, nummerreeksen, serviceboekingen, auditlog). De controle wijzigt niets; reparaties zijn er alleen waar het resultaat eenduidig is, met voorbeeld en vermelding in het auditlog. Hetzelfde via WP-CLI: wp pass-captain doctor"
 
-#: src/Admin/OperationsPage.php:248
+#: src/Admin/OperationsPage.php:289
 msgid "Prüfung ausführen"
 msgstr "Controle uitvoeren"
 
-#: src/Admin/OperationsPage.php:256
+#: src/Admin/OperationsPage.php:297
 #: src/Admin/SettingsPage.php:358
 #: src/Admin/StatusPage.php:219
 #: src/Log.php:394
 msgid "Warnung"
 msgstr "Waarschuwing"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 #: src/Admin/StatusPage.php:447
 #: src/Sales/TaxProfilesPage.php:79
 msgid "Prüfung"
 msgstr "Controle"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 msgid "Beispiele und Hinweis"
 msgstr "Voorbeelden en toelichting"
 
-#: src/Admin/OperationsPage.php:258
+#: src/Admin/OperationsPage.php:299
 msgid "Reparatur"
 msgstr "Reparatie"
 
-#: src/Admin/OperationsPage.php:274
+#: src/Admin/OperationsPage.php:315
 msgid "manuell prüfen"
 msgstr "handmatig controleren"
 
-#: src/Admin/OperationsPage.php:285
+#: src/Admin/OperationsPage.php:326
 #: src/Series/AdminPage.php:411
 msgid "Vorschau"
 msgstr "Voorbeeld"
 
 #. translators: 1: repair name, 2: number of objects
-#: src/Admin/OperationsPage.php:291
+#: src/Admin/OperationsPage.php:332
 #, php-format
 msgid "%1$s – Vorschau: %2$d Objekte würden geändert."
 msgstr "%1$s – voorbeeld: %2$d objecten zouden worden gewijzigd."
 
-#: src/Admin/OperationsPage.php:298
+#: src/Admin/OperationsPage.php:339
 msgid "Reparatur jetzt ausführen? Die Änderung wird im Audit-Log protokolliert."
 msgstr "Reparatie nu uitvoeren? De wijziging wordt vastgelegd in het auditlog."
 
 #. translators: %d: internal order id
 #. translators: %d: order ID
-#: src/Admin/OperationsPage.php:341
+#: src/Admin/OperationsPage.php:382
 #: src/Integrations/FormCaptain/EventRequests.php:524
 #, php-format
 msgid "Bestellung #%d"
@@ -6291,7 +6295,7 @@ msgstr "Bestelling #%d"
 #. translators: %s: short order number
 #. translators: %s: order number (shortened)
 #. translators: %s: short order number, e.g. AB12-CD34
-#: src/Admin/OperationsPage.php:344
+#: src/Admin/OperationsPage.php:385
 #: src/Admin/OrdersPage.php:972
 #: src/Admin/TicketsPage.php:651
 #: src/BoxOffice/Service.php:716
@@ -6309,123 +6313,123 @@ msgid "Bestellung %s"
 msgstr "Bestelling %s"
 
 #. translators: %d: ticket id
-#: src/Admin/OperationsPage.php:350
+#: src/Admin/OperationsPage.php:391
 #: src/Admin/OrderHistory.php:44
 #, php-format
 msgid "Ticket #%d"
 msgstr "Ticket #%d"
 
 #. translators: %d: occurrence id
-#: src/Admin/OperationsPage.php:355
+#: src/Admin/OperationsPage.php:396
 #: src/blocks/events/editor.js:52
 #, php-format, js-format
 msgid "Termin #%d"
 msgstr "Datum #%d"
 
 #. translators: %d: event id
-#: src/Admin/OperationsPage.php:359
+#: src/Admin/OperationsPage.php:400
 #, php-format
 msgid "Event #%d"
 msgstr "Evenement #%d"
 
 #. translators: %d: refund id
-#: src/Admin/OperationsPage.php:362
+#: src/Admin/OperationsPage.php:403
 #, php-format
 msgid "Erstattung #%d"
 msgstr "Terugbetaling #%d"
 
 #. translators: %d: id of a cancellation/notification run
-#: src/Admin/OperationsPage.php:365
+#: src/Admin/OperationsPage.php:406
 #, php-format
 msgid "Lauf #%d"
 msgstr "Run #%d"
 
-#: src/Admin/OperationsPage.php:377
+#: src/Admin/OperationsPage.php:418
 msgid "Einträge nach Status:"
 msgstr "Items per status:"
 
 #. translators: %s: number of due items
-#: src/Admin/OperationsPage.php:379
+#: src/Admin/OperationsPage.php:420
 #, php-format
 msgid "Fällig und wartend: %s"
 msgstr "Te verwerken en wachtend: %s"
 
 #. translators: %s: age, e.g. "1 h 5 min"
-#: src/Admin/OperationsPage.php:382
+#: src/Admin/OperationsPage.php:423
 #, php-format
 msgid "ältester fälliger Eintrag wartet seit %s"
 msgstr "het oudste te verwerken item wacht al %s"
 
-#: src/Admin/OperationsPage.php:386
+#: src/Admin/OperationsPage.php:427
 #: src/Admin/StatusPage.php:366
 msgid "Keine fehlgeschlagenen Einträge."
 msgstr "Geen mislukte items."
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "ID"
 msgstr "ID"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:355
 #: src/Integrations/ConnectorsPage.php:207
 #: src/Modules/Webhooks.php:490
 msgid "Versuche"
 msgstr "Pogingen"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 #: src/Admin/StatusPage.php:355
 #: src/Admin/SuiteStatus.php:126
 msgid "Letzter Fehler"
 msgstr "Laatste fout"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "Inhalt (nur Feldnamen)"
 msgstr "Inhoud (alleen veldnamen)"
 
-#: src/Admin/OperationsPage.php:392
+#: src/Admin/OperationsPage.php:433
 msgid "Erstellt"
 msgstr "Aangemaakt"
 
 #. translators: %d: item id
-#: src/Admin/OperationsPage.php:395
+#: src/Admin/OperationsPage.php:436
 #, php-format
 msgid "Eintrag %d auswählen"
 msgstr "Item %d selecteren"
 
-#: src/Admin/OperationsPage.php:402
-#: src/Admin/OperationsPage.php:412
+#: src/Admin/OperationsPage.php:443
+#: src/Admin/OperationsPage.php:453
 #: src/Admin/StatusPage.php:360
 #: src/Modules/Fiscalization.php:1438
 msgid "Erneut versuchen"
 msgstr "Opnieuw proberen"
 
-#: src/Admin/OperationsPage.php:403
+#: src/Admin/OperationsPage.php:444
 msgid "Diesen Eintrag endgültig verwerfen?"
 msgstr "Dit item definitief verwerpen?"
 
-#: src/Admin/OperationsPage.php:403
-#: src/Admin/OperationsPage.php:412
+#: src/Admin/OperationsPage.php:444
+#: src/Admin/OperationsPage.php:453
 #: src/Admin/StatusPage.php:361
 msgid "Verwerfen"
 msgstr "Verwerpen"
 
 #. translators: 1: shown items, 2: total failed items
-#: src/Admin/OperationsPage.php:408
+#: src/Admin/OperationsPage.php:449
 #, php-format
 msgid "Angezeigt werden die neuesten %1$d von %2$d fehlgeschlagenen Einträgen."
 msgstr "De nieuwste %1$d van %2$d mislukte items worden getoond."
 
-#: src/Admin/OperationsPage.php:411
+#: src/Admin/OperationsPage.php:452
 msgid "Mehrfachaktion"
 msgstr "Bulkactie"
 
 #. translators: %d: maximum number of items
-#: src/Admin/OperationsPage.php:415
+#: src/Admin/OperationsPage.php:456
 #, php-format
 msgid "alle fehlgeschlagenen Einträge dieser Warteschlange (höchstens %d)"
 msgstr "alle mislukte items van deze wachtrij (maximaal %d)"
 
-#: src/Admin/OperationsPage.php:416
+#: src/Admin/OperationsPage.php:457
 msgid "Ausführen"
 msgstr "Uitvoeren"
 
@@ -10601,6 +10605,7 @@ msgstr "Resultaat van de bulkactie"
 msgid "%1$d erledigt, %2$d bereits im Zielzustand, %3$d abgelehnt, %4$d erneut zu versuchen."
 msgstr "%1$d afgerond, %2$d al in de doelstatus, %3$d geweigerd, %4$d opnieuw te proberen."
 
+#: src/Admin/OperationsPage.php:270
 #: src/Admin/SettingsPage.php:357
 #: src/Admin/TicketsPage.php:517
 #: src/Log.php:393
@@ -17085,49 +17090,49 @@ msgstr "De voucherdienst heeft een ongeldig antwoord gegeven."
 msgid "Du darfst keine Pass-Captain-Tickets einchecken."
 msgstr "Je mag geen Pass Captain-tickets inchecken."
 
-#: src/Integrations/Vouchers/Checkout.php:96
+#: src/Integrations/Vouchers/Checkout.php:108
 msgid "Der Gutschein der Bestellung ist nicht mehr reserviert."
 msgstr "De voucher van de bestelling is niet meer gereserveerd."
 
-#: src/Integrations/Vouchers/Checkout.php:120
-#: src/Integrations/Vouchers/Checkout.php:311
+#: src/Integrations/Vouchers/Checkout.php:132
+#: src/Integrations/Vouchers/Checkout.php:358
 msgid "Gutscheine können derzeit nicht eingelöst werden."
 msgstr "Cadeaubonnen kunnen momenteel niet worden verzilverd."
 
-#: src/Integrations/Vouchers/Checkout.php:124
-#: src/Integrations/Vouchers/Checkout.php:233
+#: src/Integrations/Vouchers/Checkout.php:136
+#: src/Integrations/Vouchers/Checkout.php:245
 msgid "Der Gutschein kann auf diese Bestellung nicht angewendet werden."
 msgstr "De cadeaubon kan niet op deze bestelling worden toegepast."
 
-#: src/Integrations/Vouchers/Checkout.php:142
+#: src/Integrations/Vouchers/Checkout.php:154
 msgid "Der Gutschein passt nicht zu dieser Bestellung."
 msgstr "De cadeaubon past niet bij deze bestelling."
 
-#: src/Integrations/Vouchers/Checkout.php:188
+#: src/Integrations/Vouchers/Checkout.php:200
 msgid "Der Gutschein kann nicht mehr angewendet werden, weil für diese Bestellung bereits ein Fiskalbeleg übermittelt wird."
 msgstr "De waardebon kan niet meer worden toegepast, omdat voor deze bestelling al een fiscale bon wordt verzonden."
 
-#: src/Integrations/Vouchers/Checkout.php:318
+#: src/Integrations/Vouchers/Checkout.php:365
 msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
 msgstr "De cadeaubon dekt het oorspronkelijke bedrag niet meer."
 
-#: src/Integrations/Vouchers/Checkout.php:369
+#: src/Integrations/Vouchers/Checkout.php:415
 msgid "Pass Captain: Gutschein konnte nicht belastet werden"
 msgstr "Pass Captain: cadeaubon kon niet worden afgeboekt"
 
 #. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
-#: src/Integrations/Vouchers/Checkout.php:372
+#: src/Integrations/Vouchers/Checkout.php:418
 #, php-format
 msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
 msgstr "Bestelling %1$s is betaald en de tickets zijn uitgegeven, maar de cadeaubon (…%3$s, %2$s) kon niet worden afgeboekt in Voucher Captain (fout: %4$s). Vorder het bedrag bij de klant na of boek de cadeaubon handmatig af."
 
 #. translators: 1: order, 2: amount in minor units, 3: error
-#: src/Integrations/Vouchers/Checkout.php:449
+#: src/Integrations/Vouchers/Checkout.php:526
 msgid "Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
 msgstr "Pass Captain: terugboeking op voucher mislukt"
 
 #. translators: 1: order, 2: amount in minor units, 3: error
-#: src/Integrations/Vouchers/Checkout.php:449
+#: src/Integrations/Vouchers/Checkout.php:526
 #, php-format
 msgid ""
 "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n"
@@ -17142,7 +17147,7 @@ msgstr ""
 "\n"
 "Corrigeer de voucher handmatig in de voucher-plugin."
 
-#: src/Integrations/Vouchers/Checkout.php:816
+#: src/Integrations/Vouchers/Checkout.php:1057
 msgid "Der Gutschein konnte nicht eingelöst werden."
 msgstr "De cadeaubon kon niet worden verzilverd."
 
@@ -35297,3 +35302,181 @@ msgstr "Personeel: %s"
 #: src/Rest/Controller.php:1101
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Je mag geen passen inwisselen."
+
+#: src/Admin/OperationsPage.php:250
+msgid "Gutschein-Abgleich"
+msgstr "Afstemming tegoedbonnen"
+
+#: src/Admin/OperationsPage.php:251
+msgid "Vergleicht die in Bestellungen gespeicherten Gutschein-Einlösungen (reserviert, belastet, freigegeben, zurückgebucht) mit dem Bestellstatus und zeigt offene Gutschein-Rückbuchungen. Der Stand in Voucher Captain wird nur verglichen, wenn Voucher Captain ihn bereitstellt; sonst siehst du die Abweichungskandidaten aus Pass-Captain-Sicht. Die Prüfung ändert nichts."
+msgstr "Vergelijkt de in bestellingen opgeslagen inwisselingen van tegoedbonnen (gereserveerd, afgeschreven, vrijgegeven, teruggeboekt) met de bestelstatus en toont openstaande terugboekingen. De stand in Voucher Captain wordt alleen vergeleken als Voucher Captain die levert; anders zie je de mogelijke afwijkingen vanuit Pass Captain. De controle verandert niets."
+
+#: src/Admin/OperationsPage.php:253
+msgid "Abgleich ausführen"
+msgstr "Afstemming uitvoeren"
+
+#. translators: 1: number of orders checked, 2: maximum
+#: src/Admin/OperationsPage.php:258
+#, php-format
+msgid "%1$d Bestellungen mit Gutschein geprüft (höchstens die neuesten %2$d)."
+msgstr "%1$d bestellingen met tegoedbon gecontroleerd (hoogstens de nieuwste %2$d)."
+
+#: src/Admin/OperationsPage.php:259
+msgid "Stand in Voucher Captain: verglichen."
+msgstr "Stand in Voucher Captain: vergeleken."
+
+#: src/Admin/OperationsPage.php:259
+msgid "Stand in Voucher Captain: nicht verfügbar, nur Pass-Captain-Sicht."
+msgstr "Stand in Voucher Captain: niet beschikbaar, alleen de kant van Pass Captain."
+
+#: src/Admin/OperationsPage.php:260
+msgid "Zurückgebucht"
+msgstr "Teruggeboekt"
+
+#: src/Admin/OperationsPage.php:264
+msgid "Beträge in der kleinsten Währungseinheit, über alle Währungen summiert."
+msgstr "Bedragen in de kleinste munteenheid, opgeteld over alle valuta."
+
+#: src/Admin/OperationsPage.php:266
+msgid "Keine Abweichungen gefunden."
+msgstr "Geen afwijkingen gevonden."
+
+#: src/Admin/OperationsPage.php:270
+msgid "Abweichung"
+msgstr "Afwijking"
+
+#: src/Admin/OperationsPage.php:270
+msgid "Gutschein"
+msgstr "Tegoedbon"
+
+#: src/Integrations/Vouchers/Checkout.php:369
+msgid "Der Gutschein wird gerade anderweitig bearbeitet. Bitte versuche es gleich noch einmal."
+msgstr "De tegoedbon wordt op dit moment elders verwerkt. Probeer het zo meteen opnieuw."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:79
+msgid "Bezahlt, Gutschein nur reserviert (Belastung steht aus)"
+msgstr "Betaald, tegoedbon alleen gereserveerd (afschrijving staat open)"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:80
+msgid "Bestellung beendet, Reservierung nicht freigegeben"
+msgstr "Bestelling afgesloten, reservering niet vrijgegeven"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:81
+msgid "Unbezahlt, Reservierung älter als 24 Stunden"
+msgstr "Onbetaald, reservering ouder dan 24 uur"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:82
+msgid "Bezahlt, Gutschein freigegeben (Rabatt ohne Belastung)"
+msgstr "Betaald, tegoedbon vrijgegeven (korting zonder afschrijving)"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:83
+msgid "Gutschein konnte nicht belastet werden"
+msgstr "Tegoedbon kon niet worden afgeschreven"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:84
+msgid "Gutschein belastet, Bestellung nicht bezahlt"
+msgstr "Tegoedbon afgeschreven, bestelling niet betaald"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:85
+msgid "Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "Terugboeking tegoedbon mislukt"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:86
+msgid "Gutschein-Rückbuchung offen"
+msgstr "Terugboeking tegoedbon open"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:87
+msgid "Rückbuchung wartet auf die Belastung"
+msgstr "Terugboeking wacht op de afschrijving"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:88
+msgid "Mehr zurückgebucht als eingelöst"
+msgstr "Meer teruggeboekt dan ingewisseld"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:89
+msgid "Abgebrochene Gutschein-Bearbeitung"
+msgstr "Afgebroken verwerking van tegoedbon"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:90
+msgid "Bei Voucher Captain nicht gefunden"
+msgstr "Niet gevonden in Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:91
+msgid "Status weicht von Voucher Captain ab"
+msgstr "Status wijkt af van Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:92
+msgid "Rückbuchungsbetrag weicht von Voucher Captain ab"
+msgstr "Terugboekingsbedrag wijkt af van Voucher Captain"
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:116
+msgid "Die Belastung wird über die Job-Warteschlange wiederholt (voucher_commit); bleibt sie aus, die Warteschlange prüfen."
+msgstr "De afschrijving wordt via de takenwachtrij opnieuw geprobeerd (voucher_commit); gebeurt dat niet, controleer dan de wachtrij."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:118
+msgid "Die Freigabe ist fehlgeschlagen; die Reservierung bei Voucher Captain prüfen und dort freigeben."
+msgstr "Het vrijgeven is mislukt; controleer de reservering in Voucher Captain en geef die daar vrij."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:120
+msgid "Die Bestellung ist noch offen; läuft sie ab, wird die Reservierung freigegeben."
+msgstr "De bestelling staat nog open; verloopt ze, dan wordt de reservering vrijgegeven."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:124
+msgid "Der offene Betrag enthält den Gutscheinabzug, der Gutschein wurde aber nicht belastet. Gutschein bei Voucher Captain prüfen und manuell belasten oder den Betrag nachfordern."
+msgstr "Het openstaande bedrag bevat de korting van de tegoedbon, maar de tegoedbon is niet afgeschreven. Controleer de tegoedbon in Voucher Captain en schrijf hem handmatig af of vorder het bedrag na."
+
+#. translators: %s: error code
+#: src/Integrations/Vouchers/ReconciliationReport.php:128
+#, php-format
+msgid "Fehler: %s. Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr "Fout: %s. Vorder het bedrag na bij de klant of schrijf de tegoedbon handmatig af."
+
+#. translators: %s: payment status
+#: src/Integrations/Vouchers/ReconciliationReport.php:132
+#, php-format
+msgid "Zahlungsstatus: %s. Gutschein bei Voucher Captain zurückbuchen, falls die Bestellung nicht bezahlt wird."
+msgstr "Betaalstatus: %s. Boek de tegoedbon in Voucher Captain terug als de bestelling niet wordt betaald."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:136
+#, php-format
+msgid "Erstattung(en) %s: Der Gutscheinanteil wird wiederholt (voucher_refund) bzw. ist manuell zurückzubuchen."
+msgstr "Terugbetaling(en) %s: het aandeel van de tegoedbon wordt opnieuw geprobeerd (voucher_refund) of moet handmatig worden teruggeboekt."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:140
+#, php-format
+msgid "Erstattung(en) %s: Der Gutscheinanteil wird nach der Belastung zurückgebucht."
+msgstr "Terugbetaling(en) %s: het aandeel van de tegoedbon wordt na de afschrijving teruggeboekt."
+
+#. translators: %s: refund ids
+#: src/Integrations/Vouchers/ReconciliationReport.php:154
+#, php-format
+msgid "Erstattung(en) %s: Gutscheinanteil noch nicht zurückgebucht."
+msgstr "Terugbetaling(en) %s: aandeel van de tegoedbon nog niet teruggeboekt."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:158
+msgid "Die Summe der Rückbuchungen ist größer als der eingelöste Betrag."
+msgstr "De som van de terugboekingen is groter dan het ingewisselde bedrag."
+
+#. translators: %s: operation (commit, release, reserve)
+#: src/Integrations/Vouchers/ReconciliationReport.php:162
+#, php-format
+msgid "Vorgang „%s“ wurde nicht abgeschlossen; der nächste Versuch übernimmt ihn."
+msgstr "Bewerking ‘%s’ is niet afgerond; de volgende poging neemt die over."
+
+#: src/Integrations/Vouchers/ReconciliationReport.php:177
+msgid "Voucher Captain kennt diese Einlösung nicht."
+msgstr "Voucher Captain kent deze inwisseling niet."
+
+#. translators: 1: status at Pass Captain, 2: status at Voucher Captain
+#: src/Integrations/Vouchers/ReconciliationReport.php:192
+#, php-format
+msgid "Pass Captain: %1$s, Voucher Captain: %2$s."
+msgstr "Pass Captain: %1$s, Voucher Captain: %2$s."
+
+#. translators: 1: amount refunded at Pass Captain, 2: amount refunded at Voucher Captain (minor units)
+#: src/Integrations/Vouchers/ReconciliationReport.php:196
+#, php-format
+msgid "Zurückgebucht laut Pass Captain: %1$d, laut Voucher Captain: %2$d (kleinste Einheit)."
+msgstr "Teruggeboekt volgens Pass Captain: %1$d, volgens Voucher Captain: %2$d (kleinste eenheid)."
