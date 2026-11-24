@@ -1312,6 +1312,7 @@ final class Orders {
 			'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
 			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
 			'manual_hold_limit' => __( 'Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'manual_event_hold_limit' => __( 'Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
@@ -2519,8 +2520,9 @@ final class Orders {
 	}
 
 	/**
-	 * Checks the new manual order's lines against manual_hold_cap() (inside Orders::create(), with the
-	 * ticket types and occurrences locked). Returns 'manual_hold_limit', 'db_busy' or ''.
+	 * Checks the new manual order's lines against manual_hold_cap() and manual_event_hold_cap() (inside
+	 * Orders::create(), with the ticket types and occurrences locked). Returns 'manual_hold_limit',
+	 * 'manual_event_hold_limit', 'db_busy' or ''.
 	 *
 	 * @param int[]    $lines       ticket_type_id => quantity.
 	 * @param object[] $types       Locked ticket types by id.
@@ -2550,7 +2552,63 @@ final class Orders {
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			if ( $held + (int) $quantity > $cap ) { return 'manual_hold_limit'; }
 		}
+		// Absolute bound per event over all its dates (`manual_hold_max_event_tickets`, 0 = off). Dates of the
+		// same event are locked one by one, so two checkouts for different dates may overshoot it by one order.
+		$event_cap = self::manual_event_hold_cap();
+		if ( $event_cap ) {
+			$per_event = array();
+			foreach ( $per_occurrence as $occ_id => $quantity ) {
+				$event_id = isset( $occurrences[ $occ_id ]->event_id ) ? (int) $occurrences[ $occ_id ]->event_id : 0;
+				if ( $event_id ) { $per_event[ $event_id ] = ( $per_event[ $event_id ] ?? 0 ) + (int) $quantity; }
+			}
+			foreach ( $per_event as $event_id => $quantity ) {
+				$held = self::manual_held_for_event( $event_id, $now );
+				if ( null === $held ) { return 'db_busy'; }
+				if ( $held + (int) $quantity > $event_cap ) { return 'manual_event_hold_limit'; }
+			}
+		}
 		return '';
+	}
+
+	/** Absolute bound of tickets held by unpaid bank transfer orders per event (0 = no bound). */
+	public static function manual_event_hold_cap() {
+		return max( 0, (int) Settings::get( 'manual_hold_max_event_tickets', 0 ) );
+	}
+
+	/**
+	 * Tickets held right now by unpaid bank transfer orders (active, unexpired holds) over all dates of an
+	 * event, or of one date when $occurrence_id is given. Null on a database error.
+	 */
+	public static function manual_held_for_event( $event_id, $now = null, $occurrence_id = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = null === $now ? Clock::mysql() : (string) $now;
+		$where = $occurrence_id ? $wpdb->prepare( 't.occurrence_id=%d', absint( $occurrence_id ) ) : $wpdb->prepare( 'oc.event_id=%d', absint( $event_id ) );
+		$held = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id INNER JOIN {$p}wpcap_ticket_types t ON t.ticket_type_id=r.ticket_type_id INNER JOIN {$p}wpcap_occurrences oc ON oc.occurrence_id=t.occurrence_id WHERE r.status='active' AND r.expires_at > %s AND o.payment_provider='manual' AND o.payment_status='pending' AND " . $where, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $where is prepared above.
+		return '' !== $wpdb->last_error ? null : (int) $held;
+	}
+
+	/**
+	 * Whether unpaid bank transfer orders already hold as much of a date as they may (the event bound
+	 * `manual_hold_max_event_tickets` or the date's share `manual_hold_max_percent`): the checkout then
+	 * offers no bank transfer for it (PublicEvents::card_providers()); Orders::create() refuses it anyway.
+	 * Bounds per ticket type are not considered here (other types of the date may still be open).
+	 */
+	public static function manual_holds_exhausted( $event_id, $occurrence_id ) {
+		global $wpdb;
+		$event_cap = self::manual_event_hold_cap();
+		if ( $event_cap && $event_id ) {
+			$held = self::manual_held_for_event( $event_id );
+			if ( null !== $held && $held >= $event_cap ) { return true; }
+		}
+		if ( ! $occurrence_id || null === self::manual_hold_cap( 100 ) ) { return false; } // Share switched off.
+		$capacity = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT capacity FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
+		$cap = self::manual_hold_cap( $capacity );
+		if ( null !== $cap ) {
+			$held = self::manual_held_for_event( 0, null, $occurrence_id );
+			if ( null !== $held && $held >= $cap ) { return true; }
+		}
+		return false;
 	}
 
 	/** manual_hold_minutes() for a known start timestamp (0 = unknown: no cap). */

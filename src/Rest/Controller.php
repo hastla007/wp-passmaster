@@ -541,6 +541,12 @@ final class Controller {
 	public static function checkout( \WP_REST_Request $request, array $context = array() ) {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
+		// Bot check of the public checkout form (trap field, minimum fill time): only requests that carry the
+		// form's `form_guard`; API clients and internal callers (with $context) are not affected.
+		if ( ! $context ) {
+			$guard = \PassCaptain\Security\FormGuard::check( $params );
+			if ( is_wp_error( $guard ) ) { return $guard; }
+		}
 		// Only customer fields; trusted adapter options must never come from a public request.
 		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
 		// tried as a voucher (when a voucher plugin is connected).

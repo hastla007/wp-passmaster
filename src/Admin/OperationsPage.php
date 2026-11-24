@@ -133,6 +133,7 @@ final class OperationsPage {
 		self::render_log();
 		self::render_unresolved_refunds();
 		self::render_voucher_reconciliation();
+		ManualHoldsRelease::render();
 		self::render_doctor();
 		$labels = Queues::labels();
 		foreach ( Queues::available() as $queue => $def ) {

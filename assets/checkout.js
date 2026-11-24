@@ -971,6 +971,10 @@
 		// A554: Stripe/PayPal/Mollie send the buyer back to this page (the server accepts only URLs of this site).
 		body.return_url = String(window.location.href || '').split('#')[0];
 		body.return_to = body.return_url; // Older servers read return_to.
+		// Bot check: the invisible trap field and the time since the form was shown; only forms that carry
+		// the trap field send it (switched off on the server: no field). Not part of the attempt fingerprint.
+		const trap = form.querySelector('[name="wpcap_hp"]');
+		if (trap) body.form_guard = { hp: String(trap.value || ''), ms: Math.max(0, Math.round(clock() - (shownAt.has(form) ? shownAt.get(form) : -1e9))) };
 		// Disabling the focused button drops keyboard focus to <body>; remember it to restore it afterwards.
 		const hadFocus = document.activeElement === button;
 		button.disabled = true;
@@ -1422,6 +1426,9 @@
 	// builders): window.WPCAP.init(root), the event "wpcap:init" ({ detail: { root } }) or, without
 	// either, a MutationObserver on the page. Each form is set up once.
 	const initialised = new WeakMap();
+	// Bot check (Security\FormGuard): when each checkout form was set up, for the minimum fill time.
+	const shownAt = new WeakMap();
+	function clock() { return window.performance && typeof window.performance.now === 'function' ? window.performance.now() : Date.now(); }
 	function within(root, selector) {
 		const out = [];
 		if (!root) return out;
@@ -1435,6 +1442,7 @@
 		const waitlists = within(root, '.wpcap-waitlist-form').filter(function (form) { return !initialised.has(form); });
 		forms.forEach(function (form) {
 			initialised.set(form, true);
+			shownAt.set(form, clock());
 			form.querySelectorAll('.wpcap-qty').forEach(enhanceQty);
 			syncSteppers(form);
 			form.querySelectorAll('[name="email"]').forEach(emailHintBox);
