@@ -13,7 +13,20 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Capabilities {
 	/** Capabilities of the role packages (Installer::CAPABILITIES). */
-	const CORE = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings' );
+	const CORE = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings', self::UNDO_CHECKIN, self::REDEEM_PASSES );
+
+	/**
+	 * Taking back a check-in (admin ticket list, web scanner, app). Split off wpcap_checkin: every role
+	 * that held wpcap_checkin when the split arrived received it once (Installer::grant_split_capabilities()),
+	 * so operators can now take it away from door staff without taking away admission.
+	 */
+	const UNDO_CHECKIN = 'wpcap_undo_checkin';
+
+	/** Redeeming member/season passes at the door (POST /passes/redeem). Split off wpcap_checkin like UNDO_CHECKIN. */
+	const REDEEM_PASSES = 'wpcap_redeem_passes';
+
+	/** Capabilities split off wpcap_checkin: granted once to every role that held wpcap_checkin. */
+	const SPLIT_FROM_CHECKIN = array( self::UNDO_CHECKIN, self::REDEEM_PASSES );
 
 	/** Capabilities added by modules or by operators (GuestLists\Service::APPROVE_CAP, BoxOffice\Shifts::OVERRIDE_CAP, Admin\AuditLogPage::CAP granted to administrators by the Installer). */
 	const MODULE = array( 'wpcap_approve_comps', 'wpcap_boxoffice_override', 'wpcap_view_audit' );

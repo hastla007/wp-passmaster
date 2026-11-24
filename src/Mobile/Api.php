@@ -160,6 +160,8 @@ final class Api {
 			'event_ids' => Devices::event_ids( $device ),
 			'area' => Devices::area_payload( Devices::area_id( $device ) ),
 			'features' => self::features(),
+			// What this device's user may do (capabilities: admission, pass redemption, undo are separate).
+			'permissions' => array( 'check_in' => current_user_can( 'wpcap_checkin' ), 'redeem_passes' => current_user_can( \PassCaptain\Capabilities::REDEEM_PASSES ), 'undo' => current_user_can( \PassCaptain\Capabilities::UNDO_CHECKIN ) ),
 			'server_time' => gmdate( 'c' ),
 		) );
 	}

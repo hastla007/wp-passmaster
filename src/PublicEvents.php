@@ -36,7 +36,7 @@ final class PublicEvents {
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', self::checkout_config() );
 		self::register_styles();
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ), 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'undoUrl' => current_user_can( Capabilities::UNDO_CHECKIN ) ? esc_url_raw( rest_url( 'pass-captain/v1/scanner/undo' ) ) : '', 'statsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/stats' ) ), 'searchUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/search' ) ), 'checkInTicketUrl' => esc_url_raw( rest_url( 'pass-captain/v1/scanner/check-in-ticket' ) ), 'undoReasons' => ScannerDesk::undo_reasons(), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
 			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
 			/* translators: %d: number of queued scans (not 1; scanner.js uses syncCountOne for 1) */
 			'syncCount' => __( '%d Offline-Scans synchronisieren', 'pass-captain' ),
@@ -76,6 +76,10 @@ final class PublicEvents {
 			'atArea' => __( 'Bereich: %s', 'pass-captain' ),
 			/* translators: %s: scanner device or staff member (A595) */
 			'byWhom' => __( 'durch %s', 'pass-captain' ),
+			/* translators: %s: name of the entrance area of the first admission */
+			'atEntrance' => __( 'Eingang: %s', 'pass-captain' ),
+			/* translators: %s: display name of the staff member who admitted first */
+			'staffName' => __( 'Personal: %s', 'pass-captain' ),
 			/* translators: %d: number of further tickets in the order (A596) */
 			'groupTitle' => __( 'Weitere Tickets dieser Bestellung (%d)', 'pass-captain' ),
 			/* translators: %d: number of selected tickets */

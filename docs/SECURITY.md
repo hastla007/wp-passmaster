@@ -455,11 +455,25 @@ und sind nie auf Events oder Bereiche beschränkt.
 | `wpcap_manage_events` | Events, Termine, Ticketarten, Teams, Service-Zeitfenster und Zuweisungen verwalten | ✓ | ✓ | | | | | | |
 | `wpcap_manage_orders` | Bestellungen, Tickets, Kasse, Gästelisten, Erstattung anfragen | ✓ | ✓ | ✓ | | | | | ✓ |
 | `wpcap_checkin` | Einlass (Web-Scanner, Scanner-App, Offline-Scanner), Check-in-Liste | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
+| `wpcap_undo_checkin` | Check-in zurücknehmen (Ticketliste, Web-Scanner, Scanner-App) – immer mit Grund; zusätzlich gelten Event-Zuweisung über `wpcap_checkin`, Bereich, Zeitfenster und `undo_roles` | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
+| `wpcap_redeem_passes` | Mitglieds- und Saisonpässe am Einlass einlösen (`POST /passes/redeem`); Event-Zuweisung über `wpcap_checkin` | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
 | `wpcap_view_reports` | Berichte und Kennzahlen (nur Summen) | ✓ | ✓ | | | ✓ | | ✓ | |
 | `wpcap_refund` | Erstattungen ausführen bzw. anstoßen | ✓ | ✓ | | | | | | |
 | `wpcap_approve_refunds` | Erstattungen freigeben (Vier-Augen) | ✓ | | | | | | ✓ | |
 | `wpcap_view_finance` | Rechnungen, Kassenbelege, Buchhaltungsexport – ohne Event-Zuweisung (Bereich nach A119) | ✓ | | | | | | ✓ | |
 | `wpcap_service_bookings` | Eigene Leistungen: Zeitfenster und Buchungen ansehen, bestätigen, als nicht erschienen markieren | ✓ | | | | | ✓ | | |
+
+**Getrennte Rechte für Einlass, Einlösen und Rücknahme:** Einlass (`wpcap_checkin`), Pässe einlösen
+(`wpcap_redeem_passes`) und Check-ins zurücknehmen (`wpcap_undo_checkin`) sind eigene Capabilities. Bis
+Version 1.6 genügte für alle drei `wpcap_checkin`. Damit bestehende Websites unverändert weiterlaufen, erhält
+beim ersten Laden nach dem Update **jede Rolle, die `wpcap_checkin` hat** (Plugin-Rollen, Administratoren und
+selbst angelegte Rollen), einmalig auch `wpcap_undo_checkin` und `wpcap_redeem_passes`
+(`Installer::grant_split_capabilities()`, Merker-Option `wpcap_split_checkin_caps`). Wer Türpersonal die
+Rücknahme entziehen will, nimmt der Rolle danach `wpcap_undo_checkin` weg, z. B. mit
+`wp cap remove wpcap_checkin_staff wpcap_undo_checkin`. Einzelnen Benutzern direkt (ohne Rolle) vergebenes
+`wpcap_checkin` wird nicht übertragen; diese Konten brauchen die neuen Rechte von Hand. Spätere Updates
+geben die beiden Rechte bestehenden Rollen nicht erneut, eine solche Trennung bleibt also bestehen. Die Rücknahme verlangt immer einen Grund
+(Fehlercode `wpcap_undo_reason_required`); ohne das Recht antwortet sie mit `wpcap_undo_capability` (HTTP 403).
 
 Rollen-Slugs: `wpcap_ticket_admin`, `wpcap_event_manager`, `wpcap_box_office`, `wpcap_checkin_staff`,
 `wpcap_partner` (Veranstalter, also Organisator eines Events), `wpcap_service_provider` (Leistungserbringer,

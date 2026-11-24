@@ -49,6 +49,11 @@
           "areas": "bool",
           "attendee_name": "bool"
         },
+        "?permissions": {
+          "check_in": "bool",
+          "redeem_passes": "bool",
+          "undo": "bool"
+        },
         "server_time": "string"
       }
     },
