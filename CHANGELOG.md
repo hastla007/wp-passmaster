@@ -39,6 +39,11 @@
 ### Admin-Listen
 - Tickets und Events: Listen mit Statusansichten, sortierbaren Spalten und einstellbarer Anzahl pro Seite; Events lassen sich gesammelt als Entwurf duplizieren. Filter, Aktionen und Datenschutz-Maskierung bleiben unverändert.
 
+### Tickets und Connectoren
+- Tickets: Admin-Aktion „Inhaber ändern“ (wie eine Übertragung: neuer Code, Grund Pflicht, Audit; Hook/Webhook mit `source` `admin`).
+- Teilnehmerliste als CSV über alle Termine eines Events; Bestellportal: Wallet-Buttons je Ticket.
+- Connector-Vertrag 1.2.0: zusätzlich `ticket_checked_out`, `event_cancelled`, `attendance_confirmed`, `ticket_transferred`.
+
 ### Verkaufsmodelle
 - Kleinunternehmer als Rechnungssteller (Plattform oder Veranstalter im Vermittlermodell): Ticketarten mit Steuersatz > 0 % werden beim Speichern (Event-Formular, Event anlegen, CSV-Import) abgelehnt, der Checkout lehnt Bestellungen mit USt ab (`small_business_vat`); bestehende Ticketarten zeigt der Website-Zustand.
 - Vermittlermodell: „Vertragspartner: Veranstalter, Anschrift“ im Checkout, im Bestellportal und in Ticket- und Zugangsmail (Platzhalter `{contract_partner}`).
