@@ -21,7 +21,7 @@ translate.wordpress.org ausgeliefert wird: Das Just-in-time-Laden von WordPress 
 ## Ablauf bei neuen oder geänderten Texten
 
 ```bash
-wp i18n make-pot . languages/pass-captain.pot --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-theme-json
+wp i18n make-pot . languages/pass-captain.pot --domain=pass-captain --exclude=vendor,vendor-prefixed,tests,build,.claude,node_modules --skip-audit --skip-theme-json
 ```
 
 ```bash

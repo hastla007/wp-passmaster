@@ -70,9 +70,14 @@ echo "$(wc -l < "${LIST}") entries, $(du -h "${ZIP}" | cut -f1)"
 if grep -qv "^${SLUG}/" "${LIST}"; then fail "entries outside ${SLUG}/: $(grep -v "^${SLUG}/" "${LIST}" | head -5 | tr '\n' ' ')"; else ok "single top-level folder ${SLUG}/"; fi
 
 for required in "${SLUG}.php" readme.txt uninstall.php vendor/autoload.php vendor/composer/autoload_real.php \
-	vendor/composer/autoload_classmap.php vendor/bacon/bacon-qr-code/src/Encoder/Encoder.php languages/pass-captain.pot; do
+	vendor/composer/autoload_classmap.php vendor-prefixed/bacon/bacon-qr-code/src/Encoder/Encoder.php \
+	vendor-prefixed/bacon/bacon-qr-code/LICENSE vendor-prefixed/dasprid/enum/src/AbstractEnum.php vendor-prefixed/dasprid/enum/LICENSE languages/pass-captain.pot; do
 	if grep -qxF "${SLUG}/${required}" "${LIST}"; then ok "contains ${required}"; else fail "missing ${required}"; fi
 done
+
+# A103: the QR library ships only as the namespace-prefixed copy (vendor-prefixed/, build/prefix-vendor.sh).
+if grep -qE "^${SLUG}/vendor/(bacon|dasprid|endroid)/" "${LIST}"; then fail "unprefixed QR library in the ZIP: $(grep -E "^${SLUG}/vendor/(bacon|dasprid|endroid)/" "${LIST}" | head -3 | tr '\n' ' ')"; else ok "QR library only as the prefixed copy"; fi
+if grep -qF "'PassCaptain\\\\Vendor\\\\BaconQrCode\\\\Encoder\\\\Encoder'" <(unzip -p "${ZIP}" "${SLUG}/vendor/composer/autoload_classmap.php"); then ok "autoloader maps the prefixed classes"; else fail "vendor/composer/autoload_classmap.php does not map PassCaptain\\Vendor\\BaconQrCode"; fi
 
 # Every tracked runtime file of the commit the ZIP was built from must be in the package.
 missing_tracked=0

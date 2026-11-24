@@ -11,8 +11,8 @@
  * Size (A618, audit R2 #5): compressed content streams, QR modules merged into runs; render_to_file()
  * streams the document page by page into a private file (ticket mail attachments, limits see
  * mail_limits()). The QR code carries the signed ticket code when signed QR codes are enabled
- * (Security\SignedQr). The QR matrix comes from the bundled bacon/bacon-qr-code encoder (installed
- * with Composer in the release ZIP). Without it the PDF still contains the ticket code as text.
+ * (Security\SignedQr). The QR matrix comes from the bundled, namespace-prefixed bacon/bacon-qr-code encoder
+ * (vendor-prefixed/, A103). Without it the PDF still contains the ticket code as text.
  */
 namespace PassCaptain;
 

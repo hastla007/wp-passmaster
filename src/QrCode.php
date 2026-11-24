@@ -2,11 +2,12 @@
 /**
  * QR codes for ticket pages, PDFs, receipts and device pairing.
  *
- * The module matrix comes straight from the bundled bacon/bacon-qr-code encoder (Encoder::encode(), an API
- * that is the same in Bacon 2.x and 3.x); the SVG is drawn here. No QR library builder or writer is used, so
- * another plugin that loads a different endroid/qr-code or Bacon writer first cannot break the ticket QR
- * code. The vendor namespaces are not prefixed: if another plugin loads an incompatible Bacon version first,
- * matrix() returns an empty array and the system status page warns (foreign_encoder()).
+ * The module matrix comes straight from the bundled bacon/bacon-qr-code encoder (Encoder::encode()); the SVG
+ * is drawn here. A103: the encoder and its dependency dasprid/enum are shipped namespace-prefixed
+ * (vendor-prefixed/, PassCaptain\Vendor\BaconQrCode\ via Strauss, build/prefix-vendor.sh), so another plugin
+ * that loads a different endroid/qr-code or BaconQrCode version can neither replace nor break the classes
+ * used here. If the encoder is missing anyway, matrix() returns an empty array and the system status page
+ * reports it (foreign_encoder() covers a copy loaded from outside this plugin, e.g. a second plugin copy).
  *
  * @package PassCaptain
  */
@@ -19,6 +20,9 @@ final class QrCode {
 	/** Quiet zone around the code in modules (ISO/IEC 18004 asks for 4). */
 	const QUIET_ZONE = 4;
 
+	/** The namespace-prefixed Bacon encoder class (vendor-prefixed/, A103). */
+	const ENCODER = '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder';
+
 	/**
 	 * QR modules as rows of booleans (true = dark), or an empty array when no encoder is available.
 	 *
@@ -27,13 +31,13 @@ final class QrCode {
 	 */
 	public static function matrix( $payload ) {
 		$payload = (string) $payload;
-		if ( '' === $payload || ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || ! class_exists( '\\BaconQrCode\\Common\\ErrorCorrectionLevel' ) ) { return array(); }
+		if ( '' === $payload || ! class_exists( self::ENCODER ) || ! class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Common\\ErrorCorrectionLevel' ) ) { return array(); }
 		try {
 			// Ticket payloads are plain ASCII: encoded as ISO-8859-1 (Bacon's default) they need no ECI
 			// header, which saves capacity (signed QR: version 11 instead of 12) and avoids handheld
 			// scanners that print or reject the ECI designator. Only non-ASCII text uses UTF-8 with ECI.
 			$encoding = preg_match( '/[^\x00-\x7F]/', $payload ) ? 'UTF-8' : 'ISO-8859-1';
-			$qr     = \BaconQrCode\Encoder\Encoder::encode( $payload, \BaconQrCode\Common\ErrorCorrectionLevel::M(), $encoding );
+			$qr     = \PassCaptain\Vendor\BaconQrCode\Encoder\Encoder::encode( $payload, \PassCaptain\Vendor\BaconQrCode\Common\ErrorCorrectionLevel::M(), $encoding );
 			$matrix = $qr->getMatrix();
 			$rows   = array();
 			$height = $matrix->getHeight();
@@ -83,22 +87,23 @@ final class QrCode {
 	}
 
 	/**
-	 * File the Bacon encoder was loaded from when it is not this plugin's vendor copy (another plugin loaded
-	 * its own Bacon first), '' otherwise or when it is not loaded at all. Shown on the system status page.
+	 * File the prefixed Bacon encoder was loaded from when it is not this plugin's own copy (e.g. a second copy
+	 * of the plugin in another folder loaded first), '' otherwise or when it is not loaded at all. Shown on the
+	 * system status page. Other plugins' unprefixed BaconQrCode classes are never used (A103).
 	 */
 	public static function foreign_encoder() {
-		if ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) ) { return ''; }
+		if ( ! class_exists( self::ENCODER ) ) { return ''; }
 		try {
-			$file = (string) ( new \ReflectionClass( '\\BaconQrCode\\Encoder\\Encoder' ) )->getFileName();
+			$file = (string) ( new \ReflectionClass( self::ENCODER ) )->getFileName();
 		} catch ( \ReflectionException $e ) {
 			return '';
 		}
-		$own = str_replace( '\\', '/', WPCAP_PATH . 'vendor/' );
+		$own = str_replace( '\\', '/', WPCAP_PATH . 'vendor-prefixed/' );
 		// The vendor directory or the package may be a symlink (deployments, development checkouts) and PHP
 		// reports resolved paths: compare the real paths too.
 		$norm = str_replace( '\\', '/', $file );
 		if ( '' === $file || 0 === strpos( $norm, $own ) ) { return ''; }
-		foreach ( array( 'vendor', 'vendor/bacon/bacon-qr-code' ) as $dir ) {
+		foreach ( array( 'vendor-prefixed', 'vendor-prefixed/bacon/bacon-qr-code' ) as $dir ) {
 			$real = realpath( WPCAP_PATH . $dir );
 			if ( false !== $real && 0 === strpos( $norm, rtrim( str_replace( '\\', '/', $real ), '/' ) . '/' ) ) { return ''; }
 		}

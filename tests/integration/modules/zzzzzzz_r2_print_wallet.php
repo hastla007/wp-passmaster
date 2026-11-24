@@ -44,7 +44,7 @@ if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return '
 if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'r2-test-salt-' . $scheme; } }
 global $wpdb;
 $p = $wpdb->prefix;
-$r2_has_qr = class_exists( '\\BaconQrCode\\Encoder\\Encoder' );
+$r2_has_qr = class_exists( '\\PassCaptain\\Vendor\\BaconQrCode\\Encoder\\Encoder' );
 
 function r2p_hashes( array $ids ) {
 	global $wpdb;
@@ -209,8 +209,8 @@ echo "R2: QR without ECI\n";
 $r2_signed = SignedQr::for_ticket( r2p_ids( $r2_sig_order['order_id'] )[0] );
 $r2_251 = 'PC1.' . substr( str_repeat( 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_', 5 ), 0, 160 ) . '.' . str_repeat( 'Q', 86 );
 check( 'R2 #4: a 251-character signed payload (ASCII) needs QR version 11 (61 modules) without ECI header', ! $r2_has_qr || ( 251 === strlen( $r2_251 ) && 61 === count( QrCode::matrix( $r2_251 ) ) ) );
-$r2_w_iso = $r2_has_qr ? \BaconQrCode\Encoder\Encoder::encode( $r2_signed, \BaconQrCode\Common\ErrorCorrectionLevel::M(), 'ISO-8859-1' )->getMatrix()->getWidth() : 0;
-$r2_w_utf = $r2_has_qr ? \BaconQrCode\Encoder\Encoder::encode( $r2_signed, \BaconQrCode\Common\ErrorCorrectionLevel::M(), 'UTF-8' )->getMatrix()->getWidth() : 0;
+$r2_w_iso = $r2_has_qr ? \PassCaptain\Vendor\BaconQrCode\Encoder\Encoder::encode( $r2_signed, \PassCaptain\Vendor\BaconQrCode\Common\ErrorCorrectionLevel::M(), 'ISO-8859-1' )->getMatrix()->getWidth() : 0;
+$r2_w_utf = $r2_has_qr ? \PassCaptain\Vendor\BaconQrCode\Encoder\Encoder::encode( $r2_signed, \PassCaptain\Vendor\BaconQrCode\Common\ErrorCorrectionLevel::M(), 'UTF-8' )->getMatrix()->getWidth() : 0;
 check( 'R2 #4: real signed ticket QR is encoded without ECI (same size as ISO-8859-1, never larger than UTF-8+ECI)', ! $r2_has_qr || ( $r2_w_iso === count( QrCode::matrix( $r2_signed ) ) && $r2_w_iso <= $r2_w_utf ) );
 check( 'R2 #4: non-ASCII payloads still encode (UTF-8 with ECI)', ! $r2_has_qr || count( QrCode::matrix( 'Grüße' ) ) >= 21 );
 check( 'R2 #4: own vendor Bacon via a symlinked vendor/package directory is not reported as foreign', ! $r2_has_qr || '' === QrCode::foreign_encoder() );

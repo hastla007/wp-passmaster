@@ -197,6 +197,14 @@ if ( is_readable( $wpcap_autoload ) ) {
 } else {
 	spl_autoload_register(
 		static function ( $class ) {
+			// A103: the namespace-prefixed QR libraries are committed in vendor-prefixed/ (Strauss).
+			foreach ( array( 'PassCaptain\\Vendor\\BaconQrCode\\' => 'vendor-prefixed/bacon/bacon-qr-code/src/', 'PassCaptain\\Vendor\\DASPRiD\\Enum\\' => 'vendor-prefixed/dasprid/enum/src/' ) as $ns => $dir ) {
+				if ( 0 === strpos( $class, $ns ) ) {
+					$file = WPCAP_PATH . $dir . str_replace( '\\', '/', substr( $class, strlen( $ns ) ) ) . '.php';
+					if ( is_readable( $file ) ) { require_once $file; }
+					return;
+				}
+			}
 			$prefix = 'PassCaptain\\';
 			if ( 0 !== strpos( $class, $prefix ) ) { return; }
 			$file = WPCAP_PATH . 'src/' . str_replace( '\\', '/', substr( $class, strlen( $prefix ) ) ) . '.php';

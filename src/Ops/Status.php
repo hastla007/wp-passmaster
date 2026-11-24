@@ -326,7 +326,7 @@ final class Status {
 		}
 		// Server isolation other than REPEATABLE READ (the plugin's inventory transactions force it themselves).
 		$issues = array_merge( $issues, \PassCaptain\DbSession::status_issues() );
-		// QR encoder (bacon/bacon-qr-code, not namespace-prefixed): another plugin may have loaded its own copy first.
+		// QR encoder (namespace-prefixed bacon/bacon-qr-code, A103): missing, or loaded from outside this plugin (second copy).
 		$foreign = \PassCaptain\QrCode::foreign_encoder();
 		$qr_ok   = (bool) \PassCaptain\QrCode::matrix( 'pass-captain' );
 		if ( '' !== $foreign || ! $qr_ok ) {

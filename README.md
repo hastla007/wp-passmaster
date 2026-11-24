@@ -96,7 +96,7 @@ Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/
 
 ## Entwicklung
 
-PHP 8.5+, WordPress 7.0+ (WooCommerce optional ab 11.2.2) und Composer erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
+PHP 8.5+, WordPress 7.0+ (WooCommerce optional ab 11.2.2) und Composer erforderlich. `composer install` lädt die Entwicklungswerkzeuge. Die QR-Bibliothek liegt namespace-präfixiert in `vendor-prefixed/` im Repository (Strauss, Aktualisierung siehe [docs/OPERATIONS.md](docs/OPERATIONS.md#präfixierte-bibliotheken-aktualisieren)); das Plugin startet und zeichnet QR-Codes auch ohne generierten Composer-Autoloader.
 
 Das aktuelle Kern-Datenbankschema ist `3.9.0` (plus Modul-Schemata). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details, Backup/Restore und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). WordPress-Schreibzugriffe über REST brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
@@ -139,7 +139,7 @@ Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (
 
 ```sh
 # Vorlage neu erzeugen (WP-CLI)
-wp i18n make-pot . languages/pass-captain.pot --slug=pass-captain --domain=pass-captain --exclude=vendor,tests,assets/vendor,node_modules,build,docs,languages --skip-block-json
+wp i18n make-pot . languages/pass-captain.pot --slug=pass-captain --domain=pass-captain --exclude=vendor,vendor-prefixed,tests,assets/vendor,node_modules,build,docs,languages --skip-block-json
 # Vorlage in eine Sprache übernehmen (ersetzt msgmerge), übersetzen, kompilieren
 php build/merge-po.php languages/pass-captain.pot languages/pass-captain-xx_XX.po
 php build/compile-mo.php languages/pass-captain-xx_XX.po

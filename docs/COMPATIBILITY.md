@@ -38,10 +38,11 @@ die freigegebene MySQL-Version.
 
 - **QR-Codes:** Die SVG wird aus der Modulmatrix von `bacon/bacon-qr-code` (`Encoder::encode()`, gleich in Bacon 2.x
   und 3.x) selbst gezeichnet (`QrCode::svg()`); `endroid/qr-code` wird nicht mehr mitgeliefert. Ein anderes Plugin,
-  das endroid 4.x/5.x früher lädt, kann den Ticket- und Kopplungs-QR-Code daher nicht mehr brechen. Die
-  Vendor-Namespaces sind nicht präfixiert (kein Strauss/PHP-Scoper im Build): Lädt ein Fremd-Plugin eine
-  inkompatible Bacon-Version (1.x) zuerst, meldet die Systemstatus-Seite das mit Pfad (Fehler, wenn kein QR-Code
-  entsteht; Warnung, wenn die fremde Kopie funktioniert).
+  das endroid 4.x/5.x früher lädt, kann den Ticket- und Kopplungs-QR-Code daher nicht mehr brechen. Bacon und
+  `dasprid/enum` sind zudem namespace-präfixiert (Strauss, `PassCaptain\Vendor\…`, A103): Auch ein Fremd-Plugin mit
+  einer anderen Bacon- oder Enum-Version kollidiert nicht mehr (Aktualisierung:
+  [OPERATIONS.md](OPERATIONS.md#präfixierte-bibliotheken-aktualisieren)). Die Systemstatus-Seite meldet weiterhin,
+  wenn kein QR-Code entsteht oder der Encoder aus einer anderen Plugin-Kopie geladen wurde.
 - **Altkopie „wp-pass-captain“:** Das Daten-Opt-in für die Deinstallation liegt seit DB 3.14.0 in der Option
   `wpcap_uninstall_policy`; der alte Schlüssel `wpcap_settings[delete_data_on_uninstall]`, den die `uninstall.php` der
   Altkopie auf allen Sites liest, steht immer auf 0. Die Altkopie lässt sich neben „Pass Captain“ nicht mehr
@@ -97,6 +98,13 @@ Download prüfen:
 
 ```bash
 sha256sum -c pass-captain.zip.sha256          # im Verzeichnis mit beiden Dateien
+```
+
+Herkunft prüfen (Build-Provenance-Attestierung, Job `attest` im Release-Workflow; bei öffentlichem Repository
+immer, bei privatem nur mit Repository-Variable `WPCAP_ATTEST=1` und passendem GitHub-Tarif):
+
+```bash
+gh attestation verify pass-captain.zip --repo hastla007/wp-passmaster
 ```
 
 Unabhängig nachbauen (gleiche Composer-Version, z. B. `composer self-update 2.8.12`):

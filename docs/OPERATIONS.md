@@ -948,6 +948,44 @@ wird `pass-captain.zip.sha256` veröffentlicht (Prüfung und Nachbau:
 mit realistischen Datenständen, doppelte Webhooks, E-Mail-Ausfälle, hohe Scanrate, Multisite):
 [RELEASE.md](RELEASE.md).
 
+### Präfixierte Bibliotheken aktualisieren
+
+Die QR-Bibliothek `bacon/bacon-qr-code` und ihre Abhängigkeit `dasprid/enum` werden nur
+namespace-präfixiert ausgeliefert (A103): `BaconQrCode\…` heißt im Plugin `PassCaptain\Vendor\BaconQrCode\…`,
+`DASPRiD\Enum\…` heißt `PassCaptain\Vendor\DASPRiD\Enum\…`. Ein anderes Plugin, das eigene (auch andere)
+Versionen dieser Bibliotheken oder von `endroid/qr-code` lädt (realer Fall: endroid 4.x), kann die Klassen des
+Plugins daher weder ersetzen noch brechen.
+
+- Die präfixierte Kopie liegt committet in `vendor-prefixed/` und wird über den Composer-Autoloader
+  (`autoload.classmap`) geladen, ohne Autoloader über den Fallback in `pass-captain.php`. Erzeugt wird sie mit
+  [Strauss](https://github.com/BrianHenryIE/strauss) (PHAR, Version und SHA-256 fest in
+  `build/prefix-vendor.sh`; Einstellungen in `composer.json` unter `extra.strauss`). Mitgenommen werden nur
+  Encoder, `Common` und `Exception` von Bacon (die Renderer braucht das Plugin nicht) plus `dasprid/enum`,
+  jeweils mit `LICENSE`. `vendor-prefixed/manifest.json` hält Version und Commit jedes Pakets fest.
+- Die Originalpakete stehen nur in `require-dev`: Der Release-Build (`composer install --no-dev --no-scripts
+  --no-plugins`) installiert sie nicht, Strauss läuft beim Release nicht, das ZIP enthält nur die präfixierte
+  Kopie. Der Build bleibt damit reproduzierbar (nur Dateien aus dem Commit).
+- CI (Job `static`) erzeugt die Kopie mit `bash build/prefix-vendor.sh --check` neu und bricht ab, wenn sie
+  vom committeten Stand abweicht; `tests/integration/modules/zz_a103.php` prüft Manifest gegen
+  `composer.lock`, Präfixe, Lizenzen und den Kollisionsfall (fremde `Endroid\QrCode\QrCode`, `BaconQrCode\…`
+  und `DASPRiD\Enum\…` sind vor dem Plugin geladen); der Paket-Test (`build/ci-install-test.sh`) lehnt
+  unpräfixierte Kopien im ZIP ab.
+
+Aktualisieren (auch nach einem Dependabot-PR für `bacon/bacon-qr-code` oder `dasprid/enum`):
+
+```bash
+composer update bacon/bacon-qr-code dasprid/enum   # oder den Dependabot-Branch auschecken; composer install
+bash build/prefix-vendor.sh                        # erzeugt vendor-prefixed/ neu (lädt Strauss, prüft SHA-256)
+composer dump-autoload
+git add composer.json composer.lock vendor-prefixed && git commit
+```
+
+Danach die QR-Tests (`zz_a103`, `print`, `zzzzzz_y6_integrations`) laufen lassen und den Diff von
+`vendor-prefixed/` wie Fremdcode prüfen. Strauss selbst aktualisieren: neue Version und SHA-256 der
+`strauss.phar` aus dem GitHub-Release in `build/prefix-vendor.sh` eintragen (`STRAUSS_VERSION`,
+`STRAUSS_SHA256`), `bash build/prefix-vendor.sh` ausführen und den Diff prüfen. Weitere Laufzeitbibliotheken
+gehören in `extra.strauss.packages` (und in `require-dev`), nie in `require`.
+
 ## Webhooks der Zahlungsanbieter einrichten
 
 Pass Captain wertet nur die Ereignisse aus, die beim Anbieter für den Webhook-Endpunkt abonniert sind. Fehlt ein Ereignis, bleiben z. B. Dashboard-Erstattungen oder Chargebacks unverbucht und die Tickets gültig.

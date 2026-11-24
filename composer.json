@@ -4,14 +4,13 @@
   "type": "wordpress-plugin",
   "license": "GPL-2.0-or-later",
   "require": {
-    "php": ">=8.5",
-    "bacon/bacon-qr-code": "^3.0"
+    "php": ">=8.5"
   },
   "require-dev": {
+    "bacon/bacon-qr-code": "^3.0",
     "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
     "php-stubs/woocommerce-stubs": "^11.3",
     "phpcompatibility/phpcompatibility-wp": "^2.1",
-    "phpstan/extension-installer": "^1.4",
     "phpstan/phpstan": "^2.1",
     "squizlabs/php_codesniffer": "^3.13",
     "szepeviktor/phpstan-wordpress": "^2.0",
@@ -20,7 +19,10 @@
   "autoload": {
     "psr-4": {
       "PassCaptain\\": "src/"
-    }
+    },
+    "classmap": [
+      "vendor-prefixed/"
+    ]
   },
   "scripts": {
     "lint:phpcs": "phpcs -q",
@@ -29,15 +31,39 @@
       "@lint:phpcs",
       "@lint:phpstan"
     ],
-    "phpstan:baseline": "phpstan analyse --no-progress --memory-limit=2G --generate-baseline=phpstan-baseline.neon --allow-empty-baseline"
+    "phpstan:baseline": "phpstan analyse --no-progress --memory-limit=2G --generate-baseline=phpstan-baseline.neon --allow-empty-baseline",
+    "prefix-vendor": "bash build/prefix-vendor.sh",
+    "prefix-vendor:check": "bash build/prefix-vendor.sh --check"
+  },
+  "extra": {
+    "strauss": {
+      "target_directory": "vendor-prefixed",
+      "namespace_prefix": "PassCaptain\\Vendor\\",
+      "classmap_prefix": "PassCaptain_Vendor_",
+      "constant_prefix": "PASSCAPTAIN_VENDOR_",
+      "packages": [
+        "bacon/bacon-qr-code"
+      ],
+      "update_call_sites": false,
+      "delete_vendor_packages": false,
+      "delete_vendor_files": false,
+      "include_modified_date": false,
+      "include_author": false,
+      "classmap_output": false,
+      "exclude_from_copy": {
+        "file_patterns": [
+          "#bacon/bacon-qr-code/src/Renderer/#",
+          "#bacon/bacon-qr-code/src/Writer\\.php$#"
+        ]
+      }
+    }
   },
   "config": {
     "platform": {
       "php": "8.5.0"
     },
     "allow-plugins": {
-      "dealerdirect/phpcodesniffer-composer-installer": true,
-      "phpstan/extension-installer": true
+      "dealerdirect/phpcodesniffer-composer-installer": true
     },
     "sort-packages": true,
     "platform-check": false

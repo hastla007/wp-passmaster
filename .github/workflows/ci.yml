@@ -39,8 +39,8 @@ jobs:
           coverage: none
       - name: Validate Composer metadata
         run: composer validate --no-check-publish
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-scripts
+      - name: Install dependencies (no Composer scripts or plugins, A653)
+        run: composer install --no-interaction --prefer-dist --no-scripts --no-plugins
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: SQL table prefixes, no hard-coded wp_, no direct WooCommerce order table queries (docs/TESTING.md)
@@ -54,7 +54,7 @@ jobs:
         run: for f in $(git ls-files "assets/*.js" "src/*.js" | grep -v "^assets/vendor/"); do node --check "$f" || exit 1; done
       - name: Translations consistent, .pot and .mo up to date (completeness is a release gate)
         run: |
-          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-theme-json
+          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,vendor-prefixed,tests,build,.claude,node_modules --skip-audit --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -86,8 +86,11 @@ jobs:
           tools: composer:${{ env.COMPOSER_VERSION }}
           extensions: mbstring
           coverage: none
-      - name: Install dependencies (incl. dev tools)
-        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+      - name: Install dependencies (incl. dev tools; no Composer scripts or plugins, A653)
+        # PHPCS standards are registered in phpcs.xml.dist, the PHPStan extension in phpstan.neon.dist.
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+      - name: Prefixed QR libraries match composer.lock (vendor-prefixed/, Strauss PHAR pinned by SHA-256; A103)
+        run: bash build/prefix-vendor.sh --check
       - name: Version and requirement consistency
         run: bash build/check-versions.sh
       - name: PHP_CodeSniffer (WordPress Coding Standards, PHPCompatibilityWP) against phpcs-baseline.json
@@ -195,7 +198,7 @@ jobs:
           coverage: none
       - name: Server versions
         run: php -r 'echo "PHP ", PHP_VERSION, PHP_EOL; $m = new mysqli("127.0.0.1", "wp", "wp", "wp"); echo "DB  ", $m->server_info, PHP_EOL;'
-      - name: Shipped Composer dependencies (as in the release ZIP; QR encoder)
+      - name: Shipped Composer dependencies (as in the release ZIP; the QR encoder is the committed vendor-prefixed/ copy)
         run: composer install --no-dev --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
       - name: Integration tests (orders, WooCommerce adapter, modules)
         env:

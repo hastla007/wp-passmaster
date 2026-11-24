@@ -289,13 +289,16 @@ die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
 - **CI/Release-Härtung (A653):** Alle GitHub Actions sind per vollständigem Commit-SHA gepinnt, die
   Version steht als Kommentar dahinter (`uses: actions/checkout@<sha> # v4.4.0`; Dependabot aktualisiert
   SHA und Kommentar gemeinsam). Jeder Workflow setzt `permissions` auf Workflow-Ebene (`contents: read`,
-  Release `{}` mit `contents: write` nur im Release-Job). Checkouts laufen mit `persist-credentials: false`;
-  einzige Ausnahme ist der Release-Job, der danach `git fetch origin main` braucht. `composer install` läuft
-  überall mit `--no-scripts`; Produktionsinstallationen (`--no-dev`: Release-ZIP, Paket-/Installationstests,
-  WordPress-Matrix, Drills, Last) zusätzlich mit `--no-plugins` (Entwicklungsinstallationen brauchen die in
-  `allow-plugins` freigegebenen Plugins für PHPCS-Standards und PHPStan-Erweiterungen). Geprüft in
-  `tests/consistency.php`. Offen (Repository-Einstellung, nicht im Code): Build-Attestierung
-  (`actions/attest-build-provenance`) für das Release-ZIP.
+  Release `{}` mit `contents: write` nur im Release-Job und `id-token`/`attestations: write` nur im Job
+  `attest`, der keinen Build-Code ausführt). Alle Checkouts laufen mit `persist-credentials: false`, auch im
+  Release-Job: Die drei Schritte, die mit `origin` sprechen (`git fetch origin main`, `verify-release.sh`,
+  Tag-Prüfung), bekommen das Token nur für sich über `GIT_CONFIG_*`; Composer, WP-CLI und die Build-Skripte
+  können es nicht aus `.git/config` lesen. `composer install` läuft überall mit `--no-scripts --no-plugins`,
+  auch die Entwicklungsinstallation für PHPCS/PHPStan: Die PHPCS-Standards stehen in `phpcs.xml.dist`
+  (`installed_paths`), die PHPStan-WordPress-Erweiterung in `phpstan.neon.dist`; `allow-plugins` ist leer bis
+  auf den PHPCS-Installer für lokale Installationen. Mit dem Release werden `pass-captain.zip.sha256` und eine
+  Build-Provenance-Attestierung (`actions/attest-build-provenance`, bei privatem Repository nur mit
+  Repository-Variable `WPCAP_ATTEST=1`) veröffentlicht. Geprüft in `tests/consistency.php`.
 
 ### Kompatibilitätsprüfungen
 
