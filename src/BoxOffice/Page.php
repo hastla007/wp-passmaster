@@ -64,6 +64,7 @@ final class Page {
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'pass-captain' ) . '</h1>';
 		self::render_fiscal_notice();
 		Forms::render_notices();
+		self::enqueue_offline_guard();
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Kassenbereiche', 'pass-captain' ) . '">';
 		foreach ( $tabs as $key => $label ) {
 			echo '<a class="nav-tab' . ( $key === $tab ? ' nav-tab-active" aria-current="page' : '' ) . '" href="' . esc_url( ShiftPage::url( $key ) ) . '">' . esc_html( $label ) . '</a>';
@@ -114,7 +115,7 @@ final class Page {
 		echo '</label> <button type="submit" class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></p></form>';
 		if ( $occurrence_id ) {
 			$types = Service::ticket_types( $occurrence_id );
-			Forms::open_form( 'wpcap_pos_sell', null, 'id="wpcap-pos-form"' );
+			Forms::open_form( 'wpcap_pos_sell', null, 'id="wpcap-pos-form" ' . self::ONLINE_ONLY );
 			Forms::hidden( 'occurrence_id', $occurrence_id );
 			Forms::hidden( 'form_key', wp_generate_uuid4() );
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Preis', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verfügbar', 'pass-captain' ) . '</th><th>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</th></tr></thead><tbody>';
@@ -238,6 +239,7 @@ final class Page {
 		Forms::select( 'boxoffice_count_mode', array( 'amount' => __( 'Betrag oder Stückelung', 'pass-captain' ), 'denominations' => __( 'Stückelung Pflicht', 'pass-captain' ) ), (string) Settings::get( 'boxoffice_count_mode', 'amount' ) );
 		echo '</label> <label>' . esc_html__( 'Sprache der Kassenbons', 'pass-captain' ) . ' <input type="text" name="boxoffice_receipt_locale" size="8" placeholder="de_DE" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_locale', '' ) ) . '"></label></p>';
 		echo '<p><label><input type="checkbox" name="boxoffice_blind_default" value="1"' . checked( (bool) Settings::get( 'boxoffice_blind_default', 1 ), true, false ) . '> ' . esc_html__( 'Blindzählung als Standard für neue Kassen', 'pass-captain' ) . '</label></p>';
+		echo '<p><label><input type="checkbox" name="boxoffice_fiscal_closing" value="1"' . checked( (bool) Settings::get( 'boxoffice_fiscal_closing', 0 ), true, false ) . '> ' . esc_html__( 'Schichtabschluss an den Fiskal-Anbieter melden', 'pass-captain' ) . '</label><br><span class="description">' . esc_html__( 'Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung.', 'pass-captain' ) . '</span></p>';
 		echo '<p class="description">' . esc_html__( 'Differenzen bis zum genannten Betrag brauchen beim Abschluss und bei der Übergabe keinen Grund (0 = jede Differenz). „Stückelung Pflicht“: Anfangsbestand, Zählung und Übergabe nach Scheinen und Münzen. Sprache leer = Sprache der Kassenoberfläche.', 'pass-captain' ) . '</p></fieldset>';
 		echo '<p><label>' . esc_html__( 'Zugelassene Kassenregister (eine Zeile je Register)', 'pass-captain' ) . '<br><textarea name="boxoffice_terminals" rows="5" cols="70" maxlength="10000">' . esc_textarea( TerminalRegistry::raw() ) . '</textarea></label><br><span class="description">' . esc_html__( 'Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen.', 'pass-captain' ) . '</span></p>';
 		echo '<p><button class="button">' . esc_html__( 'Kassen- und Belegeinstellungen speichern', 'pass-captain' ) . '</button></p></form></details>';
@@ -305,7 +307,7 @@ final class Page {
 		}
 		if ( 'pending' === $s->status ) {
 			echo ' ';
-			Forms::open_form( 'wpcap_pos_finalize', 'wpcap_pos_finalize_' . (int) $s->sale_id, 'style="display:inline"' );
+			Forms::open_form( 'wpcap_pos_finalize', 'wpcap_pos_finalize_' . (int) $s->sale_id, 'style="display:inline" ' . self::ONLINE_ONLY );
 			Forms::hidden( 'sale_id', (int) $s->sale_id );
 			echo '<button class="button button-small">' . esc_html__( 'Nachbuchen', 'pass-captain' ) . '</button></form>';
 		} elseif ( 'storno_pending' === $s->status && current_user_can( \PassCaptain\Refunds::APPROVE_CAP ) ) {
@@ -319,7 +321,7 @@ final class Page {
 			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.status,tt.name FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND t.refunded=0 ORDER BY t.ticket_id", (int) $s->order_id ) );
 			$any_checked_in = (bool) array_filter( $tickets, static function ( $t ) { return 'checked_in' === $t->status; } );
 			echo ' ';
-			Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" data-wpcap-confirm="' . esc_attr( __( 'Wirklich stornieren?', 'pass-captain' ) ) . '"' );
+			Forms::open_form( 'wpcap_pos_storno', 'wpcap_pos_storno_' . (int) $s->sale_id, 'style="display:inline" ' . self::ONLINE_ONLY . ' data-wpcap-confirm="' . esc_attr( __( 'Wirklich stornieren?', 'pass-captain' ) ) . '"' );
 			Forms::hidden( 'sale_id', (int) $s->sale_id );
 			echo '<input type="text" name="reason" size="12" placeholder="' . esc_attr__( 'Grund', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Grund', 'pass-captain' ) . '"> <button class="button-link-delete">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button>';
 			if ( count( $tickets ) > 1 || $any_checked_in ) {
@@ -339,6 +341,23 @@ final class Page {
 
 	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
 
+	/**
+	 * Marks a form that books money (sale, "Nachbuchen", storno, payout of a refund): pos.js disables
+	 * its submit while the browser is offline (A527, decision E-13: without network only admissions via
+	 * the scanner app; sales and refunds are never queued offline).
+	 */
+	const ONLINE_ONLY = 'data-wpcap-pos-online="1"';
+
+	/** pos.js with the texts of the offline banner (every tab: sales, stornos and payouts need the network). */
+	public static function enqueue_offline_guard() {
+		wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
+		\PassCaptain\Assets::inline_script( 'wpcap-pos', 'window.wpcapPosOffline=' . wp_json_encode( array(
+			'offline' => __( 'Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich.', 'pass-captain' ),
+			'online' => __( 'Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich.', 'pass-captain' ),
+			'blocked' => __( 'Ohne Netzverbindung gesperrt', 'pass-captain' ),
+		) ) . ';', 'before' );
+	}
+
 	/** Where the fiscal-law notice links to (filter `wpcap_boxoffice_fiscal_docs_url`). */
 	public static function fiscal_docs_url() {
 		return (string) apply_filters( 'wpcap_boxoffice_fiscal_docs_url', 'https://github.com/hastla007/wp-passmaster/blob/main/docs/OPERATIONS.md#kasse-keine-registrierkasse' );
@@ -348,9 +367,11 @@ final class Page {
 	 * Prominent notice: the box office is not a certified cash register (RKSV / KassenSichV). It can
 	 * be dismissed per user and site (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user option
 	 * with the site prefix, A470: each site of a network may run its own box office; a dismissal of
-	 * earlier versions, stored network-wide, still counts).
+	 * earlier versions, stored network-wide, still counts). Not shown once a fiscal integration signs the
+	 * receipts (A257: Service::fiscal_ready(), filter `wpcap_boxoffice_fiscal_ready`).
 	 */
 	public static function render_fiscal_notice() {
+		if ( Service::fiscal_ready() ) { return; }
 		$user_id = get_current_user_id();
 		if ( isset( $_GET['wpcap_dismiss_fiscal_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::FISCAL_NOTICE_META ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
 			update_user_option( $user_id, self::FISCAL_NOTICE_META, 1 );
@@ -595,8 +616,9 @@ final class Page {
 			'boxoffice_terminals' => $terminal_raw,
 			'boxoffice_receipt_cashier' => $cashier,
 			'boxoffice_cash_confirmed' => Forms::flag( $in, 'boxoffice_cash_confirmed' ) ? 1 : 0,
+			'boxoffice_fiscal_closing' => Forms::flag( $in, 'boxoffice_fiscal_closing' ) ? 1 : 0,
 		) );
-		Audit::record( 'boxoffice_settings_saved', 'settings', 0, array( 'cash_confirmed' => (bool) Settings::get( 'boxoffice_cash_confirmed' ) ) );
+		Audit::record( 'boxoffice_settings_saved', 'settings', 0, array( 'cash_confirmed' => (bool) Settings::get( 'boxoffice_cash_confirmed' ), 'fiscal_closing' => (bool) Settings::get( 'boxoffice_fiscal_closing' ) ) );
 		Forms::finish( true, __( 'Einstellungen gespeichert.', 'pass-captain' ), self::back() );
 	}
 }

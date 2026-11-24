@@ -414,6 +414,9 @@ final class BoxOffice {
 			'boxoffice_count_mode' => 'amount',
 			'boxoffice_receipt_locale' => '',
 			'boxoffice_blind_default' => 1,
+			// With the fiscalization module: closing a shift also closes it at the fiscal provider (adapters with
+			// ClosingAdapterInterface only). Off by default: no provider call that was not configured.
+			'boxoffice_fiscal_closing' => 0,
 		);
 	}
 
@@ -429,6 +432,7 @@ final class BoxOffice {
 			'boxoffice_count_mode' => array( 'type' => 'choice', 'options' => array( 'amount' => __( 'Betrag oder Stückelung', 'pass-captain' ), 'denominations' => __( 'Stückelung Pflicht', 'pass-captain' ) ), 'label' => __( 'Zählpflicht', 'pass-captain' ), 'help' => __( '„Stückelung Pflicht“: Anfangsbestand, Abschlusszählung und Übergabe müssen nach Scheinen und Münzen gezählt werden (außer bei leerer Kasse).', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 			'boxoffice_receipt_locale' => array( 'type' => 'text', 'label' => __( 'Sprache der Kassenbons', 'pass-captain' ), 'help' => __( 'Sprachcode wie de_DE oder en_US. Leer = Sprache der Kassenoberfläche.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 			'boxoffice_blind_default' => array( 'type' => 'bool', 'label' => __( 'Blindzählung als Standard für neue Kassen', 'pass-captain' ), 'help' => __( 'Neue Kassen werden mit Blindzählung vorgeschlagen; je Kasse änderbar.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
+			'boxoffice_fiscal_closing' => array( 'type' => 'bool', 'label' => __( 'Schichtabschluss an den Fiskal-Anbieter melden', 'pass-captain' ), 'help' => __( 'Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung.', 'pass-captain' ), 'page' => 'wpcap-boxoffice' ),
 		);
 	}
 

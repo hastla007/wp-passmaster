@@ -113,6 +113,10 @@ The schema upgrade runs in the admin area, via WP-Cron or WP-CLI, protected by a
 
 In its own database tables (prefix `wpcap_`, created on activation and removed on uninstall only if you opt in), not in posts or post meta: orders, tickets, check-ins and seat claims need transactions, row locks and unique keys that the post tables cannot provide. All queries on these tables go through `$wpdb->prepare()`; values are never concatenated into SQL. Because the tables are the source of truth for availability and payments, their reads are not cached in the object cache.
 
+= Does the box office work without network? =
+
+No, by design. Without network only admissions are possible, with the installable offline scanner (signed packages, scans are synced later). Box office sales, stornos and refund payouts need the network: the sale must reserve the remaining stock on the server, receive the payment confirmation and, where fiscalization is active, the provider's signed receipt. Nothing is queued offline; while the browser reports no connection, the box office shows a notice and disables these buttons until the connection is back. Details: docs/OFFLINE-SCANNER.md and docs/OPERATIONS.md.
+
 = Operations =
 
 Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budget of about 20 seconds per run; if a backlog remains, another run follows immediately. If Action Scheduler is available (for example with WooCommerce), follow-up runs are scheduled through it. For busy shops, set `define( 'DISABLE_WP_CRON', true );` in wp-config.php and run `wp cron event run --due-now` every minute from a system cron job. On Multisite this command only runs the main site's events; run it for every site instead, e.g. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.

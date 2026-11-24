@@ -1,15 +1,89 @@
-/* Pass Captain box office: running total, change, participant fields, live availability and card-terminal status (no dependencies). */
+/* Pass Captain box office: running total, change, participant fields, live availability, card-terminal status and offline guard (no dependencies). */
 (function () {
 	'use strict';
 	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
 	if (typeof module === 'object' && module && module.exports) { module.exports = { money: money, parseMoney: parseMoney }; }
 	var deviceBox = document.getElementById('wpcap-pos-device');
 	if (deviceBox && window.wpcapPosDevice && window.fetch) { initDevice(window.wpcapPosDevice, deviceBox); }
+	initOffline(window.wpcapPosOffline || {});
 	var form = document.getElementById('wpcap-pos-form');
 	if (!form) { return; }
 	var totalEl = document.getElementById('wpcap-pos-total');
 	var changeEl = document.getElementById('wpcap-pos-change');
 	var submitted = false;
+
+	/*
+	 * A527 / decision E-13: without network the box office sells nothing. Forms that book money
+	 * (BoxOffice\Page::ONLINE_ONLY: sale, "Nachbuchen", storno, refund payout) get their submit buttons
+	 * disabled while navigator.onLine is false, a banner (role=alert) explains why, and a submit that still
+	 * happens is stopped. Nothing is queued or stored: when the browser is back online the buttons are
+	 * enabled again and the cashier submits as usual. Admissions offline: scanner app only.
+	 */
+	function initOffline(cfg) {
+		var forms = document.querySelectorAll('form[data-wpcap-pos-online]');
+		if (!forms.length) { return; }
+		var banner = null;
+		function buttons(f) {
+			return Array.prototype.filter.call(f.querySelectorAll('button, input'), function (el) {
+				var type = (el.getAttribute('type') || (el.tagName.toLowerCase() === 'button' ? 'submit' : 'text')).toLowerCase();
+				return type === 'submit';
+			});
+		}
+		function ensureBanner() {
+			if (banner) { return banner; }
+			banner = document.createElement('div');
+			banner.id = 'wpcap-pos-offline';
+			banner.className = 'notice inline wpcap-pos-offline';
+			banner.setAttribute('tabindex', '-1');
+			banner.hidden = true;
+			banner.appendChild(document.createElement('p'));
+			var wrap = document.querySelector('.wpcap-pos') || forms[0].parentNode;
+			var nav = wrap.querySelector('.nav-tab-wrapper');
+			wrap.insertBefore(banner, nav ? nav.nextElementSibling : wrap.firstChild);
+			return banner;
+		}
+		function show(text, offline) {
+			var b = ensureBanner();
+			b.className = 'notice inline wpcap-pos-offline ' + (offline ? 'notice-error' : 'notice-success');
+			b.setAttribute('role', offline ? 'alert' : 'status');
+			b.firstChild.textContent = text || '';
+			b.hidden = !text;
+		}
+		function apply(online, announce) {
+			forms.forEach(function (f) {
+				if (online) { f.removeAttribute('data-wpcap-offline'); } else { f.setAttribute('data-wpcap-offline', ''); }
+				buttons(f).forEach(function (btn) {
+					if (!online && !btn.disabled) {
+						btn.disabled = true;
+						btn.setAttribute('data-wpcap-offline-disabled', '');
+						btn.setAttribute('aria-describedby', 'wpcap-pos-offline');
+						if (cfg.blocked) { btn.setAttribute('title', cfg.blocked); }
+					} else if (online && btn.hasAttribute('data-wpcap-offline-disabled')) {
+						// Only buttons disabled here; others stay as the page rendered them.
+						btn.disabled = false;
+						btn.removeAttribute('data-wpcap-offline-disabled');
+						btn.removeAttribute('aria-describedby');
+						btn.removeAttribute('title');
+					}
+				});
+			});
+			if (!online) { show(cfg.offline || 'Offline', true); }
+			else if (announce) { show(cfg.online || '', false); }
+			else if (banner) { banner.hidden = true; }
+		}
+		forms.forEach(function (f) {
+			f.addEventListener('submit', function (event) {
+				if (navigator.onLine !== false) { return; }
+				// E.g. Enter in a field before the offline event arrived: stop it, never queue it.
+				event.preventDefault();
+				apply(false, false);
+				if (banner) { banner.focus(); }
+			});
+		});
+		window.addEventListener('offline', function () { apply(false, false); });
+		window.addEventListener('online', function () { apply(true, true); });
+		if (navigator.onLine === false) { apply(false, false); }
+	}
 
 	/*
 	 * Card terminal payment (BoxOffice\Page::render_device_status): polls admin-ajax
@@ -216,6 +290,8 @@
 	});
 	form.addEventListener('change', update);
 	form.addEventListener('submit', function (event) {
+		// Stopped by the offline guard (initOffline): not sent, so a later submit must still work.
+		if (event.defaultPrevented) { return; }
 		// The form key makes a double submit harmless; this only avoids a second request.
 		if (submitted) { event.preventDefault(); return; }
 		submitted = true;

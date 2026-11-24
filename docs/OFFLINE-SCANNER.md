@@ -15,6 +15,24 @@ offline sync (`POST /app/scan/sync`, see [MOBILE-API.md](MOBILE-API.md)).
 6. When the device is back online, the queued scans are synced. Conflicts appear in the app and under
    *Einlass-Konflikte*.
 
+## Kasse ohne Netz (Entscheidung E-13)
+
+Ohne Netz sind **nur Einlässe** möglich: Check-ins mit dieser Scanner-Web-App (signiertes Paket, Scans
+werden später synchronisiert). Die **Kasse braucht für Verkäufe, Stornos und Erstattungen immer eine
+Netzverbindung**; es gibt keinen Offline-Verkauf und keine Offline-Erstattung. Gründe:
+
+- **Platzbestand:** Ein Verkauf reserviert den Restbestand (Kontingente, Sitzplätze) auf dem Server unter
+  Sperre. Ein offline erfasster Verkauf könnte bereits verkaufte Plätze ein zweites Mal vergeben.
+- **Zahlungsbestätigung:** Kartenzahlungen und Terminal-Abgleich brauchen die Antwort des Servers bzw.
+  des Zahlungsanbieters, bevor Tickets ausgestellt werden.
+- **Fiskalbelege:** Mit dem Modul Fiskalisierung wird jeder Verkauf erst nach dem bestätigten Beleg des
+  Anbieters gebucht (Ausfallregel `stop_sale`); ein Offline-Beleg ohne Signatur wäre unzulässig.
+
+Die Kassenoberfläche (`assets/boxoffice/pos.js`) zeigt deshalb ohne Verbindung einen Hinweis und sperrt
+die Schaltflächen für Verkauf, „Nachbuchen“, Storno und Auszahlung, bis die Verbindung wieder steht.
+Nichts wird zwischengespeichert oder später automatisch gesendet. Ein Barverkauf ohne Netz wäre ein
+eigenes späteres Vorhaben mit lokaler Bestandsreservierung, Konfliktabgleich und Fiskalregeln.
+
 ## Event rules (`wpcap_offline_events`)
 
 | Setting | Default | Meaning |

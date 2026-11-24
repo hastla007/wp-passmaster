@@ -211,7 +211,7 @@ final class ShiftPage {
 			foreach ( $payouts as $payout ) {
 				echo '<tr><td>' . esc_html( (string) $payout->receipt_number ) . '</td><td>' . esc_html( Service::method_label( $payout->method ) ) . '</td><td>' . esc_html( Scope::money( (int) $payout->amount_minor, $payout->currency ) ) . '</td><td>' . esc_html( Scope::local( $payout->created_at, $tz ) ) . '</td><td>';
 				if ( $can && 'open' === $shift->status ) {
-					Forms::open_form( 'wpcap_pos_pay_out', 'wpcap_pos_pay_out_' . (int) $payout->payout_id );
+					Forms::open_form( 'wpcap_pos_pay_out', 'wpcap_pos_pay_out_' . (int) $payout->payout_id, Page::ONLINE_ONLY );
 					Forms::hidden( 'shift_id', (int) $shift->session_id );
 					Forms::hidden( 'payout_id', (int) $payout->payout_id );
 					echo '<button class="button">' . esc_html__( 'Auszahlen', 'pass-captain' ) . '</button></form>';
