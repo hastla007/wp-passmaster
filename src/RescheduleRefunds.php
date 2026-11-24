@@ -37,14 +37,14 @@ final class RescheduleRefunds {
 		return $start ? $start - max( 0, (int) Settings::get( 'reschedule_refund_hours' ) ) * HOUR_IN_SECONDS : 0;
 	}
 
-	/** Deadline as local date/time of the occurrence ("d.m.Y H:i"). */
+	/** Deadline as local date/time of the occurrence (site date and time format, Frontend\Format). */
 	public static function deadline_label( $starts_at_utc, $timezone ) {
 		try {
 			$tz = new \DateTimeZone( (string) $timezone ?: 'UTC' );
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		return wp_date( 'd.m.Y H:i', self::deadline( $starts_at_utc ), $tz );
+		return wp_date( Frontend\Format::datetime_format(), self::deadline( $starts_at_utc ), $tz );
 	}
 
 	/**

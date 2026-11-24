@@ -428,7 +428,7 @@ final class Mailer {
 		$domain = strtolower( (string) substr( strrchr( $from, '@' ), 1 ) );
 		if ( '' !== $host && $domain !== $host && ! str_ends_with( $host, '.' . $domain ) && ! str_ends_with( $domain, '.' . $host ) ) {
 			/* translators: 1: sender domain, 2: site domain */
-			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. Ihren SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
+			return array( array( 'severity' => 'warning', 'message' => sprintf( __( 'Die Absenderadresse nutzt die Domain %1$s, die Website %2$s. Damit die Mails zugestellt werden, müssen SPF und DKIM für %1$s den Versand über diesen Server bzw. deinen SMTP-Dienst erlauben (DMARC).', 'pass-captain' ), $domain, $host ) ) );
 		}
 		return array();
 	}

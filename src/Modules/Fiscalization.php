@@ -1405,7 +1405,7 @@ final class Fiscalization {
 			for ( $credential_row = 0; $credential_row < 4; $credential_row++ ) {
 				echo '<p><label>' . esc_html__( 'Feldname', 'pass-captain' ) . ' <input name="credential_name[]" maxlength="64" pattern="[A-Za-z0-9_]+" autocomplete="off"></label> <label>' . esc_html__( 'Geheimer Wert', 'pass-captain' ) . ' <input type="password" name="credential_value[]" maxlength="8192" autocomplete="new-password"></label></p>';
 			}
-			echo '<p class="description">' . esc_html__( 'Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn Sie nur einzelne Felder ergänzen oder ersetzen. Werte werden nie wieder angezeigt.', 'pass-captain' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Neue Werte werden im Schlüsseltresor von Pass Captain verschlüsselt gespeichert (Schlüssel PASS_CAPTAIN_SECRET_KEY, sonst aus den wp-config-Salts abgeleitet; Schlüsselwechsel über PASS_CAPTAIN_SECRET_KEY_PREVIOUS). Vorhandene Werte bleiben erhalten, wenn du nur einzelne Felder ergänzt oder ersetzt. Werte werden nie wieder angezeigt.', 'pass-captain' ) . '</p>';
 			if ( ! Credentials::storage_available() ) { echo '<p class="notice notice-error inline">' . esc_html__( 'Zugangsdaten können derzeit nicht verschlüsselt gespeichert werden (libsodium oder Schlüssel fehlt); das Speichern wird abgelehnt.', 'pass-captain' ) . '</p>'; }
 			submit_button( __( 'Zugangsdaten speichern', 'pass-captain' ), 'secondary' );
 			echo '</form>';

@@ -28,7 +28,7 @@ final class MailHandoff {
 	const VERSION = '1.0.0';
 
 	/** Types that are never handed off, whatever a filter adds (transactional/legal mails). */
-	const NEVER = array( 'tickets', 'tickets_resend', 'order_access', 'refund_confirmation', 'refund_request_received', 'refund_request_rejected', 'event_cancelled', 'occurrence_cancelled', 'occurrence_rescheduled', 'occurrence_changed', 'ticket_transfer_recipient', 'ticket_transfer_sender', 'ticket_exchanged', 'waitlist_offer', 'attendee_data_request' );
+	const NEVER = array( 'tickets', 'tickets_resend', 'order_access', 'order_links', 'refund_confirmation', 'refund_request_received', 'refund_request_rejected', 'event_cancelled', 'occurrence_cancelled', 'occurrence_rescheduled', 'occurrence_changed', 'ticket_transfer_recipient', 'ticket_transfer_sender', 'ticket_exchanged', 'waitlist_offer', 'attendee_data_request' );
 
 	/** Types that can be handed off: label per type. */
 	public static function types() {
