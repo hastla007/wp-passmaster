@@ -80,6 +80,8 @@ Beispiel oben, ein Ticket wird erstattet: 5,00 € an den Zahlungsanbieter, 5,00
 
 Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 
+**Rechnung erst nach der Erstattung** (z. B. `auto_invoice` aus, Rechnung später angefordert): Die Rechnung weist wie immer das volle ursprüngliche Entgelt aus; jede schon abgeschlossene Erstattung ohne Korrekturbeleg erhält beim Ausstellen ihren Korrekturbeleg (`Invoices::issue_for_order()`, dieselben Beträge wie bei einer Erstattung nach der Rechnung, beim Mehrzweckgutschein Bar- und Gutscheinteil mit voller USt). Rechnung minus Korrekturen ergibt das Entgelt nach den Erstattungen. Eine Rechnung über den verminderten Betrag gibt es bewusst nicht: Rechnungen sind unveränderlich, und Erstattungen werden immer über Korrekturbelege abgebildet – so bleiben Belegexport, Berichte und Erstattungen nach der Rechnung einheitlich.
+
 **Berichte und Abrechnungen** (Veranstalter- und Wiederverkäufer-Abrechnungen) lesen die Erstattungsbeträge aus dem gespeicherten Plan (`refund_plans`, `Checkout::refund_amounts()`), nicht aus der reinen Barerstattung:
 
 - **Mehrzweckgutschein**: Verkäufe zählen mit dem vollen Entgelt (bar + Gutschein); Erstattungen ziehen Bar- **und** Gutscheinteil mit der vollen USt ab – dieselben Zahlen wie die Rechnungskorrektur (`Checkout::credit_note_amounts()`). Im Beispiel sinkt der Umsatz um 10,00 € (1,67 € USt), nicht nur um 5,00 €.
@@ -111,6 +113,36 @@ Läuft eine unbezahlte Bestellung ab oder wird sie storniert, wird die Gutschein
 
 Erst nach dem Bezahlt-Setzen wird der Gutschein wie gewohnt belastet (`commit`). Ein Gutschein, den Voucher Captain selbst (TTL) freigegeben hat, wird wie bisher beim Belasten erneut reserviert.
 
+### Gleichzeitige Vorgänge
+
+Der Voucher-Snapshot wird nur mit Versionsprüfung geschrieben (Vergleich mit dem gelesenen Stand im selben `UPDATE`, Zähler `rev`); ein Schreibvorgang auf veraltetem Stand wird verworfen und mit dem aktuellen Stand wiederholt. Anbieteraufrufe laufen nie in einer Datenbanktransaktion; stattdessen „beansprucht“ der Vorgang den Snapshot (`claim`: Vorgang, Token, Zeit), bevor er Voucher Captain aufruft:
+
+- **Belasten, Freigeben, erneut Reservieren** schließen sich gegenseitig aus. Die Freigabe beansprucht den Snapshot im selben atomaren `UPDATE` mit der Bedingung „Bestellung nicht bezahlt“.
+- **Ablauf gegen späte Zahlung**: Trifft die Zahlung ein, während der Ablauf den Gutschein freigibt, werden die Tickets ausgestellt, die Belastung wartet (Job `voucher_commit`, eine Minute) und reserviert den freigegebenen Gutschein danach neu und belastet ihn genau einmal. Eine Freigabe nach einer Belastung gibt es nicht.
+- **Erstattungen**: Der Gutscheinanteil wird je Erstattung genau einmal verbucht, auch wenn Hook und Wiederholungsjob gleichzeitig laufen (der Anbieter erstattet je Schlüssel einmal). Der Erstattungsplan (`refund_plans`) wird mit Versionsprüfung gespeichert; der zuerst gespeicherte Plan einer Erstattung gilt.
+- Ein abgebrochener Vorgang (Absturz) blockiert nicht dauerhaft: Ein `claim` älter als 120 Sekunden (`Checkout::CLAIM_TTL`) wird vom nächsten Versuch übernommen.
+
+## Gutschein-Abgleich
+
+Abschnitt „Gutschein-Abgleich“ auf der Seite **Betrieb** (Systemstatus), auf Knopfdruck, nur lesend (`ReconciliationReport::report()`): Zusammenfassung je Snapshot-Status (Anzahl, eingelöster und zurückgebuchter Betrag) und Abweichungskandidaten je Bestellung:
+
+| Code | Bedeutung |
+|---|---|
+| `reserved_paid` | Bezahlt, Gutschein nur reserviert (Belastung steht aus oder hängt) |
+| `reserved_closed` | Bestellung beendet, Reservierung nicht freigegeben |
+| `reserved_stale` | Unbezahlt und älter als 24 Stunden, Reservierung offen |
+| `paid_released` | Bezahlt, Gutschein freigegeben – Rabatt ohne Belastung |
+| `commit_failed` | Belastung endgültig fehlgeschlagen |
+| `committed_unpaid` | Gutschein belastet, Bestellung nicht bezahlt |
+| `reversal_failed` | Gutschein-Rückbuchung fehlgeschlagen (`failed_refund_ids`) |
+| `reversal_open` | Abgeschlossene Erstattung mit Gutscheinanteil, noch nicht zurückgebucht |
+| `reversal_waiting` | Rückbuchung wartet auf die Belastung (`pending_refund_ids`) |
+| `refund_over` | Mehr zurückgebucht als eingelöst |
+| `claim_stale` | Abgebrochener Vorgang (`claim` abgelaufen) |
+| `provider_missing`, `provider_status`, `provider_refunded` | Nur mit Daten von Voucher Captain: dort unbekannt, anderer Status, anderer Rückbuchungsbetrag |
+
+Der Anbieter-Vertrag v1 hat keine Abfrage einzelner Einlösungen. Voucher Captains Stand wird deshalb nur verglichen, wenn jemand den optionalen Filter `wpcap_voucher_reconcile_states` beantwortet (siehe [HOOKS.md](HOOKS.md)); sonst zeigt der Abgleich die Pass-Captain-Sicht und die daraus erkennbaren Kandidaten. Bestellungen des Ticketdienstes (`external`) werden nur auf Pass-Captain-Seite geprüft.
+
 ## Technische Felder (Voucher-Snapshot `orders.voucher_snapshot`)
 
 | Feld | Bedeutung |
@@ -124,6 +156,9 @@ Erst nach dem Bezahlt-Setzen wird der Gutschein wie gewohnt belastet (`commit`).
 | `status` | `reserved`, `committed`, `released`, `commit_failed`, `external` (Ticketdienst) |
 | `voucher_lines` | Aufteilung des Gutscheins je Ticketart (anteilig zum Zeilenbetrag nach Kampagnenrabatten); Grundlage des Gutscheinteils von Erstattungen |
 | `refund_plans` | Je Erstattung: `voucher_minor`, `cash_minor`, `tax_minor` (volle USt, nur Mehrzweck), `tickets` |
+| `refund_ids`, `failed_refund_ids`, `pending_refund_ids` | Erstattungen mit verbuchtem, fehlgeschlagenem bzw. auf die Belastung wartendem Gutscheinanteil |
+| `rev` | Versionszähler, steigt mit jedem Schreibvorgang (Versionsprüfung) |
+| `claim` | Laufender Anbietervorgang (`op`: `commit`, `release`, `reserve`; `token`; `at`), siehe „Gleichzeitige Vorgänge“ |
 
 Hilfsfunktionen: `Checkout::purpose()`, `Checkout::voucher_payment_minor( $order )`, `Checkout::gross_minor( $order )` (offener Betrag + Gutscheinzahlung), `Checkout::invoice_payments( $order )`, `Checkout::credit_note_amounts( $refund_id )`, `Invoices::payment_summary( $invoice, $snapshot )`.
 
