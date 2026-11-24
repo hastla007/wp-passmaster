@@ -47,5 +47,5 @@ check( 'PC-9: resuming or cancelling the cancelled event again does not fire it 
 
 $pc9_hooks = (string) file_get_contents( WPCAP_PATH . 'docs/HOOKS.md' );
 check( 'PC-9: docs/HOOKS.md documents wpcap_event_cancelled in one table row of the hook list (plus the suite catalogue)', 1 === preg_match_all( '/^\| `wpcap_event_cancelled` \| `int \$event_id, array \$context`/m', $pc9_hooks ) && 1 === preg_match_all( '/^\| `wpcap_event_cancelled` \| 1\.5\.0 \|/m', $pc9_hooks ) && 0 === preg_match( '/^\| `wpcap_event_cancelled` \| `int \$event_id` \|/m', $pc9_hooks ) );
-check( 'PC-9: Orders::cancel_event() no longer fires the action right after the commit', 0 === substr_count( (string) file_get_contents( WPCAP_PATH . 'src/Orders.php' ), "do_action( 'wpcap_event_cancelled'" ) && 1 === substr_count( (string) file_get_contents( WPCAP_PATH . 'src/BulkRuns.php' ), "do_action( 'wpcap_event_cancelled'" ) );
+check( 'PC-9: Orders::cancel_event() no longer fires the action right after the commit', 0 === substr_count( (string) file_get_contents( WPCAP_PATH . 'src/Orders.php' ) . (string) file_get_contents( WPCAP_PATH . 'src/Orders/Cancellation.php' ), "do_action( 'wpcap_event_cancelled'" ) && 1 === substr_count( (string) file_get_contents( WPCAP_PATH . 'src/BulkRuns.php' ), "do_action( 'wpcap_event_cancelled'" ) );
 $GLOBALS['wpcap_test_hooks'] = $pc9_hooks_before;
