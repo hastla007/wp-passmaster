@@ -118,6 +118,13 @@ Verkauf sind.
    Pflichtfeld, wird die Annahme abgelehnt (`wpcap_attendee_field_required`), das Angebot bleibt offen
    und die Seite verlinkt zurück zum Formular. Die Daten landen an der Bestellung und gehen bei der
    Ausstellung an die Tickets (Einwilligungsnachweis mit Quelle `waitlist`).
+   Bei kostenpflichtigen Angeboten fragt die Seite wie der Checkout optional die Rechnungsdaten ab
+   (Firma, Name, Anschrift, USt-IdNr., Bestellreferenz; `billing[…]`, auch über
+   `POST /waitlist/{id}/accept` mit `billing`). Liegt der Betrag über der Schwelle
+   „Name und Anschrift im Checkout verlangen ab Bestellbetrag“ (`billing_required_threshold_minor`), ist der Abschnitt geöffnet und
+   die Annahme ohne Rechnungsdaten wird abgelehnt (`wpcap_billing_required`, das Angebot bleibt offen);
+   ungültige Angaben ebenso (`wpcap_billing_invalid`). Die Daten landen an der Bestellung und gehen
+   wie im Checkout in die Rechnung; bis zur Ausstellung lassen sie sich im Bestellportal korrigieren.
    - Kostenlose Tickets: die Bestellung wird sofort abgeschlossen, die Tickets werden versendet
      (`paid`).
    - Kostenpflichtige Tickets: die Bestellung erhält die gewählte Zahlungsart, die Reservierung wird
@@ -252,7 +259,7 @@ Reiter *Warteschlange & Export* (`Admin\WaitlistsPage`):
 | `POST /events/{id}/waitlist` | öffentlich | Eintragen (`occurrence_id`, `ticket_type_id`, `email`, `quantity`). |
 | `GET /events/{id}/waitlist/entries` | Event verwalten | Einträge mit Rang und Status. |
 | `POST /events/{id}/waitlist/offer` | Event verwalten | Nächsten Eintrag einer Ticketart (`ticket_type_id`) sofort anbieten. |
-| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`). |
+| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`, `attendees`, `billing`). |
 | `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
 
 Das Austragen und die Double-Opt-in-Bestätigung laufen bewusst nicht über REST, sondern über die
@@ -271,4 +278,4 @@ ihre 303-Weiterleitungen sind `no-store` (`PageCache::no_store()`).
 - Platzhalter-Bestellungen erscheinen in der Bestellliste als ausstehend mit Zahlungsart
   `waitlist_offer`; sie werden nicht bezahlt, sondern bei der Annahme auf die gewählte Zahlungsart
   umgestellt.
-- Rabattcodes, Gutscheine und Rechnungsdaten werden bei Wartelisten-Bestellungen nicht abgefragt.
+- Rabattcodes und Gutscheine werden bei Wartelisten-Bestellungen nicht abgefragt (der Preis steht mit dem Angebot fest; ob sie zugelassen werden, ist eine offene Entscheidung). Rechnungsdaten fragt die Angebotsseite ab (siehe oben).

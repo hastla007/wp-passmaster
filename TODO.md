@@ -704,7 +704,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Datenschutz-Export/-Löschung für Gästelisten-Einträge (`wpcap_guest_entries`) ergänzen.
 - [x] Datenschutz-Löschung soll laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort freigeben statt bis zum Ablauf zu halten.
 - [x] `wpcap_waitlist_process` beim Deaktivieren des Plugins abmelden.
-- [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen.
+- [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen. *Teilweise erledigt (24.11.2026): Rechnungsdaten wie im Checkout auf der Angebotsseite und über `POST /waitlist/{id}/accept` (`billing`), Pflicht über der Schwelle `billing_required_threshold_minor`, ungültige Angaben lassen das Angebot offen, Daten gehen an Bestellung und Rechnung (Test `zz_p7_waitlist_billing`, `docs/WAITLIST.md`). Offen: Rabattcodes und Gutscheine – Entscheidung (der Preis steht mit dem Angebot fest).*
 - [x] Umtausch: Antworten auf Zusatzfelder ins neue Ticket übernehmen; eigenes Webhook-Ereignis `ticket.exchanged`; Differenzerstattung bei WooCommerce-Bestellungen automatisieren oder klar im Admin führen.
 - [x] Core-Hook `wpcap_reserve_capacity` um `$context['internal']`, Käufer-E-Mail und Benutzer-ID erweitern (Allocations/Käuferlimit prüfen derzeit in `wpcap_order_creating`).
 - [x] Neue Hooks dokumentieren (`wpcap_capacity_increased`, `wpcap_allocation_*`, `wpcap_boxoffice_*`, `wpcap_ticket_exchanged`, Pass-Filter) in docs/HOOKS.md.
