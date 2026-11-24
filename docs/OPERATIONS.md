@@ -1544,6 +1544,13 @@ Teilnehmerliste verwenden dieselbe Regel (`Reports\Attendance`):
 - Die Teilnehmerliste zeigt Pässe und Tickets mit wiederholbarer Einlassregel als „Eingecheckt“, sobald sie an
   diesem Termin eingelassen wurden, und die Teilnehmerfelder aller aufgeführten Ticketarten. Der Stapeldruck von
   Tickets/Badges bleibt bei den Ticketarten des Termins (Pässe werden mit ihrem Ankertermin gedruckt).
+- **Alle Termine eines Events (PASS-FE-05):** In der Ticketliste gibt es mit gewähltem Event (ohne Terminfilter)
+  „Teilnehmerliste als CSV (alle Termine des Events)“ (`wpcap_attendee_list` mit `event_id` statt
+  `occurrence_id`). Die Datei enthält Termin für Termin dieselben Zeilen wie die Einzelliste: die volle Liste hat
+  ihre Spalte „Termin“ schon, die Basisliste bekommt „Termin“ als erste Spalte; Teilnehmerfelder aller Termine
+  werden über ihren Schlüssel zusammengeführt. Es zählen nur Termine, deren Liste du exportieren darfst; ist es nur
+  für einen davon die Basisliste, gilt die Basisliste für die ganze Datei. Gleicher Schutz gegen Formeln in Zellen
+  (`Scope::csv_cell()`), Audit `attendee_list_csv` am Event. Die Einzelliste je Termin bleibt unverändert.
 
 ### Berichts-Caches und Invalidierung (A201)
 
@@ -1981,6 +1988,21 @@ unter der Sperre geprüft.
 Schreibschritt und das COMMIT. Schlägt einer fehl (Sperr-Timeout, Verbindungsabbruch), wird zurückgerollt und ein
 Fehler gemeldet (`wpcap_db_busy` bzw. `wpcap_correction_failed`); Erfolgsmeldung, Audit-Eintrag und Folgeaktionen
 (Wallet, Webhooks, Wartelisten) gibt es nur nach einem bestätigten COMMIT.
+
+### Inhaber eines Tickets im Admin ändern (PASS-FE-03)
+
+„Teilnehmerdaten korrigieren“ ist nur für Tippfehler derselben Person (der Code bleibt). Soll ein gültiges Ticket an
+eine **andere Person** gehen, nutzt du in der Ticketliste **Inhaber ändern**: Name und E-Mail der neuen Person, ein
+Grund (Pflicht) und die Wahl, ob die neue Person das Ticket per E-Mail bekommt (dann erhält die Käufer:in den
+üblichen Übertragungshinweis ohne Code). Die Aktion verwendet dieselbe Logik wie die Übertragung im Bestellportal
+(`Orders::change_ticket_holder()` → gemeinsamer Teil mit `Orders::transfer_ticket()`): neuer Code, der bisherige
+Ticketlink und Wallet-Pass werden ungültig, die Übertragung wird gezählt (über den Bestelllink lässt sich das Ticket
+danach nicht mehr zuweisen oder übertragen), Name, Angaben und Einwilligungen der bisherigen Person enden,
+`wpcap_ticket_code_rotated` und `wpcap_ticket_transferred` (`source` = `admin`, Webhook `ticket.transferred`)
+laufen. Anders als im Portal gelten das Limit `max_holder_changes` und der Terminbeginn nicht; eine offene
+Erstattung und die Code-Sperre (Einlass begonnen, Offline-Scanner, A593) lehnen weiterhin ab. Voraussetzung:
+`wpcap_manage_orders` für das Event und unmaskierte personenbezogene Daten der Bestellung (Support mit
+Maskierung sieht die Aktion nicht). Audit: `ticket_transferred` mit `source`, Grund und ob benachrichtigt wurde.
 
 ### Ticketarten und Teilnehmerfelder auf alle Termine anwenden; Serien (A333)
 

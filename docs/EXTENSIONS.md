@@ -308,10 +308,11 @@ Ereignisse: `wpcap_ticket_checked_in`, `wpcap_ticket_checked_out`.
 
 Der Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface` (`key()`, `version()`,
 `capabilities()`, `deliver( $event_name, $payload, $idempotency_key )`) ist versioniert: Vertrag `connector`
-**1.1.0** (`PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION`, im Payload `contract_version`; Tabelle in
+**1.2.0** (`PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION`, im Payload `contract_version`; Tabelle in
 [CONTRACTS.md](CONTRACTS.md)). 1.0.0 umfasste die acht Ereignisse bis 1.4.0; 1.1.0 (Plugin 1.5.0) ergänzt
 `voucher_redeemed`, `ticket_revoked`, den Grund als Code bei `order_cancelled`/`order_refunded` und das Feld
-`contract_version`. Eine Minor-Version fügt nur Ereignisse oder Felder hinzu; Connectoren ignorieren unbekannte
+`contract_version`; 1.2.0 ergänzt `ticket_checked_out`, `event_cancelled`, `attendance_confirmed` und
+`ticket_transferred` (bisher nur als Webhooks). Eine Minor-Version fügt nur Ereignisse oder Felder hinzu; Connectoren ignorieren unbekannte
 Ereignisse und Felder. Adapter werden über
 `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option
 `wpcap_enabled_connectors` freigegeben wurde; ein- und ausgeschaltet wird über
@@ -336,8 +337,12 @@ eingeplant.
 | `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
 | `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | Termin (`occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`) + `old_starts_at`, `new_starts_at` |
 | `occurrence_cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
+| `ticket_checked_out` | `wpcap_ticket_checked_out` (je Auslass) – seit 1.2.0 | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
+| `event_cancelled` | `wpcap_event_cancelled` (einmal je Absage; jeder Termin sendet zusätzlich `occurrence_cancelled`) – seit 1.2.0 | `event_id`, `status`, `occurrence_ids` |
+| `attendance_confirmed` | erster `wpcap_ticket_checked_in` eines Tickets (`method` `check_in`) oder `wpcap_attendance_confirmed` (`wpcap_confirm_attendance()`); einmal je Ticket – seit 1.2.0 | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `method`, `source` |
+| `ticket_transferred` | `wpcap_ticket_transferred` (Übertragung im Bestellportal, Inhaberwechsel bei der Zuweisung, „Inhaber ändern“ im Admin) – seit 1.2.0 | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source` (`portal`, `assign`, `admin`), `holder_changes`; keine Adressen, kein Code |
 
-`$payload` = `[ 'version' => 1, 'contract_version' => '1.1.0', 'event', 'occurred_at' (ISO 8601, UTC), 'site',
+`$payload` = `[ 'version' => 1, 'contract_version' => '1.2.0', 'event', 'occurred_at' (ISO 8601, UTC), 'site',
 'data' ]`; `version` bleibt für alle 1.x-Vertragsversionen 1. Payloads enthalten nur Kennungen und Zustände –
 keine Namen, E-Mail-Adressen, Ticket- oder Gutscheincodes. Ein Grund (`reason`) ist immer ein Code
 (`refund_12`, `order_cancelled`, `woocommerce_order_trash` …); Freitext eines Admins, Partners oder

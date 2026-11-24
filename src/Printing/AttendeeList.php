@@ -48,7 +48,7 @@ final class AttendeeList {
 	private static function fields( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT f.field_id,f.label FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d AND f.status='active' ORDER BY f.position,f.field_id", absint( $occurrence_id ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT f.field_id,f.field_key,f.label FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id WHERE tt.occurrence_id=%d AND f.status='active' ORDER BY f.position,f.field_id", absint( $occurrence_id ) ) );
 	}
 
 	/**
@@ -140,6 +140,96 @@ final class AttendeeList {
 		$rows = array( self::header( $occurrence_id, $level ) );
 		foreach ( self::row_stream( $occurrence_id, $level ) as $row ) { $rows[] = $row; }
 		return $rows;
+	}
+
+	/* ------------------------------------------------------------------ PASS-FE-05: all dates of an event */
+
+	/**
+	 * Dates of an event whose attendee list the current user may export, and the level of the combined
+	 * export: 'full' only when the user has the full list for every one of them, otherwise 'basic' (the
+	 * lower level applies to the whole file – a date with only the basic list never contributes contact
+	 * data). Dates the user may not access are left out; level '' when there is none.
+	 *
+	 * @return array{level:string,occurrences:int[]}
+	 */
+	public static function event_scope( $event_id ) {
+		global $wpdb;
+		$ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE event_id=%d ORDER BY starts_at,occurrence_id', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) ) );
+		$level = '';
+		$allowed = array();
+		foreach ( $ids as $id ) {
+			$own = self::access_level( $id );
+			if ( '' === $own ) { continue; }
+			$allowed[] = $id;
+			$level = ( '' === $level || 'full' === $level ) ? $own : 'basic';
+		}
+		return array( 'level' => $level, 'occurrences' => $allowed );
+	}
+
+	/**
+	 * Active participant fields of several dates, merged by field key (the same field on every date of an
+	 * event, A333) in first-seen order: key => label.
+	 *
+	 * @param int[] $occurrence_ids Dates.
+	 * @return array<string,string>
+	 */
+	private static function event_fields( array $occurrence_ids ) {
+		$out = array();
+		foreach ( $occurrence_ids as $id ) {
+			foreach ( self::fields( $id ) as $f ) {
+				if ( ! isset( $out[ (string) $f->field_key ] ) ) { $out[ (string) $f->field_key ] = (string) $f->label; }
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Header of the export over several dates: the columns of the single-date list plus the date – the
+	 * basic list gets a leading "Termin" column, the full list already has one; participant fields of all
+	 * dates are merged by key.
+	 *
+	 * @param int[]  $occurrence_ids Dates (event_scope()).
+	 * @param string $level          'full' or 'basic'.
+	 */
+	public static function event_header( array $occurrence_ids, $level ) {
+		if ( 'full' !== $level ) { return array_merge( array( __( 'Termin', 'pass-captain' ) ), self::header( 0, 'basic' ) ); }
+		return array_merge( array_slice( self::header( 0, 'full' ), 0, self::FULL_BASE_COLUMNS ), array_values( self::event_fields( $occurrence_ids ) ) );
+	}
+
+	/** Columns of a full row before the participant fields (row_stream()). */
+	const FULL_BASE_COLUMNS = 11;
+
+	/**
+	 * Rows of the export over several dates (without header), date by date and block by block like
+	 * row_stream() – same data, same role rules, the field answers moved into the merged columns.
+	 *
+	 * @param int[]  $occurrence_ids Dates (event_scope()).
+	 * @param string $level          'full' or 'basic'.
+	 * @return \Generator<int, array>
+	 */
+	public static function event_row_stream( array $occurrence_ids, $level ) {
+		global $wpdb;
+		$keys = 'full' === $level ? array_flip( array_keys( self::event_fields( $occurrence_ids ) ) ) : array();
+		foreach ( $occurrence_ids as $occurrence_id ) {
+			if ( 'full' !== $level ) {
+				$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT starts_at,timezone FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
+				$when = $occ ? Scope::local( (string) $occ->starts_at, (string) $occ->timezone ) : '';
+				foreach ( self::row_stream( $occurrence_id, 'basic' ) as $row ) { yield array_merge( array( $when ), $row ); }
+				continue;
+			}
+			// Column of each field of this date in the merged header.
+			$map = array();
+			foreach ( array_values( self::fields( $occurrence_id ) ) as $i => $f ) { $map[ $i ] = $keys[ (string) $f->field_key ]; }
+			foreach ( self::row_stream( $occurrence_id, 'full' ) as $row ) {
+				$out = array_slice( $row, 0, self::FULL_BASE_COLUMNS );
+				$answers = array_fill( 0, count( $keys ), '' );
+				foreach ( array_slice( $row, self::FULL_BASE_COLUMNS ) as $i => $answer ) {
+					// The same key on two ticket types of a date: the answer of the ticket's own type wins over the empty one.
+					if ( isset( $map[ $i ] ) && '' !== (string) $answer ) { $answers[ $map[ $i ] ] = $answer; }
+				}
+				yield array_merge( $out, $answers );
+			}
+		}
 	}
 
 	/** Printable HTML (A4, escaped) as a string; the download uses stream_html(). */

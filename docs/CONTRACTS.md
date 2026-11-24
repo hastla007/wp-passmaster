@@ -25,7 +25,7 @@ Jede Schnittstelle hat eine Vertragsversion `MAJOR.MINOR`:
 | Review-Provider (`wp_pass_captain_review_provider_v1`, Teilnahmevertrag `experience_completed`) | `review` | 1.0.0 (`PassCaptain\Review\Contract::VERSION`) | [unten](#review-teilnahmevertrag-v1) |
 | Öffentliche Add-on-API (Hooks für `pass-captain-pro` und andere Plugins, `wpcap_loaded`) | `addon` | 1.0.0 (`PassCaptain\PublicApi::VERSION`) | [HOOKS.md](HOOKS.md#öffentliche-add-on-api) |
 | Lesefunktion Ticket → Bestellung, Event, Termin (`wpcap_get_ticket()`) | `ticket_read` | 1.0.0 (`PassCaptain\Api\Tickets::VERSION`) | [unten](#ticket-lesevertrag-v1) |
-| Connectoren (`wp_pass_captain_connectors_v1`, `ConnectorInterface`, Ereignisse über die Job-Queue; Andockpunkt der Pro-Connectoren BoatingSchool/LearnBoating) | `connector` | 1.1.0 (`PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION`, Payload `contract_version`; 1.1.0: `voucher_redeemed`, `ticket_revoked`, Grund als Code) | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
+| Connectoren (`wp_pass_captain_connectors_v1`, `ConnectorInterface`, Ereignisse über die Job-Queue; Andockpunkt der Pro-Connectoren BoatingSchool/LearnBoating) | `connector` | 1.2.0 (`PassCaptain\Integrations\ConnectorEvents::CONTRACT_VERSION`, Payload `contract_version`; 1.1.0: `voucher_redeemed`, `ticket_revoked`, Grund als Code; 1.2.0: `ticket_checked_out`, `event_cancelled`, `attendance_confirmed`, `ticket_transferred` – nur neue Ereignisse, daher Minor) | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
 
 ## REST: Versionsangabe des Clients
 

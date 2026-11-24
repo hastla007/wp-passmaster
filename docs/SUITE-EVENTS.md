@@ -12,7 +12,7 @@ Add-on aktiv oder lizenziert ist; ob ein Empfänger ein Ereignis verarbeiten dar
 | Weg | Für wen | Zustellung | Versionierung | Beschreibung |
 |---|---|---|---|---|
 | PHP-Actions (`wpcap_*`, `wp_pass_captain_*_v1`) | Code auf derselben Website | synchron im selben Request, ohne Wiederholung; eine Ausnahme im Callback trifft den auslösenden Ablauf | `_v1` im Namen bei den versionierten Hooks; `wpcap_*` gelten als stabil, Änderungen stehen im `CHANGELOG.md` | [HOOKS.md](HOOKS.md) |
-| Connector-Ereignisse (`PassCaptain\Integrations\ConnectorInterface`) | PHP-Adapter auf derselben Website, die der Betreiber freigeschaltet hat | über die Job-Queue, ein Job je Ereignis und Connector, Wiederholung mit Backoff, nach acht Versuchen `dead_letter`; stabiler Idempotenzschlüssel je Ereignis und Connector | Vertrag `connector` 1.1.0 (Payload `contract_version`), Payload-Format `version` = 1 | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
+| Connector-Ereignisse (`PassCaptain\Integrations\ConnectorInterface`) | PHP-Adapter auf derselben Website, die der Betreiber freigeschaltet hat | über die Job-Queue, ein Job je Ereignis und Connector, Wiederholung mit Backoff, nach acht Versuchen `dead_letter`; stabiler Idempotenzschlüssel je Ereignis und Connector | Vertrag `connector` 1.2.0 (Payload `contract_version`), Payload-Format `version` = 1 | [EXTENSIONS.md](EXTENSIONS.md#connectoren) |
 | Ausgehende Webhooks | externe Systeme über HTTPS | Tabelle `wpcap_webhook_deliveries`, Wiederholung mit Backoff bis acht Versuche, Signatur `X-WPCAP-Signature`; Reihenfolge nicht garantiert | `api_version` im Umschlag (`2026-11-01`) | [WEBHOOKS.md](WEBHOOKS.md) |
 
 Einen Eingang für Aktionen anderer Plugins gibt es als fünf öffentliche PHP-Funktionen mit den Rechten des Kerns
@@ -56,7 +56,7 @@ annehmen kann (auch Freitext), steht in [HOOKS.md](HOOKS.md#suite-katalog-seit-w
 Es gibt kein eigenes Ereignis „Teilnahme bestätigt“ oder „Erlebnis abgeschlossen“. Der nächstliegende Nachweis
 ist der Einlass (`wpcap_ticket_checked_in`); ein Ereignis zum Terminende sendet der Kern nicht.
 
-## Connector-Ereignisse (Vertrag 1.1.0, Payload-Version 1)
+## Connector-Ereignisse (Vertrag 1.2.0, Payload-Version 1)
 
 Quelle: `src/Integrations/ConnectorEvents.php`. Payloads tragen nur IDs und Zustände, keine Namen,
 E-Mail-Adressen, Ticket- oder Gutscheincodes; ein Grund ist immer ein Code (Freitext wird `other`).
@@ -73,6 +73,10 @@ E-Mail-Adressen, Ticket- oder Gutscheincodes; ein Grund ist immer ein Code (Frei
 | `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
 | `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | `occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`, `old_starts_at`, `new_starts_at` |
 | `occurrence_cancelled` | `wpcap_occurrence_cancelled` | `occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`, `issued_tickets` |
+| `ticket_checked_out` | `wpcap_ticket_checked_out` (seit 1.2.0, je Auslass) | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
+| `event_cancelled` | `wpcap_event_cancelled` (seit 1.2.0; jeder Termin sendet zusätzlich `occurrence_cancelled`) | `event_id`, `status`, `occurrence_ids` |
+| `attendance_confirmed` | erster `wpcap_ticket_checked_in` eines Tickets oder `wpcap_attendance_confirmed` (seit 1.2.0, einmal je Ticket) | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `method`, `source` |
+| `ticket_transferred` | `wpcap_ticket_transferred` (seit 1.2.0) | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `holder_changes` |
 
 Der mitgelieferte HTTP/JSON-Connector baut daraus eine frei zuordenbare Nachricht. Seine Feldliste kennzeichnet
 `order.customer_email`, `attendee.name` und `attendee.email` als personenbezogen; sie werden nur gesendet, wenn
@@ -102,9 +106,9 @@ Ereignis stabil), `type`, `api_version`, `created`, `data.object`.
 | `consent.granted` | `wpcap_consent_granted` (A612) | Einwilligung ohne Personendaten, E-Mail nur mit `include_pii` | wie `order.paid` |
 | `consent.withdrawn` | `wpcap_consent_withdrawn` (A612: Widerruf, Inhaberwechsel) | wie `consent.granted` | wie `order.paid` |
 
-Kein Webhook enthält einen Ticketcode, einen Namen oder Antworten aus Teilnehmerfeldern. Für Auslass,
-Event-Absage und Ticketübertragung gibt es Webhooks (siehe oben), aber kein Connector-Ereignis; für die
-Code-Rotation (`wpcap_ticket_code_rotated`) gibt es weder ein Connector-Ereignis noch einen Webhook.
+Kein Webhook enthält einen Ticketcode, einen Namen oder Antworten aus Teilnehmerfeldern. Auslass,
+Event-Absage, Teilnahmebestätigung und Ticketübertragung gibt es seit Connector-Vertrag 1.2.0 als Webhook und als
+Connector-Ereignis; für die Code-Rotation (`wpcap_ticket_code_rotated`) gibt es weder ein Connector-Ereignis noch einen Webhook.
 
 ## Was vor einer Anbindung festzulegen ist
 

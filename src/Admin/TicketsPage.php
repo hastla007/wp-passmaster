@@ -1,6 +1,6 @@
 <?php
 /**
- * Tickets admin: search, revoke or reissue a valid ticket, check a ticket in manually, undo a check-in.
+ * Tickets admin: search, revoke or reissue a valid ticket, change its holder, check a ticket in manually, undo a check-in.
  *
  * @package PassCaptain
  */
@@ -215,7 +215,7 @@ final class TicketsPage {
 
 	/**
 	 * Corrects the attendee name and e-mail of a ticket (right to rectification, Art. 16 GDPR) for the
-	 * same person: the ticket code stays valid (a change of person uses "Neu ausstellen"). Requires
+	 * same person: the ticket code stays valid (a change of person uses "Inhaber ändern", change_holder()). Requires
 	 * wpcap_manage_orders for the ticket's event and a reason. Audited as record_corrected with a masked
 	 * before/after diff (field names, masked values).
 	 */
@@ -257,6 +257,33 @@ final class TicketsPage {
 		/** Staff corrected personal data of a record (A122); $changes holds field names with masked values. */
 		do_action( 'wpcap_record_corrected', 'ticket', (int) $ticket->ticket_id, $changes );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'changed' => true );
+	}
+
+	/**
+	 * PASS-FE-03: changes the holder of a valid ticket to another person (Orders::change_ticket_holder(), the
+	 * same effect as a buyer transfer: new code, previous link and wallet pass invalid). Requires
+	 * wpcap_manage_orders for the ticket's event, unmasked personal data of the order (support staff with
+	 * masked data cannot change the holder) and a reason; audited as ticket_transferred (source admin).
+	 */
+	public static function change_holder( array $in ) {
+		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
+		if ( ! self::can_change_holder( (int) $ticket->order_id ) ) {
+			return Forms::forbidden( __( 'Die personenbezogenen Daten dieser Bestellung sind für dich maskiert; der Inhaber kann deshalb nicht geändert werden.', 'pass-captain' ) );
+		}
+		$notify = Forms::flag( $in, 'notify' );
+		$result = \PassCaptain\Orders::change_ticket_holder( (int) $ticket->ticket_id, $in['attendee_email'] ?? '', $in['attendee_name'] ?? '', array( 'reason' => Forms::text( $in, 'reason', 255 ), 'notify' => $notify ) );
+		if ( is_wp_error( $result ) ) {
+			$data = (array) $result->get_error_data();
+			return Forms::error( $result->get_error_code(), $result->get_error_message(), (int) ( $data['status'] ?? 409 ) );
+		}
+		return $result + array( 'notify' => $notify );
+	}
+
+	/** Whether the current user sees the order's personal data unmasked (required for a holder change, PASS-FE-03). */
+	private static function can_change_holder( $order_id ) {
+		return ! \PassCaptain\Security\DataPolicy::masks_pii( (int) $order_id ) && \PassCaptain\Pii::can_view( 'attendee_email' ) && \PassCaptain\Pii::can_view( 'attendee_name' );
 	}
 
 	/* =============================================================================================
@@ -365,6 +392,21 @@ final class TicketsPage {
 		Forms::verify( 'wpcap_correct_attendee_' . Forms::int( $in, 'ticket_id' ) );
 		$result = self::correct_attendee( $in );
 		$message = ! is_wp_error( $result ) && empty( $result['changed'] ) ? __( 'Keine Änderung – die Teilnehmerdaten waren bereits so gespeichert.', 'pass-captain' ) : __( 'Teilnehmerdaten korrigiert. Der Ticketcode bleibt gültig.', 'pass-captain' );
+		Forms::finish( $result, $message, self::back_url( $in ) );
+	}
+
+	public static function handle_change_holder() {
+		Forms::require_any_cap( array( 'wpcap_manage_orders' ) ); // Capability before the nonce.
+		$in = Forms::post();
+		Forms::verify( 'wpcap_change_holder_' . Forms::int( $in, 'ticket_id' ) );
+		$result = self::change_holder( $in );
+		if ( is_wp_error( $result ) || empty( $result['notify'] ) ) {
+			$message = __( 'Inhaber geändert. Der bisherige Code ist ungültig; die neue Person wurde nicht benachrichtigt.', 'pass-captain' );
+		} else {
+			$message = empty( $result['mailed'] )
+				? __( 'Inhaber geändert. Die E-Mail an die neue Person konnte nicht zugestellt werden; bitte „Neu ausstellen“ verwenden.', 'pass-captain' )
+				: __( 'Inhaber geändert und das Ticket an die neue Person gesendet. Der bisherige Code ist ungültig.', 'pass-captain' );
+		}
 		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
@@ -694,6 +736,7 @@ final class TicketsPage {
 				'buyer_email' => \PassCaptain\Pii::show( 'buyer_email', (string) ( $ticket->customer_email ?? '' ) ),
 				'attendee_name' => \PassCaptain\Pii::show( 'attendee_name', (string) ( $ticket->attendee_name ?? '' ) ),
 				'can_orders' => Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ),
+				'can_holder' => self::can_change_holder( (int) ( $ticket->order_id ?? 0 ) ),
 				'can_checkin' => Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ),
 			);
 		}
@@ -741,7 +784,7 @@ final class TicketsPage {
 		return '';
 	}
 
-	/** Action forms of one ticket (revoke, rebook, reissue, correction, check-in, undo); each carries the list state (A414). */
+	/** Action forms of one ticket (revoke, rebook, reissue, holder change, correction, check-in, undo); each carries the list state (A414). */
 	private static function render_actions( $ticket, array $filters, $page, $exchange ) {
 		$ctx = self::row_context( $ticket );
 		$email = $ctx['email'];
@@ -758,6 +801,16 @@ final class TicketsPage {
 			<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
 			<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
 			</form>
+			<?php if ( $ctx['can_holder'] ) : // PASS-FE-03: another person, same effect as a buyer transfer. ?>
+				<details><summary><?php esc_html_e( 'Inhaber ändern', 'pass-captain' ); ?></summary>
+				<?php Forms::open_form( 'wpcap_change_holder', 'wpcap_change_holder_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); self::return_fields( $filters, $page ); ?>
+				<p><label><?php esc_html_e( 'Name der neuen Person', 'pass-captain' ); ?> <input type="text" name="attendee_name" required maxlength="190"></label></p>
+				<p><label><?php esc_html_e( 'E-Mail der neuen Person', 'pass-captain' ); ?> <input type="email" name="attendee_email" required maxlength="190"></label></p>
+				<p><label><input type="checkbox" name="notify" value="1" checked> <?php esc_html_e( 'Ticket an die neue Person senden (die Käufer:in erhält einen Hinweis)', 'pass-captain' ); ?></label></p>
+				<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund des Inhaberwechsels', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund des Inhaberwechsels', 'pass-captain' ); ?>">
+				<button class="button" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Inhaber wirklich ändern? Der bisherige Code und Ticketlink werden sofort ungültig; über die Bestellung lässt sich das Ticket danach nicht mehr übertragen.', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Inhaber ändern', 'pass-captain' ); ?></button></p>
+				</form></details>
+			<?php endif; ?>
 		<?php endif; ?>
 		<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
 			<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'pass-captain' ); ?></summary>
@@ -766,7 +819,7 @@ final class TicketsPage {
 			<p><label><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
 			<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Korrektur speichern', 'pass-captain' ); ?></button></p>
-			<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden.', 'pass-captain' ); ?></p>
+			<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Inhaber ändern“ verwenden.', 'pass-captain' ); ?></p>
 			</form></details>
 		<?php endif; ?>
 		<?php if ( 'valid' === $ticket->status && $can_checkin ) : ?>
@@ -841,6 +894,9 @@ final class TicketsPage {
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 			<?php if ( $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::access_level( (int) $filters['occurrence_id'] ) ) : ?>
 				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'occurrence_id' => (int) $filters['occurrence_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV', 'pass-captain' ); ?></a>
+			<?php endif; ?>
+			<?php if ( $filters['event_id'] && ! $filters['occurrence_id'] && '' !== \PassCaptain\Printing\AttendeeList::event_scope( (int) $filters['event_id'] )['level'] ) : // PASS-FE-05. ?>
+				<a class="button" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_attendee_list', 'event_id' => (int) $filters['event_id'], 'format' => 'csv' ), admin_url( 'admin-post.php' ) ), 'wpcap_attendee_list' ) ); ?>"><?php esc_html_e( 'Teilnehmerliste als CSV (alle Termine des Events)', 'pass-captain' ); ?></a>
 			<?php endif; ?>
 		</form>
 		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>

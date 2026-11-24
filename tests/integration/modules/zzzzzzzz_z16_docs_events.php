@@ -96,10 +96,10 @@ foreach ( $z16d_actions as $action ) {
 }
 check( 'Z16: every PHP action of the document is fired by the core (' . count( $z16d_actions ) . ' actions; not fired: ' . implode( ', ', $z16d_unfired ) . ')', count( $z16d_actions ) >= 15 && array() === $z16d_unfired );
 $z16d_bridges = (string) file_get_contents( $z16d_root . '/src/Integrations/ConnectorEvents.php' ) . (string) file_get_contents( $z16d_root . '/src/Modules/Webhooks.php' );
-// Merged line (A674): check-out and event cancellation have webhooks (ticket.checked_out, event.cancelled) but no
-// connector event; code rotation has neither – as docs/SUITE-EVENTS.md says.
+// Merged line (A674): check-out and event cancellation have webhooks (ticket.checked_out, event.cancelled); since
+// connector contract 1.2.0 also connector events. Code rotation has neither – as docs/SUITE-EVENTS.md says.
 $z16d_connector_src = (string) file_get_contents( $z16d_root . '/src/Integrations/ConnectorEvents.php' );
-check( 'Z16: as documented, check-out, event cancellation and code rotation have no connector event and no webhook', false === strpos( $z16d_connector_src, 'wpcap_ticket_checked_out' ) && false === strpos( $z16d_connector_src, 'wpcap_event_cancelled' ) && false === strpos( $z16d_bridges, 'wpcap_ticket_code_rotated' ) && false !== strpos( $z16d_doc, '`wpcap_ticket_code_rotated`' ) );
+check( 'Z16: as documented, check-out and event cancellation have connector events (1.2.0), code rotation has no connector event and no webhook', false !== strpos( $z16d_connector_src, "'wpcap_ticket_checked_out'" ) && false !== strpos( $z16d_connector_src, "'wpcap_event_cancelled'" ) && false === strpos( $z16d_bridges, 'wpcap_ticket_code_rotated' ) && false !== strpos( $z16d_doc, '`wpcap_ticket_code_rotated`' ) );
 
 echo "Z16: no personal data and no codes in connector and webhook messages (purchase to refund)\n";
 final class Z16_Probe_Connector implements ConnectorInterface {

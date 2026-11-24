@@ -139,9 +139,18 @@ APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox 
 
 Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jeder Änderung in einer späteren vollen Sekunde als der vorherige Tag; eine Änderung in derselben Sekunde wie der letzte Abruf wird daher nie per 304 verschluckt.
 
+## Wallet-Buttons im Bestellportal
+
+Ist das Modul aktiv und mindestens ein Anbieter eingerichtet, zeigt das Bestellportal einer bezahlten Bestellung
+den Abschnitt „Wallet-Pässe deiner Tickets“ (Filter `wpcap_order_portal_sections`, `Service::portal_section()`):
+je Ticket „Zu Apple Wallet hinzufügen“ und/oder „In Google Wallet speichern“ – dieselben signierten Links wie auf
+der Ticketseite (`Service::ticket_links()`). Aufgeführt werden nur Tickets, die die Käufer:in noch hält (gültig, nie
+übertragen, aktueller Code bei der Käufer:in – dieselbe Regel wie bei den „alle hinzufügen“-Links) und für die ein
+Pass existiert; ohne Pässe erscheint der Abschnitt nicht. Übertragene, zugewiesene oder im Admin per „Inhaber
+ändern“ weitergegebene Tickets bekommen ihre Pässe nur mit der Mail an die neue Person.
+
 ## Nicht enthalten / offen
 
-- Bestellportal: Zusätzliche Abschnitte lassen sich über den Filter `wpcap_order_portal_sections` (`src/OrderPortal.php`) einhängen; Wallet-Buttons je Ticket im Portal sind darüber möglich.
 - Tickets, die vor Aktivierung des Moduls ausgestellt wurden, erhalten erst nach einer Code-Erneuerung (z. B. „Tickets erneut senden“) einen Pass.
 - Check-in ändert den Pass nicht.
 - Google-Speichern-Links: siehe oben (A583) – der vollständige JWT („fat JWT“) wird nur noch als Rückfall für ein einzelnes Ticket erzeugt, wenn die Wallet-API beim Klick nicht erreichbar ist.
