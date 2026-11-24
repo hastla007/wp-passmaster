@@ -965,7 +965,8 @@ final class PublicEvents {
 
 	/**
 	 * Payment methods the card of a date offers (id => gateway): enabled for the currency; bank
-	 * transfer is left out when the start is closer than manual_cutoff_hours and another method exists.
+	 * transfer is left out when the start is closer than manual_cutoff_hours, or when unpaid bank
+	 * transfers already hold as much of the event/date as allowed, and another method exists.
 	 *
 	 * @param object $event Listing row (starts_at).
 	 */
@@ -973,6 +974,8 @@ final class PublicEvents {
 		$providers = Payments\Registry::enabled( (string) $currency );
 		$providers = Payments\Rules::filter( $providers, array( 'event_ids' => isset( $event->event_id ) ? array( (int) $event->event_id ) : array() ) ); // SET-PC-40
 		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
+		// Unpaid bank transfers already hold as much of this event/date as allowed: the other methods stay.
+		if ( isset( $providers['manual'] ) && count( $providers ) > 1 && Orders::manual_holds_exhausted( (int) ( $event->event_id ?? 0 ), (int) ( $event->occurrence_id ?? 0 ) ) ) { unset( $providers['manual'] ); }
 		return $providers;
 	}
 

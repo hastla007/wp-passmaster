@@ -227,6 +227,8 @@ final class AuditLogPage {
 			'order_link_requested' => __( 'Bestelllink angefordert', 'pass-captain' ),
 			'external_payment_confirmed' => __( 'Zahlung bestätigt', 'pass-captain' ),
 			'manual_payment_confirmed' => __( 'Überweisung als bezahlt markiert', 'pass-captain' ),
+			'manual_hold_released' => __( 'Offene Überweisung vorzeitig freigegeben', 'pass-captain' ),
+			'manual_holds_bulk_release' => __( 'Offene Überweisungen gesammelt freigegeben', 'pass-captain' ),
 			'payment_unallocated' => __( 'Zahlung ohne freies Kontingent', 'pass-captain' ),
 			'payment_for_closed_order' => __( 'Zahlung für geschlossene Bestellung', 'pass-captain' ),
 			'payment_amount_mismatch' => __( 'Zahlungsbetrag weicht ab', 'pass-captain' ),

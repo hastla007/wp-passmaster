@@ -266,7 +266,7 @@ $pm_admin = array(
 	'wpcap_create_scanner_page' => 'publish_pages', 'wpcap_test_provider_connection' => 'manage_options', 'wpcap_campaign_create' => 'wpcap_manage_events',
 	'wpcap_campaign_status' => 'wpcap_manage_events', 'wpcap_member_pass' => 'wpcap_manage_orders', 'wpcap_tax_profile_save' => 'wpcap_view_finance',
 	'wpcap_tax_profile_activate' => 'wpcap_view_finance', 'wpcap_tax_profile_retire' => 'wpcap_view_finance', 'wpcap_getting_started' => 'manage_options',
-	'wpcap_create_sales_page' => 'manage_options', 'wpcap_operations_action' => 'manage_options', 'wpcap_doctor_repair' => 'manage_options',
+	'wpcap_create_sales_page' => 'manage_options', 'wpcap_operations_action' => 'manage_options', 'wpcap_doctor_repair' => 'manage_options', 'wpcap_release_manual_holds' => 'manage_options',
 	'wpcap_developer_key_create' => 'manage_options', 'wpcap_developer_key_update' => 'manage_options',
 	'wpcap_developer_key_revoke' => 'manage_options', 'wpcap_service_resource_save' => 'wpcap_manage_events', 'wpcap_service_resource_delete' => 'wpcap_manage_events',
 	'wpcap_service_slot_save' => 'wpcap_manage_events', 'wpcap_service_slot_delete' => 'wpcap_manage_events', 'wpcap_service_slots_generate' => 'wpcap_manage_events',

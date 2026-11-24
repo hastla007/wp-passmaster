@@ -132,6 +132,7 @@ final class OperationsPage {
 		SuiteStatus::render(); // A670/A678: suite contracts, providers, last delivery, errors, fallback.
 		self::render_log();
 		self::render_unresolved_refunds();
+		ManualHoldsRelease::render();
 		self::render_doctor();
 		$labels = Queues::labels();
 		foreach ( Queues::available() as $queue => $def ) {

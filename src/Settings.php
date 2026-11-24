@@ -70,6 +70,8 @@ final class Settings {
 			'manual_cutoff_hours'       => 0,
 			// A634: unpaid bank transfer orders hold at most this share of a ticket type / date (0 = no bound).
 			'manual_hold_max_percent'   => 50,
+			// Absolute bound per event for tickets held by unpaid bank transfer orders (0 = off, the former behaviour).
+			'manual_hold_max_event_tickets' => 0,
 			// No payment method by default (A265): manual payment needs a bank account or instructions first.
 			// Installs from before schema 3.10.9 keep 'manual' (Installer::pin_legacy_manual_provider()).
 			'enabled_providers'         => array(),
@@ -243,6 +245,9 @@ final class Settings {
 			'rate_portal_resend_per_hour' => 3,
 			'rate_portal_assign_per_hour' => 20,
 			'rate_portal_pdf_per_hour'  => 20,
+			// Bot check of the public checkout form (honeypot + minimum fill time; only requests of the plugin's own form).
+			'checkout_bot_check'        => 1,
+			'checkout_min_fill_seconds' => 3,
 		);
 	}
 

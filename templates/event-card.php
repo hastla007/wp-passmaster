@@ -112,6 +112,7 @@ $wpcap_unlock_code = class_exists( '\PassCaptain\Sales\Visibility' ) ? \PassCapt
 			<label for="<?php echo esc_attr( $wpcap_form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>
 			<input id="<?php echo esc_attr( $wpcap_form_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
 		</div>
+		<?php echo \PassCaptain\Security\FormGuard::field( $wpcap_form_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- bot trap field, escaped in FormGuard::field(). ?>
 		<?php if ( apply_filters( 'wpcap_checkout_buyer_name', true, $event ) ) : ?>
 			<div class="wpcap-field">
 				<label for="<?php echo esc_attr( $wpcap_form_id . '-buyer-name' ); ?>"><?php esc_html_e( 'Dein Name', 'pass-captain' ); ?> <?php esc_html_e( '(optional)', 'pass-captain' ); ?></label>
