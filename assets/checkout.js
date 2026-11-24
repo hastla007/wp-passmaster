@@ -362,7 +362,8 @@
 		const limit = box ? parseInt(box.dataset.maxTotal, 10) || 0 : 0;
 		if (!limit) return Infinity;
 		let others = 0;
-		form.querySelectorAll('.wpcap-qty').forEach(function (qty) { if (qty !== input) others += Math.max(0, Number(qty.value) || 0); });
+		if (input.dataset.kind === 'addon') return Infinity; // Add-on products do not count towards the ticket total.
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) { if (qty !== input && qty.dataset.kind !== 'addon') others += Math.max(0, Number(qty.value) || 0); });
 		return Math.max(0, limit - others);
 	}
 	function syncSteppers(form) {
@@ -607,7 +608,8 @@
 		qtys.forEach(function (qty) {
 			const n = Number(qty.value) || 0;
 			if (n > Number(qty.max) || n < 0) errors.push({ input: qty, message: fill(t.errTooMany || '%1$s: max %2$d', [qty.dataset.name, Number(qty.max)]) });
-			if (n > 0) selected += n;
+			// Add-on products (data-kind="addon") need a ticket and do not count towards the ticket total.
+			if (n > 0 && qty.dataset.kind !== 'addon') selected += n;
 		});
 		if (!selected && qtys.length) errors.push({ input: qtys[0], message: t.selectTickets || 'Select tickets.' });
 		const types = form.querySelector('.wpcap-types');
@@ -1176,7 +1178,8 @@
 			if ((Number(qty.value) || 0) > max) qty.value = String(max);
 			// Without a payment provider only paid types are closed; free tickets need none.
 			qty.disabled = max < 1 || !onSale || (noPayment && (Number(qty.dataset.price) || 0) > 0);
-			if (max > 0) open = true;
+			// Add-on products (data-kind="addon") alone keep nothing open: they need a ticket.
+			if (max > 0 && qty.dataset.kind !== 'addon') open = true;
 			if (max > 0 && (Number(qty.dataset.price) || 0) > 0) paidOpen = true;
 			if (max > 0 && !((Number(qty.dataset.price) || 0) > 0)) freeOpen = true;
 			const wrap = typeRow(qty);

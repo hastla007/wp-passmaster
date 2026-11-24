@@ -592,7 +592,8 @@ final class Service {
 		if ( ! $order || 'paid' !== $order->payment_status || 'complete' !== $order->status ) { return false; }
 		// Exchange supplement: money only, its ticket is issued on the original order.
 		if ( \PassCaptain\Exchange\Service::is_supplement( (int) $order_id ) ) { return true; }
-		$expected = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity),0) FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
+		// Add-on products (Sales\Addons) get no tickets: only main ticket lines are expected.
+		$expected = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(oi.quantity),0) FROM %i oi' . Orders::addon_free_join() . ' WHERE oi.order_id=%d', $p . 'wpcap_order_items', $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal join.
 		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d', $p . 'wpcap_tickets', $order_id ) ); };
 		if ( $count() < $expected ) { Orders::issue_and_email( $order_id ); }
 		return $expected > 0 && $count() >= $expected;

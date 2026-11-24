@@ -117,7 +117,8 @@ final class Data {
 	}
 
 	private static function empty_bucket( $label ) {
-		return array( 'label' => $label, 'tickets' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0, 'revenue_net' => 0 );
+		// addons: units of add-on products (Sales\Addons) – counted apart from tickets, amounts in gross/revenue as usual.
+		return array( 'label' => $label, 'tickets' => 0, 'addons' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0, 'revenue_net' => 0 );
 	}
 
 	/**
@@ -243,7 +244,7 @@ final class Data {
 				$in_scope = false;
 				foreach ( $lines as $line ) {
 					if ( ! $line_in_scope( $line ) ) { continue; }
-					$comps['tickets'] += (int) $line->quantity;
+					$comps['tickets'] += \PassCaptain\Sales\Addons::is_addon( $line ) ? 0 : (int) $line->quantity;
 					$in_scope = true;
 				}
 				if ( $in_scope ) { ++$comps['orders']; }
@@ -260,10 +261,11 @@ final class Data {
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
 				$tax = (int) $line->tax_minor;
-				$share[0] += $supplement ? 0 : (int) $line->quantity;
+				$addon = \PassCaptain\Sales\Addons::is_addon( $line );
+				$share[0] += $supplement || $addon ? 0 : (int) $line->quantity;
 				$share[1] += $gross;
 				$share[2] += (int) $line->line_total_minor;
-				$add( $keys_for( $line, $order->payment_provider, $day, $order->currency ), array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax, 'revenue_net' => $gross - $tax ) );
+				$add( $keys_for( $line, $order->payment_provider, $day, $order->currency ), array( 'tickets' => $supplement || $addon ? 0 : (int) $line->quantity, 'addons' => $addon && ! $supplement ? (int) $line->quantity : 0, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax, 'revenue_net' => $gross - $tax ) );
 			}
 			if ( $share[0] ) { $order_scope[ $order_id ] = $share; }
 		}
@@ -293,7 +295,7 @@ final class Data {
 						$fee_refunds[ (string) $refund->currency ]['refunded'] = ( $fee_refunds[ (string) $refund->currency ]['refunded'] ?? 0 ) + $part['amount'];
 						$fee_refunds[ (string) $refund->currency ]['refunded_tax'] = ( $fee_refunds[ (string) $refund->currency ]['refunded_tax'] ?? 0 ) + $part['tax'];
 					}
-					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
+					$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => \PassCaptain\Sales\Addons::is_addon( $line ) ? 0 : $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
 				}
 			}
 		}
@@ -507,7 +509,7 @@ final class Data {
 	public static function line_sql() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return "SELECT STRAIGHT_JOIN oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . \PassCaptain\ServiceFee::columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		return "SELECT STRAIGHT_JOIN oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . \PassCaptain\ServiceFee::columns() . ",oi.tax_rate_bp,tt.name AS ticket_name" . \PassCaptain\Sales\Addons::column_sql( 'tt' ) . ",o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 	}
 
 	/**

@@ -1023,7 +1023,8 @@ final class PublicEvents {
 			$soldout = array();
 			foreach ( $types as $type ) {
 				$max = Frontend\EventCard::quantity_max( $type, $event );
-				if ( null !== $type->available && (int) $type->available < 1 ) { $soldout[] = (int) $type->ticket_type_id; }
+				// A sold-out add-on product is no reason for the waitlist (Sales\Addons).
+				if ( null !== $type->available && (int) $type->available < 1 && ! Sales\Addons::is_addon( $type ) ) { $soldout[] = (int) $type->ticket_type_id; }
 				// A425: shown prices include the per-ticket service fee; price_minor stays the ticket price.
 				$base = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? Frontend\Format::money( ServiceFee::shown_unit( $type, (int) $type->base_price_minor ), $type->currency ) : '';
 				$state_types[ (int) $type->ticket_type_id ] = array(
@@ -1048,7 +1049,7 @@ final class PublicEvents {
 				'availability' => (string) $card['availability'],
 				'price' => (string) $card['price'],
 				'badges' => array_map( static function ( $badge ) { return array( 'key' => (string) ( $badge['key'] ?? '' ), 'label' => (string) $badge['label'] ); }, $badges ),
-				'all_soldout' => count( $soldout ) === count( $types ),
+				'all_soldout' => count( $soldout ) === count( Sales\Addons::tickets( $types ) ),
 				'providers' => $providers,
 				'waitlist' => $waitlist,
 				'waitlist_types' => $waitlist ? $soldout : array(),
@@ -1291,7 +1292,11 @@ final class PublicEvents {
 		$visible = Sales\Visibility::filter_listing( $type_rows, $code );
 		$is_code = static function ( $row ) { return 'code' === Sales\Visibility::of( $row ); };
 		$meta['has_locked'] = count( array_filter( $type_rows, $is_code ) ) > count( array_filter( $visible, $is_code ) );
-		$keep = array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'id_check', 'min_age', 'attendee_name_required', 'attendee_name', 'visibility', 'description', 'sales_start', 'sales_end', 'position' ) );
+		$keep = array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'tax_rate_bp', 'id_check', 'min_age', 'attendee_name_required', 'attendee_name', 'visibility', 'description', 'sales_start', 'sales_end', 'position', 'kind', 'addon_max_per_ticket' ) );
+		// Add-on products (Sales\Addons) are only offered next to a ticket of the same date that is on sale.
+		$with_tickets = array();
+		foreach ( Sales\Addons::tickets( $visible ) as $type ) { $with_tickets[ (int) $type->occurrence_id ] = true; }
+		$visible = array_filter( $visible, static function ( $type ) use ( $with_tickets ) { return ! Sales\Addons::is_addon( $type ) || isset( $with_tickets[ (int) $type->occurrence_id ] ); } );
 		foreach ( $visible as $type ) {
 			// Only what the card needs (no access codes in the page).
 			$type = (object) array_intersect_key( (array) $type, $keep );
@@ -1308,6 +1313,7 @@ final class PublicEvents {
 		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.*," . Frontend\EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.occurrence_id IN ($occ_in) OR (o.event_id IN ($event_in) AND o.status='cancelled' AND o.starts_at >= %s)", $now ) ) as $occurrence ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- (int) cast integer lists; EventCard::rescheduled_sql() is a static expression.
 			$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
 		}
+		Sales\Addons::annotate_occurrences( $occurrences ); // Seats left without add-on products (EventCard::occurrence_available()).
 		$meta['occurrences'] = $occurrences;
 		$type_in = implode( ',', array_keys( $all_types ) );
 		$fields = array();

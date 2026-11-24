@@ -157,6 +157,10 @@ final class Page {
 			// Guest list comps (GuestLists module): shown separately, not part of sales/revenue.
 			__( 'Freikarten (nicht im Umsatz)', 'pass-captain' ) => (string) (int) ( $report['comps']['tickets'] ?? 0 ),
 		);
+		if ( (int) ( $t['addons'] ?? 0 ) > 0 ) {
+			// Sales\Addons: units of add-on products (parking, merchandise …), not counted as tickets; their amounts are part of the gross sales.
+			$summary = array_slice( $summary, 0, 1, true ) + array( __( 'Verkaufte Zusatzprodukte', 'pass-captain' ) => (string) (int) $t['addons'] ) + $summary;
+		}
 		foreach ( (array) ( $report['service_fees'] ?? array() ) as $fee_currency => $fee ) {
 			// A425: service fees are part of the gross sales above.
 			/* translators: %s: VAT amount */

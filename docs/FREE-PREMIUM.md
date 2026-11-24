@@ -183,6 +183,7 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 | Stripe Checkout, PayPal (Orders v2) und Mollie mit signierten, idempotenten Webhooks und Erstattung über den Anbieter | `Payments/StripeGateway`, `Payments/PayPalGateway`, Modul `Mollie` | Kern, dauerhaft frei |
 | Kampagnencodes (Prozent/Festbetrag, Bereich, atomares Nutzungslimit, Mindestmenge/Gruppenrabatt, automatische Rabatte ohne Code, Limit je Käufer, Einzelcodes in Serie mit CSV-Export) | `Campaigns`, `Admin/CampaignsPage` | Kern, dauerhaft frei |
 | Versteckte Ticketarten und Freischaltcodes (öffentlich / nur mit Code / versteckt, serverseitig geprüft) | `Sales/Visibility`, `Orders` | Kern, dauerhaft frei |
+| Zusatzprodukte (Parken, Merch …): Ticketart der Art „Zusatzprodukt“, nur mit einem Ticket desselben Termins, optional höchstens n je Ticket; kein Ticket/QR, keine Termin-Plätze, eigene Position mit eigenem Steuersatz, im Bericht getrennt gezählt | `Sales/Addons`, `Orders` | Kern, dauerhaft frei |
 | Freikarten und Gästeliste ohne Kasse (Kontingent gilt, Audit, Berichtsfilter) | `Sales/Comps`, `Admin/OrganizerTools` | Kern, dauerhaft frei |
 | Stornoanfrage im Bestellportal nach Eventregel (Frist, Gebühr) mit Freigabe; Erstattungsvorschau, Abzug und Höchstbetrag | `Sales/SelfService`, `Refunds`, `Admin/OrdersPage` | Kern, dauerhaft frei |
 | Bestellsuche nach Nummer, E-Mail, Teilnehmer-/Rechnungsname und Ticket-ID; Bestellungs-CSV | `Admin/Queries`, `Admin/OrdersPage` | Kern, dauerhaft frei |

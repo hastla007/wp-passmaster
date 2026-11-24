@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.18.4';
+	const DB_VERSION = '3.18.5';
 
 	public static function install() {
 		global $wpdb;
@@ -212,6 +212,8 @@ final class Installer {
 				staff_note varchar(190) NOT NULL DEFAULT '',
 				attendee_name_required tinyint(1) unsigned NOT NULL DEFAULT 0,
 				service_fee_minor bigint(20) unsigned NULL DEFAULT NULL,
+				kind varchar(10) NOT NULL DEFAULT 'ticket',
+				addon_max_per_ticket smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)

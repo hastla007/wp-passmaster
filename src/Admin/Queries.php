@@ -183,11 +183,11 @@ final class Queries {
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in')", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 	}
 
-	/** Sold units of an occurrence (paid, not refunded) – same basis as the capacity checks in Orders. */
+	/** Sold units of an occurrence (paid, not refunded, without add-on products) – same basis as the capacity checks in Orders. */
 	public static function sold_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $occurrence_id ) ) );
+		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'" . \PassCaptain\Sales\Addons::not_addon_sql( 'tt' ), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment (add-on products use no seats).
 		/** Sold units shown for an occurrence; modules add units counted there (e.g. passes anchored elsewhere). */
 		return (int) apply_filters( 'wpcap_occurrence_sold', $sold, absint( $occurrence_id ) );
 	}
@@ -205,7 +205,7 @@ final class Queries {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $occurrence_ids ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$sold = array_fill_keys( $ids, 0 );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", $ids ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS sold FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded'" . \PassCaptain\Sales\Addons::not_addon_sql( 'tt' ) . ' GROUP BY tt.occurrence_id', $ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders and literal fragment.
 		foreach ( (array) $rows as $row ) { $sold[ (int) $row->occurrence_id ] = (int) $row->sold; }
 		foreach ( $sold as $id => $units ) {
 			/** See sold_for_occurrence(). */

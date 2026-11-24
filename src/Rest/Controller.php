@@ -442,7 +442,7 @@ final class Controller {
 			// Hidden types never, code-only types only with a matching ?code= (Sales\Visibility).
 			$type_rows = \PassCaptain\Sales\Visibility::filter_listing( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' ORDER BY ticket_type_id ASC" ), \PassCaptain\Http::str( $request->get_param( 'code' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			foreach ( $type_rows as $type_row ) {
-				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'service_fee_minor' ) ) );
+				$type = array_intersect_key( (array) $type_row, array_flip( array( 'ticket_type_id', 'occurrence_id', 'name', 'price_minor', 'currency', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'service_fee_minor', 'kind', 'addon_max_per_ticket' ) ) );
 				$types_of[ (int) $type['occurrence_id'] ][] = $type;
 			}
 			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
@@ -506,6 +506,9 @@ final class Controller {
 					'sales_end' => \PassCaptain\Occurrence::iso( $type['sales_end'], $row->timezone ),
 					'online_until' => \PassCaptain\Occurrence::iso( gmdate( 'Y-m-d H:i:s', \PassCaptain\Occurrence::online_sales_until( $phase_row, $type ) ), $row->timezone ),
 					'available' => null === $left ? null : max( 0, (int) $left ),
+					// Sales\Addons: "ticket" or "addon" (add-on product: only with a ticket of the same date, at most addon_max_per_ticket per ticket, 0 = no limit).
+					'kind' => \PassCaptain\Sales\Addons::kind( (object) $type ),
+					'addon_max_per_ticket' => \PassCaptain\Sales\Addons::max_per_ticket( (object) $type ),
 				); }, $types ),
 			), $row, $request );
 		}
