@@ -97,6 +97,7 @@ final class SiteHealth {
 			'proxy'            => array( __CLASS__, 'test_proxy' ),
 			'db_server'        => array( __CLASS__, 'test_db_server' ),
 			'retention'        => array( __CLASS__, 'test_retention' ),
+			'small_business_vat' => array( __CLASS__, 'test_small_business_vat' ),
 		);
 		if ( self::sms_active() ) { $tests['sms'] = array( __CLASS__, 'test_sms' ); }
 		return $tests;
@@ -161,6 +162,26 @@ final class SiteHealth {
 		$text = __( 'In den Datenschutz-Einstellungen ist keine allgemeine Löschfrist für Teilnehmer- und Kontaktdaten festgelegt. Antworten auf Zusatzfelder bleiben dann so lange gespeichert, wie es die Einstellung des jeweiligen Feldes vorsieht – ohne Feldfrist unbegrenzt. Die DSGVO verlangt, personenbezogene Daten nur so lange zu speichern, wie sie gebraucht werden.', 'pass-captain' );
 		$hint = __( 'Lege unter Einstellungen → Datenschutz fest, nach wie vielen Tagen nach dem Termin Teilnehmerdaten gelöscht werden. Das Länderprofil schlägt eine Frist vor (z. B. 365 Tage); lass die Frist von deiner Datenschutzberatung prüfen.', 'pass-captain' );
 		return self::result( 'retention', 'recommended', __( 'Pass Captain: keine Löschfrist für Teilnehmerdaten festgelegt', 'pass-captain' ), self::p( $text ) . self::p( $hint ), $actions );
+	}
+
+	/**
+	 * Site Health: active ticket types of upcoming dates with VAT although their seller (platform or
+	 * agent organizer) is a small business. Checkout refuses them (Orders::checkout_apply_taxes()); prices
+	 * are never changed automatically, the list names what to correct.
+	 */
+	public static function test_small_business_vat() {
+		$types = \PassCaptain\Partners\SalesModel::small_business_vat_types( 20 );
+		if ( ! $types ) {
+			return self::result( 'small_business_vat', 'good', __( 'Pass Captain: keine Umsatzsteuer auf Tickets von Kleinunternehmern', 'pass-captain' ), self::p( __( 'Keine aktive Ticketart eines Kleinunternehmers (Plattform oder Veranstalter im Vermittlermodell) enthält Umsatzsteuer.', 'pass-captain' ) ) );
+		}
+		$lines = array();
+		foreach ( $types as $type ) {
+			/* translators: 1: event, 2: date, 3: ticket type, 4: tax rate in percent, 5: seller */
+			$lines[] = sprintf( __( '%1$s (%2$s) – %3$s: %4$s %% USt, Rechnungssteller %5$s', 'pass-captain' ), $type['event'], \PassCaptain\Frontend\Format::site_datetime( $type['starts_at'] ), $type['ticket'], Forms::percent_input( $type['rate_bp'] ), $type['seller'] );
+		}
+		$text = __( 'Diese Ticketarten enthalten Umsatzsteuer, obwohl ihr Rechnungssteller als Kleinunternehmer eingestellt ist. Der Checkout lehnt Bestellungen dieser Ticketarten ab, weil dafür keine Rechnung ausgestellt werden dürfte (§ 14c UStG). Bitte setze den Steuersatz auf 0 % oder prüfe die Einstellung „Kleinunternehmer“ der Plattform bzw. des Veranstalters. Preise werden nicht automatisch geändert.', 'pass-captain' );
+		$actions = '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG ) ) . '">' . esc_html__( 'Events öffnen', 'pass-captain' ) . '</a></p>';
+		return self::result( 'small_business_vat', 'critical', __( 'Pass Captain: Ticketarten mit Umsatzsteuer bei Kleinunternehmern', 'pass-captain' ), self::p( $text ) . self::list_html( $lines ), $actions );
 	}
 
 	/** Site Health result array. */

@@ -10,6 +10,8 @@
  * the notice `withdrawal_right_text` (editable, e.g. the operator's withdrawal instructions) is shown.
  * The texts are defaults, not legal advice; the operator has to check and adapt them.
  *
+ * Contract partner: in the agent model (Vermittler) the notices name the organizer as contract partner.
+ *
  * Privacy (Art. 13 GDPR): a short notice with the link to the WordPress privacy policy page
  * (get_privacy_policy_url()), only when such a page is set.
  *
@@ -94,13 +96,24 @@ final class LegalNotice {
 	}
 
 	/**
+	 * "Vertragspartner: …" for events of an organizer in the agent model (Vermittler), where the contract
+	 * is concluded with the organizer (docs/SALES-MODELS.md). Empty in the own_name model and for events
+	 * without organizer.
+	 */
+	public static function contract_partner_html( $event_id ) {
+		$partner = $event_id ? \PassCaptain\Partners\SalesModel::contract_partner_for_event( (int) $event_id ) : null;
+		if ( ! $partner ) { return ''; }
+		return '<p class="wpcap-legal-notice wpcap-contract-partner"><small>' . esc_html( \PassCaptain\Partners\SalesModel::contract_partner_line( $partner ) ) . '</small></p>';
+	}
+
+	/**
 	 * Notices below the order button of the event card: withdrawal notice and privacy notice.
 	 *
 	 * @param object   $occurrence Occurrence/event row of the card (starts_at).
 	 * @param object[] $types      Ticket types offered on the card.
 	 */
 	public static function checkout_html( $occurrence, array $types ) {
-		$html = '';
+		$html = self::contract_partner_html( is_object( $occurrence ) ? (int) ( $occurrence->event_id ?? 0 ) : 0 );
 		$withdrawal = self::withdrawal( self::all_dated( $types, $occurrence ) );
 		if ( '' !== $withdrawal['kind'] ) {
 			$html .= '<div class="wpcap-legal-notice wpcap-withdrawal wpcap-withdrawal-' . esc_attr( $withdrawal['kind'] ) . '">' . wp_kses_post( function_exists( 'wpautop' ) ? wpautop( $withdrawal['text'] ) : nl2br( $withdrawal['text'] ) ) . '</div>';

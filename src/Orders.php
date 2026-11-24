@@ -535,6 +535,16 @@ final class Orders {
 			$s->tax_total += (int) $s->service_fee['tax_minor'];
 			if ( ! $s->billing && Billing::required_for( $s->total, $s->currency ) ) { throw new \RuntimeException( 'billing_required' ); }
 		}
+		// A small-business seller (platform setting or agent organizer) must not sell with VAT: such an
+		// order could never be invoiced (Partners\SalesModel::validate_agent_invoice(), § 14c UStG). Orders
+		// of external systems (WooCommerce, adapters) are already paid there and keep their tax.
+		if ( ! $s->external ) {
+			$conflict = Partners\SalesModel::checkout_vat_conflict( $s->selected, $s->service_fee ? (int) $s->service_fee['tax_minor'] : 0 );
+			if ( $conflict ) {
+				Log::warning( 'checkout', 'Checkout refused: VAT on tickets of a small-business seller', array( 'seller' => $conflict['seller'], 'ticket_type_ids' => array_slice( $conflict['ticket_type_ids'], 0, 20 ) ) );
+				throw new \RuntimeException( 'small_business_vat' );
+			}
+		}
 	}
 
 	/** A401: create_attempt() part (transaction): JSON price snapshot of the order. */
@@ -1408,7 +1418,8 @@ final class Orders {
 			'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
 			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
 			'manual_hold_limit' => __( 'Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
-			'manual_event_hold_limit' => __( 'Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
+			'small_business_vat' => __( 'Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter.', 'pass-captain' ),
+			'manual_event_hold_limit' => __('Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl.', 'pass-captain' ),
 		);
 		if ( 'order_insert_failed' === $code ) {
 			// A concurrent request with the same idempotency key won the unique index.
@@ -4176,6 +4187,8 @@ final class Orders {
 			'ticket_links' => Mail\Blocks::links( array_column( $entries, 'url' ) ),
 			// A568: the legal texts of the version this order was concluded under (built only when used).
 			'contract_texts' => static function () use ( $order ) { return LegalVersions::mail_block( $order ); },
+			// Agent model: the organizer as contract partner (empty otherwise).
+			'contract_partner' => static function () use ( $order ) { return Mail\Blocks::contract_partner( Partners\SalesModel::contract_partner_for_order( (int) $order->order_id ) ); },
 		);
 	}
 

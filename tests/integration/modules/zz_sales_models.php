@@ -153,16 +153,20 @@ $sm_inc_r = Invoices::issue_for_order( sm_order( array( $sm_ti => 1 ), 'sm-inc' 
 check( 'agent invoice needs organizer address and VAT ID/tax number', is_wp_error( $sm_inc_r ) && 'wpcap_invoice_organizer_incomplete' === $sm_inc_r->get_error_code() && false !== strpos( $sm_inc_r->get_error_message(), 'Rechnungsanschrift' ) );
 $sm_small = SmPartners::save( array( 'name' => 'Klein', 'billing_address' => 'Gasse 1, Linz', 'tax_number' => '46 123/4567', 'sales_model' => 'agent', 'small_business' => 1, 'small_business_note' => 'Umsatzsteuerbefreit – Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG' ) );
 $sm_tv = sm_type( 1190, 1900 );
+// The checkout refuses VAT for a small-business seller (zz_small_business_vat); an order sold before the
+// event was assigned (existing data) is still refused at invoice time.
+$sm_vat_order = sm_order( array( $sm_tv => 1 ), 'sm-small-vat' );
 SmPartners::set_events( $sm_small, array( sm_event( $sm_tv ), sm_event( $sm_tz ) ) );
-$sm_vat_r = Invoices::issue_for_order( sm_order( array( $sm_tv => 1 ), 'sm-small-vat' ) );
+$sm_vat_r = Invoices::issue_for_order( $sm_vat_order );
 check( 'small-business organizer: invoice with VAT is refused (§ 14c)', is_wp_error( $sm_vat_r ) && 'wpcap_invoice_small_business_vat' === $sm_vat_r->get_error_code() );
 $sm_zero = Invoices::issue_for_order( sm_order( array( $sm_tz => 2 ), 'sm-small-0' ) );
 check( 'small-business organizer: 0 % invoice carries the small-business note', ! is_wp_error( $sm_zero ) && false !== strpos( Invoices::render_html( $sm_zero['invoice_id'] ), 'Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG' ) );
 
 echo "Sales models: platform operator as small business\n";
-PassCaptain\Settings::update( array( 'seller_small_business' => 1, 'seller_small_business_note' => '' ) );
 $sm_pv = sm_type( 1190, 1900 );
-$sm_pv_r = Invoices::issue_for_order( sm_order( array( $sm_pv => 1 ), 'sm-plat-small-vat' ) );
+$sm_pv_order = sm_order( array( $sm_pv => 1 ), 'sm-plat-small-vat' ); // sold before the setting (existing data)
+PassCaptain\Settings::update( array( 'seller_small_business' => 1, 'seller_small_business_note' => '' ) );
+$sm_pv_r = Invoices::issue_for_order( $sm_pv_order );
 check( 'small-business platform: invoice with VAT is refused (§ 14c)', is_wp_error( $sm_pv_r ) && 'wpcap_invoice_small_business_vat' === $sm_pv_r->get_error_code() );
 $sm_p0 = sm_type( 1000, 0 );
 $sm_p0_r = Invoices::issue_for_order( sm_order( array( $sm_p0 => 1 ), 'sm-plat-small-0' ) );

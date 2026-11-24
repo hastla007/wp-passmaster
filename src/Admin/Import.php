@@ -98,6 +98,9 @@ final class Import {
 		if ( null === $price ) { return $fail( __( 'Preis ungültig.', 'pass-captain' ) ); }
 		$tax = Forms::parse_percent_bp( '' !== ( $row['tax_rate'] ?? '' ) ? $row['tax_rate'] : '0' );
 		if ( null === $tax ) { return $fail( __( 'Steuersatz ungültig.', 'pass-captain' ) ); }
+		// Imported events have no organizer: the platform sells them; as a small business only with 0 %.
+		$small_business = \PassCaptain\Partners\SalesModel::small_business_type_error( 0, (int) $tax );
+		if ( $small_business ) { return $fail( $small_business->get_error_message() ); }
 		$ints = array();
 		foreach ( array( 'occurrence_capacity' => 0, 'ticket_capacity' => 0, 'max_per_order' => 10 ) as $key => $default ) {
 			$raw = (string) ( $row[ $key ] ?? '' );

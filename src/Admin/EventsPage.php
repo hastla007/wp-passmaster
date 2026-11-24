@@ -73,6 +73,9 @@ final class EventsPage {
 		if ( null === $price ) { return Forms::error( 'wpcap_event_price', __( 'Der Preis ist ungültig. Beispiel: 12,50', 'pass-captain' ), 400, 'price' ); }
 		$tax_bp = Forms::parse_percent_bp( $in['tax_rate'] ?? '' );
 		if ( null === $tax_bp ) { return Forms::error( 'wpcap_event_tax', __( 'Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7', 'pass-captain' ), 400, 'tax_rate' ); }
+		// A new event has no organizer yet: the platform sells it; as a small business only with 0 %.
+		$small_business = \PassCaptain\Partners\SalesModel::small_business_type_error( 0, (int) $tax_bp );
+		if ( $small_business ) { return Forms::error( $small_business->get_error_code(), $small_business->get_error_message(), 400, 'tax_rate' ); }
 		// SET-PC-45: a net entry is converted to the stored gross price per occurrence below, with the rate
 		// checkout applies (net_rate_bp(): active tax profile for country, class and date, else the form rate).
 		$entered_price = (int) $price;
@@ -607,6 +610,10 @@ final class EventsPage {
 		// SET-PC-45: net entry is converted to the stored gross price; an unchanged net value keeps the stored gross price (no rounding drift).
 		// The rate is the one checkout applies: an active tax profile for event country and class wins over the form rate.
 		$tax_class = array_key_exists( 'tax_class', $in ) ? substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 ) : (string) ( $old->tax_class ?? '' );
+		// A small-business seller (platform setting, or agent organizer) must not sell with VAT: refused here
+		// instead of at invoice time (a paid order that cannot be invoiced, § 14c UStG).
+		$small_business = \PassCaptain\Partners\SalesModel::small_business_type_error( (int) $occ->event_id, (int) $tax_bp, \PassCaptain\Partners\SalesModel::effective_tax_rate_bp( (object) array( 'tax_rate_bp' => (int) $tax_bp, 'tax_class' => $tax_class, 'occurrence_id' => (int) $occ->occurrence_id ), $occ ) );
+		if ( $small_business ) { return Forms::error( $small_business->get_error_code(), $small_business->get_error_message(), 400, (string) ( $small_business->get_error_data()['field'] ?? 'tax_rate' ) ); }
 		$net_bp = self::net_rate_bp( (int) $tax_bp, $occ, $tax_class );
 		$old_net_bp = $old ? self::net_rate_bp( (int) $old->tax_rate_bp, $occ, (string) ( $old->tax_class ?? '' ) ) : 0;
 		$price = ( $old && self::net_entry() && $net_bp === $old_net_bp && (int) $price === self::gross_to_entry( (int) $old->price_minor, $old_net_bp ) ) ? (int) $old->price_minor : self::entry_to_gross( (int) $price, $net_bp );

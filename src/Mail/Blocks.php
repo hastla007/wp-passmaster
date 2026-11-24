@@ -136,6 +136,18 @@ final class Blocks {
 		return Mailer::block( $text . "\n", $html );
 	}
 
+	/**
+	 * {contract_partner}: "Vertragspartner: …" in the agent model (organizer as contract partner), with
+	 * a trailing blank line; empty otherwise, so the mail reads exactly as without the placeholder.
+	 *
+	 * @param array|null $partner Partners\SalesModel::contract_partner_for_order() result.
+	 */
+	public static function contract_partner( $partner ) {
+		if ( ! is_array( $partner ) ) { return Mailer::block( '', '' ); }
+		$line = \PassCaptain\Partners\SalesModel::contract_partner_line( $partner );
+		return Mailer::block( $line . "\n\n", '<p style="margin:0 0 16px">' . esc_html( $line ) . '</p>' );
+	}
+
 	/** Extra text from filters such as wpcap_ticket_code_mail_section (wallet links). */
 	public static function extra( $text ) {
 		$text = (string) $text;

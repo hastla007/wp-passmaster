@@ -75,12 +75,35 @@ Kleinunternehmer, tragen ihre Rechnungen (Eigenhändler-Modell und Plattform-Eve
 (leer = Standardtext für das Land), und eine Rechnung wird verweigert, solange die Bestellung
 Umsatzsteuer enthält (`wpcap_invoice_small_business_vat`, § 14c UStG) – Ticketarten dann mit 0 % anlegen.
 
+**Kleinunternehmer schon beim Anlegen und im Checkout:** Maßgeblich ist der Rechnungssteller der Tickets
+(Vermittler-Veranstalter: dessen Feld „Kleinunternehmer“; Eigenhändler-Veranstalter und Events ohne
+Veranstalter: die Plattform-Einstellung `seller_small_business`).
+
+- Ticketart speichern (Event-Formular, „Event anlegen“ mit der ersten Ticketart, CSV-Import) mit einem
+  Steuersatz > 0 % wird mit Feldfehler abgelehnt (`wpcap_type_small_business_vat`, Feld `tax_rate`); ergibt
+  erst ein aktives Steuerprofil der Steuerklasse einen Satz > 0 %, nennt der Fehler das Feld `tax_class`.
+- Der eigene Checkout (auch Abendkasse, Partner-API) lehnt Bestellungen ab, deren Positionen oder
+  Servicegebühr Umsatzsteuer tragen würden (`wpcap_checkout_failed`, `reason` = `small_business_vat`,
+  HTTP 409, neutrale Meldung für Käufer, Log-Eintrag mit den Ticketarten) – statt eine bezahlte Bestellung
+  anzulegen, für die keine Rechnung ausgestellt werden darf. Bestellungen externer Systeme (WooCommerce,
+  Adapter) sind dort schon bezahlt und behalten ihre Steuer.
+- Bestehende Ticketarten mit > 0 % (angelegt vor dem Update oder vor dem Setzen des Kennzeichens bzw. der
+  Zuordnung zum Veranstalter) werden **nicht** automatisch geändert: Website-Zustand zeigt sie als
+  kritischen Test „Ticketarten mit Umsatzsteuer bei Kleinunternehmern“ (aktive Ticketarten kommender
+  Termine), dazu der Hinweis auf den Plugin-Seiten. Bereits verkaufte Bestellungen mit USt werden wie
+  bisher bei der Rechnungsstellung abgelehnt.
+
 ### Kundenrechnungen
 
 - Rechnungssteller wird bei der Ausstellung ermittelt: Gehören alle Tickets einer Bestellung zu Events
   eines Vermittler-Veranstalters, wird die Rechnung im Namen dieses Veranstalters ausgestellt (Schnappschuss
   der Veranstalterdaten, Nummer aus der Serie `invoice-org-{ID}`, Präfix des Veranstalters). Sonst stellt
   die Plattform aus (Eigenhändler-Veranstalter, Events ohne Veranstalter).
+- **Vertragspartner im Checkout:** Bei Events eines Vermittler-Veranstalters zeigen die Hinweise unter dem
+  Bestellbutton „Vertragspartner: {Veranstalter}, {Anschrift}“ (rechtlicher Name, sonst Anzeigename;
+  Rechnungsanschrift). Dieselbe Zeile steht in der Bestellübersicht (Bestellportal), in der Ticket-Mail und
+  in der Mail mit dem Bestellzugang (Platzhalter `{contract_partner}`, im Eigenhändler-Modell leer; eigene
+  Mailvorlagen müssen den Platzhalter selbst aufnehmen). Es gelten die aktuellen Veranstalterdaten.
 - Der Beleg enthält „Vermittelt durch {Plattform}, {Anschrift} (USt-IdNr.)“ und den Hinweis, dass die
   Plattform im Namen und für Rechnung des Veranstalters handelt.
 - **Gemischte Bestellungen** (Vermittler-Veranstalter zusammen mit anderen Veranstaltern oder
