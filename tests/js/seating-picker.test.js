@@ -56,6 +56,8 @@ test('format fills sequential and positional placeholders', () => {
 	const { exports: p } = picker();
 	assert.equal(p.format('%s ausgewählt', 'R1'), 'R1 ausgewählt');
 	assert.equal(p.format('%1$s: %2$d von %3$d', 'A', 1, 2), 'A: 1 von 2');
+	// "%%" is a literal percent sign ("Zoom %d %%" showed "Zoom 100 %%" in the browser).
+	assert.equal(p.format('Zoom %d %%', 150), 'Zoom 150 %');
 });
 
 test('renders an accessible seat map with a checkbox list fallback', async () => {

@@ -1401,6 +1401,9 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ occurrence_id: Number(form.dataset.occurrence), ticket_type_id: Number(form.elements.ticket_type_id.value), quantity: Number(form.elements.quantity.value || 1), email: email.value })
+			}).catch(function () {
+				// No connection: our own text instead of the browser's ("Failed to fetch", "Load failed").
+				throw new Error(t.waitlistFailed || 'Failed.');
 			});
 			var data = {};
 			try { data = await response.json(); } catch (e) { data = {}; }

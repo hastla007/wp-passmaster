@@ -8,6 +8,11 @@
  *   php tests/e2e/helper.php /path/to/wordpress order <public_id>           → payment status and tickets
  *   php tests/e2e/helper.php /path/to/wordpress orders-count <email>        → number of orders of a buyer
  *   php tests/e2e/helper.php /path/to/wordpress page <slug> <content>       → URL of a page with that content
+ *   php tests/e2e/helper.php /path/to/wordpress checkin <code>              → server check-in (another device)
+ *   php tests/e2e/helper.php /path/to/wordpress paid-order <qty>            → paid manual order, portal link
+ *   php tests/e2e/helper.php /path/to/wordpress refunds <public_id>         → refunds and ticket refund flags
+ *   php tests/e2e/helper.php /path/to/wordpress booking <email>             → newest service booking
+ *   php tests/e2e/helper.php /path/to/wordpress seated                      → fresh event with a linked seat map
  *
  * @package PassCaptain
  */
@@ -98,6 +103,92 @@ switch ( $cmd ) {
 		$existing = get_page_by_path( $slug );
 		$id = $existing ? (int) $existing->ID : (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_name' => $slug, 'post_title' => $slug, 'post_content' => (string) ( $argv[4] ?? '' ) ) );
 		echo wp_json_encode( array( 'url' => get_permalink( $id ) ) );
+		break;
+	case 'checkin':
+		// A142: another device checks the ticket in on the server (conflict for an offline admission of this code).
+		$r = \PassCaptain\Checkin::perform( strtolower( (string) ( $argv[3] ?? '' ) ), array( 'source' => 'web', 'idempotency_key' => 'e2e-' . bin2hex( random_bytes( 8 ) ) ) );
+		echo wp_json_encode( array( 'ok' => ! is_wp_error( $r ), 'error' => is_wp_error( $r ) ? $r->get_error_code() : '' ) );
+		break;
+	case 'paid-order':
+		// A142/A321: paid order (manual payment, marked paid by staff) of <qty> tickets of the a11y event's "Standard"
+		// type, with self-service refund requests in the portal switched on (portal_refund_request_hours).
+		$qty = max( 1, (int) ( $argv[3] ?? 1 ) );
+		$type = (int) $wpdb->get_var( "SELECT tt.ticket_type_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.slug='a11y-test-event' AND tt.name='Standard'" );
+		if ( ! $type ) { fwrite( STDERR, "run tests/a11y/fixture.php first\n" ); exit( 1 ); }
+		$settings = (array) get_option( 'wpcap_settings', array() );
+		$settings['portal_refund_request_hours'] = 2;
+		update_option( 'wpcap_settings', $settings );
+		$mails = array();
+		add_filter( 'pre_wp_mail', static function ( $short, $atts ) use ( &$mails ) { $mails[] = $atts; return true; }, 1, 2 );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', \PassCaptain\RateLimit::table() ) );
+		$email = 'e2e-paid-' . bin2hex( random_bytes( 4 ) ) . '@example.com';
+		$order = \PassCaptain\Orders::create( array( 'email' => $email, 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'e2e-paid-' . bin2hex( random_bytes( 6 ) ), 'accept_terms' => true ), array( 'payment_provider' => 'manual', 'skip_rate_limit' => true ) );
+		if ( is_wp_error( $order ) ) { fwrite( STDERR, 'order: ' . $order->get_error_message() . "\n" ); exit( 1 ); }
+		$paid = \PassCaptain\Orders::confirm_manual_payment( (int) $order['order_id'] );
+		if ( is_wp_error( $paid ) ) { fwrite( STDERR, 'paid: ' . $paid->get_error_message() . "\n" ); exit( 1 ); }
+		$portal = '';
+		foreach ( $mails as $mail ) {
+			$body = is_array( $mail['message'] ?? null ) ? implode( "\n", $mail['message'] ) : (string) ( $mail['message'] ?? '' );
+			if ( preg_match( '#https?://[^\s"\'<>]*wpcap_order=[a-f0-9]{32}[^\s"\'<>]*#', $body, $m ) ) { $portal = html_entity_decode( $m[0] ); }
+		}
+		$public = (string) $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$p}wpcap_orders WHERE order_id=%d", (int) $order['order_id'] ) );
+		echo wp_json_encode( array( 'order_id' => (int) $order['order_id'], 'public_id' => $public, 'email' => $email, 'portal_url' => $portal ) );
+		break;
+	case 'refunds':
+		// Refunds of an order (status, amount) and its tickets' refund flags.
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE public_id=%s", (string) ( $argv[3] ?? '' ) ) );
+		echo wp_json_encode( array(
+			'refunds' => $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,status,amount_minor FROM {$p}wpcap_refunds WHERE order_id=%d ORDER BY refund_id", $order_id ) ),
+			'tickets' => $wpdb->get_results( $wpdb->prepare( "SELECT status,refunded FROM {$p}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", $order_id ) ),
+		) );
+		break;
+	case 'booking':
+		// Newest service booking of an e-mail address (A142 rebooking).
+		echo wp_json_encode( array( 'booking' => $wpdb->get_row( $wpdb->prepare( "SELECT booking_id,slot_id,status,quantity FROM {$p}wpcap_service_bookings WHERE customer_email=%s ORDER BY booking_id DESC LIMIT 1", (string) ( $argv[3] ?? '' ) ) ) ) );
+		break;
+	case 'seated':
+		// A321: event with a published seat map linked to its occurrence (8 seats in two rows, seat A4
+		// wheelchair accessible), on its own page. A new event per call (every seat free); earlier ones go to draft.
+		$wpdb->query( "UPDATE {$p}wpcap_events SET status='draft' WHERE slug LIKE 'e2e-seated-%'" );
+		$slug = 'e2e-seated-' . bin2hex( random_bytes( 4 ) );
+		$event = 0;
+		$now = gmdate( 'Y-m-d H:i:s' );
+		if ( ! $event ) {
+			$wpdb->insert( "{$p}wpcap_events", array( 'name' => 'E2E Saalkonzert', 'slug' => $slug, 'description' => '', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
+			$event = (int) $wpdb->insert_id;
+			$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 45 * DAY_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Kammersaal', 'capacity' => 0, 'status' => 'scheduled' ) );
+			$occ = (int) $wpdb->insert_id;
+			$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => 'Saalplatz', 'price_minor' => 0, 'currency' => 'EUR', 'capacity' => 8, 'max_per_order' => 4, 'status' => 'active' ) );
+			$type = (int) $wpdb->insert_id;
+			$seats = array();
+			foreach ( array( 'A' => 60, 'B' => 120 ) as $row => $y ) {
+				foreach ( array( 1, 2, 3, 4 ) as $n ) {
+					$seats[] = array( 'key' => strtolower( $row ) . $n, 'group' => 'g' . strtolower( $row ), 'row' => 'Reihe ' . $row, 'label' => (string) $n, 'x' => 40 + 40 * $n, 'y' => $y, 'zone' => 'parkett', 'category' => 'kat1', 'accessible' => 'A' === $row && 4 === $n );
+				}
+			}
+			$draft = array(
+				'width' => 400, 'height' => 200,
+				'zones' => array( array( 'key' => 'parkett', 'name' => 'Parkett', 'color' => '#2271b1' ) ),
+				'categories' => array( array( 'key' => 'kat1', 'name' => 'Kategorie 1', 'color' => '#00a32a' ) ),
+				'groups' => array( array( 'key' => 'ga', 'type' => 'row', 'label' => '' ), array( 'key' => 'gb', 'type' => 'row', 'label' => '' ) ),
+				'seats' => $seats,
+			);
+			$layout = \PassCaptain\Seating\Layouts::create( $event, 'Kammersaal' );
+			if ( is_wp_error( $layout ) ) { fwrite( STDERR, $layout->get_error_message() . "\n" ); exit( 1 ); }
+			$saved = \PassCaptain\Seating\Layouts::save_draft( (int) $layout['layout_id'], $draft );
+			if ( is_wp_error( $saved ) ) { fwrite( STDERR, $saved->get_error_message() . "\n" ); exit( 1 ); }
+			$pub = \PassCaptain\Seating\Layouts::publish( (int) $layout['layout_id'] );
+			if ( is_wp_error( $pub ) ) { fwrite( STDERR, $pub->get_error_message() . "\n" ); exit( 1 ); }
+			$link = \PassCaptain\Seating\Layouts::link_occurrence( $occ, (int) $pub['version_id'], array( $type => array( 'parkett' ) ) );
+			if ( is_wp_error( $link ) ) { fwrite( STDERR, $link->get_error_message() . "\n" ); exit( 1 ); }
+		}
+		$occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d", $event ) );
+		$type = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occ ) );
+		$page_slug = 'pc-e2e-seated';
+		$existing = get_page_by_path( $page_slug );
+		$content = '[wpcap_events event="' . $event . '"]';
+		$page = $existing ? (int) wp_update_post( array( 'ID' => (int) $existing->ID, 'post_content' => $content ) ) : (int) wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_name' => $page_slug, 'post_title' => 'Saalplan', 'post_content' => $content ) );
+		echo wp_json_encode( array( 'event_id' => $event, 'occurrence_id' => $occ, 'ticket_type_id' => $type, 'url' => get_permalink( $page ) ) );
 		break;
 	case 'woo-order':
 		$wc = wc_get_order( (int) ( $argv[3] ?? 0 ) );
