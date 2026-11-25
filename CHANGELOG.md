@@ -83,6 +83,7 @@
 - E2E-Tests unter realen Bedingungen für alle Käufer-Widgets sowie Check-out offline, Erstattung und Umbuchung einer Servicebuchung.
 
 ### Code, Build und Lieferkette
+- Stripe: jede Anfrage ist auf die im Testmodus geprüfte API-Version `2026-11-18.endive` festgelegt (Header `Stripe-Version`, Filter `wpcap_stripe_api_version`); Antworten ändern sich nicht mehr mit der Kontoversion.
 - Neu: `Orders::max_lines()` mit Filter `wpcap_max_lines` (Standard 10 Bestellzeilen je Checkout, 1–100); bisher fest im Code. Add-ons wie die Schreib-API von Pass Captain Pro lesen den Wert von dort.
 - Intern: `Orders` in Teilklassen zerlegt (Verfügbarkeit, Teilnehmerangaben, Kapazität; keine Verhaltensänderung).
 - Übersetzung: Platzhalternamen in Hilfetexten separat übersetzbar.
