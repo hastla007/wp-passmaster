@@ -5,6 +5,14 @@
 ### Wallet
 - Wallet-Seite: „Pässe für bestehende Tickets erzeugen“ – Tickets, die vor dem Einschalten von Wallet ausgestellt wurden, erhalten ihre Pässe mit dem bisherigen Code (kein neuer Code, keine Mail); die Pässe erscheinen im Bestellportal. Stapel zu 200 Tickets, Rest im Hintergrund (Job `wallet_backfill`).
 
+### Saalplan, Kalender, Zahlungsfristen
+- Saalpläne sind in diesem Release als „experimentell“ gekennzeichnet: Hinweis in Liste und Editor, Modulliste, readme (FAQ) und Release-Matrix (Owner-Entscheidung E-09).
+- Kalenderdateien (.ics): Steuerzeichen in Eventname und Ort werden entfernt, Termine ohne Dauer erhalten kein ungültiges DTEND mehr, Kauf-Links mit Leerzeichen oder Umlauten werden korrekt kodiert. Im Kalender-Abo sinkt SEQUENCE nie unter die Terminrevision der Mail. Neuer RFC-5545-Prüftest für Download, Abo, Portal und Mails.
+- Mollie: Die Überweisungsfrist (`dueDate`) endet jetzt vor dem Ende der Reservierung; ein späteres `expiresAt` verlängert die Reservierung begrenzt. PayPal: Die Statusabfrage zieht eine genehmigte Zahlung nur noch bei aktiver Reservierung ein (Owner-Entscheidung E-20).
+- Teilnehmerverwaltung: Sortierung nach Event.
+- Lese-Schnittstelle (Vertrag 1.5.0): optional Ort und Inhaberwechsel-Hinweis, Ticket-IDs je Termin/Event/Tickettyp, Event- und Tickettyp-Katalog ohne personenbezogene Daten.
+- Betriebsdokumente: Vorschläge für Support, Sicherheit und Release-Ablauf (Freigabe durch die Produktverantwortung offen).
+
 ## 1.7.0 – 2026-11-23
 
 ### Wichtige Verhaltensänderungen beim Update

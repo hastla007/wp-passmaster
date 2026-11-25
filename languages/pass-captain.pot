@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-25T07:06:02+00:00\n"
+"POT-Creation-Date: 2026-11-25T08:20:40+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: pass-captain\n"
@@ -298,7 +298,7 @@ msgstr ""
 #: src/Reports/Page.php:383
 #: src/Reports/Settlement.php:395
 #: src/Sales/TaxProfilesPage.php:64
-#: src/Seating/AdminPage.php:96
+#: src/Seating/AdminPage.php:98
 #: src/Series/AdminPage.php:76
 #: src/ServiceProviders.php:96
 #: src/Suite/Outbox.php:296
@@ -377,12 +377,12 @@ msgstr ""
 #: src/Printing/Page.php:171
 #: src/Printing/Page.php:205
 #: src/PublicEvents.php:195
-#: src/Seating/AdminPage.php:129
-#: src/Seating/AdminPage.php:176
-#: src/Seating/AdminPage.php:196
+#: src/Seating/AdminPage.php:149
+#: src/Seating/AdminPage.php:197
+#: src/Seating/AdminPage.php:217
 #: src/Series/AdminPage.php:659
 #: src/Series/AdminPage.php:681
-#: src/Waitlists.php:1846
+#: src/Waitlists.php:1852
 #: src/WalletPasses/AppleProvider.php:80
 msgid "Name"
 msgstr ""
@@ -441,8 +441,8 @@ msgstr ""
 #: src/Reports/Data.php:787
 #: src/Reports/Page.php:125
 #: src/Reports/Page.php:230
-#: src/Seating/AdminPage.php:115
-#: src/Seating/AdminPage.php:127
+#: src/Seating/AdminPage.php:135
+#: src/Seating/AdminPage.php:147
 #: src/Series/AdminPage.php:107
 #: src/Waitlists.php:454
 #: src/Waitlists/AdminPage.php:137
@@ -604,7 +604,7 @@ msgstr ""
 #: src/Privacy.php:322
 #: src/Sales/TaxProfilesPage.php:82
 #: src/Series/AdminPage.php:417
-#: src/Waitlists.php:1440
+#: src/Waitlists.php:1446
 #: src/Waitlists/AdminPage.php:171
 #: src/WalletPasses/AdminPage.php:200
 #: src/WalletPasses/AppleProvider.php:87
@@ -782,7 +782,7 @@ msgstr ""
 #: src/Partners/AdminPage.php:509
 #: src/Sales/AdminSections.php:159
 #: src/Sales/AdminSections.php:216
-#: src/Seating/AdminPage.php:175
+#: src/Seating/AdminPage.php:196
 #: src/Seating/Picker.php:42
 #: src/Series/AdminPage.php:594
 #: src/Series/AdminPage.php:671
@@ -983,8 +983,8 @@ msgstr ""
 #: src/Admin/SettingsTools.php:377
 #: src/Admission/RulesPage.php:205
 #: src/Printing/AttendeeList.php:45
-#: src/Seating/AdminPage.php:159
-#: src/Seating/AdminPage.php:232
+#: src/Seating/AdminPage.php:180
+#: src/Seating/AdminPage.php:253
 msgid "Bereich"
 msgstr ""
 
@@ -1547,7 +1547,7 @@ msgstr ""
 #: src/Ops/Network.php:324
 #: src/Reports/Page.php:123
 #: src/Reports/Page.php:351
-#: src/Seating/AdminPage.php:212
+#: src/Seating/AdminPage.php:233
 msgid "Von"
 msgstr ""
 
@@ -1778,7 +1778,7 @@ msgstr ""
 #: src/Frontend/ServiceBooking.php:145
 #: src/Services/Portal.php:208
 #: src/Services/Portal.php:264
-#: src/Waitlists.php:1751
+#: src/Waitlists.php:1757
 msgid "Abgelaufen"
 msgstr ""
 
@@ -1893,7 +1893,7 @@ msgstr ""
 #: src/Admin/TicketsPage.php:933
 #: src/Admission/ConflictsPage.php:77
 #: src/BoxOffice/ShiftPage.php:517
-#: src/Integrations/CalendarFeeds.php:36
+#: src/Integrations/CalendarFeeds.php:38
 #: src/Reports/Page.php:125
 #: src/Reports/Page.php:353
 #: src/blocks/calendar/editor.js:33
@@ -2087,7 +2087,7 @@ msgstr ""
 #: src/Integrations/FormCaptain/EventRequests.php:536
 #: src/Privacy.php:232
 #: src/Waitlists.php:458
-#: src/Waitlists.php:1576
+#: src/Waitlists.php:1582
 #: src/Waitlists/AdminPage.php:171
 #: templates/event-card.php:272
 msgid "Anzahl"
@@ -2281,7 +2281,7 @@ msgstr ""
 #: src/Sales/AdminSections.php:182
 #: src/Series/AdminPage.php:583
 #: src/Series/AdminPage.php:634
-#: src/Waitlists.php:1877
+#: src/Waitlists.php:1883
 #: templates/event-card.php:70
 msgid "Preis"
 msgstr ""
@@ -2311,7 +2311,7 @@ msgid "Verkaufsende"
 msgstr ""
 
 #: src/Admin/ChangeHistory.php:102
-#: src/Seating/AdminPage.php:246
+#: src/Seating/AdminPage.php:267
 msgid "Saalplan-Version"
 msgstr ""
 
@@ -2457,7 +2457,7 @@ msgstr ""
 #: src/Reports/Settlement.php:358
 #: src/Sales/AdminSections.php:180
 #: src/Sales/AdminSections.php:228
-#: src/Seating/AdminPage.php:248
+#: src/Seating/AdminPage.php:269
 #: src/Seating/Picker.php:43
 #: src/Series/AdminPage.php:583
 #: src/Series/AdminPage.php:633
@@ -2914,9 +2914,7 @@ msgid "Verkaufsregeln"
 msgstr ""
 
 #: src/Admin/Dashboard.php:143
-#: src/Modules/Seating.php:41
-#: src/Seating/AdminPage.php:109
-msgid "Saalpläne"
+msgid "Saalpläne (experimentell)"
 msgstr ""
 
 #: src/Admin/Dashboard.php:144
@@ -3414,7 +3412,7 @@ msgstr ""
 #: src/Admin/Duplicator.php:65
 #: src/Admin/Duplicator.php:106
 #: src/Admin/EventsPage.php:1491
-#: src/Seating/AdminPage.php:137
+#: src/Seating/AdminPage.php:157
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
 msgstr ""
 
@@ -3550,7 +3548,7 @@ msgstr ""
 #: src/EventOverrides.php:62
 #: src/Exchange/Policy.php:89
 #: src/GuestLists/Service.php:178
-#: src/Integrations/CalendarFeeds.php:70
+#: src/Integrations/CalendarFeeds.php:72
 #: src/Integrations/FormCaptain/EventForms.php:157
 #: src/OfflineScanner/AdminPage.php:39
 #: src/OfflineScanner/AdminPage.php:57
@@ -4126,7 +4124,7 @@ msgid "Entwurf"
 msgstr ""
 
 #: src/Admin/EventsPage.php:1496
-#: src/Seating/AdminPage.php:212
+#: src/Seating/AdminPage.php:233
 msgid "Veröffentlicht"
 msgstr ""
 
@@ -5343,8 +5341,8 @@ msgstr ""
 #: src/Partners/Settlements.php:969
 #: src/Partners/Settlements.php:979
 #: src/Partners/Statement.php:176
-#: src/Payments/PayPalGateway.php:827
-#: src/Payments/StripeGateway.php:798
+#: src/Payments/PayPalGateway.php:838
+#: src/Payments/StripeGateway.php:807
 #: src/Printing/Page.php:383
 #: src/PublicEvents.php:856
 #: src/PublicEvents.php:953
@@ -5549,12 +5547,12 @@ msgstr ""
 #: src/Payments/BankTransfer.php:126
 #: src/PublicEvents.php:255
 #: src/Reports/Settlement.php:301
-#: src/Waitlists.php:2047
+#: src/Waitlists.php:2053
 msgid "Betrag"
 msgstr ""
 
 #: src/Admin/ManualHoldsRelease.php:215
-#: src/Waitlists.php:1877
+#: src/Waitlists.php:1883
 #: src/Waitlists/AdminPage.php:171
 msgid "Reserviert bis"
 msgstr ""
@@ -6287,8 +6285,8 @@ msgstr ""
 #: src/Admin/ServicesPage.php:501
 #: src/Allocations/AdminPage.php:349
 #: src/Frontend/ServiceBooking.php:140
-#: src/Seating/AdminPage.php:162
-#: src/Seating/AdminPage.php:212
+#: src/Seating/AdminPage.php:183
+#: src/Seating/AdminPage.php:233
 msgid "Plätze"
 msgstr ""
 
@@ -6590,12 +6588,12 @@ msgstr ""
 #: src/Admin/TicketsPage.php:820
 #: src/BoxOffice/Service.php:812
 #: src/Mail/Types.php:419
-#: src/Mollie/MollieGateway.php:126
-#: src/Mollie/MollieGateway.php:472
+#: src/Mollie/MollieGateway.php:127
+#: src/Mollie/MollieGateway.php:522
 #: src/OrderPortal.php:177
 #: src/OrderPortal.php:179
 #: src/Payments/BankTransfer.php:71
-#: src/Payments/StripeGateway.php:228
+#: src/Payments/StripeGateway.php:235
 #: src/PublicEvents.php:127
 #: src/TicketPage.php:106
 #, php-format
@@ -7233,7 +7231,7 @@ msgid "Zahlart"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:850
-#: src/Waitlists.php:1750
+#: src/Waitlists.php:1756
 msgid "Bezahlt"
 msgstr ""
 
@@ -7488,7 +7486,7 @@ msgstr ""
 #: src/LegalVersions.php:125
 #: src/LegalVersions.php:140
 #: src/Mail/Blocks.php:115
-#: src/Waitlists.php:1891
+#: src/Waitlists.php:1897
 #: templates/event-card.php:224
 msgid "Bedingungen"
 msgstr ""
@@ -7498,7 +7496,7 @@ msgstr ""
 #: src/Frontend/ServiceBooking.php:564
 #: src/LegalVersions.php:126
 #: src/Mail/Blocks.php:115
-#: src/Waitlists.php:1893
+#: src/Waitlists.php:1899
 #: templates/event-card.php:220
 msgid "Verbraucherinformationen"
 msgstr ""
@@ -8030,27 +8028,32 @@ msgstr ""
 msgid "Mehr als %d Treffer – bitte die Suche genauer fassen (z. B. vollständige E-Mail-Adresse oder Bestellnummer)."
 msgstr ""
 
-#: src/Admin/Queries.php:831
+#: src/Admin/Queries.php:833
 msgid "Neueste zuerst"
 msgstr ""
 
-#: src/Admin/Queries.php:832
+#: src/Admin/Queries.php:834
 msgid "Älteste zuerst"
 msgstr ""
 
-#: src/Admin/Queries.php:833
-msgid "Nach Termin"
-msgstr ""
-
-#: src/Admin/Queries.php:834
-msgid "Nach Ticketart"
-msgstr ""
-
 #: src/Admin/Queries.php:835
-msgid "Nach Name"
+#: src/Partners/Settlements.php:969
+msgid "Nach Event"
 msgstr ""
 
 #: src/Admin/Queries.php:836
+msgid "Nach Termin"
+msgstr ""
+
+#: src/Admin/Queries.php:837
+msgid "Nach Ticketart"
+msgstr ""
+
+#: src/Admin/Queries.php:838
+msgid "Nach Name"
+msgstr ""
+
+#: src/Admin/Queries.php:839
 msgid "Nach Status"
 msgstr ""
 
@@ -8543,7 +8546,7 @@ msgstr ""
 #: src/Modules/Webhooks.php:483
 #: src/Partners/AdminPage.php:531
 #: src/Partners/AdminPage.php:698
-#: src/Seating/AdminPage.php:181
+#: src/Seating/AdminPage.php:202
 msgid "Löschen"
 msgstr ""
 
@@ -8663,7 +8666,7 @@ msgstr ""
 #: src/Reports/Page.php:356
 #: src/Reports/Settlement.php:287
 #: src/Reports/Settlement.php:364
-#: src/Seating/AdminPage.php:173
+#: src/Seating/AdminPage.php:194
 msgid "Kapazität"
 msgstr ""
 
@@ -9066,7 +9069,7 @@ msgstr ""
 
 #: src/Admin/ServicesPage.php:499
 #: src/Services/Portal.php:208
-#: src/Waitlists.php:1748
+#: src/Waitlists.php:1754
 msgid "Angebot offen"
 msgstr ""
 
@@ -9082,13 +9085,13 @@ msgstr ""
 #: src/PortalSelfService.php:500
 #: src/Services/Portal.php:208
 #: src/Services/Portal.php:264
-#: src/Waitlists.php:1752
+#: src/Waitlists.php:1758
 msgid "Abgelehnt"
 msgstr ""
 
 #: src/Admin/ServicesPage.php:499
 #: src/Services/Portal.php:208
-#: src/Waitlists.php:1521
+#: src/Waitlists.php:1527
 msgid "Ausgetragen"
 msgstr ""
 
@@ -10613,7 +10616,7 @@ msgid "Erweitert"
 msgstr ""
 
 #: src/Admin/SettingsPage.php:644
-#: src/Seating/AdminPage.php:166
+#: src/Seating/AdminPage.php:187
 msgid "Werkzeuge"
 msgstr ""
 
@@ -11044,7 +11047,7 @@ msgid "Werte mit „Rechtsprüfung“ sind nicht vorausgewählt: Wähle sie erst
 msgstr ""
 
 #: src/Admin/SettingsTools.php:303
-#: src/Seating/AdminPage.php:180
+#: src/Seating/AdminPage.php:201
 msgid "Übernehmen"
 msgstr ""
 
@@ -11589,7 +11592,7 @@ msgstr ""
 #: src/Modules/Fiscalization.php:1377
 #: src/Sales/TaxProfilesPage.php:82
 #: src/Sales/TaxProfilesPage.php:113
-#: src/Seating/AdminPage.php:212
+#: src/Seating/AdminPage.php:233
 msgid "Version"
 msgstr ""
 
@@ -11786,7 +11789,7 @@ msgstr ""
 
 #: src/Admin/TaxPage.php:148
 #: src/Sales/TaxProfilesPage.php:119
-#: src/Seating/AdminPage.php:198
+#: src/Seating/AdminPage.php:219
 msgid "Entwurf speichern"
 msgstr ""
 
@@ -12312,7 +12315,7 @@ msgid "Unbestätigt (Bestätigungslink offen)"
 msgstr ""
 
 #: src/Admin/WaitlistsPage.php:45
-#: src/Waitlists.php:1747
+#: src/Waitlists.php:1753
 msgid "Wartet"
 msgstr ""
 
@@ -14613,7 +14616,7 @@ msgid "Kassierer hinzufügen"
 msgstr ""
 
 #: src/BoxOffice/ShiftPage.php:206
-#: src/Seating/AdminPage.php:168
+#: src/Seating/AdminPage.php:189
 msgid "Hinzufügen"
 msgstr ""
 
@@ -15876,7 +15879,7 @@ msgstr ""
 
 #: src/Consents.php:446
 #: src/ServiceBookingFlow.php:473
-#: src/Waitlists.php:1549
+#: src/Waitlists.php:1555
 msgid "Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut."
 msgstr ""
 
@@ -16496,7 +16499,7 @@ msgstr ""
 #. translators: %s: order number
 #: src/Exchange/AdminPage.php:155
 #: src/Exchange/Portal.php:170
-#: src/Mollie/MollieGateway.php:572
+#: src/Mollie/MollieGateway.php:622
 #, php-format
 msgid "Erstattung %s"
 msgstr ""
@@ -17455,7 +17458,7 @@ msgstr ""
 #: src/Frontend/ServiceBooking.php:116
 #: src/Payments/ReturnNotice.php:223
 #: src/PublicEvents.php:231
-#: src/Waitlists.php:2033
+#: src/Waitlists.php:2039
 #, php-format
 msgid "Bestellnummer: %s"
 msgstr ""
@@ -17494,7 +17497,7 @@ msgstr ""
 #: src/Payments/BankTransfer.php:127
 #: src/Privacy/PolicyText.php:182
 #: src/PublicEvents.php:256
-#: src/Waitlists.php:2047
+#: src/Waitlists.php:2053
 msgid "Empfänger"
 msgstr ""
 
@@ -17514,14 +17517,14 @@ msgstr ""
 #: src/Frontend/ServiceBooking.php:129
 #: src/Payments/BankTransfer.php:130
 #: src/PublicEvents.php:259
-#: src/Waitlists.php:2047
+#: src/Waitlists.php:2053
 msgid "Verwendungszweck"
 msgstr ""
 
 #: src/Frontend/ServiceBooking.php:130
 #: src/Payments/BankTransfer.php:131
 #: src/PublicEvents.php:260
-#: src/Waitlists.php:2047
+#: src/Waitlists.php:2053
 msgid "Zahlbar bis"
 msgstr ""
 
@@ -17770,7 +17773,7 @@ msgstr[1] ""
 #: src/PublicEvents.php:160
 #: src/Reports/Settlement.php:279
 #: src/Reports/Settlement.php:353
-#: src/Waitlists.php:1799
+#: src/Waitlists.php:1805
 #: templates/event-card.php:210
 msgid "Zahlungsart"
 msgstr ""
@@ -17788,13 +17791,13 @@ msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und A
 msgstr ""
 
 #: src/Frontend/ServiceBooking.php:565
-#: src/Waitlists.php:1894
+#: src/Waitlists.php:1900
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr ""
 
 #: src/Frontend/ServiceBooking.php:565
-#: src/Waitlists.php:1894
+#: src/Waitlists.php:1900
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen."
 msgstr ""
@@ -17880,7 +17883,7 @@ msgid "Gästelisten & Freikarten"
 msgstr ""
 
 #: src/GuestLists/Page.php:187
-#: src/Seating/AdminPage.php:112
+#: src/Seating/AdminPage.php:132
 msgid "Keine Events verfügbar."
 msgstr ""
 
@@ -18316,19 +18319,19 @@ msgstr ""
 msgid "Partnercode (optional)"
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:37
+#: src/Integrations/CalendarFeeds.php:39
 msgid "Ein Event"
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:38
+#: src/Integrations/CalendarFeeds.php:40
 msgid "Ein Veranstalter"
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:68
+#: src/Integrations/CalendarFeeds.php:70
 msgid "Unbekannter Umfang des Kalender-Abos."
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:73
+#: src/Integrations/CalendarFeeds.php:75
 #: src/Partners/AdminPage.php:254
 #: src/Partners/Keys.php:65
 #: src/Partners/Repository.php:128
@@ -18339,12 +18342,12 @@ msgstr ""
 msgid "Veranstalter nicht gefunden."
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:77
+#: src/Integrations/CalendarFeeds.php:79
 msgid "Kalender-Abo konnte nicht angelegt werden."
 msgstr ""
 
-#: src/Integrations/CalendarFeeds.php:95
-#: src/Integrations/CalendarFeeds.php:218
+#: src/Integrations/CalendarFeeds.php:97
+#: src/Integrations/CalendarFeeds.php:222
 msgid "Kalender-Abo nicht gefunden oder widerrufen."
 msgstr ""
 
@@ -19302,7 +19305,7 @@ msgstr ""
 
 #: src/Integrations/WooCommerce/Attendees.php:309
 #: src/Integrations/WooCommerce/Attendees.php:475
-#: src/Waitlists.php:1837
+#: src/Waitlists.php:1843
 msgid "Angaben zu den Teilnehmenden"
 msgstr ""
 
@@ -21404,7 +21407,7 @@ msgid ""
 msgstr ""
 
 #: src/Mail/Types.php:698
-#: src/Waitlists.php:1642
+#: src/Waitlists.php:1648
 msgid "Du bleibst auf der Warteliste."
 msgstr ""
 
@@ -21436,7 +21439,7 @@ msgid ""
 msgstr ""
 
 #: src/Mail/Types.php:712
-#: src/Waitlists.php:1692
+#: src/Waitlists.php:1698
 msgid "Der Termin wurde abgesagt."
 msgstr ""
 
@@ -22774,6 +22777,11 @@ msgstr ""
 msgid "Obergrenze für die Summe aller Rabatte einer Bestellung in Basispunkten (10000 = 100 %)."
 msgstr ""
 
+#: src/Modules/Seating.php:41
+#: src/Seating/AdminPage.php:128
+msgid "Saalpläne"
+msgstr ""
+
 #: src/Modules/Series.php:39
 #: src/Series/AdminPage.php:77
 msgid "Serientermine"
@@ -23617,7 +23625,7 @@ msgstr ""
 
 #. translators: %s: payment method title
 #: src/Mollie/MollieGateway.php:57
-#: src/Payments/StripeGateway.php:70
+#: src/Payments/StripeGateway.php:77
 #, php-format
 msgid "%s – Testmodus"
 msgstr ""
@@ -23626,54 +23634,54 @@ msgstr ""
 msgid "Die Bestellung kann nicht mit Mollie bezahlt werden."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:149
-#: src/Mollie/MollieGateway.php:579
+#: src/Mollie/MollieGateway.php:150
+#: src/Mollie/MollieGateway.php:629
 msgid "Unerwartete Antwort von Mollie."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:213
+#: src/Mollie/MollieGateway.php:244
 #: src/Rest/Controller.php:635
 #: src/Waitlists.php:1000
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:292
+#: src/Mollie/MollieGateway.php:323
 msgid "Die Zahlungsmethoden von Mollie werden gerade geladen."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:343
+#: src/Mollie/MollieGateway.php:374
 msgid "Ungültige Mollie-Zahlungs-ID."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:470
+#: src/Mollie/MollieGateway.php:520
 msgid "Unbekannte Mollie-Zahlung."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:567
-#: src/Mollie/MollieGateway.php:593
+#: src/Mollie/MollieGateway.php:617
+#: src/Mollie/MollieGateway.php:643
 msgid "Für diese Bestellung ist keine Mollie-Zahlung bekannt."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:582
+#: src/Mollie/MollieGateway.php:632
 msgid "Mollie hat die Erstattung abgelehnt."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:602
+#: src/Mollie/MollieGateway.php:652
 msgid "Die Erstattungen der Mollie-Zahlung konnten nicht vollständig gelesen werden."
 msgstr ""
 
-#: src/Mollie/MollieGateway.php:634
+#: src/Mollie/MollieGateway.php:684
 msgid "Mollie ist nicht konfiguriert."
 msgstr ""
 
 #. translators: %s: error message
-#: src/Mollie/MollieGateway.php:649
+#: src/Mollie/MollieGateway.php:699
 #, php-format
 msgid "Mollie ist nicht erreichbar: %s"
 msgstr ""
 
 #. translators: %s: error message from Mollie
-#: src/Mollie/MollieGateway.php:658
+#: src/Mollie/MollieGateway.php:708
 #, php-format
 msgid "Mollie-Fehler: %s"
 msgstr ""
@@ -27825,10 +27833,6 @@ msgstr ""
 msgid "Übersicht nach Art"
 msgstr ""
 
-#: src/Partners/Settlements.php:969
-msgid "Nach Event"
-msgstr ""
-
 #: src/Partners/Settlements.php:974
 msgid "Ticketumsatz nach Steuersatz (Kundenverkauf)"
 msgstr ""
@@ -28443,38 +28447,38 @@ msgstr ""
 msgid "PayPal hat Erstattungen zu dieser Zahlung, aber keine lässt sich dieser Erstattung sicher zuordnen. Bitte im PayPal-Konto prüfen."
 msgstr ""
 
-#: src/Payments/PayPalGateway.php:695
+#: src/Payments/PayPalGateway.php:706
 msgid "Für diese Bestellung ist keine PayPal-Zahlung bekannt."
 msgstr ""
 
-#: src/Payments/PayPalGateway.php:700
+#: src/Payments/PayPalGateway.php:711
 msgid "Die PayPal-Zahlung wurde noch nicht abgeschlossen."
 msgstr ""
 
-#: src/Payments/PayPalGateway.php:711
+#: src/Payments/PayPalGateway.php:722
 msgid "PayPal ist nicht konfiguriert."
 msgstr ""
 
 #. translators: %s: error message
-#: src/Payments/PayPalGateway.php:728
-#: src/Payments/PayPalGateway.php:762
+#: src/Payments/PayPalGateway.php:739
+#: src/Payments/PayPalGateway.php:773
 #, php-format
 msgid "PayPal ist nicht erreichbar: %s"
 msgstr ""
 
 #. translators: %s: HTTP status
-#: src/Payments/PayPalGateway.php:734
+#: src/Payments/PayPalGateway.php:745
 #, php-format
 msgid "PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen."
 msgstr ""
 
 #. translators: %s: error message from PayPal
-#: src/Payments/PayPalGateway.php:777
+#: src/Payments/PayPalGateway.php:788
 #, php-format
 msgid "PayPal-Fehler: %s"
 msgstr ""
 
-#: src/Payments/PayPalGateway.php:800
+#: src/Payments/PayPalGateway.php:811
 msgid "PayPal unterstützt in dieser Währung keine Nachkommastellen."
 msgstr ""
 
@@ -28574,120 +28578,120 @@ msgstr ""
 msgid "Die Zahlung konnte gerade nicht gestartet werden. Bitte versuche es in einem Moment erneut oder wähle eine andere Zahlungsart. Fehler-ID: %s"
 msgstr ""
 
-#: src/Payments/StripeGateway.php:68
+#: src/Payments/StripeGateway.php:75
 msgid "Kreditkarte & weitere Zahlarten (Stripe)"
 msgstr ""
 
-#: src/Payments/StripeGateway.php:119
+#: src/Payments/StripeGateway.php:126
 msgid "Der Stripe-Schlüssel ist kein Secret Key (sk_live_…/sk_test_… oder rk_live_…/rk_test_…). Stripe wird im Checkout nicht angeboten."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:123
+#: src/Payments/StripeGateway.php:130
 msgid "Stripe steht auf „Live“, der Secret Key ist aber ein Testschlüssel (sk_test_…). Es würden keine echten Zahlungen eingezogen – Stripe wird im Checkout erst wieder angeboten, wenn Modus und Schlüssel zusammenpassen."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:124
+#: src/Payments/StripeGateway.php:131
 msgid "Stripe steht auf „Test“, der Secret Key ist aber ein Live-Schlüssel (sk_live_…). Stripe wird im Checkout erst wieder angeboten, wenn Modus und Schlüssel zusammenpassen."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:138
+#: src/Payments/StripeGateway.php:145
 msgid "Stripe: Der geheime API-Schlüssel (Secret Key) fehlt."
 msgstr ""
 
 #. translators: %s: error message
-#: src/Payments/StripeGateway.php:143
+#: src/Payments/StripeGateway.php:150
 #, php-format
 msgid "Stripe: Verbindung fehlgeschlagen – %s Bitte den geheimen API-Schlüssel prüfen."
 msgstr ""
 
 #. translators: %s: Stripe account id
-#: src/Payments/StripeGateway.php:146
+#: src/Payments/StripeGateway.php:153
 #, php-format
 msgid "Stripe: Verbindung hergestellt (Konto %s)."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:148
+#: src/Payments/StripeGateway.php:155
 msgid "Stripe: Das Webhook-Signaturgeheimnis (whsec_…) fehlt – ohne es werden Zahlungen nie bestätigt."
 msgstr ""
 
 #. translators: %s: error message
-#: src/Payments/StripeGateway.php:153
+#: src/Payments/StripeGateway.php:160
 #, php-format
 msgid "Stripe: Die Webhook-Endpunkte konnten nicht gelesen werden (%s). Bitte im Dashboard prüfen."
 msgstr ""
 
 #. translators: %s: webhook URL
-#: src/Payments/StripeGateway.php:163
+#: src/Payments/StripeGateway.php:170
 #, php-format
 msgid "Stripe: Kein Webhook-Endpunkt mit der URL %s gefunden. Im Stripe-Dashboard unter Entwickler → Webhooks anlegen."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:167
+#: src/Payments/StripeGateway.php:174
 msgid "Stripe: Der Webhook-Endpunkt ist deaktiviert."
 msgstr ""
 
 #. translators: %s: event names
-#: src/Payments/StripeGateway.php:173
+#: src/Payments/StripeGateway.php:180
 #, php-format
 msgid "Stripe: Dem Webhook-Endpunkt fehlen Ereignisse: %s"
 msgstr ""
 
-#: src/Payments/StripeGateway.php:175
+#: src/Payments/StripeGateway.php:182
 msgid "Stripe: Webhook-Endpunkt gefunden, alle nötigen Ereignisse sind ausgewählt."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:186
+#: src/Payments/StripeGateway.php:193
 msgid "Die Bestellung kann nicht mit Stripe bezahlt werden."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:244
-#: src/Payments/StripeGateway.php:350
+#: src/Payments/StripeGateway.php:251
+#: src/Payments/StripeGateway.php:357
 msgid "Unerwartete Antwort von Stripe."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:262
+#: src/Payments/StripeGateway.php:269
 msgid "Die Zahlung ist bereits abgeschlossen; die Reservierung kann nicht freigegeben werden."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:323
+#: src/Payments/StripeGateway.php:330
 msgid "Ungültige Stripe-Signatur."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:327
+#: src/Payments/StripeGateway.php:334
 msgid "Ungültige Stripe-Nachricht."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:353
+#: src/Payments/StripeGateway.php:360
 msgid "Stripe hat die Erstattung abgelehnt."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:386
-#: src/Payments/StripeGateway.php:646
+#: src/Payments/StripeGateway.php:393
+#: src/Payments/StripeGateway.php:653
 msgid "Die Erstattungen der Stripe-Zahlung konnten nicht vollständig gelesen werden."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:402
+#: src/Payments/StripeGateway.php:409
 msgid "Für diese Bestellung ist keine Stripe-Zahlung bekannt."
 msgstr ""
 
-#: src/Payments/StripeGateway.php:709
+#: src/Payments/StripeGateway.php:716
 msgid "Stripe ist nicht konfiguriert."
 msgstr ""
 
 #. translators: %s: error message
-#: src/Payments/StripeGateway.php:725
+#: src/Payments/StripeGateway.php:734
 #, php-format
 msgid "Stripe ist nicht erreichbar: %s"
 msgstr ""
 
 #. translators: %s: error message from Stripe
-#: src/Payments/StripeGateway.php:734
+#: src/Payments/StripeGateway.php:743
 #, php-format
 msgid "Stripe-Fehler: %s"
 msgstr ""
 
 #. translators: 1: amount, 2: currency
-#: src/Payments/StripeGateway.php:831
+#: src/Payments/StripeGateway.php:840
 #, php-format
 msgid "Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen."
 msgstr ""
@@ -28751,12 +28755,12 @@ msgid "Für eine bereits vollständig erstattete Bestellung wurde eine Rückbuch
 msgstr ""
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
-#: src/Payments/Webhooks.php:602
+#: src/Payments/Webhooks.php:608
 msgid "Pass Captain: Zahlung prüfen"
 msgstr ""
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
-#: src/Payments/Webhooks.php:602
+#: src/Payments/Webhooks.php:608
 #, php-format
 msgid ""
 "Bestellung %1$s (%2$s, Referenz %3$s):\n"
@@ -31838,7 +31842,7 @@ msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr ""
 
 #: src/Rest/Controller.php:719
-#: src/Waitlists.php:1032
+#: src/Waitlists.php:1038
 msgid "Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart."
 msgstr ""
 
@@ -32527,254 +32531,266 @@ msgstr ""
 msgid "Die Suche ist gerade nicht möglich. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Seating/AdminPage.php:55
+#: src/Seating/AdminPage.php:57
 msgid "Saalplan angelegt."
 msgstr ""
 
-#: src/Seating/AdminPage.php:64
+#: src/Seating/AdminPage.php:66
 msgid "Entwurf gespeichert."
 msgstr ""
 
 #. translators: 1: version, 2: number of occurrences
-#: src/Seating/AdminPage.php:67
+#: src/Seating/AdminPage.php:69
 #, php-format
 msgid "Version %1$d veröffentlicht; %2$d verknüpfte Termine verwenden jetzt diese Version."
 msgstr ""
 
-#: src/Seating/AdminPage.php:76
+#: src/Seating/AdminPage.php:78
 msgid "Saalplan mit dem Termin verknüpft."
 msgstr ""
 
-#: src/Seating/AdminPage.php:82
+#: src/Seating/AdminPage.php:84
 msgid "Verknüpfung entfernt."
 msgstr ""
 
 #: src/Seating/AdminPage.php:115
-#: src/Seating/AdminPage.php:167
+msgid "experimentell"
+msgstr ""
+
+#: src/Seating/AdminPage.php:120
+msgid "Experimentelle Funktion:"
+msgstr ""
+
+#: src/Seating/AdminPage.php:120
+msgid "Der Saalplan ist im ersten Release als experimentell gekennzeichnet. Bedienung und Darstellung können sich in späteren Versionen ändern; die mobile Bedienung (Zoomen, Verschieben) ist noch nicht fertig. Prüfe einen Saalplan vor dem Verkauf im Checkout auf Computer und Smartphone."
+msgstr ""
+
+#: src/Seating/AdminPage.php:135
+#: src/Seating/AdminPage.php:188
 #: src/Seating/Picker.php:31
 #: src/Series/AdminPage.php:273
 msgid "Saalplan"
 msgstr ""
 
-#: src/Seating/AdminPage.php:115
+#: src/Seating/AdminPage.php:135
 msgid "Veröffentlichte Version"
 msgstr ""
 
-#: src/Seating/AdminPage.php:115
+#: src/Seating/AdminPage.php:135
 msgid "Geändert"
 msgstr ""
 
-#: src/Seating/AdminPage.php:120
+#: src/Seating/AdminPage.php:140
 msgid "— (nur Entwurf)"
 msgstr ""
 
-#: src/Seating/AdminPage.php:123
+#: src/Seating/AdminPage.php:143
 msgid "Noch keine Saalpläne angelegt."
 msgstr ""
 
-#: src/Seating/AdminPage.php:125
+#: src/Seating/AdminPage.php:145
 msgid "Neuer Saalplan"
 msgstr ""
 
-#: src/Seating/AdminPage.php:130
+#: src/Seating/AdminPage.php:150
 msgid "Saalplan anlegen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:141
+#: src/Seating/AdminPage.php:161
 msgid "← Alle Saalpläne"
 msgstr ""
 
 #. translators: 1: layout, 2: event
-#: src/Seating/AdminPage.php:143
+#: src/Seating/AdminPage.php:163
 #, php-format
 msgid "Saalplan „%1$s“ – %2$s"
 msgstr ""
 
-#: src/Seating/AdminPage.php:149
+#: src/Seating/AdminPage.php:170
 msgid "Reihe"
 msgstr ""
 
-#: src/Seating/AdminPage.php:150
+#: src/Seating/AdminPage.php:171
 msgid "Tisch"
 msgstr ""
 
-#: src/Seating/AdminPage.php:151
+#: src/Seating/AdminPage.php:172
 msgid "Block"
 msgstr ""
 
 #. translators: %s: standing area
-#: src/Seating/AdminPage.php:152
+#: src/Seating/AdminPage.php:173
 #: src/Seating/Layouts.php:311
 msgid "Stehbereich"
 msgstr ""
 
-#: src/Seating/AdminPage.php:153
+#: src/Seating/AdminPage.php:174
 msgid "Verkauft/reserviert – nicht änderbar"
 msgstr ""
 
-#: src/Seating/AdminPage.php:154
+#: src/Seating/AdminPage.php:175
 msgid "Verkaufte oder reservierte Plätze können nicht gelöscht oder verschoben werden."
 msgstr ""
 
-#: src/Seating/AdminPage.php:155
+#: src/Seating/AdminPage.php:176
 msgid "Nichts ausgewählt. Klicke einen Platz oder eine Gruppe an (Umschalt+Klick für Mehrfachauswahl)."
 msgstr ""
 
-#: src/Seating/AdminPage.php:156
+#: src/Seating/AdminPage.php:177
 msgid "Ausgewählt"
 msgstr ""
 
-#: src/Seating/AdminPage.php:157
+#: src/Seating/AdminPage.php:178
 msgid "Ungespeicherte Änderungen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:158
+#: src/Seating/AdminPage.php:179
 msgid "Auswahl wirklich löschen?"
 msgstr ""
 
-#: src/Seating/AdminPage.php:160
-#: src/Seating/AdminPage.php:232
+#: src/Seating/AdminPage.php:181
+#: src/Seating/AdminPage.php:253
 msgid "Kategorie"
 msgstr ""
 
-#: src/Seating/AdminPage.php:161
+#: src/Seating/AdminPage.php:182
 msgid "— keine —"
 msgstr ""
 
-#: src/Seating/AdminPage.php:163
+#: src/Seating/AdminPage.php:184
 msgid "Bereiche"
 msgstr ""
 
-#: src/Seating/AdminPage.php:164
+#: src/Seating/AdminPage.php:185
 msgid "Kategorien"
 msgstr ""
 
-#: src/Seating/AdminPage.php:165
+#: src/Seating/AdminPage.php:186
 msgid "Stehbereiche"
 msgstr ""
 
-#: src/Seating/AdminPage.php:169
+#: src/Seating/AdminPage.php:190
 msgid "Standard für neue Plätze"
 msgstr ""
 
-#: src/Seating/AdminPage.php:170
+#: src/Seating/AdminPage.php:191
 msgid "Abstand"
 msgstr ""
 
-#: src/Seating/AdminPage.php:171
+#: src/Seating/AdminPage.php:192
 msgid "ab Nr."
 msgstr ""
 
-#: src/Seating/AdminPage.php:172
+#: src/Seating/AdminPage.php:193
 msgid "Reihen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:174
+#: src/Seating/AdminPage.php:195
 msgid "Farbe"
 msgstr ""
 
-#: src/Seating/AdminPage.php:177
+#: src/Seating/AdminPage.php:198
 msgid "Bühne"
 msgstr ""
 
-#: src/Seating/AdminPage.php:178
+#: src/Seating/AdminPage.php:199
 msgid "Breite"
 msgstr ""
 
-#: src/Seating/AdminPage.php:179
+#: src/Seating/AdminPage.php:200
 msgid "Höhe"
 msgstr ""
 
-#: src/Seating/AdminPage.php:182
+#: src/Seating/AdminPage.php:203
 #: src/WalletPasses/AppleProvider.php:79
 msgid "Platz"
 msgstr ""
 
-#: src/Seating/AdminPage.php:183
+#: src/Seating/AdminPage.php:204
 msgid "Neu nummerieren ab (leer = nein)"
 msgstr ""
 
-#: src/Seating/AdminPage.php:184
+#: src/Seating/AdminPage.php:205
 #: src/Seating/Picker.php:26
 msgid "rollstuhlgerecht"
 msgstr ""
 
-#: src/Seating/AdminPage.php:185
+#: src/Seating/AdminPage.php:206
 #: src/Seating/Picker.php:27
 msgid "Begleitplatz (nur mit Rollstuhlplatz)"
 msgstr ""
 
 #. translators: %s: list name (zone or category)
-#: src/Seating/AdminPage.php:187
+#: src/Seating/AdminPage.php:208
 #, php-format
 msgid "%s hinzufügen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:188
+#: src/Seating/AdminPage.php:209
 msgid "Klicken wählt einen Platz, Umschalt+Klick erweitert die Auswahl, Doppelklick wählt die ganze Gruppe. Ziehen oder Pfeiltasten verschieben (Umschalt: 1 px), Entf löscht, Esc hebt die Auswahl auf."
 msgstr ""
 
-#: src/Seating/AdminPage.php:191
+#: src/Seating/AdminPage.php:212
 msgid "Der grafische Editor benötigt JavaScript."
 msgstr ""
 
-#: src/Seating/AdminPage.php:197
+#: src/Seating/AdminPage.php:218
 msgid "Beim Veröffentlichen verknüpfte Termine auf die neue Version umstellen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:198
+#: src/Seating/AdminPage.php:219
 msgid "Speichern und als neue Version veröffentlichen"
 msgstr ""
 
 #. translators: %d: number of seats
-#: src/Seating/AdminPage.php:202
+#: src/Seating/AdminPage.php:223
 #, php-format
 msgid "%d Plätze sind verkauft oder reserviert und gesperrt (Position, Bezeichnung und Bereich bleiben unverändert)."
 msgstr ""
 
-#: src/Seating/AdminPage.php:209
+#: src/Seating/AdminPage.php:230
 msgid "Versionen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:211
+#: src/Seating/AdminPage.php:232
 msgid "Noch keine Version veröffentlicht."
 msgstr ""
 
-#: src/Seating/AdminPage.php:221
+#: src/Seating/AdminPage.php:242
 msgid "Termine verknüpfen"
 msgstr ""
 
-#: src/Seating/AdminPage.php:223
+#: src/Seating/AdminPage.php:244
 msgid "Veröffentliche zuerst eine Version."
 msgstr ""
 
 #. translators: 1: layout name, 2: version
 #. translators: 1: name, 2: version
-#: src/Seating/AdminPage.php:228
+#: src/Seating/AdminPage.php:249
 #: src/Series/AdminPage.php:231
 #, php-format
 msgid "%1$s – Version %2$d"
 msgstr ""
 
-#: src/Seating/AdminPage.php:248
+#: src/Seating/AdminPage.php:269
 msgid "Erlaubte Bereiche/Kategorien (leer = ohne Sitzplatz)"
 msgstr ""
 
-#: src/Seating/AdminPage.php:258
+#: src/Seating/AdminPage.php:279
 msgid "Verknüpfung aktualisieren"
 msgstr ""
 
-#: src/Seating/AdminPage.php:258
+#: src/Seating/AdminPage.php:279
 msgid "Verknüpfen"
 msgstr ""
 
 #. translators: %d: seats
-#: src/Seating/AdminPage.php:263
+#: src/Seating/AdminPage.php:284
 #, php-format
 msgid "Verknüpft · %d Plätze reserviert/verkauft"
 msgstr ""
 
-#: src/Seating/AdminPage.php:268
+#: src/Seating/AdminPage.php:289
 msgid "Verknüpfung entfernen"
 msgstr ""
 
@@ -33755,7 +33771,7 @@ msgid "Wieder in der Regel – Markierung wird aufgehoben"
 msgstr ""
 
 #: src/Series/AdminPage.php:296
-#: src/Waitlists.php:1753
+#: src/Waitlists.php:1759
 msgid "Übersprungen"
 msgstr ""
 
@@ -34393,8 +34409,8 @@ msgstr ""
 #: src/ServiceBookings.php:118
 #: src/ServiceWaitlist.php:355
 #: src/Waitlists.php:916
-#: src/Waitlists.php:1786
-#: src/Waitlists.php:2025
+#: src/Waitlists.php:1792
+#: src/Waitlists.php:2031
 msgid "Wartelistenangebot ist ungültig oder abgelaufen."
 msgstr ""
 
@@ -34793,16 +34809,16 @@ msgstr ""
 
 #: src/Services/Portal.php:53
 #: src/Services/Portal.php:218
-#: src/Waitlists.php:1808
+#: src/Waitlists.php:1814
 msgid "Angebot ablehnen"
 msgstr ""
 
 #: src/Services/Portal.php:55
 #: src/Services/Portal.php:221
-#: src/Waitlists.php:1423
-#: src/Waitlists.php:1486
-#: src/Waitlists.php:1505
-#: src/Waitlists.php:1578
+#: src/Waitlists.php:1429
+#: src/Waitlists.php:1492
+#: src/Waitlists.php:1511
+#: src/Waitlists.php:1584
 msgid "Von der Warteliste austragen"
 msgstr ""
 
@@ -34848,7 +34864,7 @@ msgid "Die Plätze sind bis %s für dich reserviert."
 msgstr ""
 
 #: src/Services/Portal.php:217
-#: src/Waitlists.php:1808
+#: src/Waitlists.php:1814
 msgid "Angebot annehmen"
 msgstr ""
 
@@ -34938,7 +34954,7 @@ msgstr ""
 
 #: src/ServiceWaitlist.php:54
 #: src/Waitlists.php:183
-#: src/Waitlists.php:1307
+#: src/Waitlists.php:1313
 msgid "Zu viele Wartelistenanfragen. Bitte versuche es später erneut."
 msgstr ""
 
@@ -35644,7 +35660,7 @@ msgid "Dieser Eintrag ist nicht gesperrt."
 msgstr ""
 
 #: src/Waitlists.php:785
-#: src/Waitlists.php:1599
+#: src/Waitlists.php:1605
 msgid "Der Eintrag wurde gerade geändert. Bitte neu laden."
 msgstr ""
 
@@ -35664,184 +35680,184 @@ msgstr ""
 msgid "Zuletzt übersprungen: nicht genug freie Sitzplätze für die gewünschte Anzahl"
 msgstr ""
 
-#: src/Waitlists.php:1148
+#: src/Waitlists.php:1154
 msgid "Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal."
 msgstr ""
 
-#: src/Waitlists.php:1167
+#: src/Waitlists.php:1173
 msgid "Wartelistenangebot konnte nicht angenommen werden."
 msgstr ""
 
-#: src/Waitlists.php:1311
+#: src/Waitlists.php:1317
 msgid "Dieser Link zum Austragen ist ungültig."
 msgstr ""
 
-#: src/Waitlists.php:1354
+#: src/Waitlists.php:1360
 msgid "Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
 msgstr ""
 
-#: src/Waitlists.php:1386
-#: src/Waitlists.php:1435
+#: src/Waitlists.php:1392
+#: src/Waitlists.php:1441
 msgid "Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person."
 msgstr ""
 
-#: src/Waitlists.php:1432
+#: src/Waitlists.php:1438
 msgid "Du bist bereits von dieser Warteliste ausgetragen."
 msgstr ""
 
-#: src/Waitlists.php:1438
+#: src/Waitlists.php:1444
 msgid "Du stehst nicht mehr auf dieser Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:1442
+#: src/Waitlists.php:1448
 msgid "Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:1443
+#: src/Waitlists.php:1449
 msgid "Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht."
 msgstr ""
 
-#: src/Waitlists.php:1448
+#: src/Waitlists.php:1454
 msgid "Jetzt von der Warteliste austragen"
 msgstr ""
 
-#: src/Waitlists.php:1513
+#: src/Waitlists.php:1519
 msgid "Austragen nicht möglich"
 msgstr ""
 
-#: src/Waitlists.php:1516
+#: src/Waitlists.php:1522
 msgid "Nicht mehr auf der Warteliste"
 msgstr ""
 
-#: src/Waitlists.php:1516
+#: src/Waitlists.php:1522
 msgid "Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun."
 msgstr ""
 
-#: src/Waitlists.php:1519
+#: src/Waitlists.php:1525
 msgid "Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:1520
+#: src/Waitlists.php:1526
 msgid "Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr."
 msgstr ""
 
-#: src/Waitlists.php:1564
+#: src/Waitlists.php:1570
 msgid "Deine Wartelisten"
 msgstr ""
 
-#: src/Waitlists.php:1566
+#: src/Waitlists.php:1572
 msgid "Du bist von der Warteliste ausgetragen."
 msgstr ""
 
-#: src/Waitlists.php:1568
+#: src/Waitlists.php:1574
 msgid "Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
 msgstr ""
 
-#: src/Waitlists.php:1571
+#: src/Waitlists.php:1577
 msgid "Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten."
 msgstr ""
 
-#: src/Waitlists.php:1596
+#: src/Waitlists.php:1602
 msgid "Dieser Eintrag ist bereits abgeschlossen."
 msgstr ""
 
-#: src/Waitlists.php:1642
+#: src/Waitlists.php:1648
 msgid "Dein Angebot bleibt bis zum angegebenen Zeitpunkt gültig."
 msgstr ""
 
-#: src/Waitlists.php:1692
+#: src/Waitlists.php:1698
 msgid "Der Termin hat begonnen bzw. der Verkauf ist beendet."
 msgstr ""
 
-#: src/Waitlists.php:1746
+#: src/Waitlists.php:1752
 msgid "Unbestätigt (E-Mail-Bestätigung offen)"
 msgstr ""
 
-#: src/Waitlists.php:1749
+#: src/Waitlists.php:1755
 msgid "Angenommen, Zahlung offen"
 msgstr ""
 
-#: src/Waitlists.php:1754
+#: src/Waitlists.php:1760
 msgid "Entfernt"
 msgstr ""
 
-#: src/Waitlists.php:1755
+#: src/Waitlists.php:1761
 msgid "Geschlossen (Termin abgesagt oder vorbei)"
 msgstr ""
 
-#: src/Waitlists.php:1756
+#: src/Waitlists.php:1762
 msgid "Nicht anbietbar"
 msgstr ""
 
-#: src/Waitlists.php:1783
-#: src/Waitlists.php:1784
+#: src/Waitlists.php:1789
+#: src/Waitlists.php:1790
 msgid "Wartelistenangebot annehmen"
 msgstr ""
 
-#: src/Waitlists.php:1837
+#: src/Waitlists.php:1843
 msgid "Bitte für jedes Ticket ausfüllen; mit * markierte Felder sind Pflicht."
 msgstr ""
 
 #. translators: 1: ticket type, 2: number of the ticket
-#: src/Waitlists.php:1844
+#: src/Waitlists.php:1850
 #, php-format
 msgid "%1$s – Ticket %2$d"
 msgstr ""
 
-#: src/Waitlists.php:1876
+#: src/Waitlists.php:1882
 msgid "Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste."
 msgstr ""
 
 #. translators: %s: site name
-#: src/Waitlists.php:1934
-#: src/Waitlists.php:2073
+#: src/Waitlists.php:1940
+#: src/Waitlists.php:2079
 #, php-format
 msgid "Warteliste – %s"
 msgstr ""
 
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1943
 msgid "Bitte Angaben prüfen"
 msgstr ""
 
-#: src/Waitlists.php:1937
+#: src/Waitlists.php:1943
 msgid "Zurück zum Angebot"
 msgstr ""
 
-#: src/Waitlists.php:1939
+#: src/Waitlists.php:1945
 msgid "Angebot nicht verfügbar"
 msgstr ""
 
-#: src/Waitlists.php:2025
+#: src/Waitlists.php:2031
 msgid "Wartelistenangebot"
 msgstr ""
 
-#: src/Waitlists.php:2029
+#: src/Waitlists.php:2035
 msgid "Angebot abgelehnt"
 msgstr ""
 
-#: src/Waitlists.php:2029
+#: src/Waitlists.php:2035
 msgid "Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:2031
+#: src/Waitlists.php:2037
 msgid "Angebot angenommen"
 msgstr ""
 
-#: src/Waitlists.php:2035
+#: src/Waitlists.php:2041
 msgid "Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet."
 msgstr ""
 
-#: src/Waitlists.php:2039
+#: src/Waitlists.php:2045
 msgid "Die Reservierung ist abgelaufen, ohne dass eine Zahlung eingegangen ist. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr ""
 
 #. translators: %s: date and time the reservation ends
-#: src/Waitlists.php:2042
+#: src/Waitlists.php:2048
 #, php-format
 msgid "Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet."
 msgstr ""
 
-#: src/Waitlists.php:2059
+#: src/Waitlists.php:2065
 msgid "Jetzt bezahlen"
 msgstr ""
 
