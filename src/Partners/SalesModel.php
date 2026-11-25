@@ -136,6 +136,22 @@ final class SalesModel {
 		return $missing;
 	}
 
+	/**
+	 * Mandatory platform master data that is still missing for invoices in the platform's own name
+	 * (§ 14 Abs. 4 UStG / § 11 UStG AT: name, address, tax number or VAT ID). Empty list = complete.
+	 *
+	 * @param array|null $seller Platform seller (Invoices::seller()); null reads the settings.
+	 * @return string[] Labels of the missing fields.
+	 */
+	public static function missing_platform_fields( $seller = null ) {
+		$seller = is_array( $seller ) ? $seller : self::platform_seller();
+		$missing = array();
+		if ( '' === trim( (string) ( $seller['name'] ?? '' ) ) ) { $missing[] = __( 'Name', 'pass-captain' ); }
+		if ( '' === trim( (string) ( $seller['address'] ?? '' ) ) ) { $missing[] = __( 'Anschrift', 'pass-captain' ); }
+		if ( '' === trim( (string) ( $seller['vat_id'] ?? '' ) ) && '' === trim( (string) ( $seller['tax_number'] ?? '' ) ) ) { $missing[] = __( 'USt-IdNr. oder Steuernummer', 'pass-captain' ); }
+		return $missing;
+	}
+
 	/** Invoice number prefix of an organizer (letters/digits only; default "V{id}"). */
 	public static function invoice_prefix( $partner ) {
 		$prefix = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $partner->invoice_prefix ?? '' ) );
@@ -289,6 +305,15 @@ final class SalesModel {
 	 */
 	public static function validate_agent_invoice( array $context, array $items ) {
 		if ( self::AGENT !== $context['model'] ) {
+			// L908: no invoice in the platform's name while its master data is incomplete.
+			$missing = self::missing_platform_fields( (array) $context['seller'] );
+			if ( $missing ) {
+				return new \WP_Error( 'wpcap_invoice_platform_incomplete', sprintf(
+					/* translators: %s: missing fields */
+					__( 'Rechnung nicht möglich – in den Rechnungsstellerdaten der Plattform fehlen: %s. Bitte in den Einstellungen unter „Rechnungssteller“ ergänzen.', 'pass-captain' ),
+					implode( ', ', $missing )
+				), array( 'status' => 409, 'missing' => $missing ) );
+			}
 			// The platform itself as a small business: no VAT may be shown on its invoices either.
 			if ( ! empty( $context['seller']['small_business'] ) ) {
 				foreach ( $items as $item ) {

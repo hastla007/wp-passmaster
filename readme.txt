@@ -117,6 +117,10 @@ In its own database tables (prefix `wpcap_`, created on activation and removed o
 
 No, by design. Without network only admissions are possible, with the installable offline scanner (signed packages, scans are synced later). Box office sales, stornos and refund payouts need the network: the sale must reserve the remaining stock on the server, receive the payment confirmation and, where fiscalization is active, the provider's signed receipt. Nothing is queued offline; while the browser reports no connection, the box office shows a notice and disables these buttons until the connection is back. Details: docs/OFFLINE-SCANNER.md and docs/OPERATIONS.md.
 
+= Is there a native scanner app for iOS or Android? =
+
+No. Pass Captain ships no native app and publishes none in an app store. Admission works in the browser: the web scanner (`[wpcap_scanner]`) and the installable offline scanner web app, both using the device camera. The mobile scanner REST API (docs/MOBILE-API.md) is the contract for native apps that are built and published as a separate product or project; the API alone is not an app.
+
 = Operations =
 
 Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budget of about 20 seconds per run; if a backlog remains, another run follows immediately. If Action Scheduler is available (for example with WooCommerce), follow-up runs are scheduled through it. For busy shops, set `define( 'DISABLE_WP_CRON', true );` in wp-config.php and run `wp cron event run --due-now` every minute from a system cron job. On Multisite this command only runs the main site's events; run it for every site instead, e.g. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
