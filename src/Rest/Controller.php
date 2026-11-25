@@ -555,17 +555,8 @@ final class Controller {
 			$guard = \PassCaptain\Security\FormGuard::check( $params );
 			if ( is_wp_error( $guard ) ) { return $guard; }
 		}
+		$params = self::checkout_single_code( $params );
 		// Only customer fields; trusted adapter options must never come from a public request.
-		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
-		// tried as a voucher (when a voucher plugin is connected).
-		$single_code = sanitize_text_field( \PassCaptain\Http::str( $params['code'] ?? '' ) );
-		if ( '' !== $single_code ) {
-			if ( \PassCaptain\Campaigns::is_code( $single_code ) || ! \PassCaptain\Integrations\Vouchers\Bridge::available() ) {
-				$params['campaign_codes'] = array_merge( (array) ( $params['campaign_codes'] ?? array() ), array( $single_code ) );
-			} elseif ( '' === (string) ( $params['voucher_code'] ?? '' ) ) {
-				$params['voucher_code'] = $single_code;
-			}
-		}
 		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'confirm_age', 'terms_version', 'locale', 'voucher_code', 'billing', 'expected_prices', 'attribution', 'buyer_name' ) ) ) );
 		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
@@ -585,6 +576,47 @@ final class Controller {
 		// Hosted payment pages (Stripe Checkout lives at least 30 minutes) end with the hold (A577) and must
 		// never outlive it (QA-6): a gateway may require a longer minimum hold (StripeGateway::min_hold_minutes()).
 		$min_hold = method_exists( $gateway, 'min_hold_minutes' ) ? max( 0, (int) $gateway->min_hold_minutes() ) : 0;
+		$hold = self::checkout_hold( $gateway, $provider_id, $free_only, $min_hold, $params, $payload, $context );
+		if ( is_wp_error( $hold ) ) { return $hold; }
+		$fingerprint = Orders::request_fingerprint( $payload, $provider_id );
+		// Trusted internal options never override provider, hold, request or fingerprint (left operand wins).
+		$result = self::checkout_create_order( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint, 'free_only' => $free_only ) + (array) ( $context['internal'] ?? array() ) );
+		if ( ! is_array( $result ) ) { return $result; }
+		// Hosted payment pages return to the page the buyer ordered on (same site only), not the home page.
+		$return_to = is_string( $params['return_to'] ?? null ) ? $params['return_to'] : ( is_string( $params['return_url'] ?? null ) ? $params['return_url'] : '' );
+		if ( method_exists( \PassCaptain\Payments\ReturnNotice::class, 'set_base' ) ) { \PassCaptain\Payments\ReturnNotice::set_base( $return_to ); }
+		$refused = self::checkout_reuse_error( $result, $provider_id, $fingerprint );
+		if ( $refused ) { return $refused; }
+		unset( $result['request_fingerprint'], $result['payment_provider'] );
+		$refused = self::checkout_apply_voucher( $result, $params );
+		if ( $refused ) { return $refused; }
+		$refused = self::checkout_start_payment( $result, $gateway, $provider_id, $min_hold, $params );
+		if ( $refused ) { return $refused; }
+		return self::checkout_response( $result );
+	}
+
+	/**
+	 * One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
+	 * tried as a voucher (when a voucher plugin is connected).
+	 */
+	private static function checkout_single_code( array $params ) {
+		$single_code = sanitize_text_field( \PassCaptain\Http::str( $params['code'] ?? '' ) );
+		if ( '' !== $single_code ) {
+			if ( \PassCaptain\Campaigns::is_code( $single_code ) || ! \PassCaptain\Integrations\Vouchers\Bridge::available() ) {
+				$params['campaign_codes'] = array_merge( (array) ( $params['campaign_codes'] ?? array() ), array( $single_code ) );
+			} elseif ( '' === (string) ( $params['voucher_code'] ?? '' ) ) {
+				$params['voucher_code'] = $single_code;
+			}
+		}
+		return $params;
+	}
+
+	/**
+	 * Hold of the checkout (minutes, or for bank transfer the capped hold) or the refusal of the payment method.
+	 *
+	 * @return int|\WP_Error
+	 */
+	private static function checkout_hold( $gateway, $provider_id, $free_only, $min_hold, array $params, array $payload, array $context ) {
 		$hold = max( Orders::HOSTED_HOLD_MINUTES, $min_hold, (int) \PassCaptain\Settings::get( 'hold_minutes' ) );
 		if ( 'manual' === $provider_id && ! $free_only && ! $gateway->is_available( '' ) ) {
 			// Enabled but without bank account or payment instructions (A265): no order, no blocked seats.
@@ -601,6 +633,15 @@ final class Controller {
 			$blocked = self::manual_hold_limit( \PassCaptain\Http::str( $params['email'] ?? '' ), $hold );
 			if ( is_wp_error( $blocked ) ) { return $blocked; }
 		}
+		return $hold;
+	}
+
+	/**
+	 * Orders::create() with the checkout's campaign messages; a new reservation refreshes cached event pages.
+	 *
+	 * @return array|\WP_Error|\WP_REST_Response The result, or the checkout error for the browser.
+	 */
+	private static function checkout_create_order( array $payload, array $options ) {
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
 		$campaign_messages = static function ( $messages ) {
 			$messages['campaign_invalid'] = __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'pass-captain' );
@@ -608,18 +649,18 @@ final class Controller {
 			return $messages;
 		};
 		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
-		$fingerprint = Orders::request_fingerprint( $payload, $provider_id );
-		// Trusted internal options never override provider, hold, request or fingerprint (left operand wins).
-		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint, 'free_only' => $free_only ) + (array) ( $context['internal'] ?? array() ) );
+		$result = Orders::create( $payload, $options );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::checkout_error( self::with_error_field( $result, $campaign_messages( array() ) ), $payload ); }
 		if ( empty( $result['reused'] ) ) {
 			// New reservation: purge adapters may refresh the cached event page (wp_pass_captain_availability_changed_v1).
 			\PassCaptain\Frontend\Availability::changed( array_map( static function ( $line ) { return is_array( $line ) ? absint( $line['ticket_type_id'] ?? 0 ) : 0; }, (array) ( $payload['items'] ?? array() ) ), 'reserved' );
 		}
-		// Hosted payment pages return to the page the buyer ordered on (same site only), not the home page.
-		$return_to = is_string( $params['return_to'] ?? null ) ? $params['return_to'] : ( is_string( $params['return_url'] ?? null ) ? $params['return_url'] : '' );
-		if ( method_exists( \PassCaptain\Payments\ReturnNotice::class, 'set_base' ) ) { \PassCaptain\Payments\ReturnNotice::set_base( $return_to ); }
+		return $result;
+	}
+
+	/** Refusal of a reused attempt (other provider, other data, cancelled or expired), else null. */
+	private static function checkout_reuse_error( array $result, $provider_id, $fingerprint ) {
 		if ( ! empty( $result['reused'] ) ) {
 			// Same key, different attempt (provider, tickets, e-mail or codes changed): never hand out the old
 			// order – its payment would arrive for another provider or amount (paid without tickets).
@@ -633,11 +674,15 @@ final class Controller {
 				return new \WP_Error( 'wpcap_idempotency_mismatch', __( 'Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 		}
-		unset( $result['request_fingerprint'], $result['payment_provider'] );
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
 		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
 			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
+		return null;
+	}
+
+	/** Applies the voucher code to a pending order (updates $result); the error when it is rejected, else null. */
+	private static function checkout_apply_voucher( array &$result, array $params ) {
 		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
 		// Also on a retry whose first attempt stopped before the voucher was stored (the reservation key is the same).
 		$needs_voucher = empty( $result['reused'] ) || ! Orders::get( $result['order_id'] )->voucher_snapshot;
@@ -653,54 +698,63 @@ final class Controller {
 			$result['status'] = $fresh->status;
 			$result['payment_status'] = $fresh->payment_status;
 		}
-		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
-			$order = (array) Orders::get( $result['order_id'] );
-			if ( ! $gateway->is_available( $order['currency'] ) ) {
-				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency', array( 'pending' ) );
-				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
-			}
-			// SET-PC-40: rules per event, amount and billing country.
-			if ( ! \PassCaptain\Payments\Rules::allows( $provider_id, \PassCaptain\Payments\Rules::order_context( (int) $result['order_id'] ) ) ) {
-				Orders::cancel_order( $result['order_id'], 'provider_not_allowed', array( 'pending' ) );
-				return new \WP_Error( 'wpcap_provider_rule', __( 'Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
-			}
-			if ( $min_hold ) {
-				// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
+		return null;
+	}
+
+	/** Starts the payment of a pending order (adds `payment` to $result); the refusal or start failure, else null. */
+	private static function checkout_start_payment( array &$result, $gateway, $provider_id, $min_hold, array $params ) {
+		if ( 'pending' !== ( $result['payment_status'] ?? '' ) ) { return null; }
+		$order = (array) Orders::get( $result['order_id'] );
+		if ( ! $gateway->is_available( $order['currency'] ) ) {
+			Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency', array( 'pending' ) );
+			return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		// SET-PC-40: rules per event, amount and billing country.
+		if ( ! \PassCaptain\Payments\Rules::allows( $provider_id, \PassCaptain\Payments\Rules::order_context( (int) $result['order_id'] ) ) ) {
+			Orders::cancel_order( $result['order_id'], 'provider_not_allowed', array( 'pending' ) );
+			return new \WP_Error( 'wpcap_provider_rule', __( 'Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( $min_hold ) {
+			// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
+			$hold_until = self::hold_until( (int) $result['order_id'] );
+			if ( $hold_until && $hold_until < \PassCaptain\Clock::now() + $min_hold * MINUTE_IN_SECONDS ) {
+				Orders::extend_hold( (int) $result['order_id'], $min_hold );
 				$hold_until = self::hold_until( (int) $result['order_id'] );
-				if ( $hold_until && $hold_until < \PassCaptain\Clock::now() + $min_hold * MINUTE_IN_SECONDS ) {
-					Orders::extend_hold( (int) $result['order_id'], $min_hold );
-					$hold_until = self::hold_until( (int) $result['order_id'] );
-				}
-				if ( ! $hold_until ) {
-					// The hold already lapsed: no new payment page for an order without reserved tickets.
-					return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
-				}
-				$order['hold_expires_at'] = $hold_until;
 			}
-			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
-			// A554: hosted payment pages return to the page the checkout ran on (only URLs of this site).
-			$order['return_base'] = \PassCaptain\Payments\ReturnNotice::base( \PassCaptain\Http::str( $params['return_url'] ?? '' ) );
-			$payment = $gateway->create_payment( $order, $items );
-			if ( is_wp_error( $payment ) ) {
-				// Only while still unpaid (A639): a concurrent confirmation of a retried attempt keeps its payment.
-				Orders::cancel_order( $result['order_id'], 'payment_start_failed', array( 'pending' ) );
-				// Neutral text + reference for the buyer; the provider text goes to the support log (A324).
-				return \PassCaptain\Payments\StartFailures::handle( $provider_id, (int) $result['order_id'], $payment );
+			if ( ! $hold_until ) {
+				// The hold already lapsed: no new payment page for an order without reserved tickets.
+				return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
-			if ( ! empty( $payment['provider_reference'] ) ) {
-				Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );
-			}
-			$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
-			if ( \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
-				// Bank details for the confirmation panel (same data as the access-link mail); only with recipient and IBAN (A265).
-				$bank = \PassCaptain\Payments\BankTransfer::details( $order );
-				if ( ! empty( $bank['transfer'] ) ) {
-					$result['payment']['bank_transfer'] = $bank;
-				} else {
-					$result['payment']['instructions'] = (string) $bank['instructions'];
-				}
+			$order['hold_expires_at'] = $hold_until;
+		}
+		$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
+		// A554: hosted payment pages return to the page the checkout ran on (only URLs of this site).
+		$order['return_base'] = \PassCaptain\Payments\ReturnNotice::base( \PassCaptain\Http::str( $params['return_url'] ?? '' ) );
+		$payment = $gateway->create_payment( $order, $items );
+		if ( is_wp_error( $payment ) ) {
+			// Only while still unpaid (A639): a concurrent confirmation of a retried attempt keeps its payment.
+			Orders::cancel_order( $result['order_id'], 'payment_start_failed', array( 'pending' ) );
+			// Neutral text + reference for the buyer; the provider text goes to the support log (A324).
+			return \PassCaptain\Payments\StartFailures::handle( $provider_id, (int) $result['order_id'], $payment );
+		}
+		if ( ! empty( $payment['provider_reference'] ) ) {
+			Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );
+		}
+		$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
+		if ( \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
+			// Bank details for the confirmation panel (same data as the access-link mail); only with recipient and IBAN (A265).
+			$bank = \PassCaptain\Payments\BankTransfer::details( $order );
+			if ( ! empty( $bank['transfer'] ) ) {
+				$result['payment']['bank_transfer'] = $bank;
+			} else {
+				$result['payment']['instructions'] = (string) $bank['instructions'];
 			}
 		}
+		return null;
+	}
+
+	/** Checkout response: current totals and the short reference; order_id and public_id stay on the server. */
+	private static function checkout_response( array $result ) {
 		$fresh = Orders::get( $result['order_id'] );
 		if ( $fresh ) {
 			$result['total_minor'] = (int) $fresh->total_minor;
