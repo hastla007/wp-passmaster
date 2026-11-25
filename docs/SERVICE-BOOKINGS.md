@@ -20,6 +20,7 @@ Code: `src/ServiceResources.php` (Stammdaten, Regeln, Kollisionen), `src/Service
 | `wpcap_waitlist` | `hold_quantity` (reservierte Tickets eines offenen Angebots), `manage_token_hash` (Austragen), `order_id` |
 | `wpcap_pass_rules` | `scope` (`event`/`service`/`any`), `resource_id`, `slot_mode` (`slot_free`/`slot_bound`), `expires_at` |
 | `wpcap_pass_uses` | `resource_id`, `slot_id`, `booking_id` |
+| `wpcap_service_noshow_fees` (Modul-Schema) | No-Show-Gebühr je Buchung: `booking_id` (eindeutig), `amount_minor`, `currency`, `status` (`open`/`paid`/`cancelled`), `token_hash` (Zahlungslink), `due_at`, `sent_at`, `sent_count`, `order_id` (aktuelle Zahlungsbestellung), `paid_order_id`, `paid_at`, `cancelled_at`, `cancelled_by` |
 
 ## Dauer, Puffer und Kollisionen
 
@@ -171,7 +172,49 @@ Bei `price_policy = refund_difference` und bezahlter Buchung:
   Ticket eingecheckt wird (`wpcap_ticket_checked_in`).
 - No-Show-Regel `mark`: Buchungen ohne Check-in werden nach Ende + Karenz vom Sweep als `no_show` markiert;
   `forfeit`: zusätzlich verfällt der Anspruch und die Gebühr `noshow_fee_minor` wird an der Buchung vermerkt
-  und in der Mail genannt (der Einzug erfolgt außerhalb von Pass Captain). No-Shows zählen für die Sperre.
+  und in der Mail genannt; angefordert wird sie per Zahlungslink (unten). No-Shows zählen für die Sperre.
+
+### No-Show-Gebühr per Zahlungslink (Entscheidung E-18, 25.11.2026)
+
+Code: `src/Services/NoShowFees.php`; Liste und Aktionen unter **Ressourcen & Zeitfenster → No-Show-Gebühren**
+(`admin.php?page=wpcap-services&view=noshow_fees`). Keine automatische Abbuchung, kein Mahnwesen.
+
+- **Status** je Buchung: `open` (auch ohne Datensatz: Gebühr vermerkt, noch nichts gesendet), `paid`,
+  `cancelled`. Die Liste zeigt No-Show-Buchungen mit Gebühr der Ressourcen, die die Person verwaltet (Filter nach
+  Status), mit Versand- und Fälligkeitsdatum, „Frist abgelaufen“ und der Zahlungsbestellung.
+- **Senden / erneut senden** (`noshow_fee_send`, Frist 1–90 Tage, Standard 14): legt den Datensatz an (Betrag und
+  Währung eingefroren), erzeugt einen neuen Link-Token (nur als Hash gespeichert; ein früherer Link wird
+  ungültig), setzt die Fälligkeit neu und sendet die Mail `service_noshow_fee_link` mit Betrag, Fälligkeit und
+  Link `?wpcap_noshow_fee=ID&token=…`. Eine offene Zahlungsbestellung behält ihre Zahlung, ihre Reservierung
+  läuft bis zur neuen Fälligkeit. Nur für Buchungen im Status `no_show` und Ressourcen mit Preis (Ticketart);
+  bei kostenlosen Ressourcen `wpcap_noshow_fee_free_resource`.
+- **Stornieren** (`noshow_fee_cancel`, auch ohne vorherigen Versand = Gebühr erlassen): Status `cancelled`, der
+  Link wird ungültig, eine unbezahlte Zahlungsbestellung wird storniert. Eine bezahlte Gebühr wird nicht
+  storniert (Erstattung über die Bestellung).
+- Beide Aktionen laufen über das Admin-Post-Formular der Seite (Nonce `wpcap_service_action`) und die
+  Rechteprüfung der übrigen Buchungsaktionen (`managed_booking()`: Event-Rechte oder verknüpfter Veranstalter);
+  Audit `service_noshow_fee_sent` (mit `resent`), `service_noshow_fee_cancelled`.
+- **Linkseite** (`Services\Portal`): Betrag, Termin, „Zahlbar bis“ und die aktivierten Zahlungsarten der
+  Währung; „Jetzt bezahlen“ ist ein POST (`noshow_fee_pay`). Nach der Fälligkeit, nach Zahlung oder Storno
+  zeigt sie nur den Stand (`wpcap_noshow_fee_overdue`, `wpcap_noshow_fee_closed`); die Gebühr bleibt nach
+  Fristablauf offen, bis ein neuer Link gesendet oder sie storniert wird.
+- **Zahlung**: Die Zahlungsbestellung ist eine gewöhnliche Bestellung (Webhooks, Abgleich, Rückkehrseiten,
+  Erstattung und Rechnung wie bei jeder Zahlung): eine Zeile der Ticketart der Ressource mit Menge 0 (kein
+  Ticket, keine Kapazität), Betrag = Gebühr, Steuer wie die Ticketart, Rechnungsdaten und Sprache aus der
+  Buchungsbestellung; dazu eine Reservierung mit Menge 0 bis zur Fälligkeit (bei Überweisung die angezeigte
+  Zahlungsfrist). Der Preis-Snapshot nennt `noshow_fee` (`fee_id`, `booking_id`, `slot_id`). Stripe, PayPal
+  und Mollie leiten auf ihre Zahlungsseite weiter, Überweisung zeigt Bankdaten, Verwendungszweck und Frist.
+  Dieselbe Zahlart nutzt die offene Bestellung erneut; eine andere Zahlart storniert sie und legt eine neue an.
+- **Bezahlt** (`wpcap_order_paid`, idempotent): Status `paid`, Audit `service_noshow_fee_paid`, Mail
+  `service_noshow_fee_paid` mit Link zur Bestellung (Beleg; dort auch die Rechnung) und gegebenenfalls der
+  Rechnungsnummer. Die Rechnung entsteht wie bei jeder Bestellung mit der Einstellung `auto_invoice`
+  (Position „No-Show-Gebühr …“ mit dem Datum des Termins, `wpcap_invoice_items`). Eine verspätete Zahlung
+  (Bestellung nach der Fälligkeit abgelaufen) wird ebenfalls verbucht: Zeilen ohne Menge brauchen bei der
+  Nachprüfung verspäteter Zahlungen keinen offenen Verkauf und keine Kapazität (`Orders\Payment`).
+  Zahlt jemand eine nicht mehr offene Gebühr (bereits bezahlt, storniert), bleibt sie unverändert; Audit
+  `service_noshow_fee_payment_unmatched` und Support-Log, die Erstattung erfolgt über die Bestellung.
+- Die Zahlungsbestellung erscheint wie andere Bestellungen in Bestellliste, Berichten und Exporten (Umsatz des
+  Events der Ressource) und löst die üblichen Bestell-Ereignisse aus (z. B. Webhook `order.paid` ohne Tickets).
 
 ### Zugang für Kund:innen
 
@@ -270,7 +313,7 @@ des Passes.
 
 `service_booking_confirmed`, `service_booking_pending`, `service_booking_partner_request`,
 `service_booking_declined`, `service_booking_cancelled`, `service_booking_rebooked`, `service_booking_no_show`,
-`service_waitlist_joined`, `service_waitlist_offer`; geändert: `waitlist_joined` (Austragelink),
+`service_noshow_fee_link`, `service_noshow_fee_paid`, `service_waitlist_joined`, `service_waitlist_offer`; geändert: `waitlist_joined` (Austragelink),
 `waitlist_offer` (Reservierungshinweis, Ablehnen-/Austragelink).
 
 ## Hintergrundaufgaben
@@ -282,6 +325,7 @@ des Passes.
 ## Audit-Log (Auszug)
 
 `service_booking_reserved|confirmed|pending_confirmation|capacity_lost|cancelled|declined|rebooked|checked_in|no_show|refund_failed|partner_confirmed|order_attached|expired`,
+`service_noshow_fee_sent|cancelled|payment_started|paid|payment_unmatched`,
 `service_resource_partner_changed`, `service_waitlist_joined|offered|accepted|declined|left|removed|offer_expired`,
 `waitlist_confirmed`, `waitlist_offer_made|offer_accepted|offer_declined|offer_expired|unsubscribed`, `member_pass_service_redeemed`,
 `member_pass_use_released`.
@@ -296,14 +340,15 @@ Kundenzugang; Fehlerinjektion Anbieter/Datenbank), `_c_waitlist.php` (beide Wart
 `_f_supplement.php` (Umbuchung mit Zuzahlung: Zuzahlungsbestellung, Zahlung, Ablauf, verspätete Zahlung,
 Stornierung, parallele Zuzahlungen), `zz_a268.php` und `tests/js/service-booking.test.js` (Buchungsseite),
 `zz_fe_17_widget.php` (Buchungsseite: strikte CSP ohne Inline-Handler, versionierte Assets, Beschriftungen und
-Live-Region, Du-Form, REST-Routen mit Berechtigungsprüfung; No-Show-Gebühr ohne Einzug).
+Live-Region, Du-Form, REST-Routen mit Berechtigungsprüfung; keine Abbuchung in `mark_no_show()`),
+`zz_p27_noshow_fee.php` (No-Show-Gebühr per Zahlungslink: Rechte, Versand/erneuter Versand, Linkseite, Stripe,
+PayPal und Mollie mit HTTP-Stubs, Überweisung, Beleg/Rechnung, verspätete Zahlung, Fristablauf ohne Mahnung,
+Storno, nicht zuordenbare Zahlung, kostenlose Ressource, Admin-Liste).
 
 ## Offene Punkte
 
-- **Einzug der No-Show-Gebühr**: Die Gebühr (`noshow_fee_minor`, Regel `forfeit`) wird nur an der Buchung
-  vermerkt und in der Mail genannt, nicht eingezogen. Ein Einzug bräuchte eine Entscheidung (Zahlungsmittel
-  hinterlegen oder Zahlungslink, Einwilligung/AGB, Umgang mit Rechnung und Steuer, Mahnung bei Nichtzahlung)
-  und ist deshalb nicht gebaut.
+- **No-Show-Gebühr bei kostenlosen Ressourcen**: Der Zahlungslink braucht eine Ressource mit Ticketart; ohne
+  Preis wird die Gebühr weiterhin nur vermerkt.
 - **Verkauf von Zeitfenstern über WooCommerce**: nicht gebaut; bezahlte Zeitfenster laufen über den
   eigenen Checkout (`ServiceBookingFlow::checkout()`).
 - Die Verwaltungsansicht der Buchungsseite (Buchungs-Token) bietet nur Ziele zum gleichen Preis an; eine

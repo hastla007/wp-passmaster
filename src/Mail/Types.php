@@ -284,6 +284,25 @@ final class Types {
 				'body' => static function () { return sprintf( __( "Für deinen Termin %1\$s am %2\$s haben wir keinen Check-in erhalten; er wurde als nicht wahrgenommen vermerkt.\n%3\$s\n\nFalls das ein Irrtum ist, antworte bitte auf diese E-Mail.", 'pass-captain' ), '{resource_name}', '{slot_date}', '{fee_info}' ); },
 				'sample' => $sample,
 			),
+			'service_noshow_fee_link' => array(
+				'label' => __( 'Servicebuchung: Zahlungslink No-Show-Gebühr', 'pass-captain' ),
+				'description' => __( 'Zahlungslink mit Fälligkeit für die No-Show-Gebühr eines nicht wahrgenommenen Termins (vom Veranstalter versendet).', 'pass-captain' ),
+				'placeholders' => $base + array( 'fee_amount' => __( 'Betrag der Gebühr', 'pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'pass-captain' ), 'pay_link' => __( 'Zahlungslink', 'pass-captain' ) ),
+				/* translators: %s: resource */
+				'subject' => static function () { return sprintf( __( 'No-Show-Gebühr für %s', 'pass-captain' ), '{resource_name}' ); },
+				/* translators: 1: resource, 2: date, 3: amount, 4: due date, 5: payment link */
+				'body' => static function () { return sprintf( __( "Deinen Termin %1\$s am %2\$s hast du nicht wahrgenommen. Laut Buchungsbedingungen wird dafür eine Gebühr von %3\$s fällig.\n\nBitte bezahle sie bis %4\$s über diesen Link:\n%5\$s\n\nFalls das ein Irrtum ist, antworte bitte auf diese E-Mail.", 'pass-captain' ), '{resource_name}', '{slot_date}', '{fee_amount}', '{due_date}', '{pay_link}' ); },
+				'sample' => static function () { return self::service_sample() + array( 'fee_amount' => '25,00 €', 'due_date' => '29.06.2027 10:00 (Europe/Vienna)', 'pay_link' => Mailer::link( home_url( '/?wpcap_noshow_fee=3&token=' . str_repeat( 'f6', 32 ) ) ) ); },
+			),
+			'service_noshow_fee_paid' => array(
+				'label' => __( 'Servicebuchung: No-Show-Gebühr bezahlt', 'pass-captain' ),
+				'description' => __( 'Zahlungsbestätigung der No-Show-Gebühr mit dem Link zum Beleg (Bestellung, gegebenenfalls mit Rechnung).', 'pass-captain' ),
+				'placeholders' => $base + array( 'fee_amount' => __( 'Betrag der Gebühr', 'pass-captain' ), 'receipt_link' => __( 'Link zum Beleg', 'pass-captain' ), 'invoice_info' => __( 'Rechnungsnummer (falls ausgestellt)', 'pass-captain' ) ),
+				'subject' => static function () { return __( 'Zahlung der No-Show-Gebühr erhalten', 'pass-captain' ); },
+				/* translators: 1: amount, 2: resource, 3: date, 4: invoice number line, 5: receipt link */
+				'body' => static function () { return sprintf( __( "Vielen Dank, wir haben deine Zahlung von %1\$s für die No-Show-Gebühr (%2\$s, %3\$s) erhalten.\n%4\$s\n\nBeleg: %5\$s", 'pass-captain' ), '{fee_amount}', '{resource_name}', '{slot_date}', '{invoice_info}', '{receipt_link}' ); },
+				'sample' => static function () { return self::service_sample() + array( 'fee_amount' => '25,00 €', 'invoice_info' => 'Rechnungsnummer: RE-2027-0042', 'receipt_link' => Mailer::link( home_url( '/?wpcap_order=' . str_repeat( 'a1', 16 ) . '&wpcap_access=' . str_repeat( 'b2', 32 ) ) ) ); },
+			),
 			'service_waitlist_joined' => array(
 				'label' => __( 'Warteliste Zeitfenster: Eintragung', 'pass-captain' ),
 				'description' => __( 'Bestätigung der Eintragung in die Warteliste eines ausgebuchten Zeitfensters.', 'pass-captain' ),

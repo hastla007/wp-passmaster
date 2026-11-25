@@ -3,7 +3,8 @@
  * Admin screen "Ressourcen & Zeitfenster": bookable resources per event (name, capacity, timezone,
  * organizer, price, default duration, buffers and booking rules), single slots, a weekly slot
  * generator, the bookings of a slot with staff actions (confirm/decline, cancel with or without
- * refund, rebook, check-in, no-show) and the slot waitlist. Users linked to an organizer (partners
+ * refund, rebook, check-in, no-show), the slot waitlist and the list of no-show fees (payment link:
+ * send, send again, cancel; Services\NoShowFees). Users linked to an organizer (partners
  * module) see and manage only that organizer's resources. Booking logic: ServiceBookings.
  *
  * @package PassCaptain
@@ -15,6 +16,7 @@ use PassCaptain\Access;
 use PassCaptain\ServiceBookings;
 use PassCaptain\ServiceResources;
 use PassCaptain\ServiceWaitlist;
+use PassCaptain\Services\NoShowFees;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -181,6 +183,15 @@ final class ServicesPage {
 						$result = ServiceBookings::mark_no_show( $id );
 				}
 				return is_wp_error( $result ) ? $result : $result + array( 'return_slot' => (int) $booking->slot_id );
+			case 'noshow_fee_send':
+			case 'noshow_fee_cancel':
+				// E-18: payment link for the no-show fee (rights as for the booking's other staff actions).
+				$booking = self::managed_booking( $id );
+				if ( is_wp_error( $booking ) ) { return $booking; }
+				$result = 'noshow_fee_send' === $do ? NoShowFees::send( $id, array( 'due_days' => Forms::int( $in, 'due_days', NoShowFees::DUE_DAYS ) ) ) : NoShowFees::cancel( $id, Forms::text( $in, 'reason' ) );
+				if ( is_wp_error( $result ) ) { return $result; }
+				unset( $result['pay_url'] ); // The link is only for the buyer (sent by mail).
+				return $result + array( 'return_view' => 'noshow_fees' );
 			case 'waitlist_remove':
 				$entry = ServiceWaitlist::get( $id );
 				$slot = $entry ? self::managed_slot( (int) $entry->slot_id ) : Forms::error( 'wpcap_waitlist_missing', __( 'Wartelisteneintrag nicht gefunden.', 'pass-captain' ), 404 );
@@ -201,7 +212,9 @@ final class ServicesPage {
 		$result = self::admin_action( $in );
 		$do = sanitize_key( $in['do'] ?? '' );
 		$resource_id = is_array( $result ) && ! empty( $result['resource_id'] ) ? (int) $result['resource_id'] : Forms::int( $in, 'resource_id' );
-		if ( 'update_slot' === $do && is_array( $result ) ) {
+		if ( is_array( $result ) && ! empty( $result['return_view'] ) ) {
+			$url = Forms::page_url( self::SLUG, array( 'view' => 'noshow_fees' ) );
+		} elseif ( 'update_slot' === $do && is_array( $result ) ) {
 			$url = Forms::page_url( self::SLUG, array( 'slot_id' => (int) $result['slot_id'] ) );
 		} elseif ( is_array( $result ) && ! empty( $result['return_slot'] ) ) {
 			$url = Forms::page_url( self::SLUG, array( 'slot_id' => (int) $result['return_slot'] ) );
@@ -214,8 +227,12 @@ final class ServicesPage {
 			$message = sprintf( __( '%1$d Zeitfenster erzeugt, %2$d bereits vorhandene übersprungen.', 'pass-captain' ), count( $result['created'] ), (int) $result['skipped'] );
 		} elseif ( 'delete_slot' === $do ) {
 			$message = __( 'Zeitfenster gelöscht.', 'pass-captain' );
+		} elseif ( 'noshow_fee_send' === $do ) {
+			$message = is_array( $result ) && empty( $result['mail_sent'] ) ? __( 'Zahlungslink erstellt, die E-Mail konnte aber nicht versendet werden.', 'pass-captain' ) : __( 'Zahlungslink versendet.', 'pass-captain' );
+		} elseif ( 'noshow_fee_cancel' === $do ) {
+			$message = __( 'No-Show-Gebühr storniert.', 'pass-captain' );
 		}
-		$error_url = 'update_slot' === $do ? Forms::page_url( self::SLUG, array( 'slot_id' => Forms::int( $in, 'id' ) ) ) : ( Forms::int( $in, 'return_slot' ) ? Forms::page_url( self::SLUG, array( 'slot_id' => Forms::int( $in, 'return_slot' ) ) ) : '' );
+		$error_url = 'noshow_fees' === Forms::text( $in, 'return_view', 20 ) ? Forms::page_url( self::SLUG, array( 'view' => 'noshow_fees' ) ) : ( 'update_slot' === $do ? Forms::page_url( self::SLUG, array( 'slot_id' => Forms::int( $in, 'id' ) ) ) : ( Forms::int( $in, 'return_slot' ) ? Forms::page_url( self::SLUG, array( 'slot_id' => Forms::int( $in, 'return_slot' ) ) ) : '' ) );
 		Forms::finish( $result, $message, $url, $error_url );
 	}
 
@@ -236,7 +253,9 @@ final class ServicesPage {
 		}
 		$slot_id = absint( Forms::query_arg( 'slot_id', 0 ) );
 		$resource_id = absint( Forms::query_arg( 'resource_id', 0 ) );
-		if ( $slot_id ) {
+		if ( 'noshow_fees' === Forms::query_arg( 'view' ) ) {
+			self::render_noshow_fees();
+		} elseif ( $slot_id ) {
 			self::render_slot( $slot_id );
 		} elseif ( $resource_id ) {
 			self::render_resource( $resource_id );
@@ -256,6 +275,7 @@ final class ServicesPage {
 		Forms::select( 'event_id', array( '' => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, 'wpcap-svc-filter' );
 		echo ' <button type="submit" class="button">' . esc_html__( 'Filtern', 'pass-captain' ) . '</button></form>';
 		$resources = ServiceResources::resources( $scope, $event_id, ServiceResources::user_partner_ids() );
+		echo '<p><a href="' . esc_url( Forms::page_url( self::SLUG, array( 'view' => 'noshow_fees' ) ) ) . '">' . esc_html__( 'No-Show-Gebühren (Zahlungslinks)', 'pass-captain' ) . '</a></p>';
 		echo '<h2>' . esc_html__( 'Ressourcen', 'pass-captain' ) . '</h2>';
 		if ( ! $resources ) {
 			echo '<p>' . esc_html__( 'Noch keine Ressourcen.', 'pass-captain' ) . '</p>';
@@ -339,7 +359,7 @@ final class ServicesPage {
 		$noshow = $rules['noshow_policy'];
 		FeatureScreens::row( 'wpcap-rule-noshow', __( 'No-Show-Regel', 'pass-captain' ), static function () use ( $noshow ) { Forms::select( 'rule_noshow_policy', array( 'none' => __( 'Keine', 'pass-captain' ), 'mark' => __( 'Ohne Check-in nach Ende als „nicht erschienen“ markieren', 'pass-captain' ), 'forfeit' => __( 'Markieren, Anspruch verfällt, Gebühr vermerken', 'pass-captain' ) ), $noshow, 'wpcap-rule-noshow' ); } );
 		FeatureScreens::input_row( 'wpcap-rule-grace', 'rule_noshow_grace_minutes', __( 'Karenz nach Ende (Minuten)', 'pass-captain' ), (int) $rules['noshow_grace_minutes'], 'number', 'min="0"' );
-		FeatureScreens::input_row( 'wpcap-rule-fee', 'rule_noshow_fee', __( 'No-Show-Gebühr', 'pass-captain' ), Forms::money_input( (int) $rules['noshow_fee_minor'] ), 'text', 'inputmode="decimal"', __( 'Wird an der Buchung vermerkt und in der Mail genannt; der Einzug erfolgt außerhalb von Pass Captain.', 'pass-captain' ) );
+		FeatureScreens::input_row( 'wpcap-rule-fee', 'rule_noshow_fee', __( 'No-Show-Gebühr', 'pass-captain' ), Forms::money_input( (int) $rules['noshow_fee_minor'] ), 'text', 'inputmode="decimal"', __( 'Wird an der Buchung vermerkt und in der Mail genannt. Den Zahlungslink mit Fälligkeit versendest du unter „No-Show-Gebühren“ (nur bei Ressourcen mit Preis); keine automatische Abbuchung, kein Mahnwesen.', 'pass-captain' ) );
 		FeatureScreens::input_row( 'wpcap-rule-block', 'rule_noshow_block_after', __( 'Sperre nach No-Shows', 'pass-captain' ), (int) $rules['noshow_block_after'], 'number', 'min="0" max="100"', __( '0 = nie; sonst keine neuen Buchungen nach so vielen No-Shows im Rückblickzeitraum.', 'pass-captain' ) );
 		FeatureScreens::input_row( 'wpcap-rule-block-days', 'rule_noshow_block_days', __( 'Rückblickzeitraum (Tage)', 'pass-captain' ), (int) $rules['noshow_block_days'], 'number', 'min="1" max="3650"' );
 		$waitlist = (int) $rules['waitlist_enabled'];
@@ -489,6 +509,56 @@ final class ServicesPage {
 			echo '</tbody></table>';
 		}
 		self::render_waitlist( $slot, $tz );
+	}
+
+	/**
+	 * E-18: no-show bookings with a fee in the resources the user manages – status (open, paid,
+	 * cancelled), due date, payment order – with send / send again (due date in days) and cancel.
+	 */
+	private static function render_noshow_fees() {
+		echo '<p><a href="' . esc_url( Forms::page_url( self::SLUG ) ) . '">&larr; ' . esc_html__( 'Alle Ressourcen', 'pass-captain' ) . '</a></p>';
+		echo '<h2>' . esc_html__( 'No-Show-Gebühren', 'pass-captain' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Gebühren aus der No-Show-Regel „verfallen“. Der Zahlungslink geht per E-Mail an die Kund:in und gilt bis zur Fälligkeit; bezahlt wird über die aktivierten Zahlungsarten. Es gibt keine automatische Abbuchung und kein Mahnwesen: Eine unbezahlte Gebühr bleibt offen, bis du einen neuen Link sendest oder sie stornierst.', 'pass-captain' ) . '</p>';
+		$status = Forms::query_arg( 'fee_status' );
+		$status = in_array( $status, NoShowFees::STATUSES, true ) ? $status : '';
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><input type="hidden" name="view" value="noshow_fees"><label for="wpcap-noshow-status">' . esc_html__( 'Status', 'pass-captain' ) . '</label> ';
+		Forms::select( 'fee_status', array( '' => __( 'Alle', 'pass-captain' ) ) + array_combine( NoShowFees::STATUSES, array_map( array( NoShowFees::class, 'status_label' ), NoShowFees::STATUSES ) ), $status, 'wpcap-noshow-status' );
+		echo ' <button type="submit" class="button">' . esc_html__( 'Filtern', 'pass-captain' ) . '</button></form>';
+		$resource_ids = array_map( static function ( $r ) { return (int) $r->resource_id; }, ServiceResources::resources( Queries::event_ids_for( self::CAP ), 0, ServiceResources::user_partner_ids() ) );
+		$rows = NoShowFees::listing( $resource_ids, $status );
+		if ( ! $rows ) { echo '<p>' . esc_html__( 'Keine No-Show-Gebühren.', 'pass-captain' ) . '</p>'; return; }
+		echo '<table class="widefat striped"><thead><tr>';
+		foreach ( array( __( 'Buchung', 'pass-captain' ), __( 'Ressource', 'pass-captain' ), __( 'Termin', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Gebühr', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Aktionen', 'pass-captain' ) ) as $head ) {
+			echo '<th scope="col">' . esc_html( $head ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$tz = '' !== (string) $row->resource_timezone ? (string) $row->resource_timezone : 'UTC';
+			$fee_status = null !== $row->fee_status ? (string) $row->fee_status : 'open';
+			$state = NoShowFees::status_label( $fee_status );
+			if ( 'open' === $fee_status ) {
+				/* translators: 1: date sent, 2: due date */
+				$state .= $row->sent_at ? ' · ' . sprintf( __( 'gesendet %1$s, fällig %2$s', 'pass-captain' ), Forms::datetime( $row->sent_at, $tz, false ), Forms::datetime( $row->due_at, $tz, false ) ) : ' · ' . __( 'noch nicht gesendet', 'pass-captain' );
+				if ( $row->due_at && (string) $row->due_at <= \PassCaptain\Clock::mysql() ) { $state .= ' · ' . __( 'Frist abgelaufen', 'pass-captain' ); }
+			} elseif ( 'paid' === $fee_status ) {
+				$state .= ' · ' . Forms::datetime( $row->paid_at, $tz, false );
+			}
+			$order_id = (int) ( $row->paid_order_id ? $row->paid_order_id : $row->fee_order_id );
+			echo '<tr><td>#' . (int) $row->booking_id . '</td><td>' . esc_html( (string) $row->resource_name ) . '</td><td>' . esc_html( Forms::datetime( $row->starts_at, $tz ) ) . '</td><td>' . esc_html( self::email( $row->customer_email ) ) . '</td><td>' . esc_html( Forms::money( (int) $row->fee_minor, (string) $row->currency ) ) . '</td><td>' . esc_html( $state ) . '</td><td>' . ( $order_id ? '#' . $order_id : '—' ) . '</td><td>';
+			if ( 'open' === $fee_status ) {
+				Forms::open_form( self::ACTION, null, 'style="display:inline-block"' );
+				Forms::hidden( 'do', 'noshow_fee_send' );
+				Forms::hidden( 'id', (int) $row->booking_id );
+				Forms::hidden( 'return_view', 'noshow_fees' );
+				echo '<label for="wpcap-noshow-due-' . (int) $row->booking_id . '">' . esc_html__( 'Frist (Tage)', 'pass-captain' ) . '</label> <input type="number" class="small-text" id="wpcap-noshow-due-' . (int) $row->booking_id . '" name="due_days" min="1" max="' . (int) NoShowFees::DUE_DAYS_MAX . '" value="' . (int) NoShowFees::DUE_DAYS . '"> ';
+				echo '<button type="submit" class="button button-small button-primary">' . esc_html( $row->sent_at ? __( 'Erneut senden', 'pass-captain' ) : __( 'Zahlungslink senden', 'pass-captain' ) ) . '</button></form> ';
+				FeatureScreens::button( self::ACTION, array( 'do' => 'noshow_fee_cancel', 'id' => (int) $row->booking_id, 'return_view' => 'noshow_fees' ), __( 'Stornieren', 'pass-captain' ), __( 'No-Show-Gebühr stornieren? Ein offener Zahlungslink wird ungültig.', 'pass-captain' ), 'button button-small button-link-delete' );
+			} else {
+				echo '—';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/** Waitlist of a slot (queue order) with remove and manual offer. */
