@@ -279,6 +279,8 @@ $pl_number = static function ( array $settings ) use ( $pl_set, $pl_year ) {
 	global $wpdb;
 	$pl_set( $settings );
 	$wpdb->query( 'START TRANSACTION' );
+	// Counters of this year left by earlier modules are cleared inside the rolled-back transaction only.
+	$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE year IN (0,%d)', $wpdb->prefix . 'wpcap_invoice_sequences', $pl_year ) );
 	$first = Invoices::next_number( $pl_year, true );
 	$second = Invoices::next_number( $pl_year, true );
 	$wpdb->query( 'ROLLBACK' );

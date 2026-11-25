@@ -138,7 +138,7 @@ final class Discounts {
 		$restored = self::restore_locked( $order_id );
 		if ( is_wp_error( $restored ) ) { return $restored; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,currency,subtotal_minor,discount_minor,total_minor,tax_minor,price_snapshot,voucher_snapshot,payment_status FROM %i WHERE order_id=%d", $wpdb->prefix . 'wpcap_orders', $order_id ) );
-		if ( '' !== $wpdb->last_error || ! $order ) { return Errors::busy(); }
+		if ( self::db_failed() || ! $order ) { return Errors::busy(); }
 		if ( ! $codes && ! $remember ) { return array( 'discount_minor' => 0, 'total_minor' => (int) $order->total_minor ); }
 		if ( '' !== (string) $order->voucher_snapshot || 'pending' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -159,7 +159,7 @@ final class Discounts {
 		if ( $codes ) {
 			// Lock order of the checkout after the capacity rows: campaign rows FOR UPDATE, then the uses.
 			$adjustments = Campaigns::calculate( $selected, $codes, (string) $order->currency, array( 'auto' => false, 'email' => (string) $order->customer_email ) );
-			if ( '' !== $wpdb->last_error ) { return Errors::busy(); }
+			if ( self::db_failed() ) { return Errors::busy(); }
 			if ( is_wp_error( $adjustments ) ) { return self::error( $adjustments ); }
 			$redeemed = Campaigns::redeem( $adjustments, $order_id );
 			if ( is_wp_error( $redeemed ) ) {
@@ -207,7 +207,7 @@ final class Discounts {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,price_snapshot,voucher_snapshot,payment_status FROM %i WHERE order_id=%d", $wpdb->prefix . 'wpcap_orders', $order_id ) );
-		if ( '' !== $wpdb->last_error || ! $order ) { return Errors::busy(); }
+		if ( self::db_failed() || ! $order ) { return Errors::busy(); }
 		$snapshot = json_decode( (string) $order->price_snapshot, true );
 		$original = is_array( $snapshot ) && is_array( $snapshot[ self::SNAPSHOT_KEY ] ?? null ) ? $snapshot[ self::SNAPSHOT_KEY ] : null;
 		if ( null === $original || 'pending' !== $order->payment_status ) { return true; }
@@ -216,7 +216,7 @@ final class Discounts {
 			// A reservation at the voucher provider is released outside the transaction first (release_voucher()).
 			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		if ( false === Campaigns::release_for_order( $order_id ) || '' !== $wpdb->last_error ) { return Errors::busy(); }
+		if ( false === Campaigns::release_for_order( $order_id ) || self::db_failed() ) { return Errors::busy(); }
 		// The released uses of the aborted attempt were never committed; dropping them lets the next attempt
 		// redeem the same code again (one use per campaign and order, unique key campaign_order).
 		if ( false === $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE order_id=%d AND status='released'", $wpdb->prefix . 'wpcap_campaign_uses', $order_id ) ) ) { return Errors::busy(); }
@@ -267,7 +267,7 @@ final class Discounts {
 		}
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return Errors::busy(); }
 		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM %i WHERE order_id=%d FOR UPDATE", $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
-		$result = '' === $wpdb->last_error ? self::restore_locked( $order_id ) : Errors::busy();
+		$result = ! self::db_failed() ? self::restore_locked( $order_id ) : Errors::busy();
 		if ( is_wp_error( $result ) || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return is_wp_error( $result ) ? $result : Errors::busy();
@@ -280,4 +280,15 @@ final class Discounts {
 		if ( ! $order || (int) $order->total_minor <= 0 ) { return ''; }
 		return '<p class="wpcap-offer-code"><label for="wpcap-wl-code">' . esc_html__( 'Gutschein- oder Rabattcode (optional)', 'pass-captain' ) . '</label><br><input type="text" id="wpcap-wl-code" name="code" maxlength="64" autocomplete="off" spellcheck="false"></p>';
 	}
+
+	/**
+	 * Whether the last query failed (re-read after every query).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
+	}
+
 }

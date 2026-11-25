@@ -111,10 +111,10 @@ msgstr "Attivazione rifiutata"
 #: src/Passes/Definitions.php:325
 #: src/Reports/Page.php:97
 #: src/Reports/Page.php:376
-#: src/Rest/Controller.php:1198
-#: src/Rest/Controller.php:1260
-#: src/Rest/Controller.php:1312
-#: src/Rest/Controller.php:1359
+#: src/Rest/Controller.php:1202
+#: src/Rest/Controller.php:1264
+#: src/Rest/Controller.php:1316
+#: src/Rest/Controller.php:1363
 #: src/Sales/AdminSections.php:53
 #: src/Sales/BuyerLimits.php:108
 #: src/Sales/BuyerLimits.php:136
@@ -138,7 +138,7 @@ msgstr "Non hai l'autorizzazione per questo evento."
 #: src/Admin/ApiKeysPage.php:53
 #: src/Admin/DeveloperKeysPage.php:49
 #: src/DeveloperKeys.php:91
-#: src/Rest/Controller.php:1313
+#: src/Rest/Controller.php:1317
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La data di scadenza deve essere nel futuro."
 
@@ -278,18 +278,18 @@ msgstr "Chiave API revocata."
 #: src/Partners/AdminPage.php:247
 #: src/Partners/AdminPage.php:665
 #: src/Passes/AdminPage.php:127
-#: src/Printing/InvoicePdf.php:241
-#: src/Printing/InvoicePdf.php:256
+#: src/Printing/InvoicePdf.php:244
+#: src/Printing/InvoicePdf.php:259
 #: src/Printing/Page.php:115
-#: src/Printing/Page.php:239
-#: src/Printing/Page.php:288
-#: src/Printing/Page.php:305
-#: src/Printing/Page.php:349
-#: src/Printing/Page.php:359
-#: src/Printing/Page.php:420
+#: src/Printing/Page.php:244
+#: src/Printing/Page.php:293
+#: src/Printing/Page.php:310
+#: src/Printing/Page.php:354
+#: src/Printing/Page.php:364
 #: src/Printing/Page.php:425
-#: src/Printing/Page.php:573
-#: src/Printing/Templates.php:622
+#: src/Printing/Page.php:430
+#: src/Printing/Page.php:578
+#: src/Printing/Templates.php:650
 #: src/Refunds.php:313
 #: src/Reports/Exports.php:80
 #: src/Reports/Page.php:95
@@ -381,7 +381,7 @@ msgstr "Non ci sono eventi per cui puoi creare chiavi."
 #: src/Seating/AdminPage.php:196
 #: src/Series/AdminPage.php:659
 #: src/Series/AdminPage.php:681
-#: src/Waitlists.php:1770
+#: src/Waitlists.php:1846
 #: src/WalletPasses/AppleProvider.php:80
 msgid "Name"
 msgstr "Nome"
@@ -443,7 +443,7 @@ msgstr "Nome"
 #: src/Seating/AdminPage.php:115
 #: src/Seating/AdminPage.php:127
 #: src/Series/AdminPage.php:107
-#: src/Waitlists.php:453
+#: src/Waitlists.php:454
 #: src/Waitlists/AdminPage.php:137
 #: src/blocks/calendar/editor.js:38
 #: src/blocks/events/editor.js:61
@@ -596,14 +596,14 @@ msgstr "Valido fino al"
 #: src/Partners/AdminPage.php:690
 #: src/Printing/AttendeeList.php:44
 #: src/Printing/AttendeeList.php:45
-#: src/Printing/Page.php:378
+#: src/Printing/Page.php:383
 #: src/Privacy.php:165
 #: src/Privacy.php:221
 #: src/Privacy.php:253
 #: src/Privacy.php:322
 #: src/Sales/TaxProfilesPage.php:82
 #: src/Series/AdminPage.php:417
-#: src/Waitlists.php:1365
+#: src/Waitlists.php:1440
 #: src/Waitlists/AdminPage.php:171
 #: src/WalletPasses/AdminPage.php:200
 #: src/WalletPasses/AppleProvider.php:87
@@ -679,8 +679,8 @@ msgstr "Azioni"
 #: src/OfflineScanner/AdminPage.php:168
 #: src/Partners/AdminPage.php:546
 #: src/Passes/AdminPage.php:258
-#: src/Printing/Page.php:232
-#: src/Printing/Page.php:569
+#: src/Printing/Page.php:237
+#: src/Printing/Page.php:574
 #: src/Sales/AdminSections.php:140
 #: src/Series/AdminPage.php:666
 #: src/Waitlists/AdminPage.php:211
@@ -824,7 +824,7 @@ msgstr "– Scegli evento –"
 #: src/OfflineScanner/AdminPage.php:139
 #: src/Ops/Network.php:324
 #: src/Partners/AdminPage.php:554
-#: src/Printing/Page.php:541
+#: src/Printing/Page.php:546
 #: src/Reports/Page.php:135
 #: src/Reports/Page.php:354
 #: src/Waitlists/AdminPage.php:139
@@ -906,7 +906,7 @@ msgstr "Una persona con almeno un'assegnazione di data per un permesso raggiunge
 #: src/Printing/AttendeeList.php:242
 #: src/Printing/Page.php:129
 #: src/Printing/Page.php:154
-#: src/Printing/Page.php:378
+#: src/Printing/Page.php:383
 #: src/PublicEvents.php:1243
 #: src/PublicEvents.php:1554
 #: src/Reports/Data.php:787
@@ -920,7 +920,7 @@ msgstr "Una persona con almeno un'assegnazione di data per un permesso raggiunge
 #: src/Sales/AdminSections.php:226
 #: src/Series/AdminPage.php:377
 #: src/Series/AdminPage.php:717
-#: src/Waitlists.php:454
+#: src/Waitlists.php:455
 #: src/Waitlists/AdminPage.php:171
 #: templates/event-card.php:67
 #: src/blocks/events/editor.js:62
@@ -1027,7 +1027,7 @@ msgstr "Gestisci e assegna i fornitori di servizi"
 #: src/Admin/MyServicesPage.php:110
 #: src/Admin/MyServicesPage.php:121
 #: src/Invoices.php:918
-#: src/Printing/InvoicePdf.php:118
+#: src/Printing/InvoicePdf.php:121
 msgid "Leistung"
 msgstr "Prestazione"
 
@@ -1377,7 +1377,7 @@ msgstr "Aggiornamento del database non riuscito"
 #: src/Partners/Statement.php:176
 #: src/Printing/AttendeeList.php:45
 #: src/Printing/NoShowList.php:59
-#: src/Printing/Templates.php:75
+#: src/Printing/Templates.php:79
 #: src/Waitlists/AdminPage.php:171
 msgid "Bestellung"
 msgstr "Ordine"
@@ -1429,7 +1429,7 @@ msgstr "Sistema"
 #: src/Admin/OrdersPage.php:1139
 #: src/BoxOffice/Service.php:38
 #: src/Invoices.php:914
-#: src/Printing/InvoicePdf.php:108
+#: src/Printing/InvoicePdf.php:111
 msgid "Rechnung"
 msgstr "Fattura"
 
@@ -1605,7 +1605,7 @@ msgstr "La fine del periodo di validità deve essere successiva all'inizio."
 
 #: src/Admin/CampaignsPage.php:61
 #: src/Allocations/BuyerLimits.php:96
-#: src/Rest/Controller.php:1211
+#: src/Rest/Controller.php:1215
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Il tipo di biglietto non appartiene a questo evento."
 
@@ -1769,7 +1769,7 @@ msgstr "Programmato"
 #: src/Frontend/ServiceBooking.php:145
 #: src/Services/Portal.php:208
 #: src/Services/Portal.php:264
-#: src/Waitlists.php:1676
+#: src/Waitlists.php:1751
 msgid "Abgelaufen"
 msgstr "Scaduto"
 
@@ -1833,7 +1833,7 @@ msgstr "Codice"
 #: src/Admin/OrdersPage.php:1218
 #: src/BoxOffice/Service.php:1331
 #: src/Invoices.php:918
-#: src/Printing/InvoicePdf.php:118
+#: src/Printing/InvoicePdf.php:121
 #: src/Reports/Data.php:813
 #: src/Reports/Page.php:213
 msgid "Rabatt"
@@ -2077,8 +2077,8 @@ msgstr "Genera codici utilizzabili una sola volta con le impostazioni di questa 
 #: src/BoxOffice/ShiftPage.php:50
 #: src/Integrations/FormCaptain/EventRequests.php:536
 #: src/Privacy.php:232
-#: src/Waitlists.php:457
-#: src/Waitlists.php:1501
+#: src/Waitlists.php:458
+#: src/Waitlists.php:1576
 #: src/Waitlists/AdminPage.php:171
 #: templates/event-card.php:272
 msgid "Anzahl"
@@ -2248,7 +2248,7 @@ msgstr "Fuso orario"
 #: src/Notifications.php:189
 #: src/PublicEvents.php:1244
 #: src/Reminders/Placeholders.php:18
-#: src/Waitlists.php:455
+#: src/Waitlists.php:456
 #: src/WalletPasses/AppleProvider.php:77
 #: templates/event-card.php:68
 msgid "Ort"
@@ -2272,7 +2272,7 @@ msgstr "Contingente"
 #: src/Sales/AdminSections.php:182
 #: src/Series/AdminPage.php:583
 #: src/Series/AdminPage.php:634
-#: src/Waitlists.php:1801
+#: src/Waitlists.php:1877
 #: templates/event-card.php:70
 msgid "Preis"
 msgstr "Prezzo"
@@ -2455,7 +2455,7 @@ msgstr "Etichetta"
 #: src/Series/AdminPage.php:659
 #: src/Series/AdminPage.php:682
 #: src/Series/AdminPage.php:717
-#: src/Waitlists.php:456
+#: src/Waitlists.php:457
 #: src/Waitlists/AdminPage.php:171
 #: templates/event-card.php:266
 msgid "Ticketart"
@@ -3535,7 +3535,7 @@ msgstr "L'evento è pubblicato, ma non è ancora prenotabile:"
 #: src/OfflineScanner/AdminPage.php:39
 #: src/OfflineScanner/AdminPage.php:57
 #: src/Partners/Api.php:183
-#: src/Rest/Controller.php:1332
+#: src/Rest/Controller.php:1336
 #: src/Sales/BuyerLimits.php:107
 #: src/Sales/PriceRules.php:114
 #: src/Seating/Layouts.php:497
@@ -5242,7 +5242,7 @@ msgstr "Nascondi checklist"
 #: src/Partners/Statement.php:176
 #: src/Payments/PayPalGateway.php:827
 #: src/Payments/StripeGateway.php:798
-#: src/Printing/Page.php:378
+#: src/Printing/Page.php:383
 #: src/PublicEvents.php:831
 #: src/PublicEvents.php:928
 #: src/Reports/Data.php:784
@@ -5347,7 +5347,7 @@ msgstr "L’importazione non è riuscita; non è stato salvato nulla."
 #: src/Memberships.php:484
 #: src/Memberships.php:502
 #: src/Passes/Definitions.php:308
-#: src/Rest/Controller.php:1175
+#: src/Rest/Controller.php:1179
 msgid "Pass nicht gefunden."
 msgstr "Pass non trovato."
 
@@ -5483,8 +5483,8 @@ msgstr "Inserisci un periodo valido: «Valido fino al» deve essere successivo a
 #: src/Admin/MembershipsPage.php:155
 #: src/Memberships.php:246
 #: src/Memberships.php:261
-#: src/Rest/Controller.php:1178
-#: src/Rest/Controller.php:1179
+#: src/Rest/Controller.php:1182
+#: src/Rest/Controller.php:1183
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Non hai l'autorizzazione per questo pass."
 
@@ -5938,7 +5938,7 @@ msgstr "Prenotato"
 #: src/Frontend/ServiceBooking.php:143
 #: src/ServiceBookingFlow.php:516
 #: src/Services/Portal.php:264
-#: src/Waitlists.php:427
+#: src/Waitlists.php:428
 msgid "Bestätigt"
 msgstr "Confermata"
 
@@ -6234,7 +6234,7 @@ msgstr "Per questi rimborsi il fornitore di pagamenti non ha risposto in modo un
 #: src/Payments/BankTransfer.php:126
 #: src/PublicEvents.php:255
 #: src/Reports/Settlement.php:301
-#: src/Waitlists.php:1971
+#: src/Waitlists.php:2047
 msgid "Betrag"
 msgstr "Importo"
 
@@ -6538,8 +6538,8 @@ msgstr "Seleziona ordine %s"
 #: src/ParticipantFields.php:351
 #: src/Partners/Sales.php:450
 #: src/Payments/PayPalGateway.php:221
-#: src/Rest/Controller.php:870
-#: src/Rest/Controller.php:1023
+#: src/Rest/Controller.php:874
+#: src/Rest/Controller.php:1027
 msgid "Bestellung nicht gefunden."
 msgstr "Ordine non trovato."
 
@@ -6548,9 +6548,9 @@ msgstr "Ordine non trovato."
 #: src/Admin/OrdersPage.php:484
 #: src/Api/Actions.php:96
 #: src/Consents.php:665
-#: src/Rest/Controller.php:1026
-#: src/Rest/Controller.php:1027
-#: src/Rest/Controller.php:1028
+#: src/Rest/Controller.php:1030
+#: src/Rest/Controller.php:1031
+#: src/Rest/Controller.php:1032
 #: src/Security/DataPolicy.php:136
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Non hai l'autorizzazione per questo ordine."
@@ -6886,7 +6886,7 @@ msgid "Datum (UTC)"
 msgstr "Data (UTC)"
 
 #: src/Admin/OrdersPage.php:749
-#: src/Printing/InvoicePdf.php:118
+#: src/Printing/InvoicePdf.php:121
 #: src/Reports/Data.php:185
 #: src/Reports/Settlement.php:274
 #: src/Reports/Settlement.php:284
@@ -6928,7 +6928,7 @@ msgid "Zahlart"
 msgstr "Metodo di pagamento"
 
 #: src/Admin/OrdersPage.php:850
-#: src/Waitlists.php:1675
+#: src/Waitlists.php:1750
 msgid "Bezahlt"
 msgstr "Pagato"
 
@@ -7165,7 +7165,7 @@ msgstr "Mostra il testo di questa versione (versione attualmente valida, non anc
 #: src/LegalVersions.php:125
 #: src/LegalVersions.php:140
 #: src/Mail/Blocks.php:115
-#: src/Waitlists.php:1815
+#: src/Waitlists.php:1891
 #: templates/event-card.php:224
 msgid "Bedingungen"
 msgstr "Condizioni"
@@ -7175,7 +7175,7 @@ msgstr "Condizioni"
 #: src/Frontend/ServiceBooking.php:564
 #: src/LegalVersions.php:126
 #: src/Mail/Blocks.php:115
-#: src/Waitlists.php:1817
+#: src/Waitlists.php:1893
 #: templates/event-card.php:220
 msgid "Verbraucherinformationen"
 msgstr "Informazioni per i consumatori"
@@ -7194,13 +7194,13 @@ msgstr "Voci"
 #: src/Admin/OrganizerTools.php:60
 #: src/Invoices.php:918
 #: src/Partners/AdminPage.php:528
-#: src/Printing/InvoicePdf.php:118
+#: src/Printing/InvoicePdf.php:121
 msgid "Menge"
 msgstr "Quantità"
 
 #: src/Admin/OrdersPage.php:1186
 #: src/Invoices.php:918
-#: src/Printing/InvoicePdf.php:118
+#: src/Printing/InvoicePdf.php:121
 msgid "Einzelpreis"
 msgstr "Prezzo unitario"
 
@@ -8719,7 +8719,7 @@ msgstr "In attesa"
 
 #: src/Admin/ServicesPage.php:499
 #: src/Services/Portal.php:208
-#: src/Waitlists.php:1673
+#: src/Waitlists.php:1748
 msgid "Angebot offen"
 msgstr "Offerta aperta"
 
@@ -8735,13 +8735,13 @@ msgstr "Accettata"
 #: src/PortalSelfService.php:500
 #: src/Services/Portal.php:208
 #: src/Services/Portal.php:264
-#: src/Waitlists.php:1677
+#: src/Waitlists.php:1752
 msgid "Abgelehnt"
 msgstr "Rifiutato"
 
 #: src/Admin/ServicesPage.php:499
 #: src/Services/Portal.php:208
-#: src/Waitlists.php:1446
+#: src/Waitlists.php:1521
 msgid "Ausgetragen"
 msgstr "Rimosso"
 
@@ -9276,7 +9276,7 @@ msgstr "Vale solo se Voucher Captain non comunica alcun tipo per il buono. Buono
 
 #: src/Admin/SettingsPage.php:430
 #: src/Admin/SettingsPage.php:640
-#: src/Printing/PrintCheck.php:72
+#: src/Printing/PrintCheck.php:74
 msgid "Datenschutz"
 msgstr "Privacy"
 
@@ -9610,8 +9610,8 @@ msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è s
 #: src/Modules/Reminders.php:545
 #: src/Modules/Reminders.php:576
 #: src/Modules/Sms.php:548
-#: src/Printing/Page.php:524
-#: src/Printing/Page.php:576
+#: src/Printing/Page.php:529
+#: src/Printing/Page.php:580
 #: src/Waitlists/AdminPage.php:110
 msgid "Einstellungen gespeichert."
 msgstr "Impostazioni salvate."
@@ -10660,7 +10660,7 @@ msgstr "Chiudi report"
 #: src/Admin/TicketsPage.php:623
 #: src/OfflineScanner/I18n.php:250
 #: src/OrderPortal.php:143
-#: src/Printing/Page.php:402
+#: src/Printing/Page.php:407
 msgid "Abbrechen"
 msgstr "Annulla"
 
@@ -10817,7 +10817,7 @@ msgid "Unbestätigt (Bestätigungslink offen)"
 msgstr "Non confermato (link di conferma in sospeso)"
 
 #: src/Admin/WaitlistsPage.php:45
-#: src/Waitlists.php:1672
+#: src/Waitlists.php:1747
 msgid "Wartet"
 msgstr "In attesa"
 
@@ -10830,7 +10830,7 @@ msgid "Angebot abgelaufen"
 msgstr "Offerta scaduta"
 
 #: src/Admin/WaitlistsPage.php:68
-#: src/Rest/Controller.php:1241
+#: src/Rest/Controller.php:1245
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Non hai l'autorizzazione per questo tipo di biglietto."
 
@@ -11170,7 +11170,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Troppi giorni (massimo 366)."
 
 #: src/Admission/Rest.php:67
-#: src/Rest/Controller.php:1094
+#: src/Rest/Controller.php:1098
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Il batch di scansioni offline deve contenere da 1 a 100 codici."
 
@@ -12303,8 +12303,8 @@ msgstr "Prefisso numero ricevuta"
 
 #: src/BoxOffice/Page.php:240
 #: src/Mail/Admin.php:221
-#: src/Modules/PrintTemplates.php:97
-#: src/Printing/Page.php:554
+#: src/Modules/PrintTemplates.php:101
+#: src/Printing/Page.php:559
 msgid "Fußzeile"
 msgstr "Piè di pagina"
 
@@ -12850,7 +12850,7 @@ msgstr "Annullamento della ricevuta"
 
 #: src/BoxOffice/Service.php:1327
 #: src/BoxOffice/ZReport.php:452
-#: src/Printing/InvoicePdf.php:190
+#: src/Printing/InvoicePdf.php:193
 msgid "Datum:"
 msgstr "Data:"
 
@@ -13249,8 +13249,8 @@ msgstr "Aperto"
 #: src/Partners/Settlements.php:974
 #: src/Partners/Settlements.php:1030
 #: src/Partners/Statement.php:176
-#: src/Printing/InvoicePdf.php:151
-#: src/Printing/InvoicePdf.php:202
+#: src/Printing/InvoicePdf.php:154
+#: src/Printing/InvoicePdf.php:205
 #: src/Reports/Data.php:784
 #: src/Reports/Page.php:338
 #: src/Reports/Settlement.php:264
@@ -13632,9 +13632,9 @@ msgstr "Aliquote IVA"
 #: src/Invoices.php:918
 #: src/Invoices.php:921
 #: src/Invoices.php:932
-#: src/Printing/InvoicePdf.php:118
-#: src/Printing/InvoicePdf.php:152
-#: src/Printing/InvoicePdf.php:203
+#: src/Printing/InvoicePdf.php:121
+#: src/Printing/InvoicePdf.php:155
+#: src/Printing/InvoicePdf.php:206
 msgid "USt."
 msgstr "IVA"
 
@@ -13653,8 +13653,8 @@ msgstr "IVA"
 #: src/Partners/Settlements.php:979
 #: src/Partners/Settlements.php:1030
 #: src/Partners/Statement.php:176
-#: src/Printing/InvoicePdf.php:153
-#: src/Printing/InvoicePdf.php:204
+#: src/Printing/InvoicePdf.php:156
+#: src/Printing/InvoicePdf.php:207
 #: src/Reports/Data.php:784
 #: src/Reports/Data.php:822
 #: src/Reports/Page.php:338
@@ -13984,6 +13984,7 @@ msgid "Das Kampagnenlimit wurde während des Checkouts erreicht."
 msgstr "Il limite della campagna è stato raggiunto durante il checkout."
 
 #: src/Campaigns.php:305
+#: src/Waitlists/Discounts.php:121
 msgid "Das Nutzungslimit des Rabattcodes ist ausgeschöpft."
 msgstr "Il limite di utilizzo del codice sconto è esaurito."
 
@@ -14047,7 +14048,8 @@ msgstr "Seleziona almeno un biglietto."
 
 #: src/Campaigns.php:702
 #: src/PublicEvents.php:165
-#: src/Rest/Controller.php:606
+#: src/Rest/Controller.php:610
+#: src/Waitlists/Discounts.php:123
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "Il codice sconto non è valido o non corrisponde ai biglietti selezionati."
 
@@ -14281,7 +14283,7 @@ msgstr "Questo consenso non è stato prestato e quindi non può essere revocato.
 
 #: src/Consents.php:446
 #: src/ServiceBookingFlow.php:473
-#: src/Waitlists.php:1474
+#: src/Waitlists.php:1549
 msgid "Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La sessione è scaduta. Ricarica la pagina e riprova."
 
@@ -14971,18 +14973,18 @@ msgid "Der Bestellzugriff ist ungültig."
 msgstr "L'accesso all'ordine non è valido."
 
 #: src/Exchange/Portal.php:59
-#: src/Frontend/Availability.php:126
+#: src/Frontend/Availability.php:127
 #: src/Payments/ReturnNotice.php:409
 #: src/PublicEvents.php:1095
-#: src/Rest/Controller.php:776
-#: src/Rest/Controller.php:909
-#: src/Rest/Controller.php:955
-#: src/Rest/Controller.php:960
-#: src/Rest/Controller.php:973
-#: src/Rest/Controller.php:985
-#: src/Rest/Controller.php:1000
-#: src/Rest/Controller.php:1013
-#: src/Rest/Controller.php:1189
+#: src/Rest/Controller.php:780
+#: src/Rest/Controller.php:913
+#: src/Rest/Controller.php:959
+#: src/Rest/Controller.php:964
+#: src/Rest/Controller.php:977
+#: src/Rest/Controller.php:989
+#: src/Rest/Controller.php:1004
+#: src/Rest/Controller.php:1017
+#: src/Rest/Controller.php:1193
 #: src/Sales/CheckoutThrottle.php:135
 #: src/Seating/Rest.php:25
 msgid "Bitte warte kurz und versuche es erneut."
@@ -15497,11 +15499,11 @@ msgid "Sprache speichern"
 msgstr "Salva lingua"
 
 #: src/Frontend/Language.php:97
-#: src/Rest/Controller.php:872
-#: src/Rest/Controller.php:912
-#: src/Rest/Controller.php:958
-#: src/Rest/Controller.php:976
-#: src/Rest/Controller.php:988
+#: src/Rest/Controller.php:876
+#: src/Rest/Controller.php:916
+#: src/Rest/Controller.php:962
+#: src/Rest/Controller.php:980
+#: src/Rest/Controller.php:992
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "L'accesso all'ordine non è valido o è scaduto."
 
@@ -15649,7 +15651,7 @@ msgstr "Abbiamo inviato la conferma a %s."
 #: src/Frontend/ServiceBooking.php:116
 #: src/Payments/ReturnNotice.php:223
 #: src/PublicEvents.php:231
-#: src/Waitlists.php:1957
+#: src/Waitlists.php:2033
 #, php-format
 msgid "Bestellnummer: %s"
 msgstr "Numero d'ordine: %s"
@@ -15688,7 +15690,7 @@ msgstr "Dopo la ricezione del pagamento il tuo appuntamento è confermato; ricev
 #: src/Payments/BankTransfer.php:127
 #: src/Privacy/PolicyText.php:182
 #: src/PublicEvents.php:256
-#: src/Waitlists.php:1971
+#: src/Waitlists.php:2047
 msgid "Empfänger"
 msgstr "Destinatario"
 
@@ -15708,14 +15710,14 @@ msgstr "BIC"
 #: src/Frontend/ServiceBooking.php:129
 #: src/Payments/BankTransfer.php:130
 #: src/PublicEvents.php:259
-#: src/Waitlists.php:1971
+#: src/Waitlists.php:2047
 msgid "Verwendungszweck"
 msgstr "Causale"
 
 #: src/Frontend/ServiceBooking.php:130
 #: src/Payments/BankTransfer.php:131
 #: src/PublicEvents.php:260
-#: src/Waitlists.php:1971
+#: src/Waitlists.php:2047
 msgid "Zahlbar bis"
 msgstr "Da pagare entro"
 
@@ -15932,7 +15934,7 @@ msgstr[1] "%d posti liberi"
 #: src/PublicEvents.php:160
 #: src/Reports/Settlement.php:279
 #: src/Reports/Settlement.php:353
-#: src/Waitlists.php:1723
+#: src/Waitlists.php:1799
 #: templates/event-card.php:210
 msgid "Zahlungsart"
 msgstr "Metodo di pagamento"
@@ -15950,13 +15952,13 @@ msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und A
 msgstr "Per ordini di importo superiore a %s ci servono nome e indirizzo per la fattura."
 
 #: src/Frontend/ServiceBooking.php:565
-#: src/Waitlists.php:1818
+#: src/Waitlists.php:1894
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr "Accetto le condizioni e ho letto le informazioni per i consumatori."
 
 #: src/Frontend/ServiceBooking.php:565
-#: src/Waitlists.php:1818
+#: src/Waitlists.php:1894
 #: templates/event-card.php:227
 msgid "Ich akzeptiere die Bedingungen."
 msgstr "Accetto le condizioni."
@@ -16603,7 +16605,7 @@ msgstr "in ripetizione"
 
 #: src/Integrations/ConnectorsPage.php:117
 #: src/Integrations/WorkflowCaptain/Status.php:52
-#: src/Printing/Page.php:372
+#: src/Printing/Page.php:377
 msgid "fehlgeschlagen"
 msgstr "non riuscito"
 
@@ -17134,6 +17136,9 @@ msgstr "Al momento non è possibile riscattare i buoni."
 
 #: src/Integrations/Vouchers/Checkout.php:139
 #: src/Integrations/Vouchers/Checkout.php:248
+#: src/Waitlists/Discounts.php:144
+#: src/Waitlists/Discounts.php:217
+#: src/Waitlists/Discounts.php:266
 msgid "Der Gutschein kann auf diese Bestellung nicht angewendet werden."
 msgstr "Il buono non può essere applicato a questo ordine."
 
@@ -17273,7 +17278,7 @@ msgstr "Nessun biglietto trovato per questo buono."
 
 #. translators: %d: allowed resends per hour
 #: src/Integrations/Vouchers/TicketService.php:456
-#: src/Rest/Controller.php:916
+#: src/Rest/Controller.php:920
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
@@ -17299,7 +17304,7 @@ msgstr "I dati dei partecipanti non corrispondono ai biglietti ordinati. Ricaric
 
 #: src/Integrations/WooCommerce/Attendees.php:309
 #: src/Integrations/WooCommerce/Attendees.php:475
-#: src/Waitlists.php:1761
+#: src/Waitlists.php:1837
 msgid "Angaben zu den Teilnehmenden"
 msgstr "Dati dei partecipanti"
 
@@ -17920,22 +17925,22 @@ msgid "Belegnummer konnte nicht reserviert werden."
 msgstr "Impossibile riservare il numero del documento."
 
 #: src/Invoices.php:915
-#: src/Printing/InvoicePdf.php:110
+#: src/Printing/InvoicePdf.php:113
 msgid "Rechnungsdatum:"
 msgstr "Data della fattura:"
 
 #: src/Invoices.php:915
 #: src/Invoices.php:916
 #: src/Printing/InvoicePdf.php:69
-#: src/Printing/InvoicePdf.php:115
+#: src/Printing/InvoicePdf.php:118
 msgid "Rechnungsempfänger:"
 msgstr "Destinatario della fattura:"
 
 #. translators: 1: invoice number, 2: date
 #: src/Invoices.php:921
 #: src/Invoices.php:932
-#: src/Printing/InvoicePdf.php:150
-#: src/Printing/InvoicePdf.php:201
+#: src/Printing/InvoicePdf.php:153
+#: src/Printing/InvoicePdf.php:204
 msgid "Aufstellung nach Steuersätzen"
 msgstr "Riepilogo per aliquota"
 
@@ -17946,8 +17951,8 @@ msgstr "Riepilogo per aliquota"
 #: src/Partners/Settlements.php:974
 #: src/Partners/Settlements.php:979
 #: src/Partners/Settlements.php:1030
-#: src/Printing/InvoicePdf.php:156
-#: src/Printing/InvoicePdf.php:207
+#: src/Printing/InvoicePdf.php:159
+#: src/Printing/InvoicePdf.php:210
 #: src/Reports/Data.php:794
 #: src/Reports/Data.php:802
 #: src/Reports/Settlement.php:276
@@ -17959,8 +17964,8 @@ msgstr "Aliquota IVA"
 #: src/Invoices.php:925
 #: src/Invoices.php:935
 #: src/Partners/Settlements.php:1060
-#: src/Printing/InvoicePdf.php:163
-#: src/Printing/InvoicePdf.php:213
+#: src/Printing/InvoicePdf.php:166
+#: src/Printing/InvoicePdf.php:216
 msgid "Nettobetrag"
 msgstr "Importo netto"
 
@@ -17968,8 +17973,8 @@ msgstr "Importo netto"
 #. translators: %s: VAT rate
 #: src/Invoices.php:926
 #: src/Invoices.php:936
-#: src/Printing/InvoicePdf.php:167
-#: src/Printing/InvoicePdf.php:215
+#: src/Printing/InvoicePdf.php:170
+#: src/Printing/InvoicePdf.php:218
 #, php-format
 msgid "Umsatzsteuer %s %%"
 msgstr "IVA %s %%"
@@ -17977,32 +17982,32 @@ msgstr "IVA %s %%"
 #. translators: %s: rate
 #: src/Invoices.php:927
 #: src/Partners/Settlements.php:1066
-#: src/Printing/InvoicePdf.php:171
+#: src/Printing/InvoicePdf.php:174
 msgid "Rechnungsbetrag"
 msgstr "Totale fattura"
 
 #: src/Invoices.php:931
-#: src/Printing/InvoicePdf.php:186
+#: src/Printing/InvoicePdf.php:189
 msgid "Rechnungskorrektur"
 msgstr "Rettifica fattura"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: invoice number, 2: invoice date
 #: src/Invoices.php:931
-#: src/Printing/InvoicePdf.php:188
+#: src/Printing/InvoicePdf.php:191
 #, php-format
 msgid "Korrektur zu Rechnung %1$s vom %2$s"
 msgstr "Rettifica della fattura %1$s del %2$s"
 
 #. translators: %s: rate
 #: src/Invoices.php:937
-#: src/Printing/InvoicePdf.php:217
+#: src/Printing/InvoicePdf.php:220
 msgid "Korrekturbetrag"
 msgstr "Importo della rettifica"
 
 #. translators: %s: date
 #: src/Invoices.php:938
-#: src/Printing/InvoicePdf.php:194
+#: src/Printing/InvoicePdf.php:197
 #, php-format
 msgid "Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt."
 msgstr "Stornata il %s: il rimborso presso il fornitore di pagamenti non è riuscito; l’importo non è stato restituito."
@@ -18047,7 +18052,7 @@ msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteu
 msgstr "Il buono è un mezzo di pagamento (buono multiuso); l’IVA è esposta sull’intero importo della fattura."
 
 #: src/Invoices.php:1639
-#: src/Printing/InvoicePdf.php:356
+#: src/Printing/InvoicePdf.php:359
 msgid "Zahlungen"
 msgstr "Pagamenti"
 
@@ -18119,7 +18124,7 @@ msgid "Die Testmail konnte nicht gesendet werden."
 msgstr "Impossibile inviare l'e-mail di prova."
 
 #: src/Mail/Admin.php:147
-#: src/Printing/Page.php:251
+#: src/Printing/Page.php:256
 msgid "Vorlage gespeichert."
 msgstr "Modello salvato."
 
@@ -18170,7 +18175,7 @@ msgid "Leer: Logo des Themes bzw. Name der Website."
 msgstr "Vuoto: logo del tema o nome del sito."
 
 #: src/Mail/Admin.php:220
-#: src/Printing/Templates.php:243
+#: src/Printing/Templates.php:247
 msgid "Akzentfarbe"
 msgstr "Colore di accento"
 
@@ -19428,7 +19433,7 @@ msgstr ""
 "%7$s"
 
 #: src/Mail/Types.php:698
-#: src/Waitlists.php:1567
+#: src/Waitlists.php:1642
 msgid "Du bleibst auf der Warteliste."
 msgstr "Resti in lista d'attesa."
 
@@ -19463,7 +19468,7 @@ msgstr ""
 "Non devi fare altro; non ti scriveremo più riguardo a questa data."
 
 #: src/Mail/Types.php:712
-#: src/Waitlists.php:1617
+#: src/Waitlists.php:1692
 msgid "Der Termin wurde abgesagt."
 msgstr "La data è stata annullata."
 
@@ -20478,7 +20483,7 @@ msgstr "Rendiconti degli organizzatori"
 msgid "Pässe"
 msgstr "Pass"
 
-#: src/Modules/PrintTemplates.php:106
+#: src/Modules/PrintTemplates.php:110
 msgid "Druck & Listen"
 msgstr "Stampa e elenchi"
 
@@ -21221,8 +21226,8 @@ msgid "Unerwartete Antwort von Mollie."
 msgstr "Risposta imprevista da Mollie."
 
 #: src/Mollie/MollieGateway.php:213
-#: src/Rest/Controller.php:599
-#: src/Waitlists.php:972
+#: src/Rest/Controller.php:603
+#: src/Waitlists.php:1000
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Il pagamento tramite bonifico non è più possibile così a ridosso dell'inizio. Scegli un altro metodo di pagamento."
 
@@ -23360,12 +23365,12 @@ msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr "Inserisci un indirizzo e-mail valido e seleziona i biglietti."
 
 #: src/Orders.php:163
-#: src/Waitlists.php:939
+#: src/Waitlists.php:967
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Conferma le condizioni e le informazioni per i consumatori."
 
 #: src/Orders.php:217
-#: src/Waitlists.php:943
+#: src/Waitlists.php:971
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr "Nel frattempo le condizioni sono state modificate. Ricarica la pagina e conferma la versione attuale."
 
@@ -23375,12 +23380,12 @@ msgid "Eine Ticketposition ist ungültig."
 msgstr "Una voce di biglietto non è valida."
 
 #: src/Orders.php:513
-#: src/Rest/Controller.php:577
-#: src/Rest/Controller.php:591
+#: src/Rest/Controller.php:581
+#: src/Rest/Controller.php:595
 #: src/ServiceBookings.php:746
 #: src/ServiceBookings.php:760
 #: src/ServiceBookings.php:859
-#: src/Waitlists.php:966
+#: src/Waitlists.php:994
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Questo metodo di pagamento non è disponibile."
 
@@ -23501,7 +23506,7 @@ msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe de
 msgstr "Un dato è troppo lungo o contiene caratteri non validi. Controlla i tuoi inserimenti."
 
 #: src/Orders.php:1290
-#: src/Waitlists.php:956
+#: src/Waitlists.php:984
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Per questo importo d’ordine ci servono il tuo nome e il tuo indirizzo per la fattura. Attiva «Ho bisogno di una fattura intestata a un’azienda/indirizzo» e compila i campi."
 
@@ -26424,24 +26429,24 @@ msgid "Dieser Stapeldruck wurde bereits heruntergeladen und kann nicht mehr abge
 msgstr "Questa stampa in serie è già stata scaricata e non può più essere annullata."
 
 #. translators: %d: page number
-#: src/Printing/InvoicePdf.php:130
-#: src/Printing/InvoicePdf.php:144
-#: src/Printing/InvoicePdf.php:175
-#: src/Printing/InvoicePdf.php:180
-#: src/Printing/InvoicePdf.php:351
+#: src/Printing/InvoicePdf.php:133
+#: src/Printing/InvoicePdf.php:147
+#: src/Printing/InvoicePdf.php:178
+#: src/Printing/InvoicePdf.php:183
+#: src/Printing/InvoicePdf.php:354
 #, php-format
 msgid "Seite %d"
 msgstr "Pagina %d"
 
-#: src/Printing/InvoicePdf.php:190
+#: src/Printing/InvoicePdf.php:193
 msgid "Empfänger:"
 msgstr "Destinatario:"
 
-#: src/Printing/InvoicePdf.php:261
+#: src/Printing/InvoicePdf.php:264
 msgid "Beleg nicht gefunden."
 msgstr "Ricevuta non trovata."
 
-#: src/Printing/InvoicePdf.php:282
+#: src/Printing/InvoicePdf.php:285
 msgid "Nicht gefunden."
 msgstr "Non trovato."
 
@@ -26462,7 +26467,7 @@ msgid "Alle gültigen Tickets wurden eingelassen."
 msgstr "Tutti i biglietti validi sono entrati."
 
 #: src/Printing/Page.php:67
-#: src/Printing/Templates.php:621
+#: src/Printing/Templates.php:649
 msgid "Unbekanntes Layout."
 msgstr "Layout sconosciuto."
 
@@ -26494,7 +26499,7 @@ msgstr "Stampa in serie per una data"
 #: src/Printing/Page.php:164
 #: src/Printing/Page.php:172
 #: src/Printing/Page.php:213
-#: src/Printing/Page.php:378
+#: src/Printing/Page.php:383
 msgid "Layout"
 msgstr "Layout"
 
@@ -26593,9 +26598,9 @@ msgstr "Una riga per elemento: «dimensione|testo», in grassetto con «*dimensi
 msgid "Gestaltung"
 msgstr "Aspetto"
 
-#: src/Modules/PrintTemplates.php:96
+#: src/Modules/PrintTemplates.php:100
 #: src/Printing/Page.php:184
-#: src/Printing/Page.php:552
+#: src/Printing/Page.php:557
 msgid "Logo (Mediathek-ID, JPEG oder PNG)"
 msgstr "Logo (ID della libreria media, JPEG o PNG)"
 
@@ -26604,7 +26609,7 @@ msgid "Akzentfarbe (fette Zeilen)"
 msgstr "Colore di accento (righe in grassetto)"
 
 #: src/Printing/Page.php:186
-#: src/Printing/Templates.php:243
+#: src/Printing/Templates.php:247
 #: src/WalletPasses/AdminPage.php:229
 msgid "Textfarbe"
 msgstr "Colore del testo"
@@ -26652,64 +26657,64 @@ msgstr "Modello"
 msgid "Zuordnen"
 msgstr "Assegna"
 
-#: src/Printing/Page.php:225
+#: src/Printing/Page.php:231
 msgid "Rechnungs-PDF"
 msgstr "PDF della fattura"
 
-#: src/Printing/Page.php:227
+#: src/Printing/Page.php:232
 msgid "Rechnung als PDF an die Ticket-E-Mail anhängen (wenn eine Rechnung existiert oder automatische Rechnungen aktiv sind)"
 msgstr "Allega la fattura come PDF all'e-mail dei biglietti (se esiste una fattura o se le fatture automatiche sono attive)"
 
-#: src/Printing/Page.php:309
+#: src/Printing/Page.php:314
 msgid "Vorlage aus der Startvorlage angelegt."
 msgstr "Modello creato dal modello di partenza."
 
-#: src/Printing/Page.php:317
+#: src/Printing/Page.php:322
 msgid "Vorlage zugeordnet."
 msgstr "Modello assegnato."
 
-#: src/Printing/Page.php:339
+#: src/Printing/Page.php:344
 msgid "Die Druckdatei ist fertig und steht unten unter „Stapeldrucke“ zum Herunterladen bereit."
 msgstr "Il file di stampa è pronto e disponibile per il download qui sotto in «Stampe in serie»."
 
-#: src/Printing/Page.php:340
+#: src/Printing/Page.php:345
 msgid "Die Druckdatei wird im Hintergrund erstellt; sie erscheint unten unter „Stapeldrucke“, sobald sie fertig ist."
 msgstr "Il file di stampa viene creato in background; comparirà qui sotto in «Stampe in serie» non appena sarà pronto."
 
-#: src/Printing/Page.php:360
+#: src/Printing/Page.php:365
 msgid "Stapeldruck abgebrochen; an den Tickets wurde nichts geändert."
 msgstr "Stampa in serie annullata; i biglietti non sono stati modificati."
 
-#: src/Printing/Page.php:369
+#: src/Printing/Page.php:374
 msgid "wird erstellt"
 msgstr "in creazione"
 
-#: src/Printing/Page.php:370
+#: src/Printing/Page.php:375
 msgid "fertig"
 msgstr "pronto"
 
-#: src/Printing/Page.php:371
+#: src/Printing/Page.php:376
 msgid "heruntergeladen"
 msgstr "scaricato"
 
-#: src/Printing/Page.php:373
+#: src/Printing/Page.php:378
 msgid "abgebrochen"
 msgstr "annullato"
 
-#: src/Printing/Page.php:376
+#: src/Printing/Page.php:381
 msgid "Stapeldrucke"
 msgstr "Stampe in serie"
 
-#: src/Printing/Page.php:377
+#: src/Printing/Page.php:382
 msgid "Große Stapel und Stapel mit neuen Ticketcodes werden im Hintergrund erstellt. Neue Codes gelten erst ab dem ersten Herunterladen; bis dahin bleiben die bisherigen Codes gültig. Abgebrochene oder nicht heruntergeladene Stapel ändern keine Tickets. Dateien werden nach einigen Tagen gelöscht."
 msgstr "Le serie grandi e quelle con nuovi codici dei biglietti vengono create in background. I nuovi codici sono validi solo a partire dal primo download; fino ad allora restano validi i codici precedenti. Le serie annullate o non scaricate non modificano alcun biglietto. I file vengono eliminati dopo alcuni giorni."
 
-#: src/Printing/Page.php:381
+#: src/Printing/Page.php:386
 msgid "neue Codes"
 msgstr "nuovi codici"
 
 #. translators: %d: number of tickets
-#: src/Printing/Page.php:386
+#: src/Printing/Page.php:391
 #, php-format
 msgid "%d weitergegebenes oder zugeordnetes Ticket ohne neuen Code (Inhaber behält den gültigen Code)"
 msgid_plural "%d weitergegebene oder zugeordnete Tickets ohne neuen Code (Inhaber behalten den gültigen Code)"
@@ -26717,195 +26722,195 @@ msgstr[0] "%d biglietto ceduto o assegnato senza nuovo codice (il titolare manti
 msgstr[1] "%d biglietti ceduti o assegnati senza nuovo codice (i titolari mantengono il codice valido)"
 
 #. translators: %d: number of tickets
-#: src/Printing/Page.php:392
+#: src/Printing/Page.php:397
 #, php-format
 msgid "%d Ticket wurde seit dem Erstellen geändert; sein gedruckter Code gilt nicht."
 msgid_plural "%d Tickets wurden seit dem Erstellen geändert; ihre gedruckten Codes gelten nicht."
 msgstr[0] "%d biglietto è stato modificato dopo la creazione; il suo codice stampato non è valido."
 msgstr[1] "%d biglietti sono stati modificati dopo la creazione; i loro codici stampati non sono validi."
 
-#: src/Printing/Page.php:398
+#: src/Printing/Page.php:403
 msgid "Herunterladen und Codes aktivieren"
 msgstr "Scarica e attiva i codici"
 
-#: src/Printing/Page.php:398
+#: src/Printing/Page.php:403
 msgid "Herunterladen"
 msgstr "Scarica"
 
-#: src/Printing/Page.php:401
+#: src/Printing/Page.php:406
 msgid "Druckauftrag abbrechen?"
 msgstr "Annullare questa stampa?"
 
-#: src/Printing/Templates.php:60
+#: src/Printing/Templates.php:64
 msgid "Ticket (A4)"
 msgstr "Biglietto (A4)"
 
-#: src/Printing/Templates.php:61
+#: src/Printing/Templates.php:65
 msgid "Badge (A6)"
 msgstr "Badge (A6)"
 
-#: src/Printing/Templates.php:62
+#: src/Printing/Templates.php:66
 msgid "Namensschild (90×55 mm, 10 pro A4)"
 msgstr "Cartellino nominativo (90×55 mm, 10 per A4)"
 
-#: src/Printing/Templates.php:63
+#: src/Printing/Templates.php:67
 msgid "Einlassband (250×25 mm)"
 msgstr "Braccialetto d'ingresso (250×25 mm)"
 
-#: src/Printing/Templates.php:64
+#: src/Printing/Templates.php:68
 msgid "Etiketten 70×37 mm (24 pro A4, z. B. Avery 3474)"
 msgstr "Etichette 70×37 mm (24 per A4, ad es. Avery 3474)"
 
-#: src/Printing/Templates.php:65
+#: src/Printing/Templates.php:69
 msgid "Etiketten 99,1×38,1 mm (14 pro A4, z. B. Avery L7163)"
 msgstr "Etichette 99,1×38,1 mm (14 per A4, ad es. Avery L7163)"
 
-#: src/Printing/Templates.php:66
+#: src/Printing/Templates.php:70
 msgid "Badges A6 (4 pro A4 mit Schnittrahmen)"
 msgstr "Badge A6 (4 per A4 con segni di taglio)"
 
-#: src/Printing/Templates.php:73
+#: src/Printing/Templates.php:77
 msgid "Name der Teilnehmenden"
 msgstr "Nome del partecipante"
 
-#: src/Printing/Templates.php:74
+#: src/Printing/Templates.php:78
 msgid "Ticketart, dann Name"
 msgstr "Tipo di biglietto, poi nome"
 
-#: src/Printing/Templates.php:76
+#: src/Printing/Templates.php:80
 #: src/WalletPasses/AppleProvider.php:82
 msgid "Ticketnummer"
 msgstr "Numero del biglietto"
 
 #. translators: 1: colour name, 2: colour value, 3: contrast ratio, 4: minimum ratio
-#: src/Printing/Templates.php:249
+#: src/Printing/Templates.php:253
 #, php-format
 msgid "%1$s %2$s hat auf Weiß nur einen Kontrast von %3$s:1 (mindestens %4$s:1). Bitte eine dunklere Farbe wählen."
 msgstr "%1$s %2$s ha su bianco un contrasto di solo %3$s:1 (minimo %4$s:1). Scegli un colore più scuro."
 
-#: src/Printing/Page.php:490
-#: src/Printing/Templates.php:253
+#: src/Printing/Page.php:495
+#: src/Printing/Templates.php:257
 msgid "Das Logo muss ein JPEG- oder PNG-Bild aus der Mediathek sein (höchstens 1 MB)."
 msgstr "Il logo deve essere un'immagine JPEG o PNG della libreria media (al massimo 1 MB)."
 
-#: src/Printing/Templates.php:257
+#: src/Printing/Templates.php:261
 msgid "Schrift unter 6 pt ist kaum lesbar. Bitte mindestens 6 pt verwenden (für Tickets 10 pt und mehr)."
 msgstr "Un carattere inferiore a 6 pt è poco leggibile. Usa almeno 6 pt (per i biglietti 10 pt o più)."
 
-#: src/Printing/Templates.php:296
+#: src/Printing/Templates.php:300
 msgid "Ticket „Klar“"
 msgstr "Biglietto «Chiaro»"
 
-#: src/Printing/Templates.php:298
+#: src/Printing/Templates.php:302
 msgid "Schwarz auf Weiß, große Schrift, Datum und Ort direkt unter dem Eventnamen."
 msgstr "Nero su bianco, carattere grande, data e luogo subito sotto il nome dell'evento."
 
-#: src/Printing/Templates.php:302
+#: src/Printing/Templates.php:306
 msgid "Ticket „Großdruck“"
 msgstr "Biglietto «Caratteri grandi»"
 
-#: src/Printing/Templates.php:304
+#: src/Printing/Templates.php:308
 msgid "Für Menschen mit Sehbeeinträchtigung: alle Angaben ab 16 pt, Kernangaben fett."
 msgstr "Per persone con disabilità visive: tutte le informazioni da 16 pt, quelle essenziali in grassetto."
 
-#: src/Printing/Templates.php:308
+#: src/Printing/Templates.php:312
 msgid "Ticket „Akzent“"
 msgstr "Biglietto «Accento»"
 
-#: src/Printing/Templates.php:310
+#: src/Printing/Templates.php:314
 msgid "Überschriften in Dunkelblau (Kontrast über 10:1 auf Weiß); das Logo in der Vorlage ergänzen."
 msgstr "Titoli in blu scuro (contrasto superiore a 10:1 su bianco); aggiungi il logo nel modello."
 
-#: src/Printing/Templates.php:314
+#: src/Printing/Templates.php:318
 msgid "Badge „Name groß“"
 msgstr "Badge «Nome grande»"
 
-#: src/Printing/Templates.php:316
+#: src/Printing/Templates.php:320
 msgid "Name in 26 pt fett, auf Abstand lesbar; Ticketart darunter."
 msgstr "Nome in 26 pt grassetto, leggibile a distanza; tipo di biglietto sotto."
 
-#: src/Printing/Templates.php:320
+#: src/Printing/Templates.php:324
 msgid "Namensschild „Name groß“"
 msgstr "Cartellino nominativo «Nome grande»"
 
-#: src/Printing/Templates.php:322
+#: src/Printing/Templates.php:326
 msgid "Name in 20 pt fett, Ticketart in 11 pt."
 msgstr "Nome in 20 pt grassetto, tipo di biglietto in 11 pt."
 
-#: src/Printing/Templates.php:353
+#: src/Printing/Templates.php:357
 msgid "Unbekannte Startvorlage."
 msgstr "Modello di partenza sconosciuto."
 
-#: src/Printing/Templates.php:386
+#: src/Printing/Templates.php:390
 msgid "Namensschilder"
 msgstr "Cartellini nominativi"
 
-#: src/Printing/Templates.php:587
+#: src/Printing/Templates.php:615
 msgid "Bitte Name, Layout und Inhalt angeben."
 msgstr "Indica nome, layout e contenuto."
 
-#: src/Printing/Templates.php:594
+#: src/Printing/Templates.php:622
 msgid "Keine Berechtigung für diese Vorlage."
 msgstr "Non hai l'autorizzazione per questo modello."
 
-#: src/Printing/Templates.php:597
+#: src/Printing/Templates.php:625
 msgid "Vorlage nicht gefunden."
 msgstr "Modello non trovato."
 
-#: src/Printing/Templates.php:600
+#: src/Printing/Templates.php:628
 msgid "Das Layout einer zugeordneten Vorlage kann nicht geändert werden."
 msgstr "Il layout di un modello assegnato non può essere modificato."
 
-#: src/Printing/Templates.php:610
+#: src/Printing/Templates.php:638
 msgid "Die Vorlage konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il modello."
 
-#: src/Printing/Templates.php:626
+#: src/Printing/Templates.php:654
 msgid "Die Vorlage passt nicht zum Layout."
 msgstr "Il modello non è compatibile con il layout."
 
-#: src/Printing/Templates.php:628
+#: src/Printing/Templates.php:656
 msgid "Diese Vorlage gehört zu einem anderen Event."
 msgstr "Questo modello appartiene a un altro evento."
 
-#: src/Printing/Templates.php:863
+#: src/Printing/Templates.php:891
 msgid "Beispiel-Event"
 msgstr "Evento di esempio"
 
-#: src/Printing/Templates.php:866
+#: src/Printing/Templates.php:894
 msgid "Großer Saal"
 msgstr "Sala grande"
 
-#: src/Printing/Templates.php:867
+#: src/Printing/Templates.php:895
 #: src/Seating/Picker.php:54
 msgid "Stehplatz"
 msgstr "In piedi"
 
-#: src/Printing/Templates.php:868
+#: src/Printing/Templates.php:896
 msgid "Erika Musterfrau"
 msgstr "Maria Rossi"
 
-#: src/Printing/Templates.php:869
+#: src/Printing/Templates.php:897
 msgid "Reihe 3, Platz 12"
 msgstr "Fila 3, posto 12"
 
-#: src/Printing/Templates.php:872
+#: src/Printing/Templates.php:900
 msgid "Ab 18 Jahren, Ausweis mitbringen"
 msgstr "Dai 18 anni, portare un documento d'identità"
 
-#: src/Printing/Templates.php:993
+#: src/Printing/Templates.php:1021
 msgid "Für diesen Termin gibt es keine (weiteren) gültigen Tickets zum Drucken."
 msgstr "Per questa data non ci sono (altri) biglietti validi da stampare."
 
-#: src/Printing/Templates.php:993
+#: src/Printing/Templates.php:1021
 msgid "Für diesen Termin gibt es keine Kassentickets ohne Zustellung. Kundentickets werden nur nach ausdrücklicher Bestätigung neu gedruckt."
 msgstr "Per questa data non ci sono biglietti di cassa senza invio. I biglietti cliente vengono ristampati solo dopo conferma esplicita."
 
-#: src/Printing/Templates.php:999
+#: src/Printing/Templates.php:1027
 msgid "Der Druck mit neuen Codes ist fehlgeschlagen. Es wurden keine Ticketcodes geändert; die bisherigen Codes bleiben gültig."
 msgstr "La stampa con nuovi codici non è riuscita. Nessun codice dei biglietti è stato modificato; i codici precedenti restano validi."
 
-#: src/Printing/Templates.php:1019
+#: src/Printing/Templates.php:1047
 msgid "Die Tickets wurden inzwischen eingecheckt oder storniert."
 msgstr "Nel frattempo i biglietti sono stati convalidati all’ingresso o annullati."
 
@@ -28781,97 +28786,97 @@ msgstr "Al momento non è possibile richiedere un rimborso per questo ordine (ne
 msgid "Erstattungsantrag nach Terminverschiebung (Bestellportal)"
 msgstr "Richiesta di rimborso dopo lo spostamento (portale ordini)"
 
-#: src/Rest/Controller.php:583
+#: src/Rest/Controller.php:587
 msgid "Der Bestellversuch ist ungültig. Bitte lade die Seite neu und versuche es erneut."
 msgstr "Il tentativo di ordine non è valido. Ricarica la pagina e riprova."
 
-#: src/Rest/Controller.php:607
+#: src/Rest/Controller.php:611
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
 msgstr "Non è stato possibile applicare in modo affidabile il codice sconto all'ordine. Riprova."
 
-#: src/Rest/Controller.php:629
+#: src/Rest/Controller.php:633
 msgid "Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen."
 msgstr "Questo tentativo di ordine è già in corso con un altro metodo di pagamento. Ricarica la pagina per ordinare con un altro metodo di pagamento."
 
-#: src/Rest/Controller.php:633
+#: src/Rest/Controller.php:637
 msgid "Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab."
 msgstr "Questo ordine è stato avviato con dati diversi. Ricarica la pagina e invia di nuovo il modulo."
 
-#: src/Rest/Controller.php:639
-#: src/Rest/Controller.php:676
+#: src/Rest/Controller.php:643
+#: src/Rest/Controller.php:680
 msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
 msgstr "Questo tentativo di ordine è stato interrotto. Invia di nuovo il modulo."
 
-#: src/Rest/Controller.php:660
+#: src/Rest/Controller.php:664
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "Questo metodo di pagamento non supporta la valuta."
 
-#: src/Rest/Controller.php:770
+#: src/Rest/Controller.php:774
 msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
 msgstr "Per questo indirizzo e-mail ci sono già ordini aperti non pagati. Pagali prima o lasciali scadere."
 
-#: src/Rest/Controller.php:1050
+#: src/Rest/Controller.php:1054
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Le voci di vendita POS o l'idempotency key non sono validi."
 
-#: src/Rest/Controller.php:1052
+#: src/Rest/Controller.php:1056
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Le vendite alla cassa passano dal modulo cassa (turno, numero ricevuta, report Z)."
 
-#: src/Rest/Controller.php:1060
+#: src/Rest/Controller.php:1064
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "Tutte le voci di una vendita alla cassa devono appartenere alla stessa data."
 
-#: src/Rest/Controller.php:1064
+#: src/Rest/Controller.php:1068
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "Per questo evento manca l'autorizzazione POS."
 
-#: src/Rest/Controller.php:1120
+#: src/Rest/Controller.php:1124
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "Per questo evento manca l'autorizzazione all'ingresso."
 
-#: src/Rest/Controller.php:1129
-#: src/Rest/Controller.php:1139
+#: src/Rest/Controller.php:1133
+#: src/Rest/Controller.php:1143
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "È necessaria almeno una regola del pass."
 
-#: src/Rest/Controller.php:1134
+#: src/Rest/Controller.php:1138
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Non hai l'autorizzazione per una regola del pass."
 
-#: src/Rest/Controller.php:1285
+#: src/Rest/Controller.php:1289
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "Il periodo del report deve essere valido e al massimo di 90 giorni."
 
-#: src/Rest/Controller.php:1353
+#: src/Rest/Controller.php:1357
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduzione non trovata."
 
-#: src/Rest/Controller.php:1363
+#: src/Rest/Controller.php:1367
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale o titolo tradotto non valido."
 
-#: src/Rest/Controller.php:1402
+#: src/Rest/Controller.php:1406
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Non hai l'autorizzazione per questa data."
 
-#: src/Rest/Controller.php:1405
+#: src/Rest/Controller.php:1409
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Indica da 1 a 31 giorni di evento."
 
-#: src/Rest/Controller.php:1414
+#: src/Rest/Controller.php:1418
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un giorno di evento o una regola di ingresso non è valido."
 
-#: src/Rest/Controller.php:1416
+#: src/Rest/Controller.php:1420
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Impossibile salvare le regole di ingresso."
 
-#: src/Rest/Controller.php:1430
+#: src/Rest/Controller.php:1434
 msgid "Ungültige Woche."
 msgstr "Settimana non valida."
 
-#: src/Rest/Controller.php:1441
+#: src/Rest/Controller.php:1445
 #: src/Waitlists.php:157
 msgid "Bitte eine gültige Anzahl angeben."
 msgstr "Indica una quantità valida."
@@ -30702,7 +30707,7 @@ msgid "Wieder in der Regel – Markierung wird aufgehoben"
 msgstr "Di nuovo nella regola – il contrassegno verrà rimosso"
 
 #: src/Series/AdminPage.php:296
-#: src/Waitlists.php:1678
+#: src/Waitlists.php:1753
 msgid "Übersprungen"
 msgstr "Saltata"
 
@@ -31345,9 +31350,9 @@ msgstr "L'idempotency key è stata utilizzata per un'altra prenotazione."
 
 #: src/ServiceBookings.php:118
 #: src/ServiceWaitlist.php:355
-#: src/Waitlists.php:906
-#: src/Waitlists.php:1711
-#: src/Waitlists.php:1949
+#: src/Waitlists.php:916
+#: src/Waitlists.php:1786
+#: src/Waitlists.php:2025
 msgid "Wartelistenangebot ist ungültig oder abgelaufen."
 msgstr "L'offerta dalla lista d'attesa non è valida o è scaduta."
 
@@ -31746,16 +31751,16 @@ msgstr "Vuoi rifiutare l'offerta? Il biglietto passerà alla persona successiva 
 
 #: src/Services/Portal.php:53
 #: src/Services/Portal.php:218
-#: src/Waitlists.php:1732
+#: src/Waitlists.php:1808
 msgid "Angebot ablehnen"
 msgstr "Rifiuta offerta"
 
 #: src/Services/Portal.php:55
 #: src/Services/Portal.php:221
-#: src/Waitlists.php:1348
-#: src/Waitlists.php:1411
-#: src/Waitlists.php:1430
-#: src/Waitlists.php:1503
+#: src/Waitlists.php:1423
+#: src/Waitlists.php:1486
+#: src/Waitlists.php:1505
+#: src/Waitlists.php:1578
 msgid "Von der Warteliste austragen"
 msgstr "Cancellati dalla lista d'attesa"
 
@@ -31821,7 +31826,7 @@ msgid "Die Plätze sind bis %s für dich reserviert."
 msgstr "I posti sono riservati per te fino a %s."
 
 #: src/Services/Portal.php:217
-#: src/Waitlists.php:1732
+#: src/Waitlists.php:1808
 msgid "Angebot annehmen"
 msgstr "Accetta offerta"
 
@@ -31910,8 +31915,8 @@ msgid "Zeitfenster oder E-Mail-Adresse ist ungültig."
 msgstr "La fascia oraria o l'indirizzo e-mail non sono validi."
 
 #: src/ServiceWaitlist.php:54
-#: src/Waitlists.php:182
-#: src/Waitlists.php:1232
+#: src/Waitlists.php:183
+#: src/Waitlists.php:1307
 msgid "Zu viele Wartelistenanfragen. Bitte versuche es später erneut."
 msgstr "Troppe richieste per la lista d'attesa. Riprova più tardi."
 
@@ -31924,7 +31929,7 @@ msgid "In diesem Zeitfenster sind noch Plätze frei – du kannst direkt buchen.
 msgstr "In questa fascia oraria ci sono ancora posti liberi: puoi prenotare direttamente."
 
 #: src/ServiceWaitlist.php:115
-#: src/Waitlists.php:473
+#: src/Waitlists.php:474
 msgid "Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine E-Mail mit einem Bestätigungslink. Erst nach der Bestätigung stehst du auf der Warteliste."
 msgstr "Grazie! Se l'indirizzo non era ancora iscritto, riceverai un'e-mail con un link di conferma. Sarai nella lista d'attesa solo dopo la conferma."
 
@@ -32373,297 +32378,297 @@ msgid "Veranstaltung oder E-Mail-Adresse ist ungültig."
 msgstr "Evento o indirizzo e-mail non valido."
 
 #: src/Waitlists.php:160
-#: src/Waitlists.php:316
+#: src/Waitlists.php:317
 msgid "Diese Veranstaltung ist nicht verfügbar."
 msgstr "Questo evento non è disponibile."
 
 #. translators: %d: maximum number of tickets per order
-#: src/Waitlists.php:165
+#: src/Waitlists.php:166
 #, php-format
 msgid "Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich."
 msgid_plural "Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich."
 msgstr[0] "Nella lista d'attesa è possibile al massimo %d biglietto per voce."
 msgstr[1] "Nella lista d'attesa sono possibili al massimo %d biglietti per voce."
 
-#: src/Waitlists.php:276
+#: src/Waitlists.php:277
 msgid "Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte trage dich erneut in die Warteliste ein."
 msgstr "Questo link di conferma non è valido o è scaduto. Iscriviti di nuovo alla lista d'attesa."
 
-#: src/Waitlists.php:328
+#: src/Waitlists.php:329
 msgid "Die Bestätigung hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
 msgstr "La conferma al momento non è riuscita. Riprova tra poco."
 
-#: src/Waitlists.php:365
-#: src/Waitlists.php:380
-#: src/Waitlists.php:394
-#: src/Waitlists.php:412
+#: src/Waitlists.php:366
+#: src/Waitlists.php:381
+#: src/Waitlists.php:395
+#: src/Waitlists.php:413
 msgid "Wartelistenplatz bestätigen"
 msgstr "Conferma il posto in lista d'attesa"
 
-#: src/Waitlists.php:371
+#: src/Waitlists.php:372
 msgid "Dein Wartelistenplatz ist bereits bestätigt."
 msgstr "Il tuo posto in lista d'attesa è già confermato."
 
-#: src/Waitlists.php:377
+#: src/Waitlists.php:378
 msgid "Bitte bestätige, dass du mit dieser E-Mail-Adresse auf die Warteliste möchtest. Erst dann bekommst du einen Platz in der Warteschlange und Angebote per E-Mail."
 msgstr "Conferma che desideri iscriverti alla lista d'attesa con questo indirizzo e-mail. Solo allora riceverai un posto in coda e le offerte via e-mail."
 
-#: src/Waitlists.php:420
+#: src/Waitlists.php:421
 msgid "Bestätigung nicht möglich"
 msgstr "Conferma non possibile"
 
-#: src/Waitlists.php:423
+#: src/Waitlists.php:424
 msgid "Bereits bestätigt"
 msgstr "Già confermato"
 
-#: src/Waitlists.php:423
+#: src/Waitlists.php:424
 msgid "Dein Wartelistenplatz ist bereits bestätigt. Es ist nichts weiter zu tun."
 msgstr "Il tuo posto in lista d'attesa è già confermato. Non devi fare altro."
 
 #. translators: %d: waitlist sign-up number
-#: src/Waitlists.php:426
+#: src/Waitlists.php:427
 #, php-format
 msgid "Du stehst jetzt auf der Warteliste (Anmeldung Nr. %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "Ora sei in lista d'attesa (iscrizione n. %d). Ti scriveremo non appena si libera un posto."
 
-#: src/Waitlists.php:431
+#: src/Waitlists.php:432
 msgid "Der Wartelistenplatz konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il posto in lista d'attesa."
 
-#: src/Waitlists.php:475
+#: src/Waitlists.php:476
 msgid "Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail."
 msgstr "Grazie! Se l'indirizzo non era ancora registrato, riceverai una conferma via e-mail."
 
-#: src/Waitlists.php:655
+#: src/Waitlists.php:656
 msgid "Für diese Ticketart gibt es keinen wartenden Eintrag."
 msgstr "Per questo tipo di biglietto non c'è nessuna iscrizione in attesa."
 
-#: src/Waitlists.php:662
+#: src/Waitlists.php:663
 msgid "Dieser Eintrag wartet nicht (mehr) auf ein Angebot."
 msgstr "Questa voce non è (più) in attesa di un'offerta."
 
-#: src/Waitlists.php:683
+#: src/Waitlists.php:684
 msgid "Für diesen Termin ist kein Wartelistenangebot mehr möglich."
 msgstr "Per questa data non è più possibile un'offerta dalla lista d'attesa."
 
-#: src/Waitlists.php:689
-#: src/Waitlists.php:709
+#: src/Waitlists.php:690
+#: src/Waitlists.php:710
 msgid "Das Angebot konnte nicht erstellt werden."
 msgstr "Impossibile creare l'offerta."
 
-#: src/Waitlists.php:718
+#: src/Waitlists.php:719
 msgid "Das Angebot konnte nicht per E-Mail gesendet werden und wurde zurückgenommen."
 msgstr "Non è stato possibile inviare l'offerta via e-mail, quindi è stata ritirata."
 
-#: src/Waitlists.php:772
+#: src/Waitlists.php:782
 msgid "Dieser Eintrag ist nicht gesperrt."
 msgstr "Questa voce non è bloccata."
 
-#: src/Waitlists.php:775
-#: src/Waitlists.php:1524
+#: src/Waitlists.php:785
+#: src/Waitlists.php:1599
 msgid "Der Eintrag wurde gerade geändert. Bitte neu laden."
 msgstr "La voce è appena stata modificata. Ricarica la pagina."
 
-#: src/Waitlists.php:784
+#: src/Waitlists.php:794
 msgid "Käuferlimit erreicht (die Person hat schon Tickets für dieses Event)"
 msgstr "Limite per acquirente raggiunto (la persona ha già biglietti per questo evento)"
 
-#: src/Waitlists.php:785
+#: src/Waitlists.php:795
 msgid "Gewünschte Anzahl über dem Höchstwert pro Bestellung"
 msgstr "Quantità desiderata superiore al massimo per ordine"
 
-#: src/Waitlists.php:786
+#: src/Waitlists.php:796
 msgid "Teilnehmerdaten ungültig"
 msgstr "Dati del partecipante non validi"
 
-#: src/Waitlists.php:787
+#: src/Waitlists.php:797
 msgid "Zuletzt übersprungen: nicht genug freie Sitzplätze für die gewünschte Anzahl"
 msgstr "Ultima volta saltato: posti a sedere liberi insufficienti per la quantità desiderata"
 
-#: src/Waitlists.php:1095
+#: src/Waitlists.php:1148
 msgid "Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal."
 msgstr "Al momento non è stato possibile accettare l'offerta. Riprova tra poco."
 
-#: src/Waitlists.php:1114
+#: src/Waitlists.php:1167
 msgid "Wartelistenangebot konnte nicht angenommen werden."
 msgstr "Impossibile accettare l'offerta dalla lista d'attesa."
 
-#: src/Waitlists.php:1236
+#: src/Waitlists.php:1311
 msgid "Dieser Link zum Austragen ist ungültig."
 msgstr "Questo link di cancellazione non è valido."
 
-#: src/Waitlists.php:1279
+#: src/Waitlists.php:1354
 msgid "Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
 msgstr "Al momento la cancellazione non è riuscita. Riprova tra poco."
 
-#: src/Waitlists.php:1311
-#: src/Waitlists.php:1360
+#: src/Waitlists.php:1386
+#: src/Waitlists.php:1435
 msgid "Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person."
 msgstr "Hai già accettato l'offerta; l'ordine è in attesa del tuo pagamento. Se non paghi, la prenotazione scade automaticamente e il posto passa alla persona successiva."
 
-#: src/Waitlists.php:1357
+#: src/Waitlists.php:1432
 msgid "Du bist bereits von dieser Warteliste ausgetragen."
 msgstr "Ti sei già cancellato da questa lista d'attesa."
 
-#: src/Waitlists.php:1363
+#: src/Waitlists.php:1438
 msgid "Du stehst nicht mehr auf dieser Warteliste."
 msgstr "Non sei più in questa lista d'attesa."
 
-#: src/Waitlists.php:1367
+#: src/Waitlists.php:1442
 msgid "Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Al momento sono prenotati dei biglietti per te. Se ti cancelli, questa offerta scade subito e i biglietti passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1368
+#: src/Waitlists.php:1443
 msgid "Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht."
 msgstr "Se ti cancelli, non riceverai più offerte per questo tipo di biglietto. Il tuo indirizzo e-mail verrà eliminato dalla voce."
 
-#: src/Waitlists.php:1373
+#: src/Waitlists.php:1448
 msgid "Jetzt von der Warteliste austragen"
 msgstr "Cancellati ora dalla lista d'attesa"
 
-#: src/Waitlists.php:1438
+#: src/Waitlists.php:1513
 msgid "Austragen nicht möglich"
 msgstr "Cancellazione non possibile"
 
-#: src/Waitlists.php:1441
+#: src/Waitlists.php:1516
 msgid "Nicht mehr auf der Warteliste"
 msgstr "Non più in lista d'attesa"
 
-#: src/Waitlists.php:1441
+#: src/Waitlists.php:1516
 msgid "Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun."
 msgstr "Non sei più in questa lista d'attesa. Non devi fare nient'altro."
 
-#: src/Waitlists.php:1444
+#: src/Waitlists.php:1519
 msgid "Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Ti sei cancellato dalla lista d'attesa. I biglietti prenotati per te passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1445
+#: src/Waitlists.php:1520
 msgid "Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr."
 msgstr "Ti sei cancellato dalla lista d'attesa e non riceverai più e-mail a riguardo."
 
-#: src/Waitlists.php:1489
+#: src/Waitlists.php:1564
 msgid "Deine Wartelisten"
 msgstr "Le tue liste d'attesa"
 
-#: src/Waitlists.php:1491
+#: src/Waitlists.php:1566
 msgid "Du bist von der Warteliste ausgetragen."
 msgstr "Ti sei cancellato dalla lista d'attesa."
 
-#: src/Waitlists.php:1493
+#: src/Waitlists.php:1568
 msgid "Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La cancellazione non è riuscita. Ricarica la pagina e riprova."
 
-#: src/Waitlists.php:1496
+#: src/Waitlists.php:1571
 msgid "Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten."
 msgstr "Con il tuo indirizzo e-mail sei iscritto a queste liste d'attesa."
 
-#: src/Waitlists.php:1521
+#: src/Waitlists.php:1596
 msgid "Dieser Eintrag ist bereits abgeschlossen."
 msgstr "Questa voce è già conclusa."
 
-#: src/Waitlists.php:1567
+#: src/Waitlists.php:1642
 msgid "Dein Angebot bleibt bis zum angegebenen Zeitpunkt gültig."
 msgstr "La tua offerta resta valida fino al momento indicato."
 
-#: src/Waitlists.php:1617
+#: src/Waitlists.php:1692
 msgid "Der Termin hat begonnen bzw. der Verkauf ist beendet."
 msgstr "La data è iniziata o la vendita è terminata."
 
-#: src/Waitlists.php:1671
+#: src/Waitlists.php:1746
 msgid "Unbestätigt (E-Mail-Bestätigung offen)"
 msgstr "Non confermato (conferma via e-mail in sospeso)"
 
-#: src/Waitlists.php:1674
+#: src/Waitlists.php:1749
 msgid "Angenommen, Zahlung offen"
 msgstr "Accettata, pagamento in sospeso"
 
-#: src/Waitlists.php:1679
+#: src/Waitlists.php:1754
 msgid "Entfernt"
 msgstr "Rimossa"
 
-#: src/Waitlists.php:1680
+#: src/Waitlists.php:1755
 msgid "Geschlossen (Termin abgesagt oder vorbei)"
 msgstr "Chiuso (data annullata o passata)"
 
-#: src/Waitlists.php:1681
+#: src/Waitlists.php:1756
 msgid "Nicht anbietbar"
 msgstr "Non offribile"
 
-#: src/Waitlists.php:1708
-#: src/Waitlists.php:1709
+#: src/Waitlists.php:1783
+#: src/Waitlists.php:1784
 msgid "Wartelistenangebot annehmen"
 msgstr "Accetta l'offerta dalla lista d'attesa"
 
-#: src/Waitlists.php:1761
+#: src/Waitlists.php:1837
 msgid "Bitte für jedes Ticket ausfüllen; mit * markierte Felder sind Pflicht."
 msgstr "Compila per ogni biglietto; i campi contrassegnati con * sono obbligatori."
 
 #. translators: 1: ticket type, 2: number of the ticket
-#: src/Waitlists.php:1768
+#: src/Waitlists.php:1844
 #, php-format
 msgid "%1$s – Ticket %2$d"
 msgstr "%1$s – biglietto %2$d"
 
-#: src/Waitlists.php:1800
+#: src/Waitlists.php:1876
 msgid "Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste."
 msgstr "Per te sono stati prenotati dei biglietti. Accetta l'offerta entro il termine indicato, altrimenti passerà alla persona successiva in lista d'attesa."
 
 #: src/Admin/ManualHoldsRelease.php:215
-#: src/Waitlists.php:1801
+#: src/Waitlists.php:1877
 #: src/Waitlists/AdminPage.php:171
 msgid "Reserviert bis"
 msgstr "Prenotato fino al"
 
 #. translators: %s: site name
-#: src/Waitlists.php:1858
-#: src/Waitlists.php:1997
+#: src/Waitlists.php:1934
+#: src/Waitlists.php:2073
 #, php-format
 msgid "Warteliste – %s"
 msgstr "Lista d'attesa – %s"
 
-#: src/Waitlists.php:1861
+#: src/Waitlists.php:1937
 msgid "Bitte Angaben prüfen"
 msgstr "Controlla i dati"
 
-#: src/Waitlists.php:1861
+#: src/Waitlists.php:1937
 msgid "Zurück zum Angebot"
 msgstr "Torna all'offerta"
 
-#: src/Waitlists.php:1863
+#: src/Waitlists.php:1939
 msgid "Angebot nicht verfügbar"
 msgstr "Offerta non disponibile"
 
-#: src/Waitlists.php:1949
+#: src/Waitlists.php:2025
 msgid "Wartelistenangebot"
 msgstr "Offerta dalla lista d'attesa"
 
-#: src/Waitlists.php:1953
+#: src/Waitlists.php:2029
 msgid "Angebot abgelehnt"
 msgstr "Offerta rifiutata"
 
-#: src/Waitlists.php:1953
+#: src/Waitlists.php:2029
 msgid "Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "Grazie per il tuo riscontro. I biglietti passano alla persona successiva in lista d'attesa."
 
-#: src/Waitlists.php:1955
+#: src/Waitlists.php:2031
 msgid "Angebot angenommen"
 msgstr "Offerta accettata"
 
-#: src/Waitlists.php:1959
+#: src/Waitlists.php:2035
 msgid "Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet."
 msgstr "Il tuo ordine è completato. I biglietti sono stati inviati al tuo indirizzo e-mail."
 
-#: src/Waitlists.php:1963
+#: src/Waitlists.php:2039
 msgid "Die Reservierung ist abgelaufen, ohne dass eine Zahlung eingegangen ist. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr "La prenotazione è scaduta senza che sia arrivato alcun pagamento. I biglietti passano alla persona successiva in lista d'attesa."
 
 #. translators: %s: date and time the reservation ends
-#: src/Waitlists.php:1966
+#: src/Waitlists.php:2042
 #, php-format
 msgid "Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet."
 msgstr "Il tuo biglietto è riservato e l'ordine è in attesa di pagamento (fino al %s). Ti abbiamo inviato via e-mail il link al tuo ordine."
 
-#: src/Waitlists.php:1983
+#: src/Waitlists.php:2059
 msgid "Jetzt bezahlen"
 msgstr "Paga ora"
 
@@ -33311,6 +33316,7 @@ msgstr "Il tuo nome"
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
 msgstr "Con il prefisso del paese, ad es. ATU12345678 o DE123456789."
 
+#: src/Waitlists/Discounts.php:281
 #: templates/event-card.php:198
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Codice buono o sconto (facoltativo)"
@@ -33712,11 +33718,11 @@ msgstr "Saldo partner negativo"
 msgid "Was geschieht, wenn eine Abrechnung für einen Partner negativ ausfällt."
 msgstr "Cosa succede se il rendiconto di un partner risulta negativo."
 
-#: src/Modules/PrintTemplates.php:89
+#: src/Modules/PrintTemplates.php:92
 msgid "Rechnung als PDF anhängen"
 msgstr "Allega fattura in PDF"
 
-#: src/Modules/PrintTemplates.php:89
+#: src/Modules/PrintTemplates.php:92
 msgid "Rechnungen werden als PDF an die Bestätigungsmail angehängt."
 msgstr "Le fatture vengono allegate in PDF all’e-mail di conferma."
 
@@ -34586,7 +34592,7 @@ msgstr "Link all’informativa sulla privacy nel checkout, nel piè di pagina de
 #: src/Frontend/LegalNotice.php:87
 #: src/Frontend/LegalNotice.php:96
 #: src/Frontend/LegalNotice.php:133
-#: src/Printing/PrintCheck.php:72
+#: src/Printing/PrintCheck.php:74
 msgid "Impressum"
 msgstr "Note legali"
 
@@ -34660,7 +34666,8 @@ msgstr "Campo facoltativo, ad es. per cantone o provincia; compare in fattura so
 msgid "Region / Bundesland"
 msgstr "Regione / provincia"
 
-#: src/Rest/Controller.php:665
+#: src/Rest/Controller.php:669
+#: src/Waitlists.php:1032
 msgid "Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart."
 msgstr "Questo metodo di pagamento non è disponibile per questo ordine. Scegli un altro metodo."
 
@@ -35215,16 +35222,16 @@ msgstr "Primo giorno della settimana nella vista mensile"
 msgid "Mit diesem Tag beginnt jede Woche im Monatskalender (Standard Montag)."
 msgstr "Ogni settimana del calendario mensile inizia con questo giorno (predefinito lunedì)."
 
-#: src/Modules/PrintTemplates.php:92
-#: src/Printing/Page.php:537
+#: src/Modules/PrintTemplates.php:96
+#: src/Printing/Page.php:542
 msgid "Ticket-PDF: Logo und Fußzeile"
 msgstr "PDF del biglietto: logo e piè di pagina"
 
-#: src/Modules/PrintTemplates.php:93
+#: src/Modules/PrintTemplates.php:97
 msgid "Logo und Fußzeile der Ticket-PDFs (E-Mail, Bestellportal, Verwaltung), Fußzeile je Sprache, Links zu Impressum und Datenschutz; je Event übersteuerbar. Ein Logo in der Druckvorlage hat Vorrang, der Filter wpcap_ticket_pdf_footer ebenso."
 msgstr "Logo e piè di pagina dei PDF dei biglietti (e-mail, portale ordini, amministrazione), piè di pagina per lingua, link a note legali e privacy; sovrascrivibile per evento. Un logo nel modello di stampa ha la precedenza, così come il filtro wpcap_ticket_pdf_footer."
 
-#: src/Modules/PrintTemplates.php:98
+#: src/Modules/PrintTemplates.php:102
 msgid "Impressum und Datenschutz in der Fußzeile verlinken"
 msgstr "Collega note legali e privacy nel piè di pagina"
 
@@ -35257,54 +35264,54 @@ msgstr "Vuoto = come globale. «Come globale» e tempistiche vuote rimuovono la 
 msgid "Für dieses Event speichern"
 msgstr "Salva per questo evento"
 
-#: src/Printing/Page.php:538
+#: src/Printing/Page.php:543
 msgid "Bearbeiten für"
 msgstr "Modifica per"
 
-#: src/Printing/Page.php:539
+#: src/Printing/Page.php:544
 msgid "alle Events (Standard)"
 msgstr "tutti gli eventi (predefinito)"
 
-#: src/Printing/Page.php:544
+#: src/Printing/Page.php:549
 msgid "Eigene Einstellungen haben:"
 msgstr "Hanno impostazioni proprie:"
 
-#: src/Printing/Page.php:552
+#: src/Printing/Page.php:557
 msgid "Leer = Logo der Standardeinstellung. Ein Logo in der Druckvorlage des Events hat Vorrang."
 msgstr "Vuoto = logo dell’impostazione predefinita. Un logo nel modello di stampa dell’evento ha la precedenza."
 
-#: src/Printing/Page.php:552
+#: src/Printing/Page.php:557
 msgid "Oben links auf jedem Ticket-PDF; leer = kein Logo. Ein Logo in der Druckvorlage hat Vorrang."
 msgstr "In alto a sinistra su ogni PDF del biglietto; vuoto = nessun logo. Un logo nel modello di stampa ha la precedenza."
 
-#: src/Printing/Page.php:554
+#: src/Printing/Page.php:559
 msgid "Leer = Fußzeile der Standardeinstellung."
 msgstr "Vuoto = piè di pagina dell’impostazione predefinita."
 
-#: src/Printing/Page.php:554
+#: src/Printing/Page.php:559
 msgid "Unten auf jeder Ticketseite, höchstens drei Zeilen. Der Filter wpcap_ticket_pdf_footer hat Vorrang."
 msgstr "In fondo a ogni pagina del biglietto, al massimo tre righe. Il filtro wpcap_ticket_pdf_footer ha la precedenza."
 
 #. translators: %s: locale code, e.g. en_US
-#: src/Printing/Page.php:564
+#: src/Printing/Page.php:569
 #, php-format
 msgid "Fußzeile für %s (optional)"
 msgstr "Piè di pagina per %s (facoltativo)"
 
 #. translators: %s: locale code, e.g. en_US
-#: src/Printing/Page.php:564
+#: src/Printing/Page.php:569
 msgid "Für Tickets in dieser Sprache. Leer = die Fußzeile oben (bzw. der eingebaute Text in dieser Sprache)."
 msgstr "Per i biglietti in questa lingua. Vuoto = il piè di pagina sopra (o il testo integrato in questa lingua)."
 
-#: src/Printing/Page.php:567
+#: src/Printing/Page.php:572
 msgid "Rechtliche Links"
 msgstr "Link legali"
 
-#: src/Printing/Page.php:567
+#: src/Printing/Page.php:572
 msgid "Impressum und Datenschutzerklärung in der Fußzeile und auf der Ticketseite verlinken"
 msgstr "Collega note legali e informativa sulla privacy nel piè di pagina e nella pagina del biglietto"
 
-#: src/Printing/Page.php:567
+#: src/Printing/Page.php:572
 msgid "Adressen unter Einstellungen → Rechtstexte. Ohne Adresse erscheint kein Link."
 msgstr "Indirizzi in Impostazioni → Testi legali. Senza indirizzo non compare alcun link."
 
@@ -35333,7 +35340,7 @@ msgstr "Ingresso: %s"
 msgid "Personal: %s"
 msgstr "Personale: %s"
 
-#: src/Rest/Controller.php:1116
+#: src/Rest/Controller.php:1120
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Non puoi riscattare pass."
 
@@ -36573,19 +36580,19 @@ msgid "Schlüssel"
 msgstr "chiave"
 
 #. translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token>
-#: src/Printing/Page.php:230
+#: src/Printing/Page.php:235
 #, php-format
 msgid "Download im Backend: admin-post.php?action=wpcap_invoice_pdf&order_id=…; für Käufer über den persönlichen Bestelllink mit ?wpcap_invoice_pdf=%1$s&wpcap_access=%2$s."
 msgstr "Download nel backend: admin-post.php?action=wpcap_invoice_pdf&order_id=…; per gli acquirenti tramite il link personale dell'ordine con ?wpcap_invoice_pdf=%1$s&wpcap_access=%2$s."
 
 #. translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token>
-#: src/Printing/Page.php:230
+#: src/Printing/Page.php:235
 msgctxt "placeholder name for the order ID in a URL"
 msgid "Bestell-ID"
 msgstr "ID ordine"
 
 #. translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token>
-#: src/Printing/Page.php:230
+#: src/Printing/Page.php:235
 msgctxt "placeholder name for the access token in a URL"
 msgid "Token"
 msgstr "token"
@@ -36618,61 +36625,61 @@ msgstr "Da pagare nel tuo turno"
 msgid "Du hast keine offene Schicht: Öffne eine Schicht, um sie auszuzahlen."
 msgstr "Non hai un turno aperto: apri un turno per pagarli."
 
-#: src/Modules/PrintTemplates.php:99
+#: src/Modules/PrintTemplates.php:103
 msgid "Startdesign des Ticket-PDFs"
 msgstr "Design iniziale del PDF del biglietto"
 
-#: src/Printing/Page.php:266
+#: src/Printing/Page.php:271
 msgid "Druckprüfung:"
 msgstr "Controllo di stampa:"
 
-#: src/Printing/Page.php:557
+#: src/Printing/Page.php:562
 msgid "wie Standardeinstellung"
 msgstr "come l’impostazione predefinita"
 
-#: src/Printing/Page.php:558
+#: src/Printing/Page.php:563
 msgid "Startdesign"
 msgstr "Design iniziale"
 
-#: src/Printing/Page.php:560
+#: src/Printing/Page.php:565
 msgid "Gilt für Events ohne eigene Ticket-Druckvorlage. Eine dem Event zugewiesene Vorlage hat Vorrang."
 msgstr "Vale per gli eventi senza un proprio modello di stampa. Un modello assegnato all’evento ha la precedenza."
 
-#: src/Printing/PrintCheck.php:71
+#: src/Printing/PrintCheck.php:73
 msgid "Beispiel-Veranstalter"
 msgstr "Organizzatore di esempio"
 
 #. translators: 1: measured distance in mm, 2: minimum distance in mm
-#: src/Printing/PrintCheck.php:104
+#: src/Printing/PrintCheck.php:106
 #, php-format
 msgid "Druckränder: Inhalt liegt nur %1$s mm vom Blattrand entfernt; viele Drucker drucken erst ab %2$s mm. Bitte Text kürzen oder kleiner setzen."
 msgstr "Margini di stampa: il contenuto è a soli %1$s mm dal bordo del foglio; molte stampanti stampano solo da %2$s mm. Accorcia il testo o riducilo."
 
 #. translators: %s: distance in mm
-#: src/Printing/PrintCheck.php:111
+#: src/Printing/PrintCheck.php:113
 #, php-format
 msgid "Etikett: Inhalt reicht bis auf weniger als %s mm an den Rand des Etiketts. Bitte Text kürzen oder kleiner setzen."
 msgstr "Etichetta: il contenuto arriva a meno di %s mm dal bordo dell’etichetta. Accorcia il testo o riducilo."
 
 #. translators: 1: contrast ratio, 2: minimum ratio
-#: src/Printing/PrintCheck.php:127
+#: src/Printing/PrintCheck.php:129
 #, php-format
 msgid "QR-Code: Kontrast zum Papier nur %1$s:1 (mindestens %2$s:1)."
 msgstr "Codice QR: contrasto con la carta solo %1$s:1 (almeno %2$s:1)."
 
 #. translators: 1: measured quiet zone in modules, 2: required modules
-#: src/Printing/PrintCheck.php:131
+#: src/Printing/PrintCheck.php:133
 #, php-format
 msgid "QR-Code: Die Ruhezone um den Code ist nur %1$s Module breit (nötig: %2$d). Text, Logo oder Rand liegen zu nah am Code; Scanner lesen ihn dann schlecht."
 msgstr "Codice QR: la zona di rispetto intorno al codice è larga solo %1$s moduli (necessari: %2$d). Testo, logo o bordo sono troppo vicini al codice; gli scanner lo leggono male."
 
 #. translators: 1: module size in mm, 2: minimum size in mm
-#: src/Printing/PrintCheck.php:135
+#: src/Printing/PrintCheck.php:137
 #, php-format
 msgid "QR-Code: Ein Modul ist nur %1$s mm groß (mindestens %2$s mm). Bitte dem Code mehr Platz geben, z. B. durch weniger Zeilen."
 msgstr "Codice QR: un modulo misura solo %1$s mm (almeno %2$s mm). Dai più spazio al codice, ad es. con meno righe."
 
-#: src/Printing/Templates.php:335
+#: src/Printing/Templates.php:339
 msgid "Eingebautes Layout"
 msgstr "Layout integrato"
 
@@ -36825,3 +36832,20 @@ msgstr "Fattura non possibile – nei dati dell’emittente della piattaforma ma
 #: src/BoxOffice/Page.php:360
 msgid "Keine Netzverbindung: Verkäufe, Stornos, Auszahlungen und Schichtbuchungen (Einlage, Entnahme, Zählung, Abschluss) sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich."
 msgstr "Nessuna connessione di rete: vendite, storni, pagamenti e movimenti del turno (versamento, prelievo, conteggio, chiusura) sono bloccati finché la connessione non torna; nulla viene salvato temporaneamente. Senza rete sono possibili solo gli ingressi con l’app scanner."
+
+#: src/Modules/PrintTemplates.php:93
+#: src/Printing/Page.php:228
+msgid "Druckrand (mm)"
+msgstr "Margine di stampa (mm)"
+
+#: src/Modules/PrintTemplates.php:93
+msgid "Abstand, den gedruckte Inhalte mindestens zum Blattrand halten: Ticket- und Namensschild-PDFs, Fußzeile der Rechnungs-PDFs, Kassen- und Z-Bons (seitlich), Teilnehmer- und No-show-Listen (mindestens 12 mm). Die Druckprüfung der Vorlagen warnt, wenn Inhalte näher am Rand liegen. Standard 4 mm (die meisten Bürodrucker drucken die äußeren 4 mm nicht), 0 für randlos druckende Geräte; Etikettenbögen behalten ihr festes Raster, Armbänder höchstens 1 mm."
+msgstr "Distanza minima che il contenuto stampato mantiene dal bordo del foglio: PDF di biglietti e badge, piè di pagina dei PDF delle fatture, scontrini di cassa e Z (lati), elenchi dei partecipanti e dei no-show (almeno 12 mm). Il controllo di stampa dei modelli avvisa se il contenuto è più vicino al bordo. Predefinito 4 mm (la maggior parte delle stampanti da ufficio non stampa i 4 mm esterni), 0 per dispositivi senza bordi; i fogli di etichette mantengono la loro griglia fissa, i braccialetti al massimo 1 mm."
+
+#: src/Printing/Page.php:226
+msgid "Druckrand"
+msgstr "Margine di stampa"
+
+#: src/Waitlists/Discounts.php:148
+msgid "Der Rabattcode kann nicht mehr angewendet werden, weil für diese Bestellung bereits ein Fiskalbeleg übermittelt wird."
+msgstr "Il codice sconto non può più essere applicato perché per questo ordine è già in corso l’invio di uno scontrino fiscale."
