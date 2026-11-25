@@ -84,7 +84,7 @@ msgstr "Activation refusée"
 #: src/Admin/SecurityScreens.php:164
 #: src/Admin/SecurityScreens.php:180
 #: src/Admin/ServiceSlotsPage.php:372
-#: src/Admin/ServicesPage.php:119
+#: src/Admin/ServicesPage.php:121
 #: src/Admin/TicketsPage.php:46
 #: src/Admin/TicketsPage.php:92
 #: src/Admin/TicketsPage.php:228
@@ -154,7 +154,7 @@ msgstr "La limite de débit doit être comprise entre 1 et %d requêtes par minu
 #: src/Admin/MembershipsPage.php:44
 #: src/Admin/MembershipsPage.php:184
 #: src/Admin/ServiceSlotsPage.php:128
-#: src/Admin/ServicesPage.php:195
+#: src/Admin/ServicesPage.php:206
 #: src/Admin/StatusPage.php:162
 #: src/Admin/WaitlistsPage.php:81
 #: src/GuestLists/Page.php:118
@@ -162,7 +162,7 @@ msgstr "La limite de débit doit être comprise entre 1 et %d requêtes par minu
 #: src/Sales/AdminSections.php:75
 #: src/Sales/TaxProfilesPage.php:45
 #: src/ServiceBookingFlow.php:489
-#: src/Services/Portal.php:126
+#: src/Services/Portal.php:131
 #: src/Waitlists/AdminPage.php:77
 msgid "Unbekannte Aktion."
 msgstr "Action inconnue."
@@ -209,7 +209,7 @@ msgstr "Clé API révoquée."
 #: src/Admin/SecurityScreens.php:77
 #: src/Admin/SecurityScreens.php:93
 #: src/Admin/ServiceSlotsPage.php:354
-#: src/Admin/ServicesPage.php:231
+#: src/Admin/ServicesPage.php:248
 #: src/Admin/SettingsPage.php:1017
 #: src/Admin/SettingsPage.php:1055
 #: src/Admin/SettingsTools.php:51
@@ -343,8 +343,8 @@ msgstr "Il n’y a aucun événement pour lequel vous pouvez créer des clés."
 #: src/Admin/ServiceSlotsPage.php:237
 #: src/Admin/ServiceSlotsPage.php:257
 #: src/Admin/ServiceSlotsPage.php:382
-#: src/Admin/ServicesPage.php:264
-#: src/Admin/ServicesPage.php:286
+#: src/Admin/ServicesPage.php:284
+#: src/Admin/ServicesPage.php:306
 #: src/Admin/TicketsPage.php:865
 #: src/Allocations/AdminPage.php:265
 #: src/Allocations/AdminPage.php:315
@@ -402,9 +402,9 @@ msgstr "Nom"
 #: src/Admin/OrdersPage.php:973
 #: src/Admin/OrdersPage.php:1480
 #: src/Admin/ServiceSlotsPage.php:363
-#: src/Admin/ServicesPage.php:255
-#: src/Admin/ServicesPage.php:264
+#: src/Admin/ServicesPage.php:274
 #: src/Admin/ServicesPage.php:284
+#: src/Admin/ServicesPage.php:304
 #: src/Admin/TicketsPage.php:933
 #: src/Admin/WaitlistsPage.php:146
 #: src/Admission/ConflictsPage.php:77
@@ -418,15 +418,15 @@ msgstr "Nom"
 #: src/Integrations/WooCommerce/OrderAdapter.php:2358
 #: src/Mail/Types.php:100
 #: src/Mail/Types.php:201
-#: src/Mail/Types.php:573
-#: src/Mail/Types.php:582
-#: src/Mail/Types.php:600
-#: src/Mail/Types.php:620
-#: src/Mail/Types.php:640
-#: src/Mail/Types.php:664
-#: src/Mail/Types.php:679
-#: src/Mail/Types.php:704
+#: src/Mail/Types.php:592
+#: src/Mail/Types.php:601
+#: src/Mail/Types.php:619
+#: src/Mail/Types.php:639
+#: src/Mail/Types.php:659
+#: src/Mail/Types.php:683
+#: src/Mail/Types.php:698
 #: src/Mail/Types.php:723
+#: src/Mail/Types.php:742
 #: src/Modules/Reminders.php:554
 #: src/Modules/Reminders.php:564
 #: src/OfflineScanner/AdminPage.php:138
@@ -505,7 +505,7 @@ msgstr "Dernière utilisation"
 #: src/Admin/MembershipsPage.php:238
 #: src/Admin/MembershipsPage.php:276
 #: src/Admin/MembershipsPage.php:298
-#: src/Mail/Types.php:749
+#: src/Mail/Types.php:768
 #: src/OfflineScanner/AdminPage.php:205
 #: src/OfflineScanner/AdminPage.php:222
 #: src/Partners/AdminPage.php:443
@@ -549,12 +549,14 @@ msgstr "Valable jusqu’au"
 #: src/Admin/ServiceSlotsPage.php:425
 #: src/Admin/ServiceSlotsPage.php:437
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:264
-#: src/Admin/ServicesPage.php:299
-#: src/Admin/ServicesPage.php:406
-#: src/Admin/ServicesPage.php:439
-#: src/Admin/ServicesPage.php:454
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:284
+#: src/Admin/ServicesPage.php:319
+#: src/Admin/ServicesPage.php:426
+#: src/Admin/ServicesPage.php:459
+#: src/Admin/ServicesPage.php:474
+#: src/Admin/ServicesPage.php:524
+#: src/Admin/ServicesPage.php:531
+#: src/Admin/ServicesPage.php:571
 #: src/Admin/StatusPage.php:306
 #: src/Admin/StatusPage.php:333
 #: src/Admin/StatusPage.php:452
@@ -625,9 +627,10 @@ msgstr "Statut"
 #: src/Admin/ServiceSlotsPage.php:382
 #: src/Admin/ServiceSlotsPage.php:425
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:406
-#: src/Admin/ServicesPage.php:454
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:426
+#: src/Admin/ServicesPage.php:474
+#: src/Admin/ServicesPage.php:531
+#: src/Admin/ServicesPage.php:571
 #: src/Admin/SettingsTools.php:267
 #: src/Admin/StatusPage.php:360
 #: src/Admin/TaxPage.php:104
@@ -775,7 +778,7 @@ msgstr "Vraiment supprimer cette affectation ?"
 #: src/Admin/AssignmentsPage.php:202
 #: src/Admin/EventsPage.php:1983
 #: src/Admin/SecurityScreens.php:223
-#: src/Admin/ServicesPage.php:507
+#: src/Admin/ServicesPage.php:577
 #: src/Admin/WaitlistsPage.php:176
 #: src/OfflineScanner/AdminPage.php:183
 #: src/Partners/AdminPage.php:509
@@ -887,6 +890,7 @@ msgstr "Une personne affectée à au moins une date pour un droit n’accède pl
 #: src/Admin/AuditLogPage.php:318
 #: src/Admin/CheckinsPage.php:49
 #: src/Admin/OrdersPage.php:1184
+#: src/Admin/ServicesPage.php:531
 #: src/Admin/TicketsPage.php:935
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:149
@@ -1366,7 +1370,8 @@ msgstr "Échec de la mise à jour de la base de données"
 #: src/Admin/OrdersPage.php:802
 #: src/Admin/OrdersPage.php:1480
 #: src/Admin/ServiceSlotsPage.php:303
-#: src/Admin/ServicesPage.php:454
+#: src/Admin/ServicesPage.php:474
+#: src/Admin/ServicesPage.php:531
 #: src/Admin/StatusPage.php:382
 #: src/Admin/StatusPage.php:407
 #: src/Allocations/AdminPage.php:349
@@ -1450,12 +1455,12 @@ msgstr "Série"
 
 #: src/Admin/AuditLogPage.php:325
 #: src/Admin/Menu.php:685
-#: src/Admin/ServicesPage.php:346
-#: src/Admin/ServicesPage.php:497
+#: src/Admin/ServicesPage.php:366
+#: src/Admin/ServicesPage.php:567
 #: src/Modules/Waitlist.php:40
 #: src/Modules/Waitlist.php:45
-#: src/Services/Portal.php:203
-#: src/Services/Portal.php:223
+#: src/Services/Portal.php:208
+#: src/Services/Portal.php:228
 #: src/Waitlists/AdminPage.php:124
 #: templates/event-card.php:261
 msgid "Warteliste"
@@ -1463,7 +1468,7 @@ msgstr "Liste d’attente"
 
 #: src/Admin/AuditLogPage.php:326
 #: src/Admin/ServiceSlotsPage.php:264
-#: src/Admin/ServicesPage.php:264
+#: src/Admin/ServicesPage.php:284
 #: src/Admin/UserScope.php:52
 #: src/Integrations/ConnectorsPage.php:252
 #: src/Modules/Partners.php:357
@@ -1553,7 +1558,8 @@ msgstr "Au"
 #: src/Admin/CheckinsPage.php:97
 #: src/Admin/OperationsPage.php:191
 #: src/Admin/OrdersPage.php:975
-#: src/Admin/ServicesPage.php:257
+#: src/Admin/ServicesPage.php:276
+#: src/Admin/ServicesPage.php:526
 #: src/Admission/ConflictsPage.php:79
 msgid "Filtern"
 msgstr "Filtrer"
@@ -1740,15 +1746,15 @@ msgstr "Remise totale maximale par commande en %"
 #. translators: %d: uses so far
 #: src/Admin/CampaignsPage.php:211
 #: src/Admin/CampaignsPage.php:295
-#: src/Admin/ServicesPage.php:328
-#: src/Admin/ServicesPage.php:329
+#: src/Admin/ServicesPage.php:348
+#: src/Admin/ServicesPage.php:349
 msgid "0 = unbegrenzt."
 msgstr "0 = illimité."
 
 #: src/Admin/CampaignsPage.php:222
 #: src/Admin/CampaignsPage.php:309
 #: src/Admin/ServiceSlotsPage.php:170
-#: src/Admin/ServicesPage.php:299
+#: src/Admin/ServicesPage.php:319
 #: src/BoxOffice/ShiftPage.php:522
 #: src/Modules/Sms.php:571
 msgid "Deaktiviert"
@@ -1765,10 +1771,10 @@ msgstr "Planifié"
 #: src/Admin/MyServicesPage.php:52
 #: src/Admin/SecurityScreens.php:96
 #: src/Admin/ServiceSlotsPage.php:175
-#: src/Admin/ServicesPage.php:499
+#: src/Admin/ServicesPage.php:569
 #: src/Frontend/ServiceBooking.php:145
-#: src/Services/Portal.php:208
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:213
+#: src/Services/Portal.php:270
 #: src/Waitlists.php:1757
 msgid "Abgelaufen"
 msgstr "Expiré"
@@ -1880,7 +1886,7 @@ msgstr "Cumulable"
 #: src/Admin/MembershipsPage.php:254
 #: src/Admin/MembershipsPage.php:313
 #: src/Admin/OrdersPage.php:973
-#: src/Admin/ServicesPage.php:256
+#: src/Admin/ServicesPage.php:275
 #: src/Admin/TicketsPage.php:933
 #: src/Admission/ConflictsPage.php:77
 #: src/BoxOffice/ShiftPage.php:517
@@ -1984,7 +1990,7 @@ msgstr "Facultatif. Fuseau horaire : %s"
 #: src/Admin/MembershipsPage.php:238
 #: src/Admin/MembershipsPage.php:275
 #: src/Admin/MembershipsPage.php:297
-#: src/Mail/Types.php:748
+#: src/Mail/Types.php:767
 #: src/Partners/AdminPage.php:429
 #: src/Partners/AdminPage.php:443
 #: src/Sales/TaxProfilesPage.php:114
@@ -2069,7 +2075,7 @@ msgstr "Génère des codes utilisables une seule fois avec les réglages de cett
 #: src/Admin/CampaignsPage.php:324
 #: src/Admin/OperationsPage.php:264
 #: src/Admin/OperationsPage.php:303
-#: src/Admin/ServicesPage.php:454
+#: src/Admin/ServicesPage.php:474
 #: src/Admin/StatusPage.php:333
 #: src/Admin/StatusPage.php:452
 #: src/Allocations/AdminPage.php:321
@@ -2192,9 +2198,9 @@ msgstr "Contingent supprimé"
 #: src/Admin/ServiceSlotsPage.php:425
 #: src/Admin/ServiceSlotsPage.php:434
 #: src/Admin/ServiceSlotsPage.php:466
-#: src/Admin/ServicesPage.php:371
-#: src/Admin/ServicesPage.php:406
-#: src/Admin/ServicesPage.php:435
+#: src/Admin/ServicesPage.php:391
+#: src/Admin/ServicesPage.php:426
+#: src/Admin/ServicesPage.php:455
 #: src/Allocations/AdminPage.php:219
 #: src/Notifications.php:186
 msgid "Beginn"
@@ -2206,9 +2212,9 @@ msgstr "Début"
 #: src/Admin/ServiceSlotsPage.php:425
 #: src/Admin/ServiceSlotsPage.php:435
 #: src/Admin/ServiceSlotsPage.php:467
-#: src/Admin/ServicesPage.php:372
-#: src/Admin/ServicesPage.php:406
-#: src/Admin/ServicesPage.php:436
+#: src/Admin/ServicesPage.php:392
+#: src/Admin/ServicesPage.php:426
+#: src/Admin/ServicesPage.php:456
 #: src/Notifications.php:187
 msgid "Ende"
 msgstr "Fin"
@@ -2221,12 +2227,12 @@ msgstr "Entrée à partir de"
 #: src/Admin/EventsPage.php:1716
 #: src/Admin/EventsPage.php:1933
 #: src/Admin/Forms.php:600
-#: src/Admin/ServicesPage.php:264
-#: src/Admin/ServicesPage.php:291
+#: src/Admin/ServicesPage.php:284
+#: src/Admin/ServicesPage.php:311
 #: src/Mail/Types.php:112
-#: src/Mail/Types.php:585
-#: src/Mail/Types.php:603
-#: src/Mail/Types.php:624
+#: src/Mail/Types.php:604
+#: src/Mail/Types.php:622
+#: src/Mail/Types.php:643
 #: src/Reminders/Placeholders.php:17
 #: src/Series/AdminPage.php:265
 #: src/WalletPasses/AppleProvider.php:83
@@ -2241,9 +2247,9 @@ msgstr "Fuseau horaire"
 #: src/Billing.php:148
 #: src/Mail/Types.php:103
 #: src/Mail/Types.php:111
-#: src/Mail/Types.php:584
-#: src/Mail/Types.php:604
-#: src/Mail/Types.php:632
+#: src/Mail/Types.php:603
+#: src/Mail/Types.php:623
+#: src/Mail/Types.php:651
 #: src/Modules/Fiscalization.php:1359
 #: src/Notifications.php:189
 #: src/PublicEvents.php:1269
@@ -2332,7 +2338,7 @@ msgstr "Intervalle"
 
 #: src/Admin/ChangeHistory.php:108
 #: src/Admin/ServiceSlotsPage.php:291
-#: src/Admin/ServicesPage.php:385
+#: src/Admin/ServicesPage.php:405
 #: src/Sales/AdminSections.php:190
 #: src/Series/AdminPage.php:249
 #: src/Series/AdminPage.php:642
@@ -2362,7 +2368,7 @@ msgid "Datumsliste"
 msgstr "Liste de dates"
 
 #: src/Admin/ChangeHistory.php:113
-#: src/Admin/ServicesPage.php:383
+#: src/Admin/ServicesPage.php:403
 #: src/Series/AdminPage.php:262
 msgid "Erster Tag"
 msgstr "Premier jour"
@@ -2427,11 +2433,11 @@ msgstr "Libellé"
 #: src/GuestLists/Service.php:670
 #: src/Integrations/FormCaptain/EventRequests.php:534
 #: src/Mail/Types.php:101
-#: src/Mail/Types.php:641
-#: src/Mail/Types.php:665
-#: src/Mail/Types.php:680
-#: src/Mail/Types.php:705
+#: src/Mail/Types.php:660
+#: src/Mail/Types.php:684
+#: src/Mail/Types.php:699
 #: src/Mail/Types.php:724
+#: src/Mail/Types.php:743
 #: src/Partners/AdminPage.php:505
 #: src/Partners/AdminPage.php:517
 #: src/Partners/AdminPage.php:528
@@ -3096,6 +3102,7 @@ msgstr "Clés API"
 #: src/Admin/DeveloperKeysPage.php:160
 #: src/Admin/EventsPage.php:1575
 #: src/Admin/OrdersPage.php:848
+#: src/Admin/ServicesPage.php:525
 #: src/Admin/TicketsPage.php:747
 #: src/Admission/ConflictsPage.php:78
 #: src/BoxOffice/ShiftPage.php:386
@@ -3110,7 +3117,7 @@ msgstr "Créée par"
 
 #: src/Admin/DeveloperKeysPage.php:167
 #: src/Admin/OrdersPage.php:1128
-#: src/Admin/ServicesPage.php:454
+#: src/Admin/ServicesPage.php:474
 msgid "Angelegt"
 msgstr "Créée le"
 
@@ -3783,8 +3790,9 @@ msgstr "Texte"
 #: src/Admin/ServiceSlotsPage.php:237
 #: src/Admin/ServiceSlotsPage.php:258
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:454
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:474
+#: src/Admin/ServicesPage.php:531
+#: src/Admin/ServicesPage.php:571
 #: src/Admin/TicketsPage.php:866
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:170
@@ -4803,7 +4811,7 @@ msgid "Feld speichern"
 msgstr "Enregistrer le champ"
 
 #: src/Admin/FeatureScreens.php:39
-#: src/Admin/ServicesPage.php:232
+#: src/Admin/ServicesPage.php:249
 msgid "Ressourcen & Zeitfenster"
 msgstr "Ressources et créneaux"
 
@@ -5452,8 +5460,9 @@ msgstr "Service"
 
 #: src/Admin/MembershipsPage.php:127
 #: src/Admin/MembershipsPage.php:259
-#: src/Admin/ServicesPage.php:357
-#: src/Admin/ServicesPage.php:423
+#: src/Admin/ServicesPage.php:377
+#: src/Admin/ServicesPage.php:443
+#: src/Admin/ServicesPage.php:519
 msgid "Alle Ressourcen"
 msgstr "Toutes les ressources"
 
@@ -5469,7 +5478,7 @@ msgstr "sans réservation"
 #. translators: %s: time
 #. translators: %s: last date of the series
 #: src/Admin/MembershipsPage.php:129
-#: src/Admin/ServicesPage.php:460
+#: src/Admin/ServicesPage.php:480
 #: src/Series/AdminPage.php:192
 #, php-format
 msgid "bis %s"
@@ -5936,7 +5945,7 @@ msgstr "Réservé"
 #: src/Admin/ServiceSlotsPage.php:174
 #: src/Frontend/ServiceBooking.php:143
 #: src/ServiceBookingFlow.php:516
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 #: src/Waitlists.php:428
 msgid "Bestätigt"
 msgstr "Confirmée"
@@ -5945,9 +5954,9 @@ msgstr "Confirmée"
 #: src/Admin/MyServicesPage.php:73
 #: src/Admin/ServiceSlotsPage.php:179
 #: src/Admin/ServiceSlotsPage.php:318
-#: src/Admin/ServicesPage.php:473
+#: src/Admin/ServicesPage.php:493
 #: src/Frontend/ServiceBooking.php:146
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 msgid "Nicht erschienen"
 msgstr "Non présenté"
 
@@ -5955,7 +5964,8 @@ msgstr "Non présenté"
 #: src/Admin/ServiceSlotsPage.php:176
 #: src/Frontend/ServiceBooking.php:144
 #: src/GuestLists/Service.php:64
-#: src/Services/Portal.php:264
+#: src/Services/NoShowFees.php:107
+#: src/Services/Portal.php:270
 msgid "Storniert"
 msgstr "Annulée"
 
@@ -5979,8 +5989,8 @@ msgstr "Réservable"
 
 #: src/Admin/MyServicesPage.php:58
 #: src/Admin/ServiceSlotsPage.php:172
-#: src/Admin/ServicesPage.php:411
-#: src/Admin/ServicesPage.php:439
+#: src/Admin/ServicesPage.php:431
+#: src/Admin/ServicesPage.php:459
 #: src/BoxOffice/ShiftPage.php:405
 #: src/BoxOffice/ZReport.php:363
 msgid "Geschlossen"
@@ -5988,7 +5998,7 @@ msgstr "Fermé"
 
 #: src/Admin/MyServicesPage.php:72
 #: src/Admin/ServiceSlotsPage.php:314
-#: src/Admin/ServicesPage.php:468
+#: src/Admin/ServicesPage.php:488
 msgid "Bestätigen"
 msgstr "Confirmer"
 
@@ -6009,8 +6019,8 @@ msgstr "Prestations affectées"
 #: src/Admin/ServiceSlotsPage.php:382
 #: src/Admin/ServiceSlotsPage.php:422
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:264
-#: src/Admin/ServicesPage.php:403
+#: src/Admin/ServicesPage.php:284
+#: src/Admin/ServicesPage.php:423
 #: src/Frontend/ServiceBooking.php:434
 msgid "Zeitfenster"
 msgstr "Créneaux"
@@ -6027,7 +6037,7 @@ msgstr "Aucun créneau à venir."
 #: src/Admin/MyServicesPage.php:119
 #: src/Admin/ServiceSlotsPage.php:443
 #: src/Admin/ServiceSlotsPage.php:476
-#: src/Admin/ServicesPage.php:445
+#: src/Admin/ServicesPage.php:465
 #: src/BoxOffice/ZReport.php:406
 msgid "Buchungen"
 msgstr "Réservations"
@@ -6038,9 +6048,10 @@ msgstr "Afficher toutes les réservations"
 
 #: src/Admin/MyServicesPage.php:121
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:454
+#: src/Admin/ServicesPage.php:474
+#: src/Admin/ServicesPage.php:531
 #: src/Admin/SettingsPage.php:111
-#: src/Services/Portal.php:193
+#: src/Services/Portal.php:198
 msgid "Buchung"
 msgstr "Réservation"
 
@@ -6049,7 +6060,7 @@ msgstr "Réservation"
 #: src/Admin/ServiceSlotsPage.php:436
 #: src/Admin/ServiceSlotsPage.php:468
 #: src/Admin/ServiceSlotsPage.php:480
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:571
 #: src/Allocations/AdminPage.php:349
 #: src/Frontend/ServiceBooking.php:140
 #: src/Seating/AdminPage.php:183
@@ -6222,7 +6233,7 @@ msgstr "Le prestataire de paiement n’a pas répondu clairement pour ces rembou
 #: src/Admin/ManualHoldsRelease.php:215
 #: src/Admin/OperationsPage.php:231
 #: src/Admin/OrdersPage.php:1481
-#: src/Admin/ServicesPage.php:454
+#: src/Admin/ServicesPage.php:474
 #: src/Admin/StatusPage.php:382
 #: src/Admin/StatusPage.php:407
 #: src/BoxOffice/ShiftPage.php:224
@@ -6318,7 +6329,7 @@ msgstr "Commande n° %d"
 #: src/Admin/OrdersPage.php:1055
 #: src/Admin/TicketsPage.php:820
 #: src/BoxOffice/Service.php:812
-#: src/Mail/Types.php:419
+#: src/Mail/Types.php:438
 #: src/Mollie/MollieGateway.php:127
 #: src/Mollie/MollieGateway.php:522
 #: src/OrderPortal.php:177
@@ -6568,7 +6579,7 @@ msgstr "Le bon (%2$s, %1$s) a été libéré à l’expiration ou à l’annulat
 #: src/Orders/Cancellation.php:89
 #: src/Orders/Cancellation.php:152
 #: src/Orders/Payment.php:165
-#: src/Orders/Payment.php:445
+#: src/Orders/Payment.php:448
 #: src/Orders/Refunding.php:116
 #: src/Partners/Sales.php:697
 #: src/Partners/Sales.php:746
@@ -6862,16 +6873,16 @@ msgstr "Remboursement refusé."
 
 #: src/Admin/OrdersPage.php:749
 #: src/Mail/Types.php:57
-#: src/Mail/Types.php:349
-#: src/Mail/Types.php:396
-#: src/Mail/Types.php:429
-#: src/Mail/Types.php:440
+#: src/Mail/Types.php:368
+#: src/Mail/Types.php:415
+#: src/Mail/Types.php:448
 #: src/Mail/Types.php:459
-#: src/Mail/Types.php:479
-#: src/Mail/Types.php:493
-#: src/Mail/Types.php:505
-#: src/Mail/Types.php:539
-#: src/Mail/Types.php:561
+#: src/Mail/Types.php:478
+#: src/Mail/Types.php:498
+#: src/Mail/Types.php:512
+#: src/Mail/Types.php:524
+#: src/Mail/Types.php:558
+#: src/Mail/Types.php:580
 msgid "Bestellnummer"
 msgstr "Numéro de commande"
 
@@ -6927,6 +6938,7 @@ msgid "Zahlart"
 msgstr "Mode de paiement"
 
 #: src/Admin/OrdersPage.php:850
+#: src/Services/NoShowFees.php:107
 #: src/Waitlists.php:1756
 msgid "Bezahlt"
 msgstr "Payé"
@@ -7385,6 +7397,7 @@ msgstr "Annuler la commande non payée et libérer la réservation ?"
 
 #: src/Admin/OrdersPage.php:1364
 #: src/Admin/ServiceSlotsPage.php:328
+#: src/Admin/ServicesPage.php:555
 #: src/BoxOffice/Page.php:330
 #: src/GuestLists/Page.php:281
 msgid "Stornieren"
@@ -7430,7 +7443,7 @@ msgstr "Informations manquantes des participants demandées."
 
 #: src/Admin/OrdersPage.php:1423
 #: src/Admin/OrdersPage.php:1435
-#: src/Mail/Types.php:334
+#: src/Mail/Types.php:353
 msgid "Tickets erneut senden"
 msgstr "Renvoyer les tickets"
 
@@ -7908,7 +7921,7 @@ msgstr "Ressource ou créneau introuvable."
 
 #: src/Admin/ServiceSlotsPage.php:75
 #: src/Admin/ServiceSlotsPage.php:83
-#: src/Admin/ServicesPage.php:47
+#: src/Admin/ServicesPage.php:49
 #: src/ServiceBookings.php:1730
 #: src/ServiceBookings.php:1760
 msgid "Keine Berechtigung für diese Ressource."
@@ -7929,7 +7942,7 @@ msgid "Leistungserbringer der Ressource gespeichert."
 msgstr "Prestataires de la ressource enregistrés."
 
 #: src/Admin/ServiceSlotsPage.php:121
-#: src/Admin/ServicesPage.php:62
+#: src/Admin/ServicesPage.php:64
 #: src/ServiceBookingFlow.php:295
 #: src/ServiceBookingFlow.php:478
 #: src/ServiceBookings.php:1303
@@ -7960,7 +7973,7 @@ msgid "Zeitfenster gespeichert."
 msgstr "Créneau enregistré."
 
 #: src/Admin/ServiceSlotsPage.php:164
-#: src/Admin/ServicesPage.php:216
+#: src/Admin/ServicesPage.php:229
 msgid "Zeitfenster gelöscht."
 msgstr "Créneau supprimé."
 
@@ -7986,7 +7999,7 @@ msgid "Dauer je Zeitfenster (Min.)"
 msgstr "Durée par créneau (min)"
 
 #: src/Admin/ServiceSlotsPage.php:206
-#: src/Admin/ServicesPage.php:325
+#: src/Admin/ServicesPage.php:345
 msgid "Buchungsregeln"
 msgstr "Règles de réservation"
 
@@ -8031,7 +8044,7 @@ msgid "0 heißt: keine Einschränkung bzw. bis zum Beginn. Die Regeln gelten ser
 msgstr "0 signifie : aucune restriction ou jusqu’au début. Les règles s’appliquent côté serveur pour la réservation, la confirmation, la modification et l’annulation par les clients ; l’équipe peut passer outre les délais dans la liste des réservations."
 
 #: src/Admin/ServiceSlotsPage.php:216
-#: src/Admin/ServicesPage.php:309
+#: src/Admin/ServicesPage.php:329
 msgid "Preis (Ticketart)"
 msgstr "Prix (type de ticket)"
 
@@ -8079,6 +8092,7 @@ msgstr "Crée des créneaux de la durée indiquée aux jours de la semaine chois
 #: src/Admin/ServiceSlotsPage.php:425
 #: src/Admin/ServiceSlotsPage.php:464
 #: src/Admin/ServiceSlotsPage.php:480
+#: src/Admin/ServicesPage.php:531
 #: src/Privacy.php:242
 msgid "Ressource"
 msgstr "Ressource"
@@ -8111,18 +8125,18 @@ msgstr "Générer la série"
 
 #: src/Admin/ServiceSlotsPage.php:322
 #: src/Admin/ServiceSlotsPage.php:326
-#: src/Admin/ServicesPage.php:481
+#: src/Admin/ServicesPage.php:501
 #: src/Admin/TicketsPage.php:847
 #: src/Exchange/AdminPage.php:229
 #: src/Frontend/ServiceBooking.php:148
 #: src/ServiceBookingFlow.php:533
-#: src/Services/Portal.php:172
+#: src/Services/Portal.php:177
 msgid "Umbuchen"
 msgstr "Modifier la réservation"
 
 #: src/Admin/ServiceSlotsPage.php:324
-#: src/Admin/ServicesPage.php:479
-#: src/Services/Portal.php:165
+#: src/Admin/ServicesPage.php:499
+#: src/Services/Portal.php:170
 msgid "Neues Zeitfenster"
 msgstr "Nouveau créneau"
 
@@ -8135,7 +8149,7 @@ msgid "Fristen gelten für das Team nicht. Kund:in und Team werden per E-Mail in
 msgstr "Les délais ne s’appliquent pas à l’équipe. Le client et l’équipe sont informés par e-mail."
 
 #: src/Admin/ServiceSlotsPage.php:332
-#: src/Services/Portal.php:184
+#: src/Services/Portal.php:189
 msgid "Buchung stornieren"
 msgstr "Annuler la réservation"
 
@@ -8168,7 +8182,7 @@ msgid "Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Res
 msgstr "Les ressources sont les salles, les personnes ou les équipements d’un événement. Pour chaque ressource, vous créez des créneaux réservables avec un nombre de places ; les clients les réservent sur une page avec le shortcode [wpcap_service_booking] ou le bloc « Réservation de rendez-vous Pass Captain ». Les créneaux comportant des réservations ne peuvent pas être supprimés, mais peuvent être fermés."
 
 #: src/Admin/ServiceSlotsPage.php:381
-#: src/Admin/ServicesPage.php:259
+#: src/Admin/ServicesPage.php:279
 msgid "Ressourcen"
 msgstr "Ressources"
 
@@ -8190,7 +8204,7 @@ msgstr "Supprimer la ressource avec tous ses créneaux ? Cela n’est possible q
 
 #: src/Admin/ServiceSlotsPage.php:410
 #: src/Admin/ServiceSlotsPage.php:448
-#: src/Admin/ServicesPage.php:413
+#: src/Admin/ServicesPage.php:433
 #: src/Integrations/ConnectorsPage.php:154
 #: src/Modules/Webhooks.php:483
 #: src/Partners/AdminPage.php:531
@@ -8200,7 +8214,7 @@ msgid "Löschen"
 msgstr "Supprimer"
 
 #: src/Admin/ServiceSlotsPage.php:412
-#: src/Admin/ServicesPage.php:261
+#: src/Admin/ServicesPage.php:281
 msgid "Noch keine Ressourcen."
 msgstr "Aucune ressource pour l’instant."
 
@@ -8209,7 +8223,7 @@ msgid "Ressource hinzufügen"
 msgstr "Ajouter une ressource"
 
 #: src/Admin/ServiceSlotsPage.php:418
-#: src/Admin/ServicesPage.php:319
+#: src/Admin/ServicesPage.php:339
 msgid "Ressource anlegen"
 msgstr "Créer la ressource"
 
@@ -8228,7 +8242,7 @@ msgid "Zeitfenster löschen? Das geht nur, solange es keine Buchungen gibt."
 msgstr "Supprimer ce créneau ? Ce n'est possible que tant qu'il n'a aucune réservation."
 
 #: src/Admin/ServiceSlotsPage.php:452
-#: src/Admin/ServicesPage.php:404
+#: src/Admin/ServicesPage.php:424
 msgid "Noch keine Zeitfenster."
 msgstr "Aucun créneau pour l’instant."
 
@@ -8241,7 +8255,7 @@ msgid "Lege zuerst eine aktive Ressource an."
 msgstr "Créez d’abord une ressource active."
 
 #: src/Admin/ServiceSlotsPage.php:469
-#: src/Admin/ServicesPage.php:375
+#: src/Admin/ServicesPage.php:395
 msgid "Zeitfenster anlegen"
 msgstr "Créer le créneau"
 
@@ -8253,36 +8267,36 @@ msgstr "Afficher toutes les réservations de l’événement"
 msgid "Gebucht am"
 msgstr "Réservé le"
 
-#: src/Admin/ServicesPage.php:46
+#: src/Admin/ServicesPage.php:48
 #: src/ServiceResources.php:184
 #: src/ServiceResources.php:292
 #: src/ServiceResources.php:319
 msgid "Ressource nicht gefunden."
 msgstr "Ressource introuvable."
 
-#: src/Admin/ServicesPage.php:54
+#: src/Admin/ServicesPage.php:56
 #: src/ServiceResources.php:365
 #: src/ServiceResources.php:390
 msgid "Zeitfenster nicht gefunden."
 msgstr "Créneau introuvable."
 
-#: src/Admin/ServicesPage.php:55
+#: src/Admin/ServicesPage.php:57
 msgid "Keine Berechtigung für dieses Zeitfenster."
 msgstr "Aucune autorisation pour ce créneau."
 
-#: src/Admin/ServicesPage.php:96
+#: src/Admin/ServicesPage.php:98
 #: src/ServiceResources.php:293
 #: src/ServiceResources.php:366
 msgid "Zeitfenster ist ungültig: Das Ende muss nach dem Beginn liegen."
 msgstr "Le créneau n’est pas valide : la fin doit être postérieure au début."
 
-#: src/Admin/ServicesPage.php:186
+#: src/Admin/ServicesPage.php:197
 #: src/Admin/WaitlistsPage.php:77
 #: src/ServiceWaitlist.php:308
 msgid "Wartelisteneintrag nicht gefunden."
 msgstr "Inscription sur la liste d’attente introuvable."
 
-#: src/Admin/ServicesPage.php:211
+#: src/Admin/ServicesPage.php:224
 #: src/Integrations/ConnectorsPage.php:103
 #: src/Modules/Webhooks.php:438
 #: src/Partners/AdminPage.php:196
@@ -8290,23 +8304,23 @@ msgid "Gespeichert."
 msgstr "Enregistré."
 
 #. translators: 1: created slots, 2: skipped existing slots
-#: src/Admin/ServicesPage.php:214
+#: src/Admin/ServicesPage.php:227
 #, php-format
 msgid "%1$d Zeitfenster erzeugt, %2$d bereits vorhandene übersprungen."
 msgstr "%1$d créneaux créés, %2$d existants ignorés."
 
-#: src/Admin/ServicesPage.php:235
+#: src/Admin/ServicesPage.php:252
 msgid "Leistungserbringer und Zeitfenster je Ressource zuordnen (Service-Zeitfenster)"
 msgstr "Associer des prestataires et des créneaux par ressource (créneaux de service)"
 
-#: src/Admin/ServicesPage.php:254
+#: src/Admin/ServicesPage.php:273
 msgid "Ressourcen sind buchbare Dinge oder Personen (z. B. Räume, Guides, Geräte) eines Events. Für jede Ressource werden Zeitfenster mit eigener Kapazität angelegt, die Kundinnen und Kunden buchen können."
 msgstr "Les ressources sont des choses ou des personnes réservables (p. ex. salles, guides, équipements) d’un événement. Pour chaque ressource, des créneaux avec leur propre capacité sont créés et peuvent être réservés par les clients."
 
-#: src/Admin/ServicesPage.php:264
-#: src/Admin/ServicesPage.php:373
+#: src/Admin/ServicesPage.php:284
 #: src/Admin/ServicesPage.php:393
-#: src/Admin/ServicesPage.php:437
+#: src/Admin/ServicesPage.php:413
+#: src/Admin/ServicesPage.php:457
 #: src/Admission/RulesPage.php:208
 #: src/Admission/RulesPage.php:222
 #: src/Allocations/AdminPage.php:219
@@ -8319,192 +8333,188 @@ msgstr "Les ressources sont des choses ou des personnes réservables (p. ex. sal
 msgid "Kapazität"
 msgstr "Capacité"
 
-#: src/Admin/ServicesPage.php:278
+#: src/Admin/ServicesPage.php:298
 msgid "Ressource bearbeiten"
 msgstr "Modifier la ressource"
 
-#: src/Admin/ServicesPage.php:278
+#: src/Admin/ServicesPage.php:298
 msgid "Neue Ressource"
 msgstr "Nouvelle ressource"
 
-#: src/Admin/ServicesPage.php:287
+#: src/Admin/ServicesPage.php:307
 msgid "Standard-Kapazität je Zeitfenster"
 msgstr "Capacité par défaut par créneau"
 
-#: src/Admin/ServicesPage.php:294
 #: src/Admin/ServicesPage.php:314
+#: src/Admin/ServicesPage.php:334
 msgid "Wie das Event"
 msgstr "Comme l’événement"
 
-#: src/Admin/ServicesPage.php:296
+#: src/Admin/ServicesPage.php:316
 msgid "Zeitfenster werden in dieser Zeitzone eingegeben und angezeigt."
 msgstr "Les créneaux sont saisis et affichés dans ce fuseau horaire."
 
-#: src/Admin/ServicesPage.php:299
+#: src/Admin/ServicesPage.php:319
 msgid "Aktiv (buchbar)"
 msgstr "Active (réservable)"
 
-#: src/Admin/ServicesPage.php:300
+#: src/Admin/ServicesPage.php:320
 msgid "Standarddauer (Minuten)"
 msgstr "Durée par défaut (minutes)"
 
-#: src/Admin/ServicesPage.php:300
+#: src/Admin/ServicesPage.php:320
 msgid "Vorbelegung für den Wochengenerator."
 msgstr "Valeur par défaut pour le générateur hebdomadaire."
 
-#: src/Admin/ServicesPage.php:301
+#: src/Admin/ServicesPage.php:321
 msgid "Puffer vorher (Minuten)"
 msgstr "Battement avant (minutes)"
 
-#: src/Admin/ServicesPage.php:302
+#: src/Admin/ServicesPage.php:322
 msgid "Puffer nachher (Minuten)"
 msgstr "Battement après (minutes)"
 
-#: src/Admin/ServicesPage.php:302
+#: src/Admin/ServicesPage.php:322
 msgid "Zeitfenster derselben Ressource dürfen sich inklusive Puffer nicht überschneiden (z. B. Bootsübergabe, Reinigung)."
 msgstr "Les créneaux d’une même ressource ne doivent pas se chevaucher, battements compris (p. ex. remise du bateau, nettoyage)."
 
-#: src/Admin/ServicesPage.php:304
+#: src/Admin/ServicesPage.php:324
 msgid "Kostenlos (ohne Bestellung)"
 msgstr "Gratuit (sans commande)"
 
-#: src/Admin/ServicesPage.php:309
+#: src/Admin/ServicesPage.php:329
 msgid "Bezahlte Buchungen laufen über eine Bestellung dieser Ticketart (Zahlung, Erstattung, Gutschein)."
 msgstr "Les réservations payantes passent par une commande de ce type de ticket (paiement, remboursement, bon)."
 
-#: src/Admin/ServicesPage.php:311
+#: src/Admin/ServicesPage.php:331
 msgid "— kein Veranstalter —"
 msgstr "— aucun organisateur —"
 
-#: src/Admin/ServicesPage.php:315
+#: src/Admin/ServicesPage.php:335
 msgid "Veranstalter / Anbieter"
 msgstr "Organisateur / prestataire"
 
-#: src/Admin/ServicesPage.php:315
+#: src/Admin/ServicesPage.php:335
 msgid "Verknüpfte Benutzer:innen des Veranstalters sehen und verwalten nur ihre Ressourcen."
 msgstr "Les utilisateurs liés à l’organisateur ne voient et ne gèrent que leurs propres ressources."
 
-#: src/Admin/ServicesPage.php:319
+#: src/Admin/ServicesPage.php:339
 msgid "Ressource speichern"
 msgstr "Enregistrer la ressource"
 
-#: src/Admin/ServicesPage.php:327
+#: src/Admin/ServicesPage.php:347
 msgid "Buchungsschluss (Minuten vor Beginn)"
 msgstr "Clôture des réservations (minutes avant le début)"
 
-#: src/Admin/ServicesPage.php:328
+#: src/Admin/ServicesPage.php:348
 msgid "Vorlauf: buchbar ab (Tage vor Beginn)"
 msgstr "Délai : réservable à partir de (jours avant le début)"
 
-#: src/Admin/ServicesPage.php:329
+#: src/Admin/ServicesPage.php:349
 msgid "Höchstens Plätze pro Person"
 msgstr "Places maximales par personne"
 
-#: src/Admin/ServicesPage.php:331
+#: src/Admin/ServicesPage.php:351
 msgid "Zeitraum der Höchstgrenze"
 msgstr "Période de la limite"
 
-#: src/Admin/ServicesPage.php:331
+#: src/Admin/ServicesPage.php:351
 msgid "pro Tag"
 msgstr "par jour"
 
-#: src/Admin/ServicesPage.php:331
+#: src/Admin/ServicesPage.php:351
 msgid "pro Woche"
 msgstr "par semaine"
 
-#: src/Admin/ServicesPage.php:331
+#: src/Admin/ServicesPage.php:351
 msgid "pro Monat"
 msgstr "par mois"
 
-#: src/Admin/ServicesPage.php:331
+#: src/Admin/ServicesPage.php:351
 msgid "alle künftigen Termine"
 msgstr "toutes les dates à venir"
 
-#: src/Admin/ServicesPage.php:332
+#: src/Admin/ServicesPage.php:352
 msgid "Umbuchungsfrist (Stunden vor Beginn)"
 msgstr "Délai de modification (heures avant le début)"
 
-#: src/Admin/ServicesPage.php:333
+#: src/Admin/ServicesPage.php:353
 msgid "Stornierungsfrist (Stunden vor Beginn)"
 msgstr "Délai d’annulation (heures avant le début)"
 
-#: src/Admin/ServicesPage.php:333
+#: src/Admin/ServicesPage.php:353
 msgid "Bis dahin können Kund:innen selbst stornieren und erhalten eine Erstattung."
 msgstr "Jusque-là, les clients peuvent annuler eux-mêmes et sont remboursés."
 
-#: src/Admin/ServicesPage.php:335
+#: src/Admin/ServicesPage.php:355
 msgid "Umbuchung bei Preisunterschied"
 msgstr "Modification avec différence de prix"
 
-#: src/Admin/ServicesPage.php:335
+#: src/Admin/ServicesPage.php:355
 msgid "Nur auf Zeitfenster zum gleichen Preis"
 msgstr "Uniquement vers des créneaux au même prix"
 
-#: src/Admin/ServicesPage.php:335
+#: src/Admin/ServicesPage.php:355
 msgid "Günstigere Ziele erlauben, Differenz erstatten"
 msgstr "Autoriser des créneaux moins chers, rembourser la différence"
 
-#: src/Admin/ServicesPage.php:337
+#: src/Admin/ServicesPage.php:357
 msgid "Manuelle Bestätigung"
 msgstr "Confirmation manuelle"
 
-#: src/Admin/ServicesPage.php:337
+#: src/Admin/ServicesPage.php:357
 msgid "Bezahlte Buchungen müssen vom Anbieter bestätigt werden (Ablehnung = automatische Erstattung)"
 msgstr "Les réservations payantes doivent être confirmées par le prestataire (refus = remboursement automatique)"
 
-#: src/Admin/ServicesPage.php:338
+#: src/Admin/ServicesPage.php:358
 msgid "Bestätigungsfrist (Stunden)"
 msgstr "Délai de confirmation (heures)"
 
-#: src/Admin/ServicesPage.php:340
+#: src/Admin/ServicesPage.php:360
 msgid "No-Show-Regel"
 msgstr "Règle de non-présentation"
 
-#: src/Admin/ServicesPage.php:340
+#: src/Admin/ServicesPage.php:360
 msgid "Keine"
 msgstr "Aucune"
 
-#: src/Admin/ServicesPage.php:340
+#: src/Admin/ServicesPage.php:360
 msgid "Ohne Check-in nach Ende als „nicht erschienen“ markieren"
 msgstr "Marquer comme « non présenté » sans check-in après la fin"
 
-#: src/Admin/ServicesPage.php:340
+#: src/Admin/ServicesPage.php:360
 msgid "Markieren, Anspruch verfällt, Gebühr vermerken"
 msgstr "Marquer, le droit expire, noter les frais"
 
-#: src/Admin/ServicesPage.php:341
+#: src/Admin/ServicesPage.php:361
 msgid "Karenz nach Ende (Minuten)"
 msgstr "Délai de grâce après la fin (minutes)"
 
-#: src/Admin/ServicesPage.php:342
+#: src/Admin/ServicesPage.php:362
 msgid "No-Show-Gebühr"
 msgstr "Frais de non-présentation"
 
-#: src/Admin/ServicesPage.php:342
-msgid "Wird an der Buchung vermerkt und in der Mail genannt; der Einzug erfolgt außerhalb von Pass Captain."
-msgstr "Noté sur la réservation et mentionné dans l’e-mail ; l’encaissement a lieu en dehors de Pass Captain."
-
-#: src/Admin/ServicesPage.php:343
+#: src/Admin/ServicesPage.php:363
 msgid "Sperre nach No-Shows"
 msgstr "Blocage après non-présentations"
 
-#: src/Admin/ServicesPage.php:343
+#: src/Admin/ServicesPage.php:363
 msgid "0 = nie; sonst keine neuen Buchungen nach so vielen No-Shows im Rückblickzeitraum."
 msgstr "0 = jamais ; sinon, aucune nouvelle réservation après autant de non-présentations sur la période de référence."
 
-#: src/Admin/ServicesPage.php:344
+#: src/Admin/ServicesPage.php:364
 msgid "Rückblickzeitraum (Tage)"
 msgstr "Période de référence (jours)"
 
-#: src/Admin/ServicesPage.php:346
+#: src/Admin/ServicesPage.php:366
 msgid "Warteliste für ausgebuchte Zeitfenster anbieten"
 msgstr "Proposer une liste d’attente pour les créneaux complets"
 
-#: src/Admin/ServicesPage.php:347
+#: src/Admin/ServicesPage.php:367
 msgid "Annahmefrist eines Angebots (Minuten)"
 msgstr "Délai d’acceptation d’une proposition (minutes)"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8512,7 +8522,7 @@ msgstr "Délai d’acceptation d’une proposition (minutes)"
 msgid "Montag"
 msgstr "Lundi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8520,7 +8530,7 @@ msgstr "Lundi"
 msgid "Dienstag"
 msgstr "Mardi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8528,7 +8538,7 @@ msgstr "Mardi"
 msgid "Mittwoch"
 msgstr "Mercredi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8536,7 +8546,7 @@ msgstr "Mercredi"
 msgid "Donnerstag"
 msgstr "Jeudi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8544,7 +8554,7 @@ msgstr "Jeudi"
 msgid "Freitag"
 msgstr "Vendredi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8552,7 +8562,7 @@ msgstr "Vendredi"
 msgid "Samstag"
 msgstr "Samedi"
 
-#: src/Admin/ServicesPage.php:352
+#: src/Admin/ServicesPage.php:372
 #: src/Modules/Calendar.php:430
 #: src/Modules/Calendar.php:498
 #: src/Sales/AdminSections.php:102
@@ -8561,208 +8571,208 @@ msgid "Sonntag"
 msgstr "Dimanche"
 
 #. translators: 1: event, 2: timezone
-#: src/Admin/ServicesPage.php:362
+#: src/Admin/ServicesPage.php:382
 #, php-format
 msgid "Event: %1$s · Zeitzone: %2$s"
 msgstr "Événement : %1$s · Fuseau horaire : %2$s"
 
 #. translators: %s: organizer
-#: src/Admin/ServicesPage.php:362
+#: src/Admin/ServicesPage.php:382
 #, php-format
 msgid "Veranstalter: %s"
 msgstr "Organisateur : %s"
 
-#: src/Admin/ServicesPage.php:365
+#: src/Admin/ServicesPage.php:385
 msgid "Einzelnes Zeitfenster anlegen"
 msgstr "Créer un créneau unique"
 
 #. translators: %s: timezone
-#: src/Admin/ServicesPage.php:371
 #: src/Admin/ServicesPage.php:391
-#: src/Admin/ServicesPage.php:435
+#: src/Admin/ServicesPage.php:411
+#: src/Admin/ServicesPage.php:455
 #, php-format
 msgid "Ortszeit %s"
 msgstr "Heure locale %s"
 
-#: src/Admin/ServicesPage.php:378
+#: src/Admin/ServicesPage.php:398
 msgid "Wöchentliche Zeitfenster erzeugen"
 msgstr "Générer des créneaux hebdomadaires"
 
-#: src/Admin/ServicesPage.php:384
+#: src/Admin/ServicesPage.php:404
 msgid "Letzter Tag"
 msgstr "Dernier jour"
 
-#: src/Admin/ServicesPage.php:384
+#: src/Admin/ServicesPage.php:404
 msgid "Höchstens ein Jahr; bereits vorhandene Zeitfenster mit gleichem Beginn werden übersprungen."
 msgstr "Un an au maximum ; les créneaux existants avec le même début sont ignorés."
 
 #. translators: %s: timezone
-#: src/Admin/ServicesPage.php:391
+#: src/Admin/ServicesPage.php:411
 msgid "Uhrzeit"
 msgstr "Heure"
 
-#: src/Admin/ServicesPage.php:392
+#: src/Admin/ServicesPage.php:412
 msgid "Dauer in Minuten"
 msgstr "Durée en minutes"
 
-#: src/Admin/ServicesPage.php:395
+#: src/Admin/ServicesPage.php:415
 msgid "Zeitfenster erzeugen"
 msgstr "Générer les créneaux"
 
-#: src/Admin/ServicesPage.php:406
+#: src/Admin/ServicesPage.php:426
 msgid "Gebucht / Kapazität"
 msgstr "Réservé / capacité"
 
-#: src/Admin/ServicesPage.php:411
+#: src/Admin/ServicesPage.php:431
 msgctxt "status of a service slot: bookable"
 msgid "Offen"
 msgstr "Ouvert"
 
-#: src/Admin/ServicesPage.php:411
+#: src/Admin/ServicesPage.php:431
 msgid "Bearbeiten & Buchungen"
 msgstr "Modifier et réservations"
 
-#: src/Admin/ServicesPage.php:413
+#: src/Admin/ServicesPage.php:433
 msgid "Dieses Zeitfenster löschen?"
 msgstr "Supprimer ce créneau ?"
 
 #. translators: %s: resource
-#: src/Admin/ServicesPage.php:428
+#: src/Admin/ServicesPage.php:448
 #, php-format
 msgid "Zurück zu %s"
 msgstr "Retour à %s"
 
 #. translators: 1: resource, 2: start
-#: src/Admin/ServicesPage.php:429
+#: src/Admin/ServicesPage.php:449
 #, php-format
 msgid "Zeitfenster %1$s, %2$s"
 msgstr "Créneau %1$s, %2$s"
 
-#: src/Admin/ServicesPage.php:439
+#: src/Admin/ServicesPage.php:459
 msgid "Offen (buchbar)"
 msgstr "Ouvert (réservable)"
 
-#: src/Admin/ServicesPage.php:441
+#: src/Admin/ServicesPage.php:461
 msgid "Zeitfenster speichern"
 msgstr "Enregistrer le créneau"
 
-#: src/Admin/ServicesPage.php:447
+#: src/Admin/ServicesPage.php:467
 msgid "Keine Buchungen für dieses Zeitfenster."
 msgstr "Aucune réservation pour ce créneau."
 
 #. translators: %s: time
-#: src/Admin/ServicesPage.php:461
+#: src/Admin/ServicesPage.php:481
 #, php-format
 msgid "Entscheidung bis %s"
 msgstr "Décision avant %s"
 
 #. translators: %s: amount
-#: src/Admin/ServicesPage.php:463
+#: src/Admin/ServicesPage.php:483
 #, php-format
 msgid "Gebühr %s"
 msgstr "Frais %s"
 
 #. translators: %d: count
-#: src/Admin/ServicesPage.php:464
+#: src/Admin/ServicesPage.php:484
 #, php-format
 msgid "%d× umgebucht"
 msgid_plural "%d× umgebucht"
 msgstr[0] "modifiée %d×"
 msgstr[1] "modifiée %d×"
 
-#: src/Admin/ServicesPage.php:469
+#: src/Admin/ServicesPage.php:489
 msgid "Ablehnen & erstatten"
 msgstr "Refuser et rembourser"
 
-#: src/Admin/ServicesPage.php:469
+#: src/Admin/ServicesPage.php:489
 msgid "Buchung ablehnen? Der Betrag wird automatisch erstattet."
 msgstr "Refuser la réservation ? Le montant sera remboursé automatiquement."
 
-#: src/Admin/ServicesPage.php:472
+#: src/Admin/ServicesPage.php:492
 msgid "Check-in"
 msgstr "Check-in"
 
-#: src/Admin/ServicesPage.php:473
+#: src/Admin/ServicesPage.php:493
 msgid "Als „nicht erschienen“ markieren?"
 msgstr "Marquer comme « non présenté » ?"
 
-#: src/Admin/ServicesPage.php:484
+#: src/Admin/ServicesPage.php:504
 msgid "Stornieren & erstatten"
 msgstr "Annuler et rembourser"
 
-#: src/Admin/ServicesPage.php:484
+#: src/Admin/ServicesPage.php:504
 msgid "Buchung stornieren? Bezahlte Buchungen werden erstattet."
 msgstr "Annuler la réservation ? Les réservations payantes seront remboursées."
 
-#: src/Admin/ServicesPage.php:485
+#: src/Admin/ServicesPage.php:505
 msgid "Ohne Erstattung stornieren"
 msgstr "Annuler sans remboursement"
 
-#: src/Admin/ServicesPage.php:485
+#: src/Admin/ServicesPage.php:505
 msgid "Buchung ohne Erstattung stornieren?"
 msgstr "Annuler la réservation sans remboursement ?"
 
-#: src/Admin/ServicesPage.php:498
+#: src/Admin/ServicesPage.php:568
 msgid "Niemand auf der Warteliste."
 msgstr "Personne sur la liste d’attente."
 
-#: src/Admin/ServicesPage.php:499
-#: src/Services/Portal.php:208
+#: src/Admin/ServicesPage.php:569
+#: src/Services/Portal.php:213
 msgid "Unbestätigt"
 msgstr "Non confirmé"
 
-#: src/Admin/ServicesPage.php:499
-#: src/Services/Portal.php:208
+#: src/Admin/ServicesPage.php:569
+#: src/Services/Portal.php:213
 msgid "Wartend"
 msgstr "En attente"
 
-#: src/Admin/ServicesPage.php:499
-#: src/Services/Portal.php:208
+#: src/Admin/ServicesPage.php:569
+#: src/Services/Portal.php:213
 #: src/Waitlists.php:1754
 msgid "Angebot offen"
 msgstr "Proposition ouverte"
 
-#: src/Admin/ServicesPage.php:499
+#: src/Admin/ServicesPage.php:569
 #: src/Admin/WaitlistsPage.php:45
-#: src/Services/Portal.php:208
+#: src/Services/Portal.php:213
 msgid "Angenommen"
 msgstr "Acceptée"
 
-#: src/Admin/ServicesPage.php:499
+#: src/Admin/ServicesPage.php:569
 #: src/GuestLists/Service.php:63
 #: src/Integrations/FormCaptain/EventRequests.php:490
 #: src/PortalSelfService.php:500
-#: src/Services/Portal.php:208
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:213
+#: src/Services/Portal.php:270
 #: src/Waitlists.php:1758
 msgid "Abgelehnt"
 msgstr "Refusé"
 
-#: src/Admin/ServicesPage.php:499
-#: src/Services/Portal.php:208
+#: src/Admin/ServicesPage.php:569
+#: src/Services/Portal.php:213
 #: src/Waitlists.php:1527
 msgid "Ausgetragen"
 msgstr "Désinscrit"
 
 #. translators: %s: ticket type
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:571
 #: src/Admin/WaitlistsPage.php:108
 #: src/Admin/WaitlistsPage.php:170
 msgid "Position"
 msgstr "Position"
 
 #. translators: %s: ticket type
-#: src/Admin/ServicesPage.php:501
+#: src/Admin/ServicesPage.php:571
 #: src/Admin/WaitlistsPage.php:170
 msgid "Angebot gültig bis"
 msgstr "Proposition valable jusqu’au"
 
-#: src/Admin/ServicesPage.php:507
+#: src/Admin/ServicesPage.php:577
 #: src/Admin/WaitlistsPage.php:176
 msgid "Diesen Eintrag von der Warteliste entfernen?"
 msgstr "Retirer cette inscription de la liste d’attente ?"
 
-#: src/Admin/ServicesPage.php:511
+#: src/Admin/ServicesPage.php:581
 #: src/Waitlists/AdminPage.php:159
 msgid "Freie Plätze jetzt anbieten"
 msgstr "Proposer les places libres maintenant"
@@ -13857,12 +13867,12 @@ msgid "E-Mails versenden"
 msgstr "Envoyer les e-mails"
 
 #: src/BulkRuns.php:718
-#: src/Mail/Types.php:579
+#: src/Mail/Types.php:598
 msgid "Terminabsage"
 msgstr "Annulation de date"
 
 #: src/BulkRuns.php:718
-#: src/Mail/Types.php:571
+#: src/Mail/Types.php:590
 msgid "Eventabsage"
 msgstr "Annulation d’événement"
 
@@ -14407,7 +14417,7 @@ msgstr "Administration"
 
 #: src/Consents.php:648
 #: src/Exchange/AdminPage.php:178
-#: src/Mail/Types.php:448
+#: src/Mail/Types.php:467
 msgid "Ticketumtausch"
 msgstr "Échange de ticket"
 
@@ -14739,6 +14749,7 @@ msgstr "Échanger : %s"
 msgid "Von → Nach"
 msgstr "De → À"
 
+#: src/Admin/ServicesPage.php:531
 #: src/Exchange/AdminPage.php:152
 #: src/Partners/Settlements.php:979
 #: src/Partners/Statement.php:176
@@ -15181,7 +15192,7 @@ msgid "Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht 
 msgstr "L’échange a été effectué, mais le remboursement de la différence n’a pas pu être déclenché : %s"
 
 #: src/Exchange/Service.php:890
-#: src/Mail/Types.php:468
+#: src/Mail/Types.php:487
 msgid "Sitzplatz:"
 msgstr "Place :"
 
@@ -15683,6 +15694,7 @@ msgid "Dein Termin ist für kurze Zeit reserviert. Schließe die Zahlung jetzt a
 msgstr "Votre rendez-vous est réservé pour une courte durée. Finalisez le paiement maintenant pour le réserver définitivement."
 
 #: src/Frontend/ServiceBooking.php:123
+#: src/Services/NoShowFees.php:304
 msgid "Weiter zur Zahlung"
 msgstr "Continuer vers le paiement"
 
@@ -15719,6 +15731,7 @@ msgid "Verwendungszweck"
 msgstr "Référence de paiement"
 
 #: src/Frontend/ServiceBooking.php:130
+#: src/Mail/Types.php:290
 #: src/Payments/BankTransfer.php:131
 #: src/PublicEvents.php:260
 #: src/Waitlists.php:2053
@@ -15738,7 +15751,7 @@ msgid "Weiteren Termin buchen"
 msgstr "Réserver un autre rendez-vous"
 
 #: src/Frontend/ServiceBooking.php:135
-#: src/Services/Portal.php:198
+#: src/Services/Portal.php:203
 msgid "Deine Buchung"
 msgstr "Votre réservation"
 
@@ -15938,6 +15951,7 @@ msgstr[1] "%d places disponibles"
 #: src/PublicEvents.php:160
 #: src/Reports/Settlement.php:279
 #: src/Reports/Settlement.php:353
+#: src/Services/NoShowFees.php:252
 #: src/Waitlists.php:1805
 #: templates/event-card.php:210
 msgid "Zahlungsart"
@@ -16141,6 +16155,7 @@ msgstr "arrivé"
 msgid "Ausstellen"
 msgstr "Émettre"
 
+#: src/Admin/ServicesPage.php:554
 #: src/GuestLists/Page.php:280
 #: src/Modules/Webhooks.php:513
 msgid "Erneut senden"
@@ -16230,7 +16245,7 @@ msgstr "Codes"
 #: src/Reports/Page.php:356
 #: src/Reports/Settlement.php:289
 #: src/Reports/Settlement.php:366
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 msgid "Eingecheckt"
 msgstr "Enregistré (check-in)"
 
@@ -18311,7 +18326,7 @@ msgstr "Se désabonner des rappels"
 
 #: src/Mail/Suppression.php:164
 #: src/Sales/Consents.php:244
-#: src/Services/Portal.php:193
+#: src/Services/Portal.php:198
 msgid "Der Link ist ungültig."
 msgstr "Le lien n’est pas valide."
 
@@ -18392,7 +18407,7 @@ msgid "Nur die Ticket-Links, einer pro Zeile"
 msgstr "Uniquement les liens des tickets, un par ligne"
 
 #: src/Mail/Types.php:65
-#: src/Mail/Types.php:401
+#: src/Mail/Types.php:420
 msgid "Bedingungen und Verbraucherinformationen in der Fassung, die bei der Bestellung galt (mit Fassungskennung; leer ohne Rechtstexte)"
 msgstr "Conditions et informations consommateur dans la version en vigueur lors de la commande (avec identifiant de version ; vide sans textes juridiques)"
 
@@ -18665,35 +18680,35 @@ msgstr ""
 "\n"
 "S’il s’agit d’une erreur, veuillez répondre à cet e-mail."
 
-#: src/Mail/Types.php:288
+#: src/Mail/Types.php:307
 msgid "Warteliste Zeitfenster: Eintragung"
 msgstr "Liste d’attente de créneau : inscription"
 
-#: src/Mail/Types.php:289
+#: src/Mail/Types.php:308
 msgid "Bestätigung der Eintragung in die Warteliste eines ausgebuchten Zeitfensters."
 msgstr "Confirmation de l’inscription sur la liste d’attente d’un créneau complet."
 
-#: src/Mail/Types.php:290
-#: src/Mail/Types.php:638
-#: src/Mail/Types.php:722
+#: src/Mail/Types.php:309
+#: src/Mail/Types.php:657
+#: src/Mail/Types.php:741
 msgid "Position auf der Warteliste"
 msgstr "Position sur la liste d’attente"
 
-#: src/Mail/Types.php:290
+#: src/Mail/Types.php:309
 msgid "Link zur aktuellen Position"
 msgstr "Lien vers la position actuelle"
 
-#: src/Mail/Types.php:290
+#: src/Mail/Types.php:309
 msgid "Link zum Austragen"
 msgstr "Lien de désinscription"
 
-#: src/Mail/Types.php:291
-#: src/Mail/Types.php:646
+#: src/Mail/Types.php:310
+#: src/Mail/Types.php:665
 msgid "Du stehst auf der Warteliste"
 msgstr "Vous êtes sur la liste d’attente"
 
 #. translators: 1: resource, 2: date, 3: position, 4: status link, 5: leave link
-#: src/Mail/Types.php:293
+#: src/Mail/Types.php:312
 #, php-format
 msgid ""
 "Du stehst auf der Warteliste für %1$s am %2$s (Position %3$s). Sobald Plätze frei werden, bekommst du ein befristetes Angebot.\n"
@@ -18706,28 +18721,28 @@ msgstr ""
 "Position actuelle : %4$s\n"
 "Se désinscrire : %5$s"
 
-#: src/Mail/Types.php:297
+#: src/Mail/Types.php:316
 msgid "Warteliste Zeitfenster: Eintragung bestätigen (Double-Opt-in)"
 msgstr "Liste d’attente de créneau : confirmer l’inscription (double opt-in)"
 
-#: src/Mail/Types.php:298
+#: src/Mail/Types.php:317
 msgid "Bestätigungslink nach der Eintragung in die Warteliste eines Zeitfensters. Erst nach dem Klick zählt der Eintrag und bekommt eine Position."
 msgstr "Lien de confirmation après l’inscription sur la liste d’attente d’un créneau. L’inscription ne compte et n’obtient une position qu’après le clic."
 
-#: src/Mail/Types.php:299
+#: src/Mail/Types.php:318
 msgid "Link zur Bestätigung"
 msgstr "Lien de confirmation"
 
-#: src/Mail/Types.php:299
+#: src/Mail/Types.php:318
 msgid "Gültigkeit des Bestätigungslinks"
 msgstr "Validité du lien de confirmation"
 
-#: src/Mail/Types.php:300
+#: src/Mail/Types.php:319
 msgid "Bitte bestätige deine Eintragung in die Warteliste"
 msgstr "Veuillez confirmer votre inscription sur la liste d’attente"
 
 #. translators: 1: resource, 2: date, 3: confirmation link, 4: expiry
-#: src/Mail/Types.php:302
+#: src/Mail/Types.php:321
 #, php-format
 msgid ""
 "Bitte bestätige deine Eintragung in die Warteliste für %1$s am %2$s:\n"
@@ -18740,34 +18755,34 @@ msgstr ""
 "\n"
 "Le lien est valable jusqu’au %4$s. Sans confirmation, vous ne serez pas inscrit et la demande sera ensuite supprimée. Si vous ne vous êtes pas inscrit, vous pouvez ignorer cet e-mail."
 
-#: src/Mail/Types.php:306
+#: src/Mail/Types.php:325
 msgid "Warteliste Zeitfenster: Platzangebot"
 msgstr "Liste d’attente de créneau : proposition de place"
 
-#: src/Mail/Types.php:307
+#: src/Mail/Types.php:326
 msgid "Befristetes Angebot an die nächste Person; die Plätze sind bis zum Ablauf reserviert."
 msgstr "Proposition limitée dans le temps à la personne suivante ; les places sont réservées jusqu’à son expiration."
 
-#: src/Mail/Types.php:308
-#: src/Mail/Types.php:718
+#: src/Mail/Types.php:327
+#: src/Mail/Types.php:737
 msgid "Ablauf des Angebots"
 msgstr "Expiration de la proposition"
 
-#: src/Mail/Types.php:308
-#: src/Mail/Types.php:719
+#: src/Mail/Types.php:327
+#: src/Mail/Types.php:738
 msgid "Link zur Annahme"
 msgstr "Lien d’acceptation"
 
-#: src/Mail/Types.php:308
+#: src/Mail/Types.php:327
 msgid "Link zum Ablehnen"
 msgstr "Lien pour refuser"
 
-#: src/Mail/Types.php:309
+#: src/Mail/Types.php:328
 msgid "Ein Platz ist für dich frei geworden"
 msgstr "Une place s’est libérée pour vous"
 
 #. translators: 1: places, 2: resource, 3: date, 4: expiry, 5: accept link, 6: decline link
-#: src/Mail/Types.php:311
+#: src/Mail/Types.php:330
 #, php-format
 msgid ""
 "Gute Nachricht: %1$s Platz/Plätze für %2$s am %3$s sind bis %4$s für dich reserviert.\n"
@@ -18784,408 +18799,408 @@ msgstr ""
 "\n"
 "Ensuite, la proposition passe à la personne suivante sur la liste d’attente."
 
-#: src/Mail/Types.php:321
+#: src/Mail/Types.php:340
 msgid "Ticketversand"
 msgstr "Envoi des tickets"
 
-#: src/Mail/Types.php:322
+#: src/Mail/Types.php:341
 msgid "Tickets nach bestätigter Zahlung (mit PDF-Anhang)."
 msgstr "Tickets après confirmation du paiement (avec PDF en pièce jointe)."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:325
-#: src/Mail/Types.php:338
+#: src/Mail/Types.php:344
+#: src/Mail/Types.php:357
 #, php-format
 msgid "Deine Tickets für %s"
 msgstr "Vos tickets pour %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:329
-#: src/Mail/Types.php:340
+#: src/Mail/Types.php:348
+#: src/Mail/Types.php:359
 #, php-format
 msgid "Deine Tickets für %s:"
 msgstr "Vos tickets pour %s :"
 
-#: src/Mail/Types.php:335
+#: src/Mail/Types.php:354
 msgid "Erneuter Versand der Tickets mit neuen oder den gespeicherten Ticketcodes (je Empfänger:in)."
 msgstr "Renvoi des tickets avec de nouveaux codes de ticket ou les codes enregistrés (par destinataire)."
 
-#: src/Mail/Types.php:346
+#: src/Mail/Types.php:365
 msgid "Fehlende Teilnehmerangaben"
 msgstr "Informations manquantes des participants"
 
-#: src/Mail/Types.php:347
+#: src/Mail/Types.php:366
 msgid "Bitte an die Käufer:in, fehlende Angaben zu Teilnehmenden zu ergänzen (mit neuem Bestelllink)."
 msgstr "Demande à l’acheteur de compléter les informations manquantes sur les participants (avec un nouveau lien de commande)."
 
-#: src/Mail/Types.php:350
+#: src/Mail/Types.php:369
 msgid "Fehlende Angaben je Ticket"
 msgstr "Informations manquantes par ticket"
 
-#: src/Mail/Types.php:351
+#: src/Mail/Types.php:370
 msgid "Persönlicher Link zur Bestellung (neu)"
 msgstr "Lien personnel vers la commande (nouveau)"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:354
+#: src/Mail/Types.php:373
 #, php-format
 msgid "Bitte ergänze die Angaben zu deiner Bestellung %s"
 msgstr "Veuillez compléter les informations de votre commande %s"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:357
+#: src/Mail/Types.php:376
 #, php-format
 msgid "Für deine Bestellung %s fehlen noch Angaben zu den Teilnehmenden:"
 msgstr "Il manque encore des informations sur les participants pour votre commande %s :"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:357
+#: src/Mail/Types.php:376
 msgid "Bitte ergänze sie über deinen persönlichen Link zur Bestellung:"
 msgstr "Veuillez les compléter via votre lien personnel vers la commande :"
 
 #. translators: %s: order number placeholder
-#: src/Mail/Types.php:357
+#: src/Mail/Types.php:376
 msgid "Der bisherige Link zur Bestellung gilt damit nicht mehr. Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "L’ancien lien vers la commande n’est donc plus valable. Conservez ce lien en lieu sûr et ne le partagez pas."
 
-#: src/Mail/Types.php:393
+#: src/Mail/Types.php:412
 msgid "Bestellzugang"
 msgstr "Accès à la commande"
 
-#: src/Mail/Types.php:394
+#: src/Mail/Types.php:413
 msgid "Persönlicher Link zur Bestellübersicht nach der Bestellung."
 msgstr "Lien personnel vers le récapitulatif de la commande après la commande."
 
-#: src/Mail/Types.php:397
+#: src/Mail/Types.php:416
 msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
 msgstr "Numéro de commande court (p. ex. 3F2A-9C1E, aussi référence de paiement)"
 
-#: src/Mail/Types.php:398
+#: src/Mail/Types.php:417
 msgid "Persönlicher Link zur Bestellung"
 msgstr "Lien personnel vers la commande"
 
-#: src/Mail/Types.php:399
+#: src/Mail/Types.php:418
 msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
 msgstr "Informations de paiement pour un virement en attente / paiement manuel (montant, IBAN, BIC, bénéficiaire, référence de paiement, délai) ; sinon vide"
 
-#: src/Mail/Types.php:400
+#: src/Mail/Types.php:419
 msgid "Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)"
 msgstr "Lignes commandées (événement, type de ticket, date, quantité, prix)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:405
+#: src/Mail/Types.php:424
 #, php-format
 msgid "Deine Bestellung bei %s"
 msgstr "Votre commande chez %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:409
+#: src/Mail/Types.php:428
 #, php-format
 msgid "Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:"
 msgstr "Ce lien personnel vous permet de consulter le statut de votre commande chez %s et de gérer vos tickets :"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:409
+#: src/Mail/Types.php:428
 msgid "Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "Conservez ce lien en lieu sûr et ne le partagez pas."
 
-#: src/Mail/Types.php:424
+#: src/Mail/Types.php:443
 msgid "Ticketübertragung: Empfänger:in"
 msgstr "Transfert de ticket : destinataire"
 
-#: src/Mail/Types.php:425
+#: src/Mail/Types.php:444
 msgid "Neues Ticket für die Person, an die ein Ticket übertragen wurde."
 msgstr "Nouveau ticket pour la personne à qui un ticket a été transféré."
 
-#: src/Mail/Types.php:427
-#: src/Mail/Types.php:477
+#: src/Mail/Types.php:446
+#: src/Mail/Types.php:496
 msgid "Link zum Ticket"
 msgstr "Lien vers le ticket"
 
-#: src/Mail/Types.php:428
-#: src/Mail/Types.php:458
-#: src/Mail/Types.php:478
+#: src/Mail/Types.php:447
+#: src/Mail/Types.php:477
+#: src/Mail/Types.php:497
 msgid "Zusatzinformationen zum Ticket (z. B. Wallet-Links)"
 msgstr "Informations supplémentaires sur le ticket (p. ex. liens wallet)"
 
-#: src/Mail/Types.php:431
+#: src/Mail/Types.php:450
 msgid "Ein Ticket wurde an dich übertragen"
 msgstr "Un ticket vous a été transféré"
 
-#: src/Mail/Types.php:436
+#: src/Mail/Types.php:455
 msgid "Ticketübertragung: Bestätigung"
 msgstr "Transfert de ticket : confirmation"
 
-#: src/Mail/Types.php:437
+#: src/Mail/Types.php:456
 msgid "Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde."
 msgstr "Confirmation à l’acheteur qu’un ticket a été transféré."
 
-#: src/Mail/Types.php:439
+#: src/Mail/Types.php:458
 msgid "E-Mail-Adresse der neuen Inhaber:in"
 msgstr "Adresse e-mail du nouveau titulaire"
 
-#: src/Mail/Types.php:442
+#: src/Mail/Types.php:461
 msgid "Ticketübertragung abgeschlossen"
 msgstr "Transfert de ticket terminé"
 
 #. translators: 1: event, 2: recipient e-mail
-#: src/Mail/Types.php:444
+#: src/Mail/Types.php:463
 #, php-format
 msgid "Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig."
 msgstr "Votre ticket pour %1$s a été transféré à %2$s. L’ancien code du ticket n’est plus valide."
 
-#: src/Mail/Types.php:449
+#: src/Mail/Types.php:468
 msgid "Neues Ticket nach einem Umtausch (anderer Termin oder andere Ticketart); der bisherige Code ist ungültig."
 msgstr "Nouveau ticket après un échange (autre date ou autre type de ticket) ; l’ancien code n’est plus valide."
 
-#: src/Mail/Types.php:451
+#: src/Mail/Types.php:470
 msgid "Bisheriges Event"
 msgstr "Événement précédent"
 
-#: src/Mail/Types.php:452
+#: src/Mail/Types.php:471
 msgid "Bisherige Ticketart"
 msgstr "Type de ticket précédent"
 
-#: src/Mail/Types.php:453
-#: src/Mail/Types.php:681
+#: src/Mail/Types.php:472
+#: src/Mail/Types.php:700
 msgid "Bisheriger Beginn mit Zeitzone"
 msgstr "Début précédent avec fuseau horaire"
 
-#: src/Mail/Types.php:454
+#: src/Mail/Types.php:473
 msgid "Sitzplatz (leer ohne Saalplan)"
 msgstr "Place (vide sans plan de salle)"
 
-#: src/Mail/Types.php:455
+#: src/Mail/Types.php:474
 msgid "Zeile „Sitzplatz: …“ mit Zeilenumbruch (leer ohne Saalplan)"
 msgstr "Ligne « Place : … » avec saut de ligne (vide sans plan de salle)"
 
-#: src/Mail/Types.php:456
+#: src/Mail/Types.php:475
 msgid "Hinweis zu Aufpreis, Gebühr oder Erstattung mit Zeilenumbruch (leer ohne Preisdifferenz)"
 msgstr "Information sur le supplément, les frais ou le remboursement avec saut de ligne (vide sans différence de prix)"
 
-#: src/Mail/Types.php:457
+#: src/Mail/Types.php:476
 msgid "Link zum neuen Ticket"
 msgstr "Lien vers le nouveau ticket"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:462
+#: src/Mail/Types.php:481
 #, php-format
 msgid "Dein Ticket wurde umgetauscht – %s"
 msgstr "Votre ticket a été échangé – %s"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:465
+#: src/Mail/Types.php:484
 msgid "Dein Ticket wurde umgetauscht."
 msgstr "Votre ticket a été échangé."
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:465
+#: src/Mail/Types.php:484
 #, php-format
 msgid "Bisher: %1$s — %2$s (%3$s)"
 msgstr "Précédemment : %1$s — %2$s (%3$s)"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:465
+#: src/Mail/Types.php:484
 msgid "Neu:"
 msgstr "Nouveau :"
 
 #. translators: 1: previous event, 2: previous ticket type, 3: previous date
-#: src/Mail/Types.php:465
+#: src/Mail/Types.php:484
 msgid "Der bisherige Ticketcode ist ab sofort ungültig. Bitte verwende nur noch das neue Ticket."
 msgstr "L’ancien code du ticket n’est plus valide dès maintenant. Veuillez utiliser uniquement le nouveau ticket."
 
-#: src/Mail/Types.php:472
+#: src/Mail/Types.php:491
 msgid "Teilnehmerzuweisung: Teilnehmer:in"
 msgstr "Attribution à un participant : participant"
 
-#: src/Mail/Types.php:473
+#: src/Mail/Types.php:492
 msgid "Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat."
 msgstr "Ticket pour une personne à qui l’acheteur a attribué un ticket."
 
-#: src/Mail/Types.php:475
-#: src/Mail/Types.php:491
+#: src/Mail/Types.php:494
+#: src/Mail/Types.php:510
 msgid "Name der Teilnehmer:in"
 msgstr "Nom du participant"
 
-#: src/Mail/Types.php:476
-#: src/Mail/Types.php:492
+#: src/Mail/Types.php:495
+#: src/Mail/Types.php:511
 msgid "E-Mail-Adresse der Teilnehmer:in"
 msgstr "Adresse e-mail du participant"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:482
+#: src/Mail/Types.php:501
 #, php-format
 msgid "Dein Ticket für %s"
 msgstr "Votre ticket pour %s"
 
 #. translators: %s: attendee name
-#: src/Mail/Types.php:484
+#: src/Mail/Types.php:503
 #, php-format
 msgid "Teilnehmer: %s"
 msgstr "Participant : %s"
 
-#: src/Mail/Types.php:488
+#: src/Mail/Types.php:507
 msgid "Teilnehmerzuweisung: Käufer:in"
 msgstr "Attribution à un participant : acheteur"
 
-#: src/Mail/Types.php:489
+#: src/Mail/Types.php:508
 msgid "Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist."
 msgstr "Information à l’acheteur que l’ancien code d’un ticket attribué n’est plus valide."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:496
+#: src/Mail/Types.php:515
 #, php-format
 msgid "Ticket zugewiesen – %s"
 msgstr "Ticket attribué – %s"
 
 #. translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email
-#: src/Mail/Types.php:498
+#: src/Mail/Types.php:517
 #, php-format
 msgid "Das Ticket %1$s (%2$s) wurde %3$s (%4$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig."
 msgstr "Le ticket %1$s (%2$s) a été attribué à %3$s (%4$s). Le nouveau code du ticket a été envoyé à cette adresse ; l’ancien code de ce ticket n’est plus valide."
 
-#: src/Mail/Types.php:502
+#: src/Mail/Types.php:521
 msgid "Erstattungsbestätigung"
 msgstr "Confirmation de remboursement"
 
-#: src/Mail/Types.php:503
+#: src/Mail/Types.php:522
 msgid "Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen)."
 msgstr "Confirmation d’un remboursement effectué (pas pour les commandes WooCommerce)."
 
-#: src/Mail/Types.php:506
+#: src/Mail/Types.php:525
 msgid "Erstatteter Betrag mit Währung"
 msgstr "Montant remboursé avec devise"
 
-#: src/Mail/Types.php:507
+#: src/Mail/Types.php:526
 msgid "Anzahl ungültig gewordener Tickets"
 msgstr "Nombre de tickets devenus invalides"
 
-#: src/Mail/Types.php:508
+#: src/Mail/Types.php:527
 msgid "Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)"
 msgstr "Phrase sur les tickets devenus invalides avec saut de ligne (vide s’il n’y en a pas)"
 
-#: src/Mail/Types.php:509
+#: src/Mail/Types.php:528
 msgid "Nummer der Rechnungskorrektur"
 msgstr "Numéro de la facture rectificative"
 
-#: src/Mail/Types.php:510
+#: src/Mail/Types.php:529
 msgid "Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)"
 msgstr "Ligne « Facture rectificative : … » avec saut de ligne (vide sans facture rectificative)"
 
-#: src/Mail/Types.php:511
+#: src/Mail/Types.php:530
 msgid "Grund der Erstattung"
 msgstr "Motif du remboursement"
 
-#: src/Mail/Types.php:512
+#: src/Mail/Types.php:531
 msgid "Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)"
 msgstr "Phrase d’introduction adaptée au mode de paiement (« nous avons remboursé … » ou « nous vous rembourserons … par virement »)"
 
-#: src/Mail/Types.php:513
+#: src/Mail/Types.php:532
 msgid "Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)"
 msgstr "Information sur le versement selon le mode de paiement (recrédit sur la carte, en espèces à la caisse, virement sur l’IBAN ou demande d’IBAN)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:516
+#: src/Mail/Types.php:535
 #, php-format
 msgid "Erstattung bestätigt – %s"
 msgstr "Remboursement confirmé – %s"
 
-#: src/Mail/Types.php:536
+#: src/Mail/Types.php:555
 msgid "Stornierungsanfrage eingegangen"
 msgstr "Demande d’annulation reçue"
 
-#: src/Mail/Types.php:537
+#: src/Mail/Types.php:556
 msgid "Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung)."
 msgstr "Confirmation à l’acheteur que sa demande d’annulation depuis le portail de commande a été reçue et est en cours d’examen (pas encore de remboursement)."
 
-#: src/Mail/Types.php:540
-#: src/Mail/Types.php:562
+#: src/Mail/Types.php:559
+#: src/Mail/Types.php:581
 msgid "Anzahl angefragter Tickets"
 msgstr "Nombre de tickets demandés"
 
-#: src/Mail/Types.php:541
+#: src/Mail/Types.php:560
 msgid "Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)"
 msgstr "Tickets demandés, un par ligne (événement, type de ticket, date)"
 
-#: src/Mail/Types.php:542
+#: src/Mail/Types.php:561
 msgid "Voraussichtlicher Erstattungsbetrag mit Währung"
 msgstr "Montant prévisionnel du remboursement avec devise"
 
-#: src/Mail/Types.php:543
+#: src/Mail/Types.php:562
 msgid "Angegebener Grund (leer, wenn keiner)"
 msgstr "Motif indiqué (vide si aucun)"
 
-#: src/Mail/Types.php:544
+#: src/Mail/Types.php:563
 msgid "Persönlicher Link zur Bestellung (Status der Anfrage)"
 msgstr "Lien personnel vers la commande (statut de la demande)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:547
-#: src/Mail/Types.php:565
+#: src/Mail/Types.php:566
+#: src/Mail/Types.php:584
 #, php-format
 msgid "Deine Stornierungsanfrage – %s"
 msgstr "Votre demande d’annulation – %s"
 
 #. translators: 1: short order number, 2: amount
-#: src/Mail/Types.php:550
+#: src/Mail/Types.php:569
 #, php-format
 msgid "Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s."
 msgstr "Nous avons bien reçu votre demande d’annulation pour la commande %1$s. Remboursement prévisionnel : %2$s."
 
-#: src/Mail/Types.php:551
+#: src/Mail/Types.php:570
 msgid "Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:"
 msgstr "Vos tickets restent valables jusqu’à ce que nous ayons examiné la demande. Si elle est acceptée, les tickets deviennent invalides et vous recevez une confirmation de remboursement. Vous pouvez suivre l’état de la demande à tout moment dans votre commande :"
 
-#: src/Mail/Types.php:558
+#: src/Mail/Types.php:577
 msgid "Stornierungsanfrage abgelehnt"
 msgstr "Demande d’annulation refusée"
 
-#: src/Mail/Types.php:559
+#: src/Mail/Types.php:578
 msgid "Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig)."
 msgstr "Information à l’acheteur indiquant que sa demande d’annulation depuis le portail de commande n’a pas été acceptée (les tickets restent valables)."
 
 #. translators: %s: short order number
-#: src/Mail/Types.php:567
+#: src/Mail/Types.php:586
 #, php-format
 msgid "Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter."
 msgstr "Votre demande d’annulation pour la commande %s n’a pas été acceptée. Vos tickets restent valables. Pour toute question, veuillez contacter l’organisateur."
 
-#: src/Mail/Types.php:572
+#: src/Mail/Types.php:591
 msgid "Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird."
 msgstr "Information aux acheteurs et aux titulaires de tickets lorsqu’un événement entier est annulé."
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:574
+#: src/Mail/Types.php:593
 #, php-format
 msgid "Eventabsage: %s"
 msgstr "Événement annulé : %s"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:575
+#: src/Mail/Types.php:594
 #, php-format
 msgid "Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung."
 msgstr "L’événement « %s » a été annulé. Veuillez contacter l’organisateur pour obtenir des informations sur les prochaines étapes. Ce message ne constitue pas une confirmation de remboursement."
 
-#: src/Mail/Types.php:580
+#: src/Mail/Types.php:599
 msgid "Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird."
 msgstr "Information aux titulaires de tickets lorsqu’une date isolée est annulée."
 
-#: src/Mail/Types.php:583
+#: src/Mail/Types.php:602
 msgid "Datum und Uhrzeit des Termins"
 msgstr "Date et heure de la date"
 
-#: src/Mail/Types.php:586
+#: src/Mail/Types.php:605
 msgid "Hinweis zur Erstattung (automatisch oder durch den Veranstalter)"
 msgstr "Information sur le remboursement (automatique ou par l’organisateur)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:589
+#: src/Mail/Types.php:608
 #, php-format
 msgid "Absage: %s"
 msgstr "Annulation : %s"
 
 #. translators: 1: event, 2: date and time, 3: refund note
-#: src/Mail/Types.php:591
+#: src/Mail/Types.php:610
 #, php-format
 msgid ""
 "Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
@@ -19196,53 +19211,53 @@ msgstr ""
 "\n"
 "%3$s"
 
-#: src/Mail/Types.php:592
-#: src/Mail/Types.php:594
+#: src/Mail/Types.php:611
+#: src/Mail/Types.php:613
 #: src/OccurrenceCancellation.php:197
 #: src/Passes/Cancellation.php:306
 msgid "Der Ticketpreis wird automatisch erstattet."
 msgstr "Le prix du ticket sera remboursé automatiquement."
 
-#: src/Mail/Types.php:594
+#: src/Mail/Types.php:613
 #: src/OccurrenceCancellation.php:197
 #: src/Passes/Cancellation.php:306
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
 msgstr "L’organisateur vous informera du remboursement ou de la date de remplacement."
 
-#: src/Mail/Types.php:597
+#: src/Mail/Types.php:616
 msgid "Terminänderung"
 msgstr "Modification de date"
 
-#: src/Mail/Types.php:598
+#: src/Mail/Types.php:617
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
 msgstr "Information aux titulaires de tickets lorsqu’une date est reportée."
 
-#: src/Mail/Types.php:601
-#: src/Mail/Types.php:623
+#: src/Mail/Types.php:620
+#: src/Mail/Types.php:642
 msgid "Bisheriges Datum und Uhrzeit"
 msgstr "Ancienne date et heure"
 
-#: src/Mail/Types.php:602
+#: src/Mail/Types.php:621
 msgid "Neues Datum und Uhrzeit"
 msgstr "Nouvelle date et heure"
 
-#: src/Mail/Types.php:605
+#: src/Mail/Types.php:624
 msgid "Erstattungshinweis mit Frist (Einstellungen → Erstattungen); ohne Antragsmöglichkeit der Hinweis, sich an den Veranstalter zu wenden"
 msgstr "Mention de remboursement avec échéance (Réglages → Remboursements) ; sans possibilité de demande, la mention invitant à contacter l’organisateur"
 
-#: src/Mail/Types.php:606
-#: src/Mail/Types.php:626
+#: src/Mail/Types.php:625
+#: src/Mail/Types.php:645
 msgid "Link zur aktualisierten Kalenderdatei (.ics)"
 msgstr "Lien vers le fichier de calendrier mis à jour (.ics)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:609
+#: src/Mail/Types.php:628
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Modification de date : %s"
 
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note
-#: src/Mail/Types.php:611
+#: src/Mail/Types.php:630
 #, php-format
 msgid ""
 "Der Termin für „%1$s“ wurde verschoben.\n"
@@ -19261,39 +19276,39 @@ msgstr ""
 "\n"
 "Votre billet reste valable. %6$s"
 
-#: src/Mail/Types.php:614
+#: src/Mail/Types.php:633
 #: src/RescheduleRefunds.php:64
 msgid "Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
 msgstr "Pour toute question concernant un retour ou un remboursement, veuillez contacter l’organisateur."
 
-#: src/Mail/Types.php:617
+#: src/Mail/Types.php:636
 msgid "Termindetails geändert"
 msgstr "Détails de la date modifiés"
 
-#: src/Mail/Types.php:618
+#: src/Mail/Types.php:637
 msgid "Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt."
 msgstr "Information aux titulaires des tickets lorsque le lieu, la fin, l’entrée ou le pays de l’événement d’une date changent – y compris avec une nouvelle heure (elle remplace alors l’e-mail « Modification de date »). Au maximum une fois par modification ; le fichier de calendrier mis à jour est joint."
 
-#: src/Mail/Types.php:621
+#: src/Mail/Types.php:640
 msgid "Liste der Änderungen (bisher → neu), eine Zeile je Angabe"
 msgstr "Liste des modifications (ancien → nouveau), une ligne par information"
 
-#: src/Mail/Types.php:622
+#: src/Mail/Types.php:641
 msgid "Aktuelles Datum und Uhrzeit"
 msgstr "Date et heure actuelles"
 
-#: src/Mail/Types.php:625
+#: src/Mail/Types.php:644
 msgid "Aktueller Ort"
 msgstr "Lieu actuel"
 
 #. translators: %s: event
-#: src/Mail/Types.php:629
+#: src/Mail/Types.php:648
 #, php-format
 msgid "Geänderte Termindetails: %s"
 msgstr "Détails de la date modifiés : %s"
 
 #. translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file
-#: src/Mail/Types.php:631
+#: src/Mail/Types.php:650
 #, php-format
 msgid ""
 "Für deinen Termin „%1$s“ haben sich Angaben geändert:\n"
@@ -19316,66 +19331,66 @@ msgstr ""
 "Votre ticket reste valable. Le fichier de calendrier mis à jour est joint ; vous pouvez aussi le télécharger ici : %6$s\n"
 "Pour toute question concernant un retour ou un remboursement, veuillez contacter l’organisateur."
 
-#: src/Mail/Types.php:635
+#: src/Mail/Types.php:654
 msgid "Warteliste: Eintragung"
 msgstr "Liste d’attente : inscription"
 
-#: src/Mail/Types.php:636
+#: src/Mail/Types.php:655
 msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr "Confirmation de l’inscription sur la liste d’attente."
 
-#: src/Mail/Types.php:639
-#: src/Mail/Types.php:663
+#: src/Mail/Types.php:658
+#: src/Mail/Types.php:682
 msgid "Gewünschte Anzahl"
 msgstr "Nombre souhaité"
 
-#: src/Mail/Types.php:642
-#: src/Mail/Types.php:685
-#: src/Mail/Types.php:725
+#: src/Mail/Types.php:661
+#: src/Mail/Types.php:704
+#: src/Mail/Types.php:744
 msgid "Persönlicher Link zum Austragen aus der Warteliste"
 msgstr "Lien personnel pour se désinscrire de la liste d’attente"
 
 #. translators: Keep the placeholder {unsubscribe_link} unchanged.
-#: src/Mail/Types.php:644
-#: src/Mail/Types.php:687
-#: src/Mail/Types.php:727
+#: src/Mail/Types.php:663
+#: src/Mail/Types.php:706
+#: src/Mail/Types.php:746
 msgid "Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})"
 msgstr "Lien de désinscription (ancienne désignation, comme {unsubscribe_link})"
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:649
+#: src/Mail/Types.php:668
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "Vous êtes inscrit(e) sur la liste d’attente (position %d). Nous vous écrirons dès qu’une place se libérera."
 
-#: src/Mail/Types.php:657
+#: src/Mail/Types.php:676
 msgid "Warteliste: E-Mail-Bestätigung"
 msgstr "Liste d’attente : confirmation par e-mail"
 
-#: src/Mail/Types.php:658
+#: src/Mail/Types.php:677
 msgid "Bestätigungslink nach der Eintragung (Double-Opt-in). Erst nach der Bestätigung steht die Person auf der Warteliste; unbestätigte Eintragungen werden gelöscht."
 msgstr "Lien de confirmation après l’inscription (double opt-in). La personne ne figure sur la liste d’attente qu’après confirmation ; les inscriptions non confirmées sont supprimées."
 
-#: src/Mail/Types.php:660
+#: src/Mail/Types.php:679
 msgid "Persönlicher Bestätigungslink"
 msgstr "Lien de confirmation personnel"
 
-#: src/Mail/Types.php:661
+#: src/Mail/Types.php:680
 msgid "Ablauf des Bestätigungslinks"
 msgstr "Expiration du lien de confirmation"
 
-#: src/Mail/Types.php:662
+#: src/Mail/Types.php:681
 msgid "Gültigkeit des Bestätigungslinks in Stunden"
 msgstr "Validité du lien de confirmation en heures"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:668
+#: src/Mail/Types.php:687
 #, php-format
 msgid "Bitte bestätige deinen Wartelistenplatz: %s"
 msgstr "Veuillez confirmer votre place sur la liste d’attente : %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: date, 5: location, 6: confirmation link, 7: expiry
-#: src/Mail/Types.php:670
+#: src/Mail/Types.php:689
 #, php-format
 msgid ""
 "Du möchtest auf die Warteliste für %1$s × „%2$s“ bei „%3$s“ (%4$s, %5$s).\n"
@@ -19392,34 +19407,34 @@ msgstr ""
 "\n"
 "Vous ne figurerez sur la liste d’attente qu’après confirmation. Le lien est valable jusqu’au %7$s ; ensuite, l’inscription sera supprimée. Si vous ne vous êtes pas inscrit(e), vous n’avez rien à faire."
 
-#: src/Mail/Types.php:676
+#: src/Mail/Types.php:695
 msgid "Warteliste: Termin geändert"
 msgstr "Liste d’attente : date modifiée"
 
-#: src/Mail/Types.php:677
+#: src/Mail/Types.php:696
 msgid "Information an Wartende und Personen mit offenem Angebot, wenn Beginn oder Ort des Termins geändert wurden."
 msgstr "Information aux personnes en attente et aux personnes ayant une proposition en cours lorsque le début ou le lieu de la date a été modifié."
 
-#: src/Mail/Types.php:682
+#: src/Mail/Types.php:701
 msgid "Bisheriger Ort"
 msgstr "Ancien lieu"
 
-#: src/Mail/Types.php:683
+#: src/Mail/Types.php:702
 msgid "Gewünschte bzw. reservierte Anzahl"
 msgstr "Nombre souhaité ou réservé"
 
-#: src/Mail/Types.php:684
+#: src/Mail/Types.php:703
 msgid "Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)"
 msgstr "Phrase sur la situation (reste sur la liste d’attente ou la proposition reste valable)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:690
+#: src/Mail/Types.php:709
 #, php-format
 msgid "Geänderter Termin auf deiner Warteliste: %s"
 msgstr "Date modifiée sur votre liste d’attente : %s"
 
 #. translators: 1: event, 2: ticket type, 3: old date, 4: old location, 5: new date, 6: new location, 7: status sentence
-#: src/Mail/Types.php:693
+#: src/Mail/Types.php:712
 #, php-format
 msgid ""
 "Für „%1$s“ (%2$s), auf dessen Warteliste du stehst, haben sich Angaben geändert.\n"
@@ -19436,31 +19451,31 @@ msgstr ""
 "\n"
 "%7$s"
 
-#: src/Mail/Types.php:698
+#: src/Mail/Types.php:717
 #: src/Waitlists.php:1648
 msgid "Du bleibst auf der Warteliste."
 msgstr "Vous restez sur la liste d’attente."
 
-#: src/Mail/Types.php:701
+#: src/Mail/Types.php:720
 msgid "Warteliste: geschlossen"
 msgstr "Liste d’attente : clôturée"
 
-#: src/Mail/Types.php:702
+#: src/Mail/Types.php:721
 msgid "Der Wartelistenplatz endet, weil der Termin abgesagt wurde, begonnen hat oder der Verkauf beendet ist."
 msgstr "La place sur la liste d’attente prend fin parce que la date a été annulée, a commencé ou que la vente est terminée."
 
-#: src/Mail/Types.php:706
+#: src/Mail/Types.php:725
 msgid "Grund (Absage oder Ende)"
 msgstr "Motif (annulation ou fin)"
 
 #. translators: %s: event name placeholder
-#: src/Mail/Types.php:709
+#: src/Mail/Types.php:728
 #, php-format
 msgid "Warteliste beendet: %s"
 msgstr "Liste d’attente terminée : %s"
 
 #. translators: 1: event, 2: ticket type, 3: reason
-#: src/Mail/Types.php:711
+#: src/Mail/Types.php:730
 #, php-format
 msgid ""
 "Dein Platz auf der Warteliste für „%1$s“ (%2$s) ist beendet. %3$s\n"
@@ -19471,35 +19486,35 @@ msgstr ""
 "\n"
 "Vous n’avez rien d’autre à faire ; nous ne vous écrirons plus au sujet de cette date."
 
-#: src/Mail/Types.php:712
+#: src/Mail/Types.php:731
 #: src/Waitlists.php:1698
 msgid "Der Termin wurde abgesagt."
 msgstr "La date a été annulée."
 
-#: src/Mail/Types.php:715
+#: src/Mail/Types.php:734
 msgid "Warteliste: Platzangebot"
 msgstr "Liste d’attente : proposition de place"
 
-#: src/Mail/Types.php:716
+#: src/Mail/Types.php:735
 msgid "Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert."
 msgstr "Proposition à la personne suivante sur la liste d’attente ; les tickets sont réservés jusqu’à l’expiration."
 
-#: src/Mail/Types.php:720
+#: src/Mail/Types.php:739
 msgid "Link zum Ablehnen (optional; sonst über den Annahme-Link)"
 msgstr "Lien de refus (facultatif ; sinon via le lien d’acceptation)"
 
-#: src/Mail/Types.php:721
+#: src/Mail/Types.php:740
 msgid "Anzahl der reservierten Tickets"
 msgstr "Nombre de tickets réservés"
 
 #. translators: %s: event
-#: src/Mail/Types.php:730
+#: src/Mail/Types.php:749
 #, php-format
 msgid "Tickets für dich reserviert: %s"
 msgstr "Tickets réservés pour vous : %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link
-#: src/Mail/Types.php:733
+#: src/Mail/Types.php:752
 #, php-format
 msgid ""
 "Gute Nachrichten: Für dich sind %1$s × „%2$s“ für „%3$s“ reserviert.\n"
@@ -19517,40 +19532,40 @@ msgstr ""
 "Si vous n’avez plus besoin des tickets, vous pouvez refuser l’offre via le même lien."
 
 #. translators: 1: date and time with time zone, 2: location
-#: src/Mail/Types.php:736
+#: src/Mail/Types.php:755
 #, php-format
 msgid "Termin: %1$s, %2$s"
 msgstr "Date : %1$s, %2$s"
 
-#: src/Mail/Types.php:744
+#: src/Mail/Types.php:763
 #: src/Reports/Page.php:241
 msgid "Mitgliedspass"
 msgstr "Carte de membre"
 
-#: src/Mail/Types.php:745
+#: src/Mail/Types.php:764
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr "Code de la carte d’un abonnement ou d’un pass multi-entrées."
 
-#: src/Mail/Types.php:747
+#: src/Mail/Types.php:766
 msgid "Passcode"
 msgstr "Code de la carte"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:752
+#: src/Mail/Types.php:771
 #, php-format
 msgid "Dein Pass für %s"
 msgstr "Votre pass pour %s"
 
-#: src/Mail/Types.php:753
+#: src/Mail/Types.php:772
 msgid "Dein Passcode:"
 msgstr "Votre code de pass :"
 
-#: src/Mail/Types.php:753
+#: src/Mail/Types.php:772
 msgid "Gültig bis:"
 msgstr "Valable jusqu’au :"
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:763
+#: src/Mail/Types.php:782
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -19558,29 +19573,29 @@ msgstr[0] "%d ticket est de ce fait invalide."
 msgstr[1] "%d tickets sont de ce fait invalides."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:776
+#: src/Mail/Types.php:795
 #, php-format
 msgid "Aufpreis bezahlt: %s"
 msgstr "Supplément payé : %s"
 
 #. translators: %s: amount
-#: src/Mail/Types.php:778
+#: src/Mail/Types.php:797
 #, php-format
 msgid "Die Preisdifferenz von %s wird erstattet."
 msgstr "La différence de prix de %s sera remboursée."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:780
+#: src/Mail/Types.php:799
 #, php-format
 msgid "Die Erstattung der Preisdifferenz von %s wird geprüft."
 msgstr "Le remboursement de la différence de prix de %s est en cours d’examen."
 
-#: src/Mail/Types.php:781
+#: src/Mail/Types.php:800
 msgid "Der Umtausch erfolgte aus Kulanz ohne Aufpreis."
 msgstr "L’échange a été effectué à titre de geste commercial, sans supplément."
 
 #. translators: %s: personal unsubscribe link
-#: src/Mail/Types.php:792
+#: src/Mail/Types.php:811
 #, php-format
 msgid ""
 "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n"
@@ -19590,7 +19605,7 @@ msgstr ""
 "%s"
 
 #. translators: %s: credit note number
-#: src/Mail/Types.php:798
+#: src/Mail/Types.php:817
 #, php-format
 msgid "Rechnungskorrektur: %s"
 msgstr "Facture rectificative : %s"
@@ -23389,6 +23404,7 @@ msgstr "Une ligne de ticket n’est pas valide."
 #: src/ServiceBookings.php:746
 #: src/ServiceBookings.php:760
 #: src/ServiceBookings.php:859
+#: src/Services/NoShowFees.php:275
 #: src/Waitlists.php:994
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Ce mode de paiement n’est pas disponible."
@@ -23528,61 +23544,61 @@ msgstr "%1$s Veuillez réessayer. Si le problème persiste, veuillez nous commun
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Le paiement n’a pas pu être enregistré pour le moment. Veuillez réessayer."
 
-#: src/Orders/Payment.php:324
+#: src/Orders/Payment.php:327
 msgid "Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden."
 msgstr "La réservation avait expiré et les tickets ne peuvent plus être émis. La commande doit être régularisée manuellement."
 
-#: src/Orders/Payment.php:352
+#: src/Orders/Payment.php:355
 msgid "Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf."
 msgstr "La date ou l’événement a été annulé entre-temps ou n’est plus en vente."
 
-#: src/Orders/Payment.php:354
+#: src/Orders/Payment.php:357
 msgid "Der Termin ist bereits vorbei."
 msgstr "La date est déjà passée."
 
-#: src/Orders/Payment.php:356
+#: src/Orders/Payment.php:359
 msgid "Die Ticketart ist nicht mehr vorhanden."
 msgstr "Le type de ticket n’existe plus."
 
-#: src/Orders/Payment.php:358
+#: src/Orders/Payment.php:361
 msgid "Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft."
 msgstr "La limite d’utilisation du code de réduction a été atteinte entre-temps."
 
-#: src/Orders/Payment.php:361
+#: src/Orders/Payment.php:364
 msgid "Die maximale Anzahl an Tickets pro Person wäre überschritten."
 msgstr "Le nombre maximal de tickets par personne serait dépassé."
 
-#: src/Orders/Payment.php:363
+#: src/Orders/Payment.php:366
 msgid "Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf."
 msgstr "La date a été annulée ou est passée entre-temps, ou le type de ticket n’est plus en vente."
 
-#: src/Orders/Payment.php:365
+#: src/Orders/Payment.php:368
 msgid "Die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei."
 msgstr "Les places assises ont été attribuées entre-temps et il n’y a plus de places adaptées disponibles."
 
-#: src/Orders/Payment.php:367
+#: src/Orders/Payment.php:370
 msgid "Der Gutschein der Bestellung wurde mit Ablauf der Reservierung freigegeben und konnte nicht erneut reserviert werden; die Zahlung deckt nur den Betrag nach Gutscheinabzug."
 msgstr "Le bon de la commande a été libéré à l’expiration de la réservation et n’a pas pu être réservé à nouveau ; le paiement ne couvre que le montant après déduction du bon."
 
-#: src/Orders/Payment.php:369
+#: src/Orders/Payment.php:372
 msgid "Es ist kein Kontingent mehr frei."
 msgstr "Il n’y a plus de contingent disponible."
 
 #. translators: 1: order number, 2: payment reference, 3: reason
-#: src/Orders/Payment.php:382
+#: src/Orders/Payment.php:385
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s"
 msgstr "Le paiement de la commande %1$s (référence %2$s) est arrivé après l’expiration de la réservation. Aucun ticket n’a été émis : %3$s"
 
-#: src/Orders/Payment.php:388
+#: src/Orders/Payment.php:391
 msgid "Die Zahlung wird automatisch erstattet."
 msgstr "Le paiement sera remboursé automatiquement."
 
-#: src/Orders/Payment.php:389
+#: src/Orders/Payment.php:392
 msgid "Bitte manuell klären (Zuteilung erneut versuchen oder erstatten)."
 msgstr "Veuillez régulariser manuellement (relancer l’attribution ou rembourser)."
 
-#: src/Orders/Payment.php:392
+#: src/Orders/Payment.php:395
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr "Pass Captain : commande payée sans tickets"
 
@@ -31254,7 +31270,7 @@ msgstr "Paiement reçu, rendez-vous plus disponible : %s"
 #. translators: %d: places
 #: src/ServiceBookingFlow.php:176
 #: src/ServiceBookingFlow.php:523
-#: src/Services/Portal.php:160
+#: src/Services/Portal.php:165
 #, php-format
 msgid "%d Platz"
 msgid_plural "%d Plätze"
@@ -31724,44 +31740,45 @@ msgid "Zeitfenster mit aktiven Buchungen können nicht gelöscht werden. Bitte s
 msgstr "Les créneaux avec des réservations actives ne peuvent pas être supprimés. Veuillez plutôt les fermer."
 
 #: src/Services/Api.php:68
-#: src/Services/Portal.php:130
+#: src/Services/NoShowFees.php:269
+#: src/Services/Portal.php:135
 msgid "Der Zugriff ist ungültig oder abgelaufen."
 msgstr "L’accès n’est pas valide ou a expiré."
 
-#: src/Services/Portal.php:47
-#: src/Services/Portal.php:49
+#: src/Services/Portal.php:48
+#: src/Services/Portal.php:50
 msgid "Eintragung in die Warteliste bestätigen"
 msgstr "Confirmer l’inscription sur la liste d’attente"
 
-#: src/Services/Portal.php:47
+#: src/Services/Portal.php:48
 msgid "Bitte bestätige, dass du auf die Warteliste möchtest. Erst danach bekommst du eine Position und Angebote für frei werdende Plätze."
 msgstr "Veuillez confirmer que vous souhaitez rejoindre la liste d’attente. Ce n’est qu’ensuite que vous obtiendrez une position et des propositions pour les places qui se libèrent."
 
-#: src/Services/Portal.php:47
-#: src/Services/Portal.php:49
+#: src/Services/Portal.php:48
+#: src/Services/Portal.php:50
 msgid "Eintragung bestätigen"
 msgstr "Confirmer l’inscription"
 
-#: src/Services/Portal.php:49
+#: src/Services/Portal.php:50
 msgid "Bitte bestätige, dass du auf die Warteliste möchtest. Erst danach bekommst du eine Position und Angebote für frei werdende Tickets."
 msgstr "Veuillez confirmer que vous souhaitez rejoindre la liste d’attente. Ce n’est qu’ensuite que vous obtiendrez une position et des propositions pour les tickets qui se libèrent."
 
-#: src/Services/Portal.php:53
+#: src/Services/Portal.php:54
 msgid "Wartelistenangebot ablehnen"
 msgstr "Refuser la proposition de la liste d’attente"
 
-#: src/Services/Portal.php:53
+#: src/Services/Portal.php:54
 msgid "Möchtest du das Angebot ablehnen? Das Ticket geht dann an die nächste Person auf der Warteliste."
 msgstr "Voulez-vous refuser la proposition ? Le ticket ira alors à la personne suivante sur la liste d’attente."
 
-#: src/Services/Portal.php:53
-#: src/Services/Portal.php:218
+#: src/Services/Portal.php:54
+#: src/Services/Portal.php:223
 #: src/Waitlists.php:1814
 msgid "Angebot ablehnen"
 msgstr "Refuser la proposition"
 
-#: src/Services/Portal.php:55
-#: src/Services/Portal.php:221
+#: src/Services/Portal.php:58
+#: src/Services/Portal.php:226
 #: src/Waitlists.php:1429
 #: src/Waitlists.php:1492
 #: src/Waitlists.php:1511
@@ -31769,140 +31786,140 @@ msgstr "Refuser la proposition"
 msgid "Von der Warteliste austragen"
 msgstr "Se désinscrire de la liste d’attente"
 
-#: src/Services/Portal.php:55
+#: src/Services/Portal.php:58
 msgid "Möchtest du dich von der Warteliste austragen?"
 msgstr "Voulez-vous vous désinscrire de la liste d’attente ?"
 
-#: src/Services/Portal.php:55
+#: src/Services/Portal.php:58
 msgid "Austragen"
 msgstr "Se désinscrire"
 
 #. translators: %d: places
-#: src/Services/Portal.php:160
+#: src/Services/Portal.php:165
 msgid "Status:"
 msgstr "Statut :"
 
 #. translators: %s: formatted amount
 #: src/Frontend/ServiceBooking.php:152
-#: src/Services/Portal.php:168
+#: src/Services/Portal.php:173
 #, php-format
 msgid "Zuzahlung %s"
 msgstr "Supplément %s"
 
 #. translators: %s: deadline
-#: src/Services/Portal.php:175
+#: src/Services/Portal.php:180
 #, php-format
 msgid "Umbuchen bis %s möglich."
 msgstr "Modification possible jusqu’au %s."
 
 #. translators: 1: amount, 2: new slot (resource and date), 3: deadline
 #: src/Frontend/ServiceBooking.php:156
-#: src/Services/Portal.php:180
+#: src/Services/Portal.php:185
 #, php-format
 msgid "Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen."
 msgstr "Changement de réservation en attente : supplément de %1$s pour %2$s à payer jusqu’au %3$s. D’ici là, ta réservation actuelle est maintenue."
 
 #: src/Frontend/ServiceBooking.php:157
-#: src/Services/Portal.php:181
-#: src/Services/Portal.php:244
+#: src/Services/Portal.php:186
+#: src/Services/Portal.php:250
 msgid "Zuzahlung jetzt bezahlen"
 msgstr "Payer le supplément maintenant"
 
 #. translators: %s: deadline
-#: src/Services/Portal.php:186
+#: src/Services/Portal.php:191
 #, php-format
 msgid "Kostenlose Stornierung mit Erstattung bis %s."
 msgstr "Annulation gratuite avec remboursement jusqu’au %s."
 
-#: src/Services/Portal.php:196
+#: src/Services/Portal.php:201
 msgid "Buchung verbindlich bestätigen"
 msgstr "Confirmer la réservation de manière ferme"
 
 #. translators: %d: position
-#: src/Services/Portal.php:211
+#: src/Services/Portal.php:216
 #, php-format
 msgid "Position %d"
 msgstr "Position %d"
 
 #. translators: %s: expiry
-#: src/Services/Portal.php:216
+#: src/Services/Portal.php:221
 #, php-format
 msgid "Die Plätze sind bis %s für dich reserviert."
 msgstr "Les places vous sont réservées jusqu’au %s."
 
-#: src/Services/Portal.php:217
+#: src/Services/Portal.php:222
 #: src/Waitlists.php:1814
 msgid "Angebot annehmen"
 msgstr "Accepter la proposition"
 
-#: src/Services/Portal.php:227
+#: src/Services/Portal.php:232
 msgid "Nicht möglich"
 msgstr "Impossible"
 
-#: src/Services/Portal.php:230
+#: src/Services/Portal.php:235
 msgid "Die Buchung wurde storniert. Eine Bestätigung ist unterwegs; eine Erstattung wird automatisch veranlasst."
 msgstr "La réservation a été annulée. Une confirmation est en route ; un remboursement sera déclenché automatiquement."
 
-#: src/Services/Portal.php:231
+#: src/Services/Portal.php:236
 msgid "Deine Buchung ist bestätigt. Eine Bestätigung ist per E-Mail unterwegs."
 msgstr "Votre réservation est confirmée. Une confirmation est en route par e-mail."
 
-#: src/Services/Portal.php:232
+#: src/Services/Portal.php:237
 msgid "Deine Buchung wartet auf die Bestätigung des Anbieters."
 msgstr "Votre réservation attend la confirmation du prestataire."
 
-#: src/Services/Portal.php:233
+#: src/Services/Portal.php:238
 msgid "Angebot angenommen. Die Details (und gegebenenfalls die Zahlungsinformationen) bekommst du per E-Mail."
 msgstr "Proposition acceptée. Vous recevrez les détails (et, le cas échéant, les informations de paiement) par e-mail."
 
-#: src/Services/Portal.php:234
+#: src/Services/Portal.php:239
 msgid "Angebot abgelehnt. Danke für die Rückmeldung!"
 msgstr "Proposition refusée. Merci pour votre retour !"
 
-#: src/Services/Portal.php:235
-#: src/Services/Portal.php:236
+#: src/Services/Portal.php:240
+#: src/Services/Portal.php:241
 msgid "Du wurdest von der Warteliste ausgetragen."
 msgstr "Vous avez été désinscrit de la liste d’attente."
 
-#: src/Services/Portal.php:237
+#: src/Services/Portal.php:242
 msgid "Danke! Deine Eintragung in die Warteliste ist bestätigt. Deine Position und einen Link zum Austragen bekommst du per E-Mail."
 msgstr "Merci ! Votre inscription sur la liste d’attente est confirmée. Vous recevrez votre position et un lien de désinscription par e-mail."
 
 #. translators: 1: amount, 2: deadline (UTC date/time)
-#: src/Services/Portal.php:243
+#: src/Services/Portal.php:249
 #, php-format
 msgid "Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen."
 msgstr "Le nouveau créneau est plus cher. Merci de payer le supplément de %1$s avant le %2$s (UTC) ; ta réservation sera ensuite déplacée automatiquement. D’ici là, ta réservation actuelle est maintenue."
 
-#: src/Services/Portal.php:246
+#: src/Services/Portal.php:252
 msgid "Zuzahlung erforderlich"
 msgstr "Supplément requis"
 
-#: src/Services/Portal.php:248
+#: src/Services/Portal.php:254
 msgid "Die Buchung wurde umgebucht. Eine Bestätigung ist per E-Mail unterwegs."
 msgstr "La réservation a été modifiée. Une confirmation est en route par e-mail."
 
-#: src/Services/Portal.php:248
+#: src/Services/Portal.php:254
 msgid "Erledigt."
 msgstr "Terminé."
 
-#: src/Services/Portal.php:249
+#: src/Services/Portal.php:255
 msgid "Erledigt"
 msgstr "Terminé"
 
-#: src/Services/Portal.php:256
+#: src/Services/Portal.php:262
 msgid "Terminbuchungen"
 msgstr "Réservations de rendez-vous"
 
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 msgid "Reserviert (Zahlung offen)"
 msgstr "Réservée (paiement en attente)"
 
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 msgid "Wartet auf Bestätigung"
 msgstr "En attente de confirmation"
 
-#: src/Services/Portal.php:264
+#: src/Services/Portal.php:270
 msgid "Umbuchung übernommen"
 msgstr "Changement de réservation appliqué"
 
@@ -32674,6 +32691,7 @@ msgstr "La réservation a expiré sans qu’aucun paiement ne soit reçu. Les ti
 msgid "Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung (bis %s). Den Link zu deiner Bestellung haben wir dir per E-Mail gesendet."
 msgstr "Votre ticket est réservé et la commande attend le paiement (jusqu’au %s). Nous vous avons envoyé le lien vers votre commande par e-mail."
 
+#: src/Services/NoShowFees.php:257
 #: src/Waitlists.php:2065
 msgid "Jetzt bezahlen"
 msgstr "Payer maintenant"
@@ -35712,43 +35730,43 @@ msgstr "Modifier l’adresse e-mail"
 msgid "Bestell-/Referenznummer des Leistungsempfängers:"
 msgstr "Numéro de commande/référence du destinataire :"
 
-#: src/Mail/Types.php:368
+#: src/Mail/Types.php:387
 msgid "Bestelllinks angefordert"
 msgstr "Liens de commande demandés"
 
-#: src/Mail/Types.php:369
+#: src/Mail/Types.php:388
 msgid "Neue persönliche Links zu allen Bestellungen einer Adresse, angefordert über das Formular „Tickets/Bestelllink anfordern“."
 msgstr "Nouveaux liens personnels vers toutes les commandes d’une adresse, demandés via le formulaire « Demander les billets/le lien de commande »."
 
-#: src/Mail/Types.php:371
+#: src/Mail/Types.php:390
 msgid "Anzahl Bestellungen"
 msgstr "Nombre de commandes"
 
-#: src/Mail/Types.php:372
+#: src/Mail/Types.php:391
 msgid "Bestellungen mit Bestellnummer, Datum, Events und persönlichem Link"
 msgstr "Commandes avec numéro, date, événements et lien personnel"
 
-#: src/Mail/Types.php:373
+#: src/Mail/Types.php:392
 msgid "Gültigkeit der neuen Links in Tagen (bis zum ersten Öffnen)"
 msgstr "Validité des nouveaux liens en jours (jusqu’à la première ouverture)"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:376
+#: src/Mail/Types.php:395
 #, php-format
 msgid "Deine Bestellungen bei %s"
 msgstr "Tes commandes chez %s"
 
-#: src/Mail/Types.php:378
+#: src/Mail/Types.php:397
 msgid "Du hast neue Links zu deinen Bestellungen angefordert. Über diese persönlichen Links siehst du deine Bestellungen und Tickets:"
 msgstr "Tu as demandé de nouveaux liens vers tes commandes. Ces liens personnels te montrent tes commandes et tes billets :"
 
 #. translators: %s: number of days placeholder
-#: src/Mail/Types.php:380
+#: src/Mail/Types.php:399
 #, php-format
 msgid "Die Links gelten %s Tage. Bisherige Links bleiben gültig, bis du einen neuen Link zum ersten Mal öffnest."
 msgstr "Les liens sont valables %s jours. Les anciens liens restent valables jusqu’à ce que tu ouvres un nouveau lien pour la première fois."
 
-#: src/Mail/Types.php:381
+#: src/Mail/Types.php:400
 msgid "Wenn du das nicht angefordert hast, kannst du diese E-Mail ignorieren."
 msgstr "Si tu n’as pas fait cette demande, tu peux ignorer cet e-mail."
 
@@ -35996,7 +36014,7 @@ msgid "Zahlungsart-Regeln: Zeile %d ist nicht lesbar. Format: Zahlungsart | even
 msgstr "Règles des moyens de paiement : la ligne %d est illisible. Format : moyen de paiement | events=1,2 | min=10,00 | max=500 | currency=EUR,CHF | countries=DE,AT"
 
 #: src/Mail/Types.php:66
-#: src/Mail/Types.php:402
+#: src/Mail/Types.php:421
 msgid "Vertragspartner (Veranstalter mit Anschrift) im Vermittlermodell; sonst leer"
 msgstr "Partenaire contractuel (organisateur avec adresse) dans le modèle d’intermédiation ; sinon vide"
 
@@ -36878,3 +36896,228 @@ msgstr "Fonction expérimentale :"
 #: src/Seating/AdminPage.php:120
 msgid "Der Saalplan ist im ersten Release als experimentell gekennzeichnet. Bedienung und Darstellung können sich in späteren Versionen ändern; die mobile Bedienung (Zoomen, Verschieben) ist noch nicht fertig. Prüfe einen Saalplan vor dem Verkauf im Checkout auf Computer und Smartphone."
 msgstr "Le plan de salle est signalé comme expérimental dans la première version. Son utilisation et son affichage peuvent changer dans les versions ultérieures ; l’utilisation sur mobile (zoom, déplacement) n’est pas encore terminée. Vérifiez un plan de salle dans le processus de commande sur ordinateur et sur smartphone avant la vente."
+
+#: src/Admin/ServicesPage.php:231
+msgid "Zahlungslink erstellt, die E-Mail konnte aber nicht versendet werden."
+msgstr "Lien de paiement créé, mais l’e-mail n’a pas pu être envoyé."
+
+#: src/Admin/ServicesPage.php:231
+msgid "Zahlungslink versendet."
+msgstr "Lien de paiement envoyé."
+
+#: src/Admin/ServicesPage.php:233
+msgid "No-Show-Gebühr storniert."
+msgstr "Frais de non-présentation annulés."
+
+#: src/Admin/ServicesPage.php:278
+msgid "No-Show-Gebühren (Zahlungslinks)"
+msgstr "Frais de non-présentation (liens de paiement)"
+
+#: src/Admin/ServicesPage.php:362
+msgid "Wird an der Buchung vermerkt und in der Mail genannt. Den Zahlungslink mit Fälligkeit versendest du unter „No-Show-Gebühren“ (nur bei Ressourcen mit Preis); keine automatische Abbuchung, kein Mahnwesen."
+msgstr "Noté sur la réservation et mentionné dans l’e-mail. Vous envoyez le lien de paiement avec échéance sous « Frais de non-présentation » (uniquement pour les ressources payantes) ; pas de prélèvement automatique, pas de relances."
+
+#: src/Admin/ServicesPage.php:520
+msgid "No-Show-Gebühren"
+msgstr "Frais de non-présentation"
+
+#: src/Admin/ServicesPage.php:521
+msgid "Gebühren aus der No-Show-Regel „verfallen“. Der Zahlungslink geht per E-Mail an die Kund:in und gilt bis zur Fälligkeit; bezahlt wird über die aktivierten Zahlungsarten. Es gibt keine automatische Abbuchung und kein Mahnwesen: Eine unbezahlte Gebühr bleibt offen, bis du einen neuen Link sendest oder sie stornierst."
+msgstr "Frais issus de la règle de non-présentation « perdu ». Le lien de paiement est envoyé par e-mail au client et reste valable jusqu’à l’échéance ; le paiement se fait via les moyens de paiement activés. Il n’y a ni prélèvement automatique ni relance : des frais impayés restent ouverts jusqu’à ce que vous envoyiez un nouveau lien ou les annuliez."
+
+#: src/Admin/ServicesPage.php:529
+msgid "Keine No-Show-Gebühren."
+msgstr "Aucuns frais de non-présentation."
+
+#. translators: 1: date sent, 2: due date
+#: src/Admin/ServicesPage.php:541
+#, php-format
+msgid "gesendet %1$s, fällig %2$s"
+msgstr "envoyé le %1$s, échéance %2$s"
+
+#. translators: 1: date sent, 2: due date
+#: src/Admin/ServicesPage.php:541
+msgid "noch nicht gesendet"
+msgstr "pas encore envoyé"
+
+#: src/Admin/ServicesPage.php:542
+msgid "Frist abgelaufen"
+msgstr "Échéance dépassée"
+
+#: src/Admin/ServicesPage.php:553
+msgid "Frist (Tage)"
+msgstr "Délai (jours)"
+
+#: src/Admin/ServicesPage.php:554
+msgid "Zahlungslink senden"
+msgstr "Envoyer le lien de paiement"
+
+#: src/Admin/ServicesPage.php:555
+msgid "No-Show-Gebühr stornieren? Ein offener Zahlungslink wird ungültig."
+msgstr "Annuler les frais de non-présentation ? Un lien de paiement ouvert deviendra invalide."
+
+#: src/Mail/Types.php:288
+msgid "Servicebuchung: Zahlungslink No-Show-Gebühr"
+msgstr "Réservation de service : lien de paiement des frais de non-présentation"
+
+#: src/Mail/Types.php:289
+msgid "Zahlungslink mit Fälligkeit für die No-Show-Gebühr eines nicht wahrgenommenen Termins (vom Veranstalter versendet)."
+msgstr "Lien de paiement avec échéance pour les frais de non-présentation à un rendez-vous manqué (envoyé par l’organisateur)."
+
+#: src/Mail/Types.php:290
+#: src/Mail/Types.php:300
+msgid "Betrag der Gebühr"
+msgstr "Montant des frais"
+
+#: src/Mail/Types.php:290
+msgid "Zahlungslink"
+msgstr "Lien de paiement"
+
+#. translators: %s: resource
+#: src/Mail/Types.php:292
+#, php-format
+msgid "No-Show-Gebühr für %s"
+msgstr "Frais de non-présentation pour %s"
+
+#. translators: 1: resource, 2: date, 3: amount, 4: due date, 5: payment link
+#: src/Mail/Types.php:294
+#, php-format
+msgid ""
+"Deinen Termin %1$s am %2$s hast du nicht wahrgenommen. Laut Buchungsbedingungen wird dafür eine Gebühr von %3$s fällig.\n"
+"\n"
+"Bitte bezahle sie bis %4$s über diesen Link:\n"
+"%5$s\n"
+"\n"
+"Falls das ein Irrtum ist, antworte bitte auf diese E-Mail."
+msgstr ""
+"Vous ne vous êtes pas présenté(e) à votre rendez-vous %1$s du %2$s. Selon les conditions de réservation, des frais de %3$s sont dus.\n"
+"\n"
+"Veuillez les régler avant le %4$s via ce lien :\n"
+"%5$s\n"
+"\n"
+"S’il s’agit d’une erreur, veuillez répondre à cet e-mail."
+
+#: src/Mail/Types.php:298
+msgid "Servicebuchung: No-Show-Gebühr bezahlt"
+msgstr "Réservation de service : frais de non-présentation payés"
+
+#: src/Mail/Types.php:299
+msgid "Zahlungsbestätigung der No-Show-Gebühr mit dem Link zum Beleg (Bestellung, gegebenenfalls mit Rechnung)."
+msgstr "Confirmation de paiement des frais de non-présentation avec le lien vers le justificatif (commande, avec facture le cas échéant)."
+
+#: src/Mail/Types.php:300
+msgid "Link zum Beleg"
+msgstr "Lien vers le justificatif"
+
+#: src/Mail/Types.php:300
+msgid "Rechnungsnummer (falls ausgestellt)"
+msgstr "Numéro de facture (le cas échéant)"
+
+#: src/Mail/Types.php:301
+msgid "Zahlung der No-Show-Gebühr erhalten"
+msgstr "Paiement des frais de non-présentation reçu"
+
+#. translators: 1: amount, 2: resource, 3: date, 4: invoice number line, 5: receipt link
+#: src/Mail/Types.php:303
+#, php-format
+msgid ""
+"Vielen Dank, wir haben deine Zahlung von %1$s für die No-Show-Gebühr (%2$s, %3$s) erhalten.\n"
+"%4$s\n"
+"\n"
+"Beleg: %5$s"
+msgstr ""
+"Merci, nous avons bien reçu votre paiement de %1$s pour les frais de non-présentation (%2$s, %3$s).\n"
+"%4$s\n"
+"\n"
+"Justificatif : %5$s"
+
+#: src/Services/NoShowFees.php:107
+msgid "Offen"
+msgstr "Ouvert"
+
+#: src/Services/NoShowFees.php:150
+msgid "Für die Währung dieser Gebühr ist keine Zahlungsart aktiviert."
+msgstr "Aucun moyen de paiement n’est activé pour la devise de ces frais."
+
+#. translators: %d: maximum number of days
+#: src/Services/NoShowFees.php:158
+#, php-format
+msgid "Die Zahlungsfrist muss zwischen 1 und %d Tagen liegen."
+msgstr "Le délai de paiement doit être compris entre 1 et %d jours."
+
+#: src/Services/NoShowFees.php:234
+msgid "Der Zahlungslink ist ungültig oder wurde durch einen neueren Link ersetzt."
+msgstr "Le lien de paiement est invalide ou a été remplacé par un lien plus récent."
+
+#. translators: 1: resource, 2: date and time of the slot
+#: src/Services/NoShowFees.php:241
+#, php-format
+msgid "No-Show-Gebühr für den nicht wahrgenommenen Termin %1$s am %2$s."
+msgstr "Frais de non-présentation pour le rendez-vous manqué %1$s du %2$s."
+
+#. translators: %s: due date
+#: src/Services/NoShowFees.php:243
+#, php-format
+msgid "Zahlbar bis: %s"
+msgstr "Payable avant le : %s"
+
+#: src/Services/NoShowFees.php:246
+msgid "Diese Gebühr ist bezahlt. Vielen Dank!"
+msgstr "Ces frais sont payés. Merci !"
+
+#: src/Services/NoShowFees.php:247
+msgid "Diese Gebühr wurde storniert. Es ist nichts zu bezahlen."
+msgstr "Ces frais ont été annulés. Rien n’est dû."
+
+#: src/Services/NoShowFees.php:248
+#: src/Services/NoShowFees.php:271
+msgid "Die Zahlungsfrist ist abgelaufen. Bitte wende dich an den Veranstalter, wenn du die Gebühr noch bezahlen möchtest."
+msgstr "Le délai de paiement est dépassé. Veuillez contacter l’organisateur si vous souhaitez encore régler les frais."
+
+#: src/Services/NoShowFees.php:250
+msgid "Zurzeit ist keine Zahlungsart verfügbar. Bitte versuche es später erneut."
+msgstr "Aucun moyen de paiement n’est disponible pour le moment. Veuillez réessayer plus tard."
+
+#. translators: %s: amount
+#: src/Services/NoShowFees.php:303
+#, php-format
+msgid "Bitte bezahle die No-Show-Gebühr von %s."
+msgstr "Veuillez régler les frais de non-présentation de %s."
+
+#. translators: %s: invoice number
+#: src/Services/NoShowFees.php:352
+#, php-format
+msgid "Rechnungsnummer: %s"
+msgstr "Numéro de facture : %s"
+
+#. translators: %s: resource
+#: src/Services/NoShowFees.php:366
+#: src/Services/NoShowFees.php:476
+#, php-format
+msgid "No-Show-Gebühr %s"
+msgstr "Frais de non-présentation %s"
+
+#: src/Services/NoShowFees.php:387
+msgid "Die Buchung ist nicht (mehr) als „nicht erschienen“ vermerkt."
+msgstr "La réservation n’est pas (ou plus) marquée comme « non présenté »."
+
+#: src/Services/NoShowFees.php:393
+msgid "Ein Zahlungslink braucht eine Ressource mit Preis (Ticketart). Bei kostenlosen Ressourcen wird die Gebühr außerhalb von Pass Captain eingezogen."
+msgstr "Un lien de paiement nécessite une ressource payante (type de billet). Pour les ressources gratuites, les frais sont encaissés en dehors de Pass Captain."
+
+#: src/Services/NoShowFees.php:499
+msgid "Für diese Buchung ist keine No-Show-Gebühr vermerkt."
+msgstr "Aucuns frais de non-présentation ne sont enregistrés pour cette réservation."
+
+#: src/Services/NoShowFees.php:504
+msgid "Diese Gebühr ist bereits bezahlt."
+msgstr "Ces frais ont déjà été payés."
+
+#: src/Services/NoShowFees.php:504
+msgid "Diese Gebühr wurde storniert."
+msgstr "Ces frais ont été annulés."
+
+#: src/Services/Portal.php:56
+#: src/Services/Portal.php:244
+msgid "No-Show-Gebühr bezahlen"
+msgstr "Payer les frais de non-présentation"
