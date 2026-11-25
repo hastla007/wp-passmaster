@@ -10,8 +10,8 @@
  * - quiet zone: QR_QUIET_MODULES modules around the symbol stay free of text, logos and fills (ISO/IEC
  *   18004) and inside the page – on label sheets inside the label, which is cut or peeled off;
  * - module size: at least QR_MIN_MODULE_MM, so phone cameras and handheld scanners read printed codes;
- * - print margins: nothing printed closer than margin() to the page edge (most office printers cannot
- *   print the outer 4 mm; wristband printers print almost to the edge) and, on label sheets, at least
+ * - print margins: nothing printed closer than margin() to the page edge (setting print_margin_mm, default
+ *   4 mm: most office printers cannot print the outer 4 mm; wristband printers print almost to the edge) and, on label sheets, at least
  *   LABEL_GAP_MM inside the own label (cutting and die-cut tolerance).
  *
  * The check never blocks saving (templates printed on edge-to-edge printers can be fine); the print
@@ -38,15 +38,17 @@ final class PrintCheck {
 	const EPSILON = 0.05;
 
 	/**
-	 * Margin to the page edge a layout needs (mm). Filter `wpcap_print_check_margin` (e.g. 0 for an
-	 * edge-to-edge printer).
+	 * Margin to the page edge a layout needs (mm): the setting print_margin_mm (default 4 mm,
+	 * Templates::margin_mm()); wristbands at most 1 mm (thermal printers print almost to the edge).
+	 * Filter `wpcap_print_check_margin` (e.g. 0 for an edge-to-edge printer) has the last word.
 	 */
 	public static function margin( $kind ) {
-		$margin = 'wristband' === $kind ? 1.0 : 4.0;
+		$setting = (float) Templates::margin_mm();
+		$margin = 'wristband' === $kind ? min( 1.0, $setting ) : $setting;
 		/**
 		 * PASS-FE-07: minimum distance of printed content to the page edge (mm) used by the print check.
 		 *
-		 * @param float  $margin Default: 4 mm, wristbands 1 mm.
+		 * @param float  $margin Default: the setting print_margin_mm (4 mm), wristbands at most 1 mm.
 		 * @param string $kind   Layout (Templates::KINDS).
 		 */
 		return max( 0.0, (float) apply_filters( 'wpcap_print_check_margin', $margin, $kind ) );

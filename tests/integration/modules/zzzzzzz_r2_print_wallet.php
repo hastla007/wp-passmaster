@@ -274,11 +274,7 @@ openssl_pkey_export( $r2_pkey, $r2_key_pem, null, $r2_cfg );
 $r2_gkey = openssl_pkey_new( $r2_cfg );
 openssl_pkey_export( $r2_gkey, $r2_gkey_pem, null, $r2_cfg );
 // The test hook registry does not deduplicate callbacks like WordPress: register the wallet module once.
-$r2_wallet_registered = false;
-foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_ticket_mail'] ?? array() as $r2_cbs ) {
-	foreach ( $r2_cbs as $r2_cb ) { $r2_wallet_registered = $r2_wallet_registered || array( WalletService::class, 'on_ticket_mail' ) === $r2_cb[0]; }
-}
-if ( ! $r2_wallet_registered ) { PassCaptain\Modules\Wallet::register(); }
+if ( false === has_action( 'wpcap_ticket_mail', array( WalletService::class, 'on_ticket_mail' ) ) ) { PassCaptain\Modules\Wallet::register(); }
 PassCaptain\WalletPasses\AdminPage::save( array(
 	'wallet_apple_enabled' => '1', 'wallet_apple_pass_type_id' => 'pass.test.wpcap', 'wallet_apple_team_id' => 'ABCDE12345', 'wallet_apple_delivery' => 'attachment',
 	'apple_pass_cert' => $r2_cert_pem, 'apple_pass_key' => $r2_key_pem, 'apple_wwdr_cert' => $r2_ca_pem,

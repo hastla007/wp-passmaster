@@ -348,6 +348,10 @@ final class Controller {
 				'accept_terms' => self::arg( 'bool' ),
 				'attendees' => array( 'type' => 'array', 'validate_callback' => 'rest_validate_request_arg' ),
 				'billing' => self::arg( 'object' ), // L707: invoice data like the checkout.
+				// Owner decision 25.11.2026: discount codes and vouchers like the checkout (Waitlists\Discounts).
+				'code' => self::arg( 'text' ),
+				'campaign_codes' => array( 'type' => 'array', 'validate_callback' => 'rest_validate_request_arg' ),
+				'voucher_code' => self::arg( 'text' ),
 			),
 		) );
 		register_rest_route( 'pass-captain/v1', '/waitlist/(?P<waitlist_id>\d+)/decline', array(
@@ -1246,7 +1250,7 @@ final class Controller {
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
 		// Attendee data (participant fields) is collected on acceptance (A536); Orders::validate_attendees() sanitises it.
 		$attendees = $request->get_param( 'attendees' );
-		$result = Waitlists::accept_offer( $request['waitlist_id'], Credentials::token( $request, 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => \PassCaptain\Http::accepted( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array(), 'billing' => is_array( $request->get_param( 'billing' ) ) ? $request->get_param( 'billing' ) : null ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], Credentials::token( $request, 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => \PassCaptain\Http::accepted( $request->get_param( 'accept_terms' ) ), 'terms_version' => \PassCaptain\Http::str( $request->get_param( 'terms_version' ) ), 'locale' => \PassCaptain\Http::str( $request->get_param( 'locale' ) ), 'attendees' => is_array( $attendees ) ? $attendees : array(), 'billing' => is_array( $request->get_param( 'billing' ) ) ? $request->get_param( 'billing' ) : null, 'code' => \PassCaptain\Http::str( $request->get_param( 'code' ) ), 'campaign_codes' => is_array( $request->get_param( 'campaign_codes' ) ) ? $request->get_param( 'campaign_codes' ) : array(), 'voucher_code' => \PassCaptain\Http::str( $request->get_param( 'voucher_code' ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

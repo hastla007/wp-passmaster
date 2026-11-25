@@ -22,7 +22,7 @@ check( 'schema: webhook_deliveries KEY cleanup (status, updated_at)', array( 'st
 $a437_hooks = $GLOBALS['wpcap_test_hooks'] ?? array();
 unset( $GLOBALS['wpcap_test_hooks']['wpcap_process_jobs'], $GLOBALS['wpcap_test_hooks']['wpcap_cleanup_reservations'] );
 WebhooksModule::register();
-$a437_on = static fn( $hook ) => (bool) array_filter( array_merge( ...array_values( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array( array() ) ) ), static fn( $e ) => array( Dispatcher::class, 'purge_old' ) === $e[0] );
+$a437_on = static fn( $hook ) => false !== has_action( $hook, array( Dispatcher::class, 'purge_old' ) );
 check( 'purge_old runs with the hourly wpcap_cleanup_reservations, not with every wpcap_process_jobs', $a437_on( 'wpcap_cleanup_reservations' ) && ! $a437_on( 'wpcap_process_jobs' ) );
 $GLOBALS['wpcap_test_hooks'] = $a437_hooks;
 

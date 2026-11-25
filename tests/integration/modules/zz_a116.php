@@ -40,8 +40,8 @@ $wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $a116_
 $a116_news = (int) $wpdb->insert_id;
 
 $GLOBALS['a116_hooks'] = array();
-// Recording listeners; removed again at the end of the module, so later modules (A612: webhook listener guard)
-// do not see foreign callbacks on the consent hooks.
+// Recording listeners; removed again at the end of the module (test isolation: later modules fire the
+// consent hooks too and must not append to $GLOBALS['a116_hooks']).
 $a116_on_granted = static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'granted', $r ); };
 $a116_on_withdrawn = static function ( $r ) { $GLOBALS['a116_hooks'][] = array( 'withdrawn', $r ); };
 add_action( 'wpcap_consent_granted', $a116_on_granted );

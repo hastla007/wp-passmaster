@@ -51,6 +51,10 @@ final class Templates {
 
 	/** A685: minimum contrast of template colours on white (WCAG 2.2 AA, normal text). */
 	const MIN_CONTRAST = 4.5;
+	/** Print margin to the page edge (setting print_margin_mm): default and limits in whole millimetres. */
+	const MARGIN_DEFAULT_MM = 4;
+	const MARGIN_MIN_MM = 0;
+	const MARGIN_MAX_MM = 15;
 
 	/** @var array<int,array|null> Logos loaded in this request: media id => image (PdfWriter::load_image()). */
 	private static $logos = array();
@@ -387,6 +391,22 @@ final class Templates {
 	}
 
 	/**
+	 * Print margin to the page edge in mm (setting print_margin_mm, default 4, 0–15; owner decision
+	 * 25.11.2026). Used by every print path: ticket and badge PDFs keep their content inside it, the
+	 * invoice PDF footer, the box office and Z report receipts (side padding), attendee and no-show lists
+	 * (at least their own 12 mm) and the print check (Printing\PrintCheck::margin()). The form, import and
+	 * WP-CLI refuse values outside the limits (SettingsSchema); a stored value outside them (edited by
+	 * hand) counts as the default, never as the nearest limit.
+	 */
+	public static function margin_mm() {
+		$value = class_exists( \PassCaptain\Settings::class ) ? \PassCaptain\Settings::get( 'print_margin_mm', self::MARGIN_DEFAULT_MM ) : self::MARGIN_DEFAULT_MM;
+		if ( ! is_numeric( $value ) || (int) $value != $value || (int) $value < self::MARGIN_MIN_MM || (int) $value > self::MARGIN_MAX_MM ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- "4" and 4.0 are whole numbers.
+			return self::MARGIN_DEFAULT_MM;
+		}
+		return (int) $value;
+	}
+
+	/**
 	 * Lays out $items on pages (render() without the PDF file around them; the batch job appends
 	 * the pages block by block, A427). Name tags: 10 per page.
 	 */
@@ -428,6 +448,9 @@ final class Templates {
 			'wristband' => array( 250 * $mm, 25 * $mm, 6, 'left', 'right' ),
 		);
 		list( $pw, $ph, $pad, $align, $qr_mode ) = $sizes[ $kind ];
+		// Print margin (setting print_margin_mm): the page padding of tickets and badges is never smaller.
+		$margin = self::margin_mm() * $mm;
+		if ( 'wristband' !== $kind ) { $pad = max( $pad, $margin ); }
 		foreach ( $items as $item ) {
 			$pdf->add_page( $pw, $ph );
 			if ( 'wristband' === $kind ) {
@@ -438,9 +461,10 @@ final class Templates {
 				self::cell( $pdf, $lines, $item, 40 * $mm + $logo_w, 0, $pw - 40 * $mm - $logo_w, $ph, $align, $qr_mode, 8, false, $design );
 				continue;
 			}
+			$lift = 0.0;
 			if ( 'ticket' === $kind ) {
 				// A330: header (e.g. site name) and footer (e.g. "only valid once") of ticket PDFs.
-				if ( '' !== (string) ( $item['_title'] ?? '' ) ) { $pdf->text( $pad, $ph - 30, 11, PdfWriter::fit( (string) $item['_title'], 11, $pw - 2 * $pad ) ); }
+				if ( '' !== (string) ( $item['_title'] ?? '' ) ) { $pdf->text( $pad, min( $ph - 30, $ph - $margin - 9 ), 11, PdfWriter::fit( (string) $item['_title'], 11, $pw - 2 * $pad ) ); }
 				// SET-PC-33: every line of the footer starts a new line (the last one: imprint/privacy links);
 				// the footer text keeps at most three lines, the links line is never cut off.
 				$footer = array();
@@ -448,7 +472,11 @@ final class Templates {
 				$last = count( $parts ) > 1 ? PdfWriter::wrap( (string) array_pop( $parts ), 8, $pw - 2 * $pad, false, 1 ) : array();
 				foreach ( $parts as $part ) { $footer = array_merge( $footer, PdfWriter::wrap( $part, 8, $pw - 2 * $pad ) ); }
 				$footer = array_merge( array_slice( $footer, 0, 3 ), $last );
+				// The lowest footer line keeps the print margin (glyph box 0.22 em below the baseline); the
+				// content above moves up by as much, so footer and content never overlap.
 				$base = count( $footer ) > 3 ? 14 : 22;
+				$lift = $footer ? max( 0.0, $margin + 2 - $base ) : 0.0;
+				$base += $lift;
 				foreach ( $footer as $i => $footer_line ) { $pdf->text( $pad, $base + 10 * ( count( $footer ) - 1 - $i ), 8, $footer_line ); }
 			}
 			// A685: logo at the top (ticket: left, badge: centred).
@@ -457,7 +485,7 @@ final class Templates {
 				$box = 'ticket' === $kind ? array( 60 * $mm, 16 * $mm, 'left' ) : array( $pw - 2 * $pad, 14 * $mm, 'center' );
 				if ( $pdf->image( $pad, $ph - $pad - $box[1], $box[0], $box[1], $logo, $box[2] ) ) { $logo_h = $box[1] + 3 * $mm; }
 			}
-			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad - $logo_h, $align, $qr_mode, 0, 'ticket' === $kind, $design );
+			self::cell( $pdf, $lines, $item, $pad, $pad + $lift, $pw - 2 * $pad, $ph - 2 * $pad - $logo_h - $lift, $align, $qr_mode, 0, 'ticket' === $kind, $design );
 		}
 		return $pdf;
 	}

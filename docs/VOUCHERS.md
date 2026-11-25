@@ -204,3 +204,11 @@ Hilfsfunktionen: `Checkout::purpose()`, `Checkout::voucher_payment_minor( $order
 ## Vertrag und Fehlerverhalten
 
 Versionsregel, optionale Methode `contract_version()` des Anbieters, Pflicht- und optionale Felder sowie das Verhalten bei Ausnahmen, Timeouts und ungültigen Antworten (kein halb gebuchter Zustand, Freigabe über den Idempotenzschlüssel) stehen in [CONTRACTS.md](CONTRACTS.md).
+
+## Wartelistenangebote
+
+Seit der Entscheidung vom 25.11.2026 lassen sich Gutscheine auch bei der Annahme eines bezahlten Wartelistenangebots
+einlösen (Feld „Gutschein- oder Rabattcode“ der Angebotsseite, REST `voucher_code` bzw. `code`). Der Ablauf ist derselbe
+wie im Checkout (`Checkout::apply()` nach der Annahme, Commit nach der Zahlung, Freigabe bei Ablauf/Ablehnung,
+anteilige Rückgabe bei Erstattung); scheitert die Annahme danach, wird die Reservierung freigegeben und das Angebot
+ist wieder zum Angebotspreis offen. Details: docs/WAITLIST.md.

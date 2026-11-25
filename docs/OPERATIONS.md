@@ -1776,6 +1776,23 @@ bzw. des Etiketts), Modulgröße mindestens 0,4 mm und Druckränder (mindestens 
 den QR-Code mit 4 Modulen Ruhezone innerhalb seiner Fläche (vorher 1 Modul; Text darunter kam bis auf 2 Module
 heran), und Etiketten 70 × 37 mm halten 4 mm Innenabstand.
 
+**Druckrand (Entscheidung Inhaber 25.11.2026):** Unter *Druck & Listen → Druckrand* (nur Administrator:innen)
+lässt sich der Mindestabstand zum Blattrand in ganzen Millimetern einstellen: Einstellung `print_margin_mm`,
+Standard 4 mm, erlaubt 0–15 mm. Werte außerhalb (auch über Import und WP-CLI) werden mit Meldung abgelehnt, nicht
+auf die Grenze gesetzt; ein leeres Feld bedeutet 4 mm. Der Rand gilt für alle Druckwege:
+
+- Ticket-PDFs (E-Mail, Bestellportal, Verwaltung, Stapeldruck) und Namensschilder A6: Seitenabstand, Kopfzeile
+  und Fußzeile halten den Rand; bei großem Rand rückt der Inhalt über der Fußzeile nach oben.
+- Rechnungs- und Gutschrift-PDF: Seitenzahl und Linie der Fußzeile (die Textspalte beginnt ohnehin 17,6 mm vom
+  Rand, daher die Obergrenze von 15 mm).
+- Kassenbon und Z-Bon (80 mm): seitlicher Innenabstand gleich dem Rand.
+- Teilnehmer- und No-show-Liste: Seitenrand mindestens 12 mm, sonst der eingestellte Rand.
+- Druckprüfung: Blattrand = Einstellung; Einlassbänder höchstens 1 mm (Thermodrucker); der Filter
+  `wpcap_print_check_margin` hat weiter das letzte Wort.
+
+Etikettenbögen (70 × 37, 2 × 7, Namensschilder 4 je Blatt) behalten ihr festes Raster des Bogens; liegt der Rand
+darüber, meldet die Druckprüfung das. Mit 4 mm sehen alle Ausdrucke aus wie vorher (Test `zz_p14_print_margin`).
+
 ### Teilnehmerfelder, Etikettenformate, Sortierung und Vorschau (A686)
 
 - **Teilnehmerfeld-Mapping:** `{field:<Schlüssel>}` druckt die Antwort auf das Teilnehmerfeld mit diesem Schlüssel
