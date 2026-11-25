@@ -127,7 +127,7 @@ final class Orders {
 			// A493: refused at the entrance (400) instead of failing at the varchar(190) column (503 db_busy).
 			return new \WP_Error( 'wpcap_invalid_checkout', self::email_too_long_message(), array( 'status' => 400, 'reason' => 'email_too_long', 'field' => 'email' ) );
 		}
-		if ( ! is_email( $s->email ) || ! is_array( $s->lines ) || empty( $s->lines ) || count( $s->lines ) > 10 ) {
+		if ( ! is_email( $s->email ) || ! is_array( $s->lines ) || empty( $s->lines ) || count( $s->lines ) > self::max_lines() ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// customer_email is varchar(190): a longer address passes is_email() but would fail the order insert.
@@ -1816,6 +1816,14 @@ final class Orders {
 
 	/** Days a pending order link (A631) can be opened before it lapses; the current link stays meanwhile. */
 	const PENDING_LINK_DAYS = 7;
+
+	/**
+	 * Maximum number of order lines (distinct ticket types) in one checkout; filter `wpcap_max_lines`
+	 * (default 10, 1 to 100). Add-ons such as the Pass Pro write API read their limit from here.
+	 */
+	public static function max_lines() {
+		return max( 1, min( 100, (int) apply_filters( 'wpcap_max_lines', 10 ) ) );
+	}
 
 	/**
 	 * Absolute cap of the quantity of one order line (checked before any row is locked): setting
