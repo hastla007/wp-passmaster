@@ -346,9 +346,10 @@ final class Page {
 	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
 
 	/**
-	 * Marks a form that books money (sale, "Nachbuchen", storno, payout of a refund): pos.js disables
-	 * its submit while the browser is offline (A527, decision E-13: without network only admissions via
-	 * the scanner app; sales and refunds are never queued offline).
+	 * Marks a form that books money (sale, "Nachbuchen", storno, payout of a refund; on the shift tabs
+	 * also opening/handover, cash in/out, count, closing and Z correction): pos.js disables its submit
+	 * while the browser is offline (A527, decision E-13: without network only admissions via the scanner
+	 * app; sales, refunds and shift bookings are never queued offline).
 	 */
 	const ONLINE_ONLY = 'data-wpcap-pos-online="1"';
 
