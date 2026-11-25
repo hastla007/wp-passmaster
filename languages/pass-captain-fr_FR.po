@@ -95,7 +95,7 @@ msgstr "Activation refusée"
 #: src/Admission/RulesPage.php:91
 #: src/Admission/RulesPage.php:104
 #: src/BoxOffice/Service.php:363
-#: src/BoxOffice/Service.php:410
+#: src/BoxOffice/Service.php:448
 #: src/Consents.php:698
 #: src/DeveloperKeys.php:121
 #: src/Exchange/Service.php:1276
@@ -111,10 +111,10 @@ msgstr "Activation refusée"
 #: src/Passes/Definitions.php:325
 #: src/Reports/Page.php:97
 #: src/Reports/Page.php:376
-#: src/Rest/Controller.php:1202
-#: src/Rest/Controller.php:1264
-#: src/Rest/Controller.php:1316
-#: src/Rest/Controller.php:1363
+#: src/Rest/Controller.php:1256
+#: src/Rest/Controller.php:1318
+#: src/Rest/Controller.php:1370
+#: src/Rest/Controller.php:1417
 #: src/Sales/AdminSections.php:53
 #: src/Sales/BuyerLimits.php:108
 #: src/Sales/BuyerLimits.php:136
@@ -138,7 +138,7 @@ msgstr "Vous n’avez pas l’autorisation pour cet événement."
 #: src/Admin/ApiKeysPage.php:53
 #: src/Admin/DeveloperKeysPage.php:49
 #: src/DeveloperKeys.php:91
-#: src/Rest/Controller.php:1317
+#: src/Rest/Controller.php:1371
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La date d’expiration doit être dans le futur."
 
@@ -230,9 +230,9 @@ msgstr "Clé API révoquée."
 #: src/BoxOffice/Page.php:608
 #: src/BoxOffice/Registers.php:76
 #: src/BoxOffice/Service.php:150
-#: src/BoxOffice/Service.php:394
-#: src/BoxOffice/Service.php:1022
-#: src/BoxOffice/Service.php:1107
+#: src/BoxOffice/Service.php:392
+#: src/BoxOffice/Service.php:1106
+#: src/BoxOffice/Service.php:1191
 #: src/BoxOffice/ShiftPage.php:187
 #: src/BoxOffice/ShiftPage.php:441
 #: src/BoxOffice/ShiftPage.php:451
@@ -907,8 +907,8 @@ msgstr "Une personne affectée à au moins une date pour un droit n’accède pl
 #: src/Printing/Page.php:129
 #: src/Printing/Page.php:154
 #: src/Printing/Page.php:383
-#: src/PublicEvents.php:1243
-#: src/PublicEvents.php:1554
+#: src/PublicEvents.php:1268
+#: src/PublicEvents.php:1579
 #: src/Reports/Data.php:787
 #: src/Reports/Data.php:808
 #: src/Reports/Data.php:849
@@ -1605,7 +1605,7 @@ msgstr "La fin de la période de validité doit être postérieure au début."
 
 #: src/Admin/CampaignsPage.php:61
 #: src/Allocations/BuyerLimits.php:96
-#: src/Rest/Controller.php:1215
+#: src/Rest/Controller.php:1269
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Le type de ticket n’appartient pas à cet événement."
 
@@ -1831,7 +1831,7 @@ msgstr "Code"
 
 #: src/Admin/CampaignsPage.php:248
 #: src/Admin/OrdersPage.php:1218
-#: src/BoxOffice/Service.php:1331
+#: src/BoxOffice/Service.php:1415
 #: src/Invoices.php:918
 #: src/Printing/InvoicePdf.php:121
 #: src/Reports/Data.php:813
@@ -2246,7 +2246,7 @@ msgstr "Fuseau horaire"
 #: src/Mail/Types.php:632
 #: src/Modules/Fiscalization.php:1359
 #: src/Notifications.php:189
-#: src/PublicEvents.php:1244
+#: src/PublicEvents.php:1269
 #: src/Reminders/Placeholders.php:18
 #: src/Waitlists.php:456
 #: src/WalletPasses/AppleProvider.php:77
@@ -3535,7 +3535,7 @@ msgstr "L’événement est publié, mais pas encore réservable :"
 #: src/OfflineScanner/AdminPage.php:39
 #: src/OfflineScanner/AdminPage.php:57
 #: src/Partners/Api.php:183
-#: src/Rest/Controller.php:1336
+#: src/Rest/Controller.php:1390
 #: src/Sales/BuyerLimits.php:107
 #: src/Sales/PriceRules.php:114
 #: src/Seating/Layouts.php:497
@@ -5243,8 +5243,8 @@ msgstr "Masquer la liste de démarrage"
 #: src/Payments/PayPalGateway.php:827
 #: src/Payments/StripeGateway.php:798
 #: src/Printing/Page.php:383
-#: src/PublicEvents.php:831
-#: src/PublicEvents.php:928
+#: src/PublicEvents.php:856
+#: src/PublicEvents.php:953
 #: src/Reports/Data.php:784
 #: src/Reports/Data.php:813
 #: src/Reports/Data.php:822
@@ -5347,7 +5347,7 @@ msgstr "L’import a échoué ; rien n’a été enregistré."
 #: src/Memberships.php:484
 #: src/Memberships.php:502
 #: src/Passes/Definitions.php:308
-#: src/Rest/Controller.php:1179
+#: src/Rest/Controller.php:1233
 msgid "Pass nicht gefunden."
 msgstr "Pass introuvable."
 
@@ -5483,8 +5483,8 @@ msgstr "Veuillez saisir une période valide : « Valable jusqu’au » doit êtr
 #: src/Admin/MembershipsPage.php:155
 #: src/Memberships.php:246
 #: src/Memberships.php:261
-#: src/Rest/Controller.php:1182
-#: src/Rest/Controller.php:1183
+#: src/Rest/Controller.php:1236
+#: src/Rest/Controller.php:1237
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Vous n’avez pas l’autorisation pour ce pass."
 
@@ -5533,7 +5533,7 @@ msgstr "Rechercher un e-mail"
 #: src/Exchange/AdminPage.php:213
 #: src/GuestLists/Page.php:325
 #: src/OfflineScanner/I18n.php:228
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Suchen"
 msgstr "Rechercher"
 
@@ -6318,7 +6318,7 @@ msgstr "Commande n° %d"
 #: src/Admin/OperationsPage.php:389
 #: src/Admin/OrdersPage.php:1055
 #: src/Admin/TicketsPage.php:820
-#: src/BoxOffice/Service.php:728
+#: src/BoxOffice/Service.php:812
 #: src/Mail/Types.php:419
 #: src/Mollie/MollieGateway.php:126
 #: src/Mollie/MollieGateway.php:472
@@ -6538,8 +6538,8 @@ msgstr "Sélectionner la commande %s"
 #: src/ParticipantFields.php:351
 #: src/Partners/Sales.php:450
 #: src/Payments/PayPalGateway.php:221
-#: src/Rest/Controller.php:874
-#: src/Rest/Controller.php:1027
+#: src/Rest/Controller.php:928
+#: src/Rest/Controller.php:1081
 msgid "Bestellung nicht gefunden."
 msgstr "Commande introuvable."
 
@@ -6548,9 +6548,9 @@ msgstr "Commande introuvable."
 #: src/Admin/OrdersPage.php:484
 #: src/Api/Actions.php:96
 #: src/Consents.php:665
-#: src/Rest/Controller.php:1030
-#: src/Rest/Controller.php:1031
-#: src/Rest/Controller.php:1032
+#: src/Rest/Controller.php:1084
+#: src/Rest/Controller.php:1085
+#: src/Rest/Controller.php:1086
 #: src/Security/DataPolicy.php:136
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Vous n’avez pas l’autorisation pour cette commande."
@@ -6566,11 +6566,11 @@ msgid "Der Gutschein (%2$s, %1$s) wurde mit Ablauf bzw. Storno der Bestellung fr
 msgstr "Le bon (%2$s, %1$s) a été libéré à l’expiration ou à l’annulation de la commande. Le montant restant affiché inclut encore la déduction du bon ; sans bon, il s’élève à %3$s. Un paiement tardif n’émet les tickets que si le bon a pu être réservé à nouveau ; sinon, la commande est marquée pour vérification."
 
 #: src/Admin/OrdersPage.php:92
-#: src/Orders.php:1670
 #: src/Orders/Cancellation.php:89
 #: src/Orders/Cancellation.php:152
 #: src/Orders/Payment.php:165
 #: src/Orders/Payment.php:445
+#: src/Orders/Refunding.php:116
 #: src/Partners/Sales.php:697
 #: src/Partners/Sales.php:746
 #: src/Payments/ReturnNotice.php:444
@@ -6686,7 +6686,7 @@ msgid "Keine Berechtigung für Erstattungen."
 msgstr "Vous n’avez pas l’autorisation d’effectuer des remboursements."
 
 #: src/Admin/OrdersPage.php:267
-#: src/Orders.php:1673
+#: src/Orders/Refunding.php:119
 #: src/Refunds.php:68
 #: src/Refunds.php:240
 #: src/Services/Refunder.php:63
@@ -10430,8 +10430,8 @@ msgstr "Créer le brouillon"
 #: src/Exchange/Service.php:187
 #: src/Exchange/Service.php:1274
 #: src/Mobile/Api.php:415
-#: src/Orders.php:2111
-#: src/Orders.php:3422
+#: src/Orders.php:1993
+#: src/Orders/Resend.php:384
 #: src/PortalSelfService.php:221
 #: src/PortalSelfService.php:562
 #: src/PortalSelfService.php:779
@@ -10452,8 +10452,8 @@ msgstr "Le ticket n’a pas pu être révoqué pour le moment. Veuillez réessay
 
 #: src/Admin/TicketsPage.php:66
 #: src/Exchange/Service.php:606
-#: src/Orders.php:2048
-#: src/Orders.php:2129
+#: src/Orders.php:1930
+#: src/Orders.php:2011
 msgid "Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden."
 msgstr "Un remboursement est en cours pour ce ticket ou attend une validation. Il ne peut être ni transféré, ni échangé, ni révoqué jusqu’à la décision."
 
@@ -10501,7 +10501,7 @@ msgid "Bitte einen Grund für die Korrektur angeben."
 msgstr "Veuillez indiquer un motif de correction."
 
 #: src/Admin/TicketsPage.php:236
-#: src/BoxOffice/Service.php:449
+#: src/BoxOffice/Service.php:512
 #: src/GuestLists/Service.php:243
 #: src/GuestLists/Service.php:461
 msgid "Die E-Mail-Adresse ist ungültig."
@@ -10835,7 +10835,7 @@ msgid "Angebot abgelaufen"
 msgstr "Proposition expirée"
 
 #: src/Admin/WaitlistsPage.php:68
-#: src/Rest/Controller.php:1245
+#: src/Rest/Controller.php:1299
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Vous n’avez pas l’autorisation pour ce type de ticket."
 
@@ -11175,7 +11175,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Trop de jours (366 au maximum)."
 
 #: src/Admission/Rest.php:67
-#: src/Rest/Controller.php:1098
+#: src/Rest/Controller.php:1152
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Le lot de scans hors ligne doit contenir de 1 à 100 codes."
 
@@ -12418,7 +12418,7 @@ msgid "(nicht gebucht)"
 msgstr "(non enregistrée)"
 
 #: src/BoxOffice/Page.php:308
-#: src/BoxOffice/Service.php:1324
+#: src/BoxOffice/Service.php:1408
 #: src/BoxOffice/ShiftPage.php:224
 #: src/BoxOffice/ShiftPage.php:243
 msgid "Beleg"
@@ -12578,152 +12578,152 @@ msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
 msgstr "Il y a un écart de caisse. Veuillez indiquer un motif."
 
 #: src/BoxOffice/Service.php:356
-#: src/BoxOffice/Service.php:396
+#: src/BoxOffice/Service.php:394
 msgid "Das Formular ist ungültig. Bitte neu laden."
 msgstr "Le formulaire n’est pas valide. Veuillez recharger la page."
 
 #: src/BoxOffice/Service.php:366
-#: src/BoxOffice/Service.php:627
+#: src/BoxOffice/Service.php:711
 msgid "Dieser Verkauf wird gerade verarbeitet."
 msgstr "Cette vente est en cours de traitement."
 
 #: src/BoxOffice/Service.php:373
-#: src/BoxOffice/Service.php:625
+#: src/BoxOffice/Service.php:709
 msgid "Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen."
 msgstr "Cette vente n’a pas été enregistrée. Veuillez la saisir à nouveau."
 
-#: src/BoxOffice/Service.php:405
-#: src/BoxOffice/Service.php:575
+#: src/BoxOffice/Service.php:403
+#: src/BoxOffice/Service.php:659
 msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Veuillez d’abord ouvrir une session de caisse."
 
-#: src/BoxOffice/Service.php:406
+#: src/BoxOffice/Service.php:404
 msgid "Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen."
 msgstr "Ce poste de caisse n’est plus autorisé. Veuillez fermer la session et ouvrir un poste autorisé."
 
-#: src/BoxOffice/Service.php:412
+#: src/BoxOffice/Service.php:450
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
 msgstr "Cette caisse ne vend des tickets que pour un autre événement."
 
-#: src/BoxOffice/Service.php:416
+#: src/BoxOffice/Service.php:461
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Les paiements en espèces et par carte à la caisse exigent une solution de caisse certifiée en Allemagne et en Autriche (TSE/RKSV). Pass Captain ne signe pas les reçus. Veuillez choisir billet gratuit ou facture, ou confirmer dans les réglages des reçus que ces ventes sont enregistrées dans une caisse certifiée."
 
-#: src/BoxOffice/Service.php:418
-#: src/BoxOffice/Service.php:425
+#: src/BoxOffice/Service.php:463
+#: src/BoxOffice/Service.php:470
 msgid "Bitte eine Zahlart wählen."
 msgstr "Veuillez choisir un mode de paiement."
 
-#: src/BoxOffice/Service.php:420
+#: src/BoxOffice/Service.php:465
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
 msgstr "Les billets gratuits à la caisse nécessitent l’autorisation de valider des billets gratuits."
 
-#: src/BoxOffice/Service.php:428
+#: src/BoxOffice/Service.php:473
 msgid "Bitte ein Kartenterminal wählen."
 msgstr "Veuillez choisir un terminal de paiement."
 
-#: src/BoxOffice/Service.php:441
+#: src/BoxOffice/Service.php:496
 #: src/Seating/Layouts.php:681
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
 msgstr "Un type de ticket n’appartient pas à cette date."
 
-#: src/BoxOffice/Service.php:442
+#: src/BoxOffice/Service.php:497
 msgid "Die Währung der Ticketart passt nicht zur Kassensitzung."
 msgstr "La devise du type de ticket ne correspond pas à la session de caisse."
 
-#: src/BoxOffice/Service.php:446
+#: src/BoxOffice/Service.php:501
 msgid "Bitte mindestens ein Ticket wählen."
 msgstr "Veuillez choisir au moins un ticket."
 
-#: src/BoxOffice/Service.php:450
+#: src/BoxOffice/Service.php:513
 msgid "Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich."
 msgstr "L’adresse e-mail de l’acheteur est requise pour un paiement sur facture."
 
-#: src/BoxOffice/Service.php:478
-#: src/BoxOffice/Service.php:593
-#: src/BoxOffice/Service.php:679
+#: src/BoxOffice/Service.php:550
+#: src/BoxOffice/Service.php:677
+#: src/BoxOffice/Service.php:763
 msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "La vente n’a pas pu être enregistrée."
 
-#: src/BoxOffice/Service.php:509
+#: src/BoxOffice/Service.php:594
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
 msgstr "Pour une facture au-delà de ce montant, le nom et l’adresse de l’acheteur sont nécessaires. Veuillez les renseigner sous « Facture au nom d’une société/à une adresse »."
 
-#: src/BoxOffice/Service.php:517
+#: src/BoxOffice/Service.php:602
 msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
 msgstr "La vente n’a pas pu être enregistrée. Veuillez la soumettre à nouveau."
 
-#: src/BoxOffice/Service.php:538
+#: src/BoxOffice/Service.php:628
 msgid "Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt."
 msgstr "La session de caisse est en cours de comptage ou a été clôturée. La vente n’a pas été enregistrée ; aucun ticket n’a été émis."
 
-#: src/BoxOffice/Service.php:554
-#: src/BoxOffice/Service.php:715
-#: src/BoxOffice/Service.php:820
-#: src/BoxOffice/Service.php:877
+#: src/BoxOffice/Service.php:638
+#: src/BoxOffice/Service.php:799
+#: src/BoxOffice/Service.php:904
+#: src/BoxOffice/Service.php:961
 msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
 msgstr "La vente n’a pas pu être comptabilisée pour le moment. Veuillez la soumettre à nouveau."
 
-#: src/BoxOffice/Service.php:578
-#: src/BoxOffice/Service.php:624
-#: src/BoxOffice/Service.php:706
-#: src/BoxOffice/Service.php:1019
+#: src/BoxOffice/Service.php:662
+#: src/BoxOffice/Service.php:708
+#: src/BoxOffice/Service.php:790
+#: src/BoxOffice/Service.php:1103
 msgid "Verkauf nicht gefunden."
 msgstr "Vente introuvable."
 
-#: src/BoxOffice/Service.php:630
+#: src/BoxOffice/Service.php:714
 msgid "Die Zahlung am Kartenterminal ist noch nicht bestätigt. Der Verkauf wird erst danach gebucht."
 msgstr "Le paiement sur le terminal n’est pas encore confirmé. La vente ne sera comptabilisée qu’ensuite."
 
-#: src/BoxOffice/Service.php:644
+#: src/BoxOffice/Service.php:728
 msgid "Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“."
 msgstr "Le reçu fiscal n’a pas pu être créé. Aucun billet n’a été émis et la vente n’a pas été enregistrée. Veuillez vérifier sous Fiscalisation, réessayer, puis utiliser « Enregistrer a posteriori »."
 
-#: src/BoxOffice/Service.php:647
+#: src/BoxOffice/Service.php:731
 msgid "Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“."
 msgstr "Le fournisseur n’a pas encore confirmé le reçu fiscal. Les billets ne sont émis qu’ensuite ; la vente reste ouverte. Veuillez utiliser « Enregistrer a posteriori » plus tard."
 
-#: src/BoxOffice/Service.php:649
+#: src/BoxOffice/Service.php:733
 msgid "Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen."
 msgstr "La commande n’est pas payée ou tous les tickets n’ont pas été émis. La vente n’a pas été enregistrée ; veuillez vérifier la commande."
 
-#: src/BoxOffice/Service.php:668
+#: src/BoxOffice/Service.php:752
 msgid "Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert."
 msgstr "La session de caisse a entre-temps été clôturée. La vente n’a pas été enregistrée et les tickets ont été annulés."
 
-#: src/BoxOffice/Service.php:709
-#: src/BoxOffice/Service.php:905
+#: src/BoxOffice/Service.php:793
+#: src/BoxOffice/Service.php:989
 msgid "Das Kartenterminal ist nicht mehr verfügbar."
 msgstr "Le terminal de paiement n’est plus disponible."
 
-#: src/BoxOffice/Service.php:710
+#: src/BoxOffice/Service.php:794
 msgid "Für einen Betrag von 0,00 bitte „Freikarte“ wählen."
 msgstr "Pour un montant de 0,00, veuillez choisir « Billet gratuit »."
 
-#: src/BoxOffice/Service.php:776
-#: src/BoxOffice/Service.php:901
-#: src/BoxOffice/Service.php:930
+#: src/BoxOffice/Service.php:860
+#: src/BoxOffice/Service.php:985
+#: src/BoxOffice/Service.php:1014
 msgid "Kein Kassenverkauf mit Terminalzahlung gefunden."
 msgstr "Aucune vente de billetterie avec paiement sur terminal trouvée."
 
-#: src/BoxOffice/Service.php:788
+#: src/BoxOffice/Service.php:872
 msgid "Die Zahlungsreferenz fehlt."
 msgstr "La référence de paiement est manquante."
 
-#: src/BoxOffice/Service.php:794
+#: src/BoxOffice/Service.php:878
 msgid "Dieser Verkauf wurde bereits mit einer anderen Terminalzahlung bestätigt. Die zweite Zahlung bitte am Terminal erstatten."
 msgstr "Cette vente a déjà été confirmée avec un autre paiement sur terminal. Veuillez rembourser le second paiement sur le terminal."
 
-#: src/BoxOffice/Service.php:801
+#: src/BoxOffice/Service.php:885
 msgid "Für diesen Verkauf wird keine Terminalzahlung mehr erwartet (abgebrochen, fehlgeschlagen oder abgelaufen). Eine dennoch erfolgte Zahlung bitte am Terminal erstatten."
 msgstr "Plus aucun paiement sur terminal n’est attendu pour cette vente (annulé, échoué ou expiré). Veuillez rembourser sur le terminal tout paiement effectué malgré tout."
 
-#: src/BoxOffice/Service.php:809
+#: src/BoxOffice/Service.php:893
 msgid "Pass Captain: Terminalzahlung prüfen"
 msgstr "Pass Captain : vérifier le paiement sur terminal"
 
 #. translators: 1: order id, 2: terminal reference, 3: description of the difference
-#: src/BoxOffice/Service.php:811
+#: src/BoxOffice/Service.php:895
 #, php-format
 msgid ""
 "Bestellung %1$s (Terminal-Referenz %2$s): %3$s\n"
@@ -12735,165 +12735,165 @@ msgstr ""
 "La vente n’a pas été enregistrée. Veuillez rembourser sur le terminal le montant débité et saisir à nouveau la vente."
 
 #. translators: 1: charged amount, 2: order amount
-#: src/BoxOffice/Service.php:846
+#: src/BoxOffice/Service.php:930
 #, php-format
 msgid "Am Terminal wurde %1$s belastet, die Bestellung beträgt %2$s."
 msgstr "%1$s ont été débités sur le terminal ; la commande s’élève à %2$s."
 
 #. translators: 1: charged currency, 2: order currency
-#: src/BoxOffice/Service.php:850
+#: src/BoxOffice/Service.php:934
 #, php-format
 msgid "Das Terminal meldet die Währung %1$s statt %2$s."
 msgstr "Le terminal indique la devise %1$s au lieu de %2$s."
 
-#: src/BoxOffice/Service.php:864
+#: src/BoxOffice/Service.php:948
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Le paiement sur le terminal a échoué. La vente n’a pas été comptabilisée ; veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:865
+#: src/BoxOffice/Service.php:949
 msgid "Die Zahlung am Terminal wurde abgebrochen. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Le paiement sur le terminal a été annulé. La vente n’a pas été comptabilisée ; veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:866
+#: src/BoxOffice/Service.php:950
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Der Verkauf wurde nicht gebucht; bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Délai dépassé : aucun paiement n’a été confirmé sur le terminal. La vente n’a pas été comptabilisée ; veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:867
+#: src/BoxOffice/Service.php:951
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Der Verkauf wurde nicht gebucht; bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "Le montant débité sur le terminal ne correspond pas à la commande. La vente n’a pas été enregistrée ; veuillez rembourser le paiement sur le terminal et saisir à nouveau la vente."
 
-#: src/BoxOffice/Service.php:938
+#: src/BoxOffice/Service.php:1022
 msgid "Die Zahlung konnte am Terminal nicht abgebrochen werden (z. B. Karte bereits vorgelegt). Bitte das Ergebnis am Terminal abwarten."
 msgstr "Le paiement n’a pas pu être annulé sur le terminal (p. ex. carte déjà présentée). Veuillez attendre le résultat sur le terminal."
 
-#: src/BoxOffice/Service.php:956
+#: src/BoxOffice/Service.php:1040
 msgid "Der am Terminal belastete Betrag stimmt nicht mit der Bestellung überein. Bitte die Zahlung am Terminal erstatten und den Verkauf neu erfassen."
 msgstr "Le montant débité sur le terminal ne correspond pas à la commande. Veuillez rembourser le paiement sur le terminal et saisir à nouveau la vente."
 
-#: src/BoxOffice/Service.php:957
+#: src/BoxOffice/Service.php:1041
 msgid "Die Zahlung am Terminal ist fehlgeschlagen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Le paiement sur le terminal a échoué. Veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:958
+#: src/BoxOffice/Service.php:1042
 msgid "Die Zahlung am Terminal wurde abgebrochen. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Le paiement sur le terminal a été annulé. Veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:959
+#: src/BoxOffice/Service.php:1043
 msgid "Zeitüberschreitung: Am Terminal wurde keine Zahlung bestätigt. Bitte erneut versuchen oder eine andere Zahlart wählen."
 msgstr "Délai dépassé : aucun paiement n’a été confirmé sur le terminal. Veuillez réessayer ou choisir un autre moyen de paiement."
 
-#: src/BoxOffice/Service.php:966
+#: src/BoxOffice/Service.php:1050
 msgid "Die Kartenzahlung ist bestätigt."
 msgstr "Le paiement par carte est confirmé."
 
-#: src/BoxOffice/Service.php:1021
+#: src/BoxOffice/Service.php:1105
 #: src/BoxOffice/Shifts.php:352
 #: src/BoxOffice/Shifts.php:425
 #: src/BoxOffice/Shifts.php:598
 msgid "Kassensitzung nicht gefunden."
 msgstr "Session de caisse introuvable."
 
-#: src/BoxOffice/Service.php:1027
+#: src/BoxOffice/Service.php:1111
 msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "Seules les ventes de votre propre session de caisse peuvent être annulées."
 
-#: src/BoxOffice/Service.php:1038
+#: src/BoxOffice/Service.php:1122
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
 msgstr "Les tickets sélectionnés n’appartiennent pas à cette vente ou ont déjà été annulés."
 
-#: src/BoxOffice/Service.php:1044
+#: src/BoxOffice/Service.php:1128
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
 msgstr "Au moins un ticket a déjà été enregistré (check-in). Pour l’annulation, veuillez indiquer un motif d’exception."
 
-#: src/BoxOffice/Service.php:1045
+#: src/BoxOffice/Service.php:1129
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
 msgstr "Au moins un ticket a déjà été enregistré (check-in) et ne peut pas être annulé à la caisse."
 
-#: src/BoxOffice/Service.php:1048
+#: src/BoxOffice/Service.php:1132
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
 msgstr "Une session de caisse doit être ouverte pour effectuer le versement. Veuillez d’abord ouvrir une session."
 
-#: src/BoxOffice/Service.php:1053
+#: src/BoxOffice/Service.php:1137
 msgid "eingecheckt, Ausnahme:"
 msgstr "enregistré, exception :"
 
-#: src/BoxOffice/Service.php:1076
+#: src/BoxOffice/Service.php:1160
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "L’annulation a été refusée ou a échoué. Veuillez réessayer."
 
-#: src/BoxOffice/Service.php:1106
+#: src/BoxOffice/Service.php:1190
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Aucune annulation n’est en attente pour cette vente."
 
 #. translators: %d: user ID
-#: src/BoxOffice/Service.php:1161
+#: src/BoxOffice/Service.php:1245
 #, php-format
 msgid "Bediener %d"
 msgstr "Opérateur %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:1323
+#: src/BoxOffice/Service.php:1407
 #: src/Invoices.php:731
 #: src/Invoices.php:807
 #: src/Partners/Settlements.php:913
 msgid "USt-IdNr.:"
 msgstr "N° de TVA :"
 
-#: src/BoxOffice/Service.php:1324
+#: src/BoxOffice/Service.php:1408
 #: src/BoxOffice/ZReport.php:450
 msgid "STORNOBELEG"
 msgstr "REÇU D’ANNULATION"
 
-#: src/BoxOffice/Service.php:1325
+#: src/BoxOffice/Service.php:1409
 #: src/BoxOffice/ZReport.php:451
 msgid "Beleg-Nr.:"
 msgstr "N° de reçu :"
 
-#: src/BoxOffice/Service.php:1326
+#: src/BoxOffice/Service.php:1410
 msgid "Storno zu Beleg"
 msgstr "Annulation du reçu"
 
-#: src/BoxOffice/Service.php:1327
+#: src/BoxOffice/Service.php:1411
 #: src/BoxOffice/ZReport.php:452
 #: src/Printing/InvoicePdf.php:193
 msgid "Datum:"
 msgstr "Date :"
 
-#: src/BoxOffice/Service.php:1327
+#: src/BoxOffice/Service.php:1411
 #: src/BoxOffice/ZReport.php:452
 msgid "Kasse/Schicht/Bediener:"
 msgstr "Caisse/session/opérateur :"
 
-#: src/BoxOffice/Service.php:1332
+#: src/BoxOffice/Service.php:1416
 msgid "SUMME"
 msgstr "TOTAL"
 
 #. translators: 1: VAT rate in percent, 2: net amount
 #. translators: 1: rate, 2: net
-#: src/BoxOffice/Service.php:1334
+#: src/BoxOffice/Service.php:1418
 #: src/BoxOffice/ZReport.php:456
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "TVA %1$s %% : net %2$s"
 
-#: src/BoxOffice/Service.php:1338
+#: src/BoxOffice/Service.php:1422
 #: src/BoxOffice/ZReport.php:458
 msgid "Zahlart:"
 msgstr "Mode de paiement :"
 
-#: src/BoxOffice/Service.php:1340
+#: src/BoxOffice/Service.php:1424
 msgid "Gegeben"
 msgstr "Remis"
 
-#: src/BoxOffice/Service.php:1340
+#: src/BoxOffice/Service.php:1424
 msgid "Rückgeld"
 msgstr "Monnaie rendue"
 
-#: src/BoxOffice/Service.php:1342
+#: src/BoxOffice/Service.php:1426
 msgid "Bestellung:"
 msgstr "Commande :"
 
-#: src/BoxOffice/Service.php:1345
+#: src/BoxOffice/Service.php:1429
 #: src/BoxOffice/ZReport.php:459
 #: src/Printing/AttendeeList.php:319
 #: src/Printing/NoShowList.php:111
@@ -14053,7 +14053,7 @@ msgstr "Veuillez choisir au moins un ticket."
 
 #: src/Campaigns.php:702
 #: src/PublicEvents.php:165
-#: src/Rest/Controller.php:610
+#: src/Rest/Controller.php:651
 #: src/Waitlists/Discounts.php:123
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "Le code de réduction n’est pas valide ou ne correspond pas aux tickets sélectionnés."
@@ -14668,9 +14668,9 @@ msgstr "Entrée à partir de %s"
 
 #: src/Errors.php:21
 #: src/Exchange/Service.php:608
-#: src/Orders.php:324
-#: src/Orders.php:1249
-#: src/Orders.php:1504
+#: src/Orders.php:326
+#: src/Orders.php:1246
+#: src/Orders.php:1501
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Il y a beaucoup d’affluence en ce moment. Veuillez réessayer dans un instant."
 
@@ -14972,7 +14972,7 @@ msgid "Event-Regeln speichern"
 msgstr "Enregistrer les règles de l’événement"
 
 #: src/Exchange/Portal.php:57
-#: src/Orders.php:2027
+#: src/Orders.php:1909
 #: src/PortalSelfService.php:73
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L’accès à la commande n’est pas valide."
@@ -14980,16 +14980,16 @@ msgstr "L’accès à la commande n’est pas valide."
 #: src/Exchange/Portal.php:59
 #: src/Frontend/Availability.php:127
 #: src/Payments/ReturnNotice.php:409
-#: src/PublicEvents.php:1095
-#: src/Rest/Controller.php:780
-#: src/Rest/Controller.php:913
-#: src/Rest/Controller.php:959
-#: src/Rest/Controller.php:964
-#: src/Rest/Controller.php:977
-#: src/Rest/Controller.php:989
-#: src/Rest/Controller.php:1004
-#: src/Rest/Controller.php:1017
-#: src/Rest/Controller.php:1193
+#: src/PublicEvents.php:1120
+#: src/Rest/Controller.php:834
+#: src/Rest/Controller.php:967
+#: src/Rest/Controller.php:1013
+#: src/Rest/Controller.php:1018
+#: src/Rest/Controller.php:1031
+#: src/Rest/Controller.php:1043
+#: src/Rest/Controller.php:1058
+#: src/Rest/Controller.php:1071
+#: src/Rest/Controller.php:1247
 #: src/Sales/CheckoutThrottle.php:135
 #: src/Seating/Rest.php:25
 msgid "Bitte warte kurz und versuche es erneut."
@@ -15119,7 +15119,7 @@ msgid "Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht
 msgstr "Ce ticket a été transféré et ne peut être échangé que par l’organisateur."
 
 #: src/Exchange/Service.php:231
-#: src/Orders.php:1251
+#: src/Orders.php:1248
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr "Les ventes pour ce type de ticket sont fermées."
 
@@ -15438,7 +15438,7 @@ msgstr "Reporté"
 #: src/Frontend/EventCard.php:198
 #: src/Frontend/EventCard.php:227
 #: src/Passes/Display.php:182
-#: src/PublicEvents.php:923
+#: src/PublicEvents.php:948
 #: templates/event-card.php:119
 msgid "Ausverkauft"
 msgstr "Complet"
@@ -15504,11 +15504,11 @@ msgid "Sprache speichern"
 msgstr "Enregistrer la langue"
 
 #: src/Frontend/Language.php:97
-#: src/Rest/Controller.php:876
-#: src/Rest/Controller.php:916
-#: src/Rest/Controller.php:962
-#: src/Rest/Controller.php:980
-#: src/Rest/Controller.php:992
+#: src/Rest/Controller.php:930
+#: src/Rest/Controller.php:970
+#: src/Rest/Controller.php:1016
+#: src/Rest/Controller.php:1034
+#: src/Rest/Controller.php:1046
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "L’accès à la commande n’est pas valide ou a expiré."
 
@@ -17283,7 +17283,7 @@ msgstr "Aucun billet n'a été trouvé pour ce bon."
 
 #. translators: %d: allowed resends per hour
 #: src/Integrations/Vouchers/TicketService.php:456
-#: src/Rest/Controller.php:920
+#: src/Rest/Controller.php:974
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
@@ -17894,7 +17894,7 @@ msgstr "La facture rectificative n’a pas pu être enregistrée."
 msgid "Die Rechnungskorrektur konnte nicht storniert werden."
 msgstr "La facture rectificative n’a pas pu être annulée."
 
-#: src/BoxOffice/Service.php:1323
+#: src/BoxOffice/Service.php:1407
 #: src/Invoices.php:732
 msgid "Steuernummer:"
 msgstr "Numéro fiscal :"
@@ -19263,7 +19263,7 @@ msgstr ""
 "Votre billet reste valable. %6$s"
 
 #: src/Mail/Types.php:614
-#: src/RescheduleRefunds.php:60
+#: src/RescheduleRefunds.php:64
 msgid "Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
 msgstr "Pour toute question concernant un retour ou un remboursement, veuillez contacter l’organisateur."
 
@@ -21231,7 +21231,7 @@ msgid "Unerwartete Antwort von Mollie."
 msgstr "Réponse inattendue de Mollie."
 
 #: src/Mollie/MollieGateway.php:213
-#: src/Rest/Controller.php:603
+#: src/Rest/Controller.php:635
 #: src/Waitlists.php:1000
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Le paiement par virement n’est plus possible si peu de temps avant le début. Veuillez choisir un autre mode de paiement."
@@ -21502,7 +21502,7 @@ msgid "Bereit"
 msgstr "Prêt"
 
 #: src/OfflineScanner/I18n.php:110
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Kamera starten"
 msgstr "Démarrer la caméra"
 
@@ -21727,7 +21727,7 @@ msgid "Offline"
 msgstr "Hors ligne"
 
 #: src/OfflineScanner/I18n.php:187
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Kamera stoppen"
 msgstr "Arrêter la caméra"
 
@@ -23365,28 +23365,28 @@ msgstr "Tant que la facture n’a pas été émise, vous pouvez indiquer ou corr
 msgid "Rechnungsdaten speichern"
 msgstr "Enregistrer les données de facturation"
 
-#: src/Orders.php:131
+#: src/Orders.php:133
 msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr "Veuillez indiquer une adresse e-mail valide et sélectionner des tickets."
 
-#: src/Orders.php:163
+#: src/Orders.php:165
 #: src/Waitlists.php:967
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Veuillez accepter les conditions et les informations consommateur."
 
-#: src/Orders.php:217
+#: src/Orders.php:219
 #: src/Waitlists.php:971
 msgid "Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung."
 msgstr "Les conditions ont été modifiées entre-temps. Veuillez recharger la page et accepter la version actuelle."
 
-#: src/Orders.php:236
-#: src/Orders.php:240
+#: src/Orders.php:238
+#: src/Orders.php:242
 msgid "Eine Ticketposition ist ungültig."
 msgstr "Une ligne de ticket n’est pas valide."
 
-#: src/Orders.php:513
-#: src/Rest/Controller.php:581
-#: src/Rest/Controller.php:595
+#: src/Orders.php:515
+#: src/Rest/Controller.php:572
+#: src/Rest/Controller.php:627
 #: src/ServiceBookings.php:746
 #: src/ServiceBookings.php:760
 #: src/ServiceBookings.php:859
@@ -23395,7 +23395,7 @@ msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Ce mode de paiement n’est pas disponible."
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1013
+#: src/Orders.php:1010
 #, php-format
 msgid "Die E-Mail-Adresse ist zu lang (höchstens %d Zeichen)."
 msgstr "L’adresse e-mail est trop longue (%d caractères au maximum)."
@@ -23433,94 +23433,94 @@ msgid "E-Mail der Teilnehmer:in"
 msgstr "E-mail du participant"
 
 #. translators: %d: maximum number of characters
-#: src/Orders.php:1122
+#: src/Orders.php:1119
 #, php-format
 msgid "Diese E-Mail-Adresse ist zu lang. Bitte verwende eine Adresse mit höchstens %d Zeichen."
 msgstr "Cette adresse e-mail est trop longue. Veuillez utiliser une adresse de %d caractères au maximum."
 
-#: src/Orders.php:1156
+#: src/Orders.php:1153
 msgid "Dieser Bestellversuch gehört zu einem anderen Warenkorb. Bitte lade die Seite neu und bestelle erneut."
 msgstr "Cette tentative de commande appartient à un autre panier. Veuillez recharger la page et commander à nouveau."
 
 #. translators: 1: ticket type, 2: new price
-#: src/Orders.php:1170
+#: src/Orders.php:1167
 #, php-format
 msgid "„%1$s“ jetzt %2$s"
 msgstr "« %1$s » désormais %2$s"
 
 #. translators: %s: list of ticket types with their new price
-#: src/Orders.php:1174
+#: src/Orders.php:1171
 #, php-format
 msgid "Der Preis hat sich seit dem Laden der Seite geändert (%s). Bitte prüfe die Summe und bestelle erneut."
 msgstr "Le prix a changé depuis le chargement de la page (%s). Veuillez vérifier le total et commander à nouveau."
 
 #. translators: %s: new date and time (and location) of the occurrence
-#: src/Orders.php:1194
+#: src/Orders.php:1191
 #, php-format
 msgid "Der Termin wurde inzwischen geändert – jetzt: %s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "La date a été modifiée entre-temps – désormais : %s. Veuillez vérifier les informations et renvoyer la commande."
 
 #. translators: 1: ticket type name, 2: new price
-#: src/Orders.php:1201
+#: src/Orders.php:1198
 #, php-format
 msgid "Der Preis für „%1$s“ hat sich inzwischen geändert – jetzt %2$s. Bitte prüfe die Angaben und sende die Bestellung erneut ab."
 msgstr "Le prix de « %1$s » a changé entre-temps – désormais %2$s. Veuillez vérifier les informations et renvoyer la commande."
 
-#: src/Orders.php:1247
+#: src/Orders.php:1244
 #: src/Waitlists.php:162
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr "Ce type de ticket n’est pas disponible."
 
-#: src/Orders.php:1248
+#: src/Orders.php:1245
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
 msgstr "Cette quantité de tickets par commande n’est pas possible pour ce type de ticket."
 
-#: src/Orders.php:1250
+#: src/Orders.php:1247
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr "Cette date n’est plus disponible."
 
-#: src/Orders.php:1252
+#: src/Orders.php:1249
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "Des tickets de devises différentes ne peuvent pas être commandés ensemble."
 
-#: src/Orders.php:1253
-#: src/Orders.php:1505
+#: src/Orders.php:1250
+#: src/Orders.php:1502
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Il ne reste plus assez de tickets disponibles pour ce type de ticket."
 
-#: src/Orders.php:1254
-#: src/Orders.php:1506
+#: src/Orders.php:1251
+#: src/Orders.php:1503
 #: src/Passes/Capacity.php:183
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Il ne reste plus assez de places disponibles pour cette date."
 
-#: src/Orders.php:1255
+#: src/Orders.php:1252
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr "Un code de campagne n’est pas valide ou ne correspond pas à la commande."
 
-#: src/Orders.php:1256
+#: src/Orders.php:1253
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr "La remise n’a pas pu être appliquée à la commande de manière fiable."
 
-#: src/Orders.php:1257
+#: src/Orders.php:1254
 msgid "Per Überweisung sind für diesen Termin gerade keine weiteren Tickets reservierbar. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Aucun ticket supplémentaire ne peut actuellement être réservé par virement pour cette date. Veuillez choisir un autre mode de paiement ou une quantité plus petite."
 
-#: src/Orders.php:1286
+#: src/Orders.php:1283
 msgid "Eine Angabe ist zu lang oder enthält ungültige Zeichen. Bitte prüfe deine Eingaben."
 msgstr "Une information est trop longue ou contient des caractères non valides. Veuillez vérifier vos saisies."
 
-#: src/Orders.php:1290
+#: src/Orders.php:1287
 #: src/Waitlists.php:984
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
 msgstr "Pour ce montant de commande, nous avons besoin de votre nom et de votre adresse pour la facture. Veuillez activer « J’ai besoin d’une facture au nom d’une société/à une adresse » et remplir les champs."
 
-#: src/Orders.php:1294
+#: src/Orders.php:1291
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "La commande n’a pas pu être créée."
 
 #. translators: 1: error message, 2: error reference for support
-#: src/Orders.php:1318
+#: src/Orders.php:1315
 #, php-format
 msgid "%1$s Bitte versuche es erneut. Falls es wieder nicht klappt, nenne uns bitte die Fehler-ID %2$s."
 msgstr "%1$s Veuillez réessayer. Si le problème persiste, veuillez nous communiquer l’ID d’erreur %2$s."
@@ -23587,11 +23587,11 @@ msgstr "Veuillez régulariser manuellement (relancer l’attribution ou rembours
 msgid "Pass Captain: Bezahlte Bestellung ohne Tickets"
 msgstr "Pass Captain : commande payée sans tickets"
 
-#: src/Orders.php:1679
+#: src/Orders/Refunding.php:125
 msgid "Diese Zahlungsart kann nicht automatisch erstatten. Bitte die Zahlung außerhalb des Plugins zurückzahlen und „Extern erstattet – abschließen“ verwenden."
 msgstr "Ce mode de paiement ne permet pas de remboursement automatique. Veuillez rembourser le paiement en dehors du plugin et utiliser « Remboursé en externe – clôturer »."
 
-#: src/Orders.php:1688
+#: src/Orders/Refunding.php:134
 msgid "Unbekannte Art der Erstattung."
 msgstr "Type de remboursement inconnu."
 
@@ -23603,27 +23603,27 @@ msgstr "La commande n’a pas pu être annulée pour le moment. Veuillez réessa
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "La commande n’a pas pu être marquée comme remboursée pour le moment ; cela sera effectué automatiquement plus tard."
 
-#: src/Orders.php:2023
+#: src/Orders.php:1905
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "Les données de transfert ne sont pas valides."
 
-#: src/Orders.php:2030
+#: src/Orders.php:1912
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Les tickets ne peuvent être transférés qu’après confirmation du paiement."
 
-#: src/Orders.php:2043
+#: src/Orders.php:1925
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Ce ticket ne peut plus être transféré."
 
-#: src/Orders.php:2053
+#: src/Orders.php:1935
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "Le titulaire de ce ticket a déjà été modifié ; un nouveau transfert n’est pas possible."
 
-#: src/Orders.php:2171
+#: src/Orders.php:2053
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Le transfert du ticket n’a pas pu être enregistré."
 
-#: src/Orders.php:2064
+#: src/Orders.php:1946
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Le transfert du ticket a été enregistré, mais l’e-mail n’a pas pu être remis. Veuillez contacter l’organisateur pour un nouvel envoi."
 
@@ -23636,45 +23636,45 @@ msgstr "Cet événement ne peut pas être annulé."
 msgid "Dieses Event ist nicht abgesagt."
 msgstr "Cet événement n’est pas annulé."
 
-#: src/Orders.php:2702
+#: src/Orders/Issuance.php:308
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Les tickets n’ont pas pu être émis pour le moment. Veuillez réessayer."
 
 #. translators: %s: database error ('' when none)
-#: src/Orders.php:2950
+#: src/Orders/Issuance.php:556
 #, php-format
 msgid "Der Schritt ist ohne Fehlerangabe fehlgeschlagen. %s"
 msgstr "L’étape a échoué sans indication d’erreur. %s"
 
-#: src/Orders.php:3104
+#: src/Orders/Resend.php:66
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "Les tickets n’ont pas pu être renouvelés pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:3108
+#: src/Orders/Resend.php:70
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Les tickets ne peuvent être renvoyés qu’après confirmation du paiement."
 
-#: src/Orders.php:3126
+#: src/Orders/Resend.php:88
 msgid "Dieses Formular wurde bereits abgeschickt; die Tickets wurden schon erneut gesendet. Für einen weiteren Versand die Seite neu laden."
 msgstr "Ce formulaire a déjà été envoyé ; les tickets ont déjà été renvoyés. Pour un nouvel envoi, rechargez la page."
 
-#: src/Orders.php:3187
-#: src/Orders.php:3266
-#: src/Orders.php:3437
+#: src/Orders/Resend.php:149
+#: src/Orders/Resend.php:228
+#: src/Orders/Resend.php:399
 #: src/PortalSelfService.php:254
 #: src/PortalSelfService.php:267
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Le code du ticket n’a pas pu être renouvelé."
 
-#: src/Orders.php:3214
+#: src/Orders/Resend.php:176
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Aucun ticket valide trouvé pour le renvoi."
 
-#: src/Orders.php:3290
+#: src/Orders/Resend.php:252
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; der Versand wird automatisch wiederholt."
 msgstr "Au moins un e-mail n’a pas pu être distribué. Les codes de ticket actuels restent valables ; l’envoi sera automatiquement réessayé."
 
-#: src/Orders.php:3426
+#: src/Orders/Resend.php:388
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Seuls les tickets valides et non encore enregistrés de commandes payées peuvent être réémis."
 
@@ -27900,111 +27900,111 @@ msgstr "Remarque pour les rédacteurs concernant le shortcode [%1$s] : %2$s. Les
 #. translators: %s: date and time the online sale starts
 #. translators: %s: date and time
 #: src/PublicEvents.php:493
-#: src/PublicEvents.php:925
-#: src/PublicEvents.php:1238
+#: src/PublicEvents.php:950
+#: src/PublicEvents.php:1263
 #, php-format
 msgid "Vorverkauf ab %s"
 msgstr "Prévente à partir du %s"
 
 #: src/PublicEvents.php:495
-#: src/PublicEvents.php:722
-#: src/PublicEvents.php:895
+#: src/PublicEvents.php:686
+#: src/PublicEvents.php:920
 msgid "Aktuell sind keine Veranstaltungen verfügbar."
 msgstr "Aucun événement n’est disponible actuellement."
 
-#: src/PublicEvents.php:679
+#: src/PublicEvents.php:661
 msgid "Freischaltcode"
 msgstr "Code de déblocage"
 
-#: src/PublicEvents.php:679
+#: src/PublicEvents.php:661
 msgid "Tickets freischalten"
 msgstr "Débloquer des billets"
 
-#: src/PublicEvents.php:778
+#: src/PublicEvents.php:803
 msgid "← Alle Termine"
 msgstr "← Toutes les dates"
 
-#: src/PublicEvents.php:782
+#: src/PublicEvents.php:807
 msgid "Dieser Termin ist nicht (mehr) buchbar."
 msgstr "Cette date n’est pas (plus) réservable."
 
-#: src/PublicEvents.php:799
+#: src/PublicEvents.php:824
 msgid "Anderen Termin wählen"
 msgstr "Choisir une autre date"
 
-#: src/PublicEvents.php:827
+#: src/PublicEvents.php:852
 msgid "ausverkauft"
 msgstr "complet"
 
-#: src/PublicEvents.php:828
+#: src/PublicEvents.php:853
 msgid "Vorverkauf folgt"
 msgstr "Prévente à venir"
 
 #. translators: 1: number of dates, 2: first date
-#: src/PublicEvents.php:913
+#: src/PublicEvents.php:938
 #, php-format
 msgid "%1$d Termine ab %2$s"
 msgstr "%1$d dates à partir du %2$s"
 
-#: src/PublicEvents.php:914
+#: src/PublicEvents.php:939
 msgid "Termin wählen"
 msgstr "Choisir une date"
 
 #. translators: 1: event name, 2: date and time
-#: src/PublicEvents.php:927
+#: src/PublicEvents.php:952
 #, php-format
 msgid "Tickets für %1$s am %2$s"
 msgstr "Billets pour %1$s le %2$s"
 
-#: src/PublicEvents.php:1515
+#: src/PublicEvents.php:1540
 msgid "Ticket suchen (Name, E-Mail oder Bestellnummer)"
 msgstr "Rechercher un ticket (nom, e-mail ou numéro de commande)"
 
-#: src/PublicEvents.php:1516
+#: src/PublicEvents.php:1541
 msgid "Ticket suchen (Name oder Bestellnummer)"
 msgstr "Rechercher un ticket (nom ou numéro de commande)"
 
-#: src/PublicEvents.php:1517
+#: src/PublicEvents.php:1542
 msgid "Ticket suchen (E-Mail oder Bestellnummer)"
 msgstr "Rechercher un ticket (e-mail ou numéro de commande)"
 
-#: src/PublicEvents.php:1518
+#: src/PublicEvents.php:1543
 msgid "Ticket suchen (Bestellnummer)"
 msgstr "Rechercher un ticket (numéro de commande)"
 
-#: src/PublicEvents.php:1548
+#: src/PublicEvents.php:1573
 msgid "Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich."
 msgstr "Le scanner nécessite une connexion avec autorisation d’entrée."
 
-#: src/PublicEvents.php:1555
+#: src/PublicEvents.php:1580
 msgid "Alle Termine (keine Terminprüfung)"
 msgstr "Toutes les dates (pas de contrôle de date)"
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Pass Captain Check-in"
 msgstr "Check-in Pass Captain"
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Scanne den Ticketcode oder gib ihn manuell ein."
 msgstr "Scannez le code du ticket ou saisissez-le manuellement."
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Licht"
 msgstr "Lumière"
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Ton"
 msgstr "Son"
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Ticket-Code oder Hilfscode"
 msgstr "Code du ticket ou code de secours"
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA)."
 msgstr "Si le QR code est illisible, saisissez le code de secours à 8 caractères situé sous le QR code (p. ex. K7QM-4XWA)."
 
-#: src/PublicEvents.php:1564
+#: src/PublicEvents.php:1589
 msgid "Ticket prüfen und einchecken"
 msgstr "Vérifier le ticket et enregistrer le check-in"
 
@@ -28778,110 +28778,110 @@ msgid "Künstler/Tourneeleitung"
 msgstr "Artiste/production de tournée"
 
 #. translators: %s: deadline
-#: src/RescheduleRefunds.php:69
+#: src/RescheduleRefunds.php:73
 #, php-format
 msgid "Erstattung auf Antrag bis %s über deinen Bestelllink."
 msgstr "Remboursement sur demande jusqu’au %s via votre lien de commande."
 
-#: src/RescheduleRefunds.php:96
+#: src/RescheduleRefunds.php:100
 msgid "Für diese Bestellung kann derzeit keine Erstattung beantragt werden (keine verschobenen Termine oder die Frist ist abgelaufen)."
 msgstr "Aucun remboursement ne peut actuellement être demandé pour cette commande (aucune date reportée ou l’échéance est dépassée)."
 
-#: src/RescheduleRefunds.php:99
+#: src/RescheduleRefunds.php:103
 msgid "Erstattungsantrag nach Terminverschiebung (Bestellportal)"
 msgstr "Demande de remboursement après report (portail de commande)"
 
-#: src/Rest/Controller.php:587
+#: src/Rest/Controller.php:578
 msgid "Der Bestellversuch ist ungültig. Bitte lade die Seite neu und versuche es erneut."
 msgstr "La tentative de commande n’est pas valide. Veuillez recharger la page et réessayer."
 
-#: src/Rest/Controller.php:611
+#: src/Rest/Controller.php:652
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
 msgstr "Le code de réduction n’a pas pu être appliqué de manière fiable à la commande. Veuillez réessayer."
 
-#: src/Rest/Controller.php:633
+#: src/Rest/Controller.php:674
 msgid "Dieser Bestellversuch läuft bereits mit einer anderen Zahlungsart. Bitte lade die Seite neu, um mit einer anderen Zahlungsart zu bestellen."
 msgstr "Cette tentative de commande est déjà en cours avec un autre mode de paiement. Veuillez recharger la page pour commander avec un autre mode de paiement."
 
-#: src/Rest/Controller.php:637
+#: src/Rest/Controller.php:678
 msgid "Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab."
 msgstr "Cette commande a été commencée avec d’autres données. Veuillez recharger la page et renvoyer le formulaire."
 
-#: src/Rest/Controller.php:643
-#: src/Rest/Controller.php:680
+#: src/Rest/Controller.php:683
+#: src/Rest/Controller.php:730
 msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
 msgstr "Cette tentative de commande a été interrompue. Veuillez renvoyer le formulaire."
 
-#: src/Rest/Controller.php:664
+#: src/Rest/Controller.php:714
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "Ce mode de paiement ne prend pas en charge la devise."
 
-#: src/Rest/Controller.php:774
+#: src/Rest/Controller.php:828
 msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
 msgstr "Il existe déjà des commandes ouvertes et non payées pour cette adresse e-mail. Veuillez d'abord les payer ou les laisser expirer."
 
-#: src/Rest/Controller.php:1054
+#: src/Rest/Controller.php:1108
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Les lignes de vente POS ou la clé d’idempotence ne sont pas valides."
 
-#: src/Rest/Controller.php:1056
+#: src/Rest/Controller.php:1110
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Les ventes en caisse passent par le module de caisse (session, numéro de reçu, rapport Z)."
 
-#: src/Rest/Controller.php:1064
+#: src/Rest/Controller.php:1118
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "Toutes les lignes d’une vente en caisse doivent appartenir à la même date."
 
-#: src/Rest/Controller.php:1068
+#: src/Rest/Controller.php:1122
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "L’autorisation POS manque pour cet événement."
 
-#: src/Rest/Controller.php:1124
+#: src/Rest/Controller.php:1178
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "L’autorisation d’entrée manque pour cet événement."
 
-#: src/Rest/Controller.php:1133
-#: src/Rest/Controller.php:1143
+#: src/Rest/Controller.php:1187
+#: src/Rest/Controller.php:1197
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "Au moins une règle de pass est requise."
 
-#: src/Rest/Controller.php:1138
+#: src/Rest/Controller.php:1192
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Vous n’avez pas l’autorisation pour une règle de pass."
 
-#: src/Rest/Controller.php:1289
+#: src/Rest/Controller.php:1343
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "La période du rapport doit être valide et ne pas dépasser 90 jours."
 
-#: src/Rest/Controller.php:1357
+#: src/Rest/Controller.php:1411
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduction introuvable."
 
-#: src/Rest/Controller.php:1367
+#: src/Rest/Controller.php:1421
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale ou titre traduit non valide."
 
-#: src/Rest/Controller.php:1406
+#: src/Rest/Controller.php:1460
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Vous n’avez pas l’autorisation pour cette date."
 
-#: src/Rest/Controller.php:1409
+#: src/Rest/Controller.php:1463
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Veuillez indiquer de 1 à 31 jours d’événement."
 
-#: src/Rest/Controller.php:1418
+#: src/Rest/Controller.php:1472
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un jour d’événement ou une règle d’admission n’est pas valide."
 
-#: src/Rest/Controller.php:1420
+#: src/Rest/Controller.php:1474
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Les règles d’admission n’ont pas pu être enregistrées."
 
-#: src/Rest/Controller.php:1434
+#: src/Rest/Controller.php:1488
 msgid "Ungültige Woche."
 msgstr "Semaine non valide."
 
-#: src/Rest/Controller.php:1445
+#: src/Rest/Controller.php:1499
 #: src/Waitlists.php:157
 msgid "Bitte eine gültige Anzahl angeben."
 msgstr "Veuillez indiquer une quantité valide."
@@ -34675,7 +34675,7 @@ msgstr "Champ facultatif, p. ex. pour canton ou province ; figure sur la facture
 msgid "Region / Bundesland"
 msgstr "Région / État"
 
-#: src/Rest/Controller.php:669
+#: src/Rest/Controller.php:719
 #: src/Waitlists.php:1032
 msgid "Diese Zahlungsart ist für diese Bestellung nicht verfügbar. Bitte wähle eine andere Zahlungsart."
 msgstr "Ce moyen de paiement n’est pas disponible pour cette commande. Merci d’en choisir un autre."
@@ -35349,7 +35349,7 @@ msgstr "Entrée : %s"
 msgid "Personal: %s"
 msgstr "Personnel : %s"
 
-#: src/Rest/Controller.php:1120
+#: src/Rest/Controller.php:1174
 msgid "Du darfst keine Pässe einlösen."
 msgstr "Tu ne peux pas utiliser de pass."
 
@@ -35627,7 +35627,7 @@ msgstr "Virement : réserver au plus ce nombre de billets non payés par événe
 msgid "Gilt je Veranstaltung über alle Termine, auch ohne Kapazität. Halten offene, unbezahlte Überweisungsbestellungen zusammen so viele Tickets, wird Überweisung im Checkout nicht mehr angeboten (andere Zahlungsarten bleiben) und neue Überweisungsbestellungen werden mit einem Hinweis abgelehnt, bis Bestellungen bezahlt werden oder ablaufen. 0 = keine Obergrenze. Offene Überweisungen kannst du unter „Systemstatus → Betrieb“ gesammelt freigeben."
 msgstr "S’applique par événement sur toutes les dates, même sans capacité. Si les commandes par virement en attente et non payées bloquent ensemble ce nombre de billets, le virement n’est plus proposé à la commande (les autres moyens de paiement restent) et les nouvelles commandes par virement sont refusées avec un message jusqu’à ce que des commandes soient payées ou expirent. 0 = pas de limite. Tu peux libérer les virements en attente en lot sous « État du système → Exploitation »."
 
-#: src/Orders.php:1259
+#: src/Orders.php:1256
 msgid "Per Überweisung sind für diese Veranstaltung gerade keine weiteren Tickets reservierbar, weil schon viele Überweisungen offen sind. Bitte wähle eine andere Zahlungsart oder eine kleinere Anzahl."
 msgstr "Pour le moment, aucun billet supplémentaire ne peut être réservé par virement pour cet événement, car de nombreux virements sont déjà en attente. Choisis un autre moyen de paiement ou une quantité plus petite."
 
@@ -36026,7 +36026,7 @@ msgstr "Ouvrir les événements"
 msgid "Pass Captain: Ticketarten mit Umsatzsteuer bei Kleinunternehmern"
 msgstr "Pass Captain : types de billets avec TVA chez des petites entreprises"
 
-#: src/Orders.php:1258
+#: src/Orders.php:1255
 msgid "Diese Tickets können gerade nicht verkauft werden, weil die Steuerangaben der Ticketart noch geprüft werden müssen. Bitte versuche es später erneut oder wende dich an den Veranstalter."
 msgstr "Ces billets ne peuvent pas être vendus pour le moment, car les données fiscales du type de billet doivent encore être vérifiées. Réessaie plus tard ou contacte l’organisateur."
 
@@ -36101,23 +36101,23 @@ msgstr "Uniquement pour des fautes de frappe de la même personne ; le code rest
 msgid "Teilnehmerliste als CSV (alle Termine des Events)"
 msgstr "Liste des participants en CSV (toutes les dates de l’événement)"
 
-#: src/Orders.php:2092
+#: src/Orders.php:1974
 msgid "Bitte einen Grund für den Inhaberwechsel angeben."
 msgstr "Indique une raison pour le changement de titulaire."
 
-#: src/Orders.php:2098
+#: src/Orders.php:1980
 msgid "Bitte Name und eine gültige E-Mail-Adresse der neuen Person angeben."
 msgstr "Saisis le nom et une adresse e-mail valide de la nouvelle personne."
 
-#: src/Orders.php:2116
+#: src/Orders.php:1998
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können an eine andere Person gehen."
 msgstr "Seuls les billets valides, non enregistrés, de commandes payées peuvent passer à une autre personne."
 
-#: src/Orders.php:2121
+#: src/Orders.php:2003
 msgid "Das ist bereits die Adresse der Inhaber:in. Für Tippfehler derselben Person „Teilnehmerdaten korrigieren“ verwenden."
 msgstr "C’est déjà l’adresse du titulaire. Pour des fautes de frappe de la même personne, utilise « Corriger les données du participant »."
 
-#: src/Orders.php:2128
+#: src/Orders.php:2010
 msgid "Der Inhaber konnte gerade nicht geändert werden. Bitte erneut versuchen."
 msgstr "Le titulaire n’a pas pu être modifié pour le moment. Réessaie."
 
@@ -36225,11 +36225,11 @@ msgstr "Au plus par billet"
 msgid "Ein Zusatzprodukt gibt es nur zusammen mit mindestens einem Ticket desselben Termins in derselben Bestellung. Es erzeugt kein Ticket und keinen QR-Code, belegt keine Plätze des Termins und steht als eigene Position mit eigenem Steuersatz in Bestellübersicht und Rechnung. „Höchstens je Ticket“ gilt nur für Zusatzprodukte (0 = ohne Grenze). Nach den ersten Bestellungen lässt sich die Art nicht mehr ändern."
 msgstr "Un produit complémentaire n’est disponible qu’avec au moins un billet de la même date dans la même commande. Il ne crée ni billet ni code QR, n’occupe aucune place de la date et apparaît comme ligne distincte avec son propre taux dans le récapitulatif et la facture. « Au plus par billet » ne s’applique qu’aux produits complémentaires (0 = sans limite). Après les premières commandes, la nature ne peut plus être modifiée."
 
-#: src/Orders.php:1260
+#: src/Orders.php:1257
 msgid "Zusatzprodukte kannst du nur zusammen mit mindestens einem Ticket für denselben Termin bestellen."
 msgstr "Tu ne peux commander des produits complémentaires qu’avec au moins un billet pour la même date."
 
-#: src/Orders.php:1261
+#: src/Orders.php:1258
 msgid "Für dieses Zusatzprodukt sind pro Ticket nicht so viele Stück möglich."
 msgstr "Ce produit complémentaire n’est pas disponible en autant d’exemplaires par billet."
 
@@ -36532,7 +36532,7 @@ msgid "Gutschriften (Partner)"
 msgstr "Notes de crédit (partenaires)"
 
 #. translators: %d: minimum age in years
-#: src/Orders.php:263
+#: src/Orders.php:265
 #, php-format
 msgid "Bitte bestätige, dass alle Ticketinhaber mindestens %d Jahre alt sind."
 msgstr "Confirme que tous les titulaires ont au moins %d ans."
