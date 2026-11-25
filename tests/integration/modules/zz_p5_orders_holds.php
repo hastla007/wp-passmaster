@@ -34,9 +34,9 @@ $p5h_expected = array(
 	'hold_end'                        => array( 'public', true, array( 'order_id' ) ),
 	'extend_hold_for_delayed_payment' => array( 'public', true, array( 'order_id' ) ),
 	'has_active_hold'                 => array( 'public', true, array( 'order_id' ) ),
-	'lock_holds'                      => array( 'private', true, array( 'hold_ids' ) ),
-	'set_hold_status'                 => array( 'private', true, array( 'hold_ids', 'status', 'from' ) ),
 );
+// lock_holds()/set_hold_status() were private delegators used only by the hold expiry; they left with it (p15: Orders\Expiry calls Orders\Holds).
+check( 'Orders\Holds: the private lock_holds()/set_hold_status() delegators are gone with the hold expiry (Orders\Expiry)', ! method_exists( Orders::class, 'lock_holds' ) && ! method_exists( Orders::class, 'set_hold_status' ) );
 $p5h_bad = array();
 foreach ( $p5h_expected as $p5h_m => $p5h_want ) {
 	if ( ! method_exists( Orders::class, $p5h_m ) || $p5h_sig( Orders::class, $p5h_m ) !== $p5h_want ) { $p5h_bad[] = $p5h_m; continue; }
