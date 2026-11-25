@@ -187,6 +187,9 @@ final class Payment {
 			// ticket type, occurrence/event status and end (A273), module resources (`wpcap_reserve_capacity`),
 			// capacity, buyer limits (Sales\BuyerLimits, buyer locks held), discount code limits (A353,
 			// PAY-1) and `wpcap_order_recovering` (e.g. allocation buyer limits, A483).
+			// Lines without units (fee lines of quantity 0, e.g. the payment order of a no-show fee) need no
+			// capacity and no open sale: they are not re-checked.
+			$lines = array_values( array_filter( $lines, static function ( $line ) { return (int) $line->quantity > 0; } ) );
 			$demand = array();
 			foreach ( $lines as $line ) { $demand[ (int) $line->ticket_type_id ] = (int) $line->quantity; }
 			$recover_context = array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider, 'email' => (string) $order->customer_email, 'user_id' => (int) ( $order->customer_user_id ?? 0 ), 'internal' => array() );

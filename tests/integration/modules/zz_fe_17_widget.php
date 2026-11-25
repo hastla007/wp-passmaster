@@ -5,7 +5,7 @@
  * strict CSP (no inline handlers or scripts in the rendered form or the script), versioned assets,
  * labels/aria-live, du-form strings, REST routes of the widget with permission callbacks and in the
  * public REST coverage list; dearer rebooking with a supplementary payment (X3) is wired to the
- * order portal; the no-show fee is only recorded (no charge without a decision). Runs alone
+ * order portal; mark_no_show() only records the fee (it is requested by payment link, zz_p27_noshow_fee.php). Runs alone
  * (helpers ex_* from lib/fixtures_modules.php).
  *
  * @package PassCaptain
@@ -100,6 +100,6 @@ check( 'FE-17: no-show fee is only recorded (no order, payment or charge in mark
 
 $fe17_doc = (string) file_get_contents( WPCAP_PATH . 'docs/SERVICE-BOOKINGS.md' );
 $fe17_open = (string) strstr( $fe17_doc, '## Offene Punkte' );
-check( 'FE-17: docs – widget and dearer rebooking no longer listed as open; no-show fee and WooCommerce sale named as open', false !== strpos( $fe17_doc, '[wpcap_service_booking' ) && '' !== $fe17_open && false === strpos( $fe17_open, 'Buchungswidget' ) && false === strpos( $fe17_open, 'nicht umgesetzt (abgelehnt' ) && false !== strpos( $fe17_open, 'No-Show-Gebühr' ) && false !== strpos( $fe17_open, 'WooCommerce' ) );
+check( 'FE-17: docs – widget, dearer rebooking and the no-show fee collection (payment link, E18-1) no longer listed as open; WooCommerce sale named as open', false !== strpos( $fe17_doc, '[wpcap_service_booking' ) && false !== strpos( $fe17_doc, 'No-Show-Gebühr per Zahlungslink' ) && '' !== $fe17_open && false === strpos( $fe17_open, 'Buchungswidget' ) && false === strpos( $fe17_open, 'nicht umgesetzt (abgelehnt' ) && false === strpos( $fe17_open, 'Einzug der No-Show-Gebühr' ) && false !== strpos( $fe17_open, 'WooCommerce' ) );
 
 $GLOBALS['wpcap_test_user_id'] = $fe17_saved_user;
