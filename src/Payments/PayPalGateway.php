@@ -447,7 +447,16 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		return $event;
 	}
 
-	/** Cancellation of the plugin order: a PayPal order is never captured for a closed order (handle_return/webhook check), nothing to void. */
+	/**
+	 * Cancellation of the plugin order: nothing to void. PayPal's Orders API v2 has neither an expiry field
+	 * for an order nor a call that cancels an uncaptured order. The payment is bound to the hold instead
+	 * (E20-1, like Stripe's session end): with intent CAPTURE no money moves before the plugin captures,
+	 * and the return handler, the CHECKOUT.ORDER.APPROVED webhook, the reconciliation and the status poll
+	 * capture only while the hold is active (hold_for_capture()) and never for a closed order. An approval
+	 * after the hold ended shows "Reservierung abgelaufen, keine Zahlung eingezogen"; PayPal lets the
+	 * uncaptured order lapse by itself. Only a capture PayPal reports as PENDING (eCheck) can complete
+	 * after the hold – the late-payment re-check handles it.
+	 */
 	public function void_payment( array $order ) {
 		return true;
 	}
@@ -466,6 +475,8 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface, Pa
 		if ( is_wp_error( $paypal_order ) ) { return $paypal_order; }
 		$status = (string) ( $paypal_order['status'] ?? '' );
 		if ( 'APPROVED' === $status ) {
+			// Same gate as the return and the webhook: no capture without an active hold (E20-1).
+			if ( ! self::hold_for_capture( (object) $order ) ) { return null; }
 			$event = self::capture( $reference );
 		} elseif ( 'COMPLETED' === $status ) {
 			$unit = $paypal_order['purchase_units'][0] ?? array();
