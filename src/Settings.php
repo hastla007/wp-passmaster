@@ -112,6 +112,7 @@ final class Settings {
 			// the deadline (hours before the new start); the note goes into the reschedule mail ({refund_note}).
 			'reschedule_refund_request' => 1,
 			'reschedule_refund_hours'   => 0,
+			/* translators: Keep the placeholder {refund_deadline} unchanged. */
 			'reschedule_refund_note'    => __( 'Kannst du den neuen Termin nicht wahrnehmen? Dann kannst du bis {refund_deadline} über den persönlichen Link zu deiner Bestellung eine Erstattung beantragen; der Veranstalter prüft den Antrag.', 'pass-captain' ),
 			// Legal texts of further languages: locale => [terms_text, consumer_info_text]. The plain
 			// terms_text / consumer_info_text keys hold the texts of the default language (legal_default_locale()).

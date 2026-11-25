@@ -31,8 +31,7 @@ check( 'Placeholder labels: no msgid in src/ embeds a descriptive placeholder na
 
 // Every msgid with literal machine tokens ({year}, {event}, {field:key} …) has a translators comment right before
 // the gettext call (same or previous line, no other gettext call in between) that names each token.
-// The settings files are left to the settings rework (SET-PC); they are listed here until it adds the comments.
-$pl_skip    = array( 'src/Settings.php', 'src/Admin/SettingsPage.php' );
+// No file is exempt: src/ (settings files included), templates/ and the main plugin file are scanned completely.
 $pl_fn      = '(?:__|_e|_x|_ex|_n|_nx|esc_html__|esc_html_e|esc_attr__|esc_attr_e|esc_html_x|esc_attr_x)';
 $pl_tok_bad = array();
 $pl_tok_all = 0;
@@ -44,7 +43,6 @@ foreach ( array( 'src', 'templates' ) as $pl_dir ) {
 }
 foreach ( $pl_files as $pl_path ) {
 	$pl_rel = str_replace( WPCAP_PATH, '', $pl_path );
-	if ( in_array( $pl_rel, $pl_skip, true ) ) { continue; }
 	$pl_src = (string) file_get_contents( $pl_path );
 	if ( ! preg_match_all( "/\\b{$pl_fn}\\(\\s*(?:'((?:[^'\\\\]|\\\\.)*)'|\"((?:[^\"\\\\]|\\\\.)*)\")/u", $pl_src, $pl_m, PREG_OFFSET_CAPTURE ) ) { continue; }
 	foreach ( $pl_m[0] as $pl_i => $pl_call ) {
@@ -62,7 +60,7 @@ foreach ( $pl_files as $pl_path ) {
 		}
 	}
 }
-check( 'Placeholder labels: the scan finds msgids with literal tokens (' . $pl_tok_all . ')', $pl_tok_all >= 14 );
+check( 'Placeholder labels: the scan finds msgids with literal tokens (' . $pl_tok_all . ')', $pl_tok_all >= 24 );
 check( 'Placeholder labels: every msgid with literal tokens has a translators comment naming them' . ( $pl_tok_bad ? ': ' . implode( ' | ', array_slice( $pl_tok_bad, 0, 5 ) ) : '' ), ! $pl_tok_bad );
 
 // German output unchanged: print page help texts.
