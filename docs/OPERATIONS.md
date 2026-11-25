@@ -1073,8 +1073,23 @@ annulliert: Stripe Checkout Session `expire`, Mollie `DELETE` (nur wenn `isCance
 im Status `PENDING` (`PAYMENT.CAPTURE.PENDING`, Rückkehr/Webhook mit ausstehendem Capture) gelten als
 `payment_pending`: Die Reservierung wird verlängert (Filter `wp_pass_captain_delayed_payment_hold_minutes_v1`,
 Standard 7 Tage). Bei der Mollie-Überweisung wird das Fälligkeitsdatum (`dueDate`, die von Mollie dafür
-vorgesehene Angabe; `expiresAt` ist bei Mollie nur ein Antwortfeld) auf das Ende der Reservierung gesetzt –
+vorgesehene Angabe; `expiresAt` ist bei Mollie nur ein Antwortfeld) an das Ende der Reservierung gebunden –
 bei vorab gewählter Überweisung schon beim Anlegen, sonst per `PATCH` nach dem `open`-Webhook.
+
+**Zahlungsablauf beim Anbieter = Ende der Reservierung (E-20/E20-1, wie Stripe):** Stripe beendet die
+Checkout Session 5 Minuten vor dem Ende der Reservierung. Mollie kennt beim Anlegen nur für die Überweisung
+eine Frist (`dueDate`, ein Datum in UTC, frühestens morgen, höchstens 100 Tage): Pass Captain sendet den
+letzten Tag, der (24:00 UTC) mindestens 5 Minuten vor dem Ende der Reservierung endet – unabhängig von der
+Zeitzone der Website und des Events. Reicht selbst „morgen“ über die Reservierung hinaus, wird die
+Reservierung bis zum Ende dieses Tages verlängert, höchstens bis zum Beginn des Termins. Für sofortige
+Zahlarten (Karte, iDEAL, …) gibt es keine Frist im Request; meldet Mollie in der Antwort ein späteres
+`expiresAt`, wird die Reservierung bis dahin (plus 5 Minuten) verlängert, höchstens 31 Minuten ab jetzt und
+nie über den Beginn hinaus. Läuft die Reservierung ab, storniert der Annullierungs-Job die offene
+Mollie-Zahlung (`DELETE`, wenn `isCancelable`). PayPal (Orders API v2) hat weder ein Ablaufdatum noch einen
+Abbruch-Aufruf für nicht eingezogene Bestellungen; da erst Pass Captain einzieht (`intent=CAPTURE`), wird
+ohne aktive Reservierung nie eingezogen – bei Rückkehr, Webhook, Abgleich und Status-Abfrage. Was trotzdem
+später ankommt (Mollie-Zahlung, die nicht mehr storniert werden konnte, PayPal-Capture `PENDING`), läuft
+über die Nachprüfung verspäteter Zahlungen.
 
 **Klarna/Riverty über Mollie:** Diese Methoden autorisieren nur. Meldet Mollie `authorized`, zieht Pass
 Captain den vollen Betrag sofort ein (`POST /v2/payments/{id}/captures`, Idempotenzschlüssel

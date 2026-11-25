@@ -574,16 +574,22 @@ final class Webhooks {
 	 * @return bool Whether an active hold was extended.
 	 */
 	public static function extend_for_delayed_payment( $order, $provider ) {
-		global $wpdb;
 		$minutes = self::delayed_hold_minutes( $order, $provider );
-		$p = $wpdb->prefix;
-		$starts = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(o.starts_at) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $order->order_id ) );
-		if ( '' !== $starts ) {
-			$minutes = min( $minutes, (int) floor( ( strtotime( $starts . ' UTC' ) - \PassCaptain\Clock::now() ) / MINUTE_IN_SECONDS ) );
+		$start = self::earliest_start( (int) $order->order_id );
+		if ( $start > 0 ) {
+			$minutes = min( $minutes, (int) floor( ( $start - \PassCaptain\Clock::now() ) / MINUTE_IN_SECONDS ) );
 		}
 		$extended = $minutes > 0 ? (int) Orders::extend_hold( (int) $order->order_id, $minutes ) : 0;
 		Audit::record( $extended ? 'delayed_payment_hold_extended' : 'delayed_payment_hold_lapsed', 'order', (int) $order->order_id, array( 'provider' => (string) $provider, 'minutes' => max( 0, $minutes ) ) );
 		return $extended > 0;
+	}
+
+	/** Start of the earliest occurrence of an order (timestamp), 0 when unknown. A hold never outlasts it. */
+	public static function earliest_start( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$starts = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(o.starts_at) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $order_id ) );
+		return '' !== $starts ? (int) strtotime( $starts . ' UTC' ) : 0;
 	}
 
 	/**

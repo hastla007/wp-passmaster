@@ -144,7 +144,7 @@ $r5_patch = http_requests( 'payments/tr_r5mpaaaa' );
 // Merged design (A577): a delayed method extends the hold like a bank transfer hold (manual_hold_hours).
 $r5_delayed_minutes = (int) Settings::get( 'manual_hold_hours' ) * 60;
 check( 'R5-9: Mollie open bank transfer → payment_pending, hold extended like a bank transfer hold', 'payment_pending' === $r5_mpe['type'] && 'hold_extended' === $r5_mpr && abs( r5p_hold_minutes( $r5_mp->order_id ) - $r5_delayed_minutes ) <= 2 );
-check( 'R5-9: the bank transfer due date is moved to the hold end (PATCH dueDate)', $r5_patch && 'PATCH' === $r5_patch[0]['method'] && gmdate( 'Y-m-d', PassCaptain\Orders::hold_end( $r5_mp->order_id ) ) === ( json_decode( (string) $r5_patch[0]['body'], true )['dueDate'] ?? '' ) );
+check( 'R5-9: the bank transfer due date is moved to the hold end (PATCH dueDate, last UTC day ending before it, E20-1)', $r5_patch && 'PATCH' === $r5_patch[0]['method'] && gmdate( 'Y-m-d', PassCaptain\Orders::hold_end( $r5_mp->order_id ) - 5 * MINUTE_IN_SECONDS - DAY_IN_SECONDS ) === ( json_decode( (string) $r5_patch[0]['body'], true )['dueDate'] ?? '' ) );
 $r5_dd = MollieGateway::normalize( array( 'resource' => 'payment', 'id' => 'tr_r5mpbbbb', 'status' => 'pending', 'method' => 'directdebit', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => 'x' ) ) );
 $r5_cc = MollieGateway::normalize( array( 'resource' => 'payment', 'id' => 'tr_r5mpcccc', 'status' => 'open', 'method' => 'creditcard', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'metadata' => array( 'order' => 'x' ) ) );
 check( 'R5-9: direct debit pending is delayed, an open card payment is not', 'payment_pending' === $r5_dd['type'] && 'ignored' === $r5_cc['type'] );

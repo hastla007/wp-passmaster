@@ -112,6 +112,7 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			$same_amount = ! is_wp_error( $payment ) && $payment_currency === $currency && self::parse_amount( $payment['amount']['value'] ?? '', $currency ) === $total;
 			if ( $same_amount && 'open' === ( $payment['status'] ?? '' ) && ! empty( $payment['_links']['checkout']['href'] ) ) {
 				self::remember( $payment['id'] ?? '', $order );
+				self::align_hold( $order, $payment );
 				return self::payment_result( $payment );
 			}
 			if ( ! $same_amount && ! is_wp_error( $payment ) && ! empty( $payment['isCancelable'] ) ) {
@@ -136,9 +137,9 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 		if ( '' !== $method && array() !== $method ) { $body['method'] = $method; }
 		if ( 'banktransfer' === $method ) {
 			// The transfer expires with the extended hold, not Mollie's default (~12 days): a transfer after
-			// the tickets were released would only end in the late-payment re-check. Mollie's earliest due
-			// date is tomorrow. The buyer chose bank transfer: the hold must last until the transfer can arrive
-			// (QA-6), so it is extended first and the due date names the extended hold end.
+			// the tickets were released would only end in the late-payment re-check. The buyer chose bank
+			// transfer: the hold must last until the transfer can arrive (QA-6), so it is extended first and
+			// the due date is the last day that ends before the extended hold (due_date(), E20-1).
 			if ( ! empty( $order['order_id'] ) ) { \PassCaptain\Payments\Webhooks::extend_for_delayed_payment( (object) $order, 'mollie' ); }
 			$body['dueDate'] = ! empty( $order['order_id'] ) ? self::due_date( (object) $order ) : gmdate( 'Y-m-d', \PassCaptain\Clock::now() + DAY_IN_SECONDS );
 		}
@@ -149,8 +150,38 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'pass-captain' ) );
 		}
 		self::remember( $payment['id'], $order );
+		if ( 'banktransfer' !== $method ) { self::align_hold( $order, $payment ); }
 		return self::payment_result( $payment );
 	}
+
+	/**
+	 * Hosted payment of an immediate method (card, iDEAL, …) and the hold (E20-1, like Stripe's session_expiry()):
+	 * the Payments API has no expiry parameter for these methods (`expiresAt` is a response field; only bank
+	 * transfer takes `dueDate`, see due_date()). When Mollie reports an `expiresAt` after the hold (a retry
+	 * late in the hold), the hold is extended to it plus HOLD_BUFFER_MINUTES – at most HOSTED_HOLD_MINUTES
+	 * from now (the minimum hold of hosted pages, as for Stripe's minimum session) and never past the
+	 * earliest start. A payment page that outlives even that is cancelled when the hold lapses
+	 * (Reconcile void job, DELETE when isCancelable); a payment Mollie still accepts afterwards goes
+	 * through the late-payment re-check.
+	 */
+	private static function align_hold( array $order, array $payment ) {
+		$order_id = (int) ( $order['order_id'] ?? 0 );
+		$expires = is_string( $payment['expiresAt'] ?? null ) ? (int) strtotime( $payment['expiresAt'] ) : 0;
+		if ( ! $order_id || $expires <= 0 ) { return; }
+		$end = \PassCaptain\Orders::hold_end( $order_id );
+		$needed = $expires + self::HOLD_BUFFER_MINUTES * MINUTE_IN_SECONDS;
+		if ( $end <= 0 || $needed <= $end ) { return; }
+		$until = min( $needed, \PassCaptain\Clock::now() + \PassCaptain\Orders::HOSTED_HOLD_MINUTES * MINUTE_IN_SECONDS );
+		$start = \PassCaptain\Payments\Webhooks::earliest_start( $order_id );
+		if ( $start > 0 ) { $until = min( $until, $start ); }
+		if ( $until > $end ) {
+			\PassCaptain\Orders::extend_hold_to( $order_id, $until );
+			\PassCaptain\Audit::record( 'mollie_hold_aligned', 'order', $order_id, array( 'expires_at' => gmdate( 'Y-m-d H:i:s', $expires ) ) );
+		}
+	}
+
+	/** Minutes between the end of the provider's payment window and the end of the hold (same as Stripe). */
+	const HOLD_BUFFER_MINUTES = \PassCaptain\Payments\StripeGateway::HOLD_BUFFER_MINUTES;
 
 	/** Records a payment id created for an order (the webhook only looks up known ids). */
 	private static function remember( $payment_id, array $order ) {
@@ -445,18 +476,37 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 	}
 
 	/**
-	 * Due date (Y-m-d, at least tomorrow, at most 100 days) of a bank transfer: the end of the order's
-	 * (extended) hold, so Mollie does not accept a transfer after the tickets were released (A577). Without
-	 * an active hold: the delayed-payment hold length.
+	 * Due date (Y-m-d) of a bank transfer, bound to the end of the order's (extended) hold like Stripe's
+	 * session end (A577, E20-1): Mollie takes a date, not a time, and the payment stays payable until that
+	 * day is over. The date is computed in UTC (gmdate()) and is the last day that ends (24:00 UTC) at least
+	 * HOLD_BUFFER_MINUTES before the hold ends – Mollie's day ends in Europe/Amsterdam (UTC+1/+2) even
+	 * earlier, so the transfer can never be accepted after the tickets were released, whatever the
+	 * site's or the event's time zone. Mollie accepts tomorrow at the earliest and 100 days at the latest:
+	 * when even tomorrow ends after the hold, the hold is extended to the end of tomorrow (plus the buffer,
+	 * never past the earliest start; like Stripe extends a hold shorter than its minimum session) – what is
+	 * left over at a close start goes through the late-payment re-check. Without an active hold: the
+	 * delayed-payment hold length.
 	 */
 	public static function due_date( $order ) {
-		$end = \PassCaptain\Orders::hold_end( (int) ( $order->order_id ?? 0 ) );
+		$now = \PassCaptain\Clock::now();
+		$order_id = (int) ( $order->order_id ?? 0 );
+		$end = \PassCaptain\Orders::hold_end( $order_id );
 		if ( $end > 0 ) {
-			return gmdate( 'Y-m-d', min( max( $end, \PassCaptain\Clock::now() + DAY_IN_SECONDS ), \PassCaptain\Clock::now() + 100 * DAY_IN_SECONDS ) );
+			$tomorrow = gmdate( 'Y-m-d', $now + DAY_IN_SECONDS );
+			// The day before the one containing (hold end − buffer) ends at the latest at that moment.
+			$date = min( gmdate( 'Y-m-d', $end - self::HOLD_BUFFER_MINUTES * MINUTE_IN_SECONDS - DAY_IN_SECONDS ), gmdate( 'Y-m-d', $now + 100 * DAY_IN_SECONDS ) );
+			if ( $date < $tomorrow ) {
+				$date = $tomorrow;
+				$until = (int) strtotime( $tomorrow . ' 00:00:00 UTC' ) + DAY_IN_SECONDS + self::HOLD_BUFFER_MINUTES * MINUTE_IN_SECONDS;
+				$start = \PassCaptain\Payments\Webhooks::earliest_start( $order_id );
+				if ( $start > 0 ) { $until = min( $until, $start ); }
+				if ( $until > $end ) { \PassCaptain\Orders::extend_hold_to( $order_id, $until ); }
+			}
+			return $date;
 		}
 		$minutes = \PassCaptain\Payments\Webhooks::delayed_hold_minutes( $order, 'mollie' );
 		$days = max( 1, min( 100, (int) floor( $minutes / ( DAY_IN_SECONDS / MINUTE_IN_SECONDS ) ) ) );
-		return gmdate( 'Y-m-d', \PassCaptain\Clock::now() + $days * DAY_IN_SECONDS );
+		return gmdate( 'Y-m-d', $now + $days * DAY_IN_SECONDS );
 	}
 
 	/**
