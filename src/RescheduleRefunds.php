@@ -40,14 +40,18 @@ final class RescheduleRefunds {
 		return $start ? $start - max( 0, (int) Settings::get( 'reschedule_refund_hours' ) ) * HOUR_IN_SECONDS : 0;
 	}
 
-	/** Deadline as local date/time of the occurrence (site date and time format, Frontend\Format). */
+	/**
+	 * Deadline as local date/time of the occurrence with that zone named (A608, Frontend\Format::deadline():
+	 * "28.03.2026 11:00 (Europe/Lisbon)"), so a buyer of an event in another zone than the site's (or
+	 * reading the SMS elsewhere) does not take it for their own wall clock (SET-PC-P2).
+	 */
 	public static function deadline_label( $starts_at_utc, $timezone ) {
 		try {
 			$tz = new \DateTimeZone( (string) $timezone ?: 'UTC' );
 		} catch ( \Exception $e ) {
 			$tz = new \DateTimeZone( 'UTC' );
 		}
-		return wp_date( Frontend\Format::datetime_format(), self::deadline( $starts_at_utc ), $tz );
+		return Frontend\Format::deadline( self::deadline( $starts_at_utc ), $tz->getName() );
 	}
 
 	/**

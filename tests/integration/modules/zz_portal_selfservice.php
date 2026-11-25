@@ -119,7 +119,7 @@ $GLOBALS['wpcap_test_options']['date_format'] = 'Y/m/d';
 $GLOBALS['wpcap_test_options']['time_format'] = 'g:i A';
 $ps_deadline = PassCaptain\RescheduleRefunds::deadline_label( gmdate( 'Y-m-d H:i:s', time() + 10 * DAY_IN_SECONDS ), 'UTC' );
 unset( $GLOBALS['wpcap_test_options']['date_format'], $GLOBALS['wpcap_test_options']['time_format'] );
-check( 'PS: buyer-facing deadlines follow the site date/time format', 1 === preg_match( '#^\d{4}/\d{2}/\d{2} \d{1,2}:\d{2} (AM|PM)$#', $ps_deadline ) );
+check( 'PS: buyer-facing deadlines follow the site date/time format', 1 === preg_match( '#^\d{4}/\d{2}/\d{2} \d{1,2}:\d{2} (AM|PM) \(UTC\)$#', $ps_deadline ) );
 $ps_fixed = array();
 foreach ( array( 'src/ServiceBookings.php', 'src/Services/Portal.php', 'src/ServiceWaitlist.php', 'src/RescheduleRefunds.php', 'src/Modules/Calendar.php' ) as $ps_file ) {
 	if ( preg_match( "/'d\\.m\\.Y( H:i)?'/", (string) file_get_contents( WPCAP_PATH . $ps_file ) ) ) { $ps_fixed[] = $ps_file; }
