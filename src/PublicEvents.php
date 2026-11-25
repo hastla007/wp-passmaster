@@ -646,27 +646,9 @@ final class PublicEvents {
 
 	/** render_rows() with the organizers of the listing primed. */
 	private static function render_rows_primed( array $rows, array $atts, $wrapper, $requested ) {
-		/**
-		 * The occurrences of an event listing are known (A376): modules load their per-occurrence/per-
-		 * event data for exactly these in one query (seat map links, buyer limits) instead of per card
-		 * or for the whole history.
-		 *
-		 * @param int[] $occurrence_ids Occurrences of the listing.
-		 * @param int[] $event_ids      Their events.
-		 */
-		do_action( 'wpcap_listing_occurrences', array_values( array_unique( array_map( static fn( $row ) => (int) $row->occurrence_id, $rows ) ) ), array_values( array_unique( array_map( static fn( $row ) => (int) $row->event_id, $rows ) ) ) );
-		$meta = array();
-		$listing = self::listing_data( $rows, $meta );
-		$card_listing = self::card_listing( $rows, $listing, $meta );
-		// A293: dates whose ticket types all start selling later get a "Vorverkauf ab …" card.
-		$presale = self::presale_starts( $rows, $listing );
-		$grouped = 'each' !== (string) ( $atts['dates'] ?? '' ) && ! absint( $atts['occurrence'] ?? 0 );
-		$cards = $grouped ? self::card_rows( $rows, $listing, $presale, $requested ) : $rows;
-		if ( self::slim_output( 'events' ) ) { return self::slim_listing( $cards, $listing, $presale, $wrapper ); }
-		if ( 'auto' === (string) ( $atts['layout'] ?? '' ) && ! absint( $atts['occurrence'] ?? 0 ) && count( $cards ) > self::auto_list_threshold() ) {
-			if ( $requested ) { return Payments\ReturnNotice::take() . self::render_detail( $requested, $atts, true, $wrapper ); }
-			return Payments\ReturnNotice::take() . self::render_list( $rows, $wrapper );
-		}
+		$prepared = self::listing_cards( $rows, $atts, $wrapper, $requested );
+		if ( is_string( $prepared ) ) { return $prepared; }
+		list( $cards, $listing, $card_listing, $presale, $meta, $grouped ) = $prepared;
 		$shown = 0;
 		$has_locked = ! empty( $meta['has_locked'] );
 		wp_enqueue_script( 'wpcap-checkout' );
@@ -690,32 +672,14 @@ final class PublicEvents {
 				++$shown;
 				$providers = self::card_providers( $event, $types[0]->currency );
 				$legal = self::legal_context();
-				foreach ( $types as $type ) {
-					// Properties of the older card contract (theme copies of event-card.php).
-					$type->max = Frontend\EventCard::quantity_max( $type, $event );
-					$type->upcoming = false;
-					$type->sales_start_iso = '';
-					$type->waitlist = $type->max < 1 && (bool) apply_filters( 'wpcap_waitlist_frontend', true, $event, $type );
-				}
-				?>
-				<?php
+				self::card_contract_types( $event, $types );
 				// Badges, seats left, price and the event's other dates (theme templates may ignore it).
-				$card = Frontend\EventCard::context( $event, $types, $card_listing );
-				if ( $grouped ) {
-					// The other dates switch this card to them (A342); "url" is what the template links to.
-					foreach ( $card['dates'] as $i => $date ) {
-						if ( $date['linked'] ) { $card['dates'][ $i ]['url'] = self::occurrence_link( $date['occurrence_id'] ); }
-					}
-				}
+				$card = self::listing_card_context( $event, $types, $card_listing, $grouped );
 				$template = self::theme_template( 'event-card.php' );
 				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
 				ob_start();
 				include $template;
-				$card_html = ob_get_clean();
-				$card_html = apply_filters( 'wpcap_event_card_html', $card_html, $event, $types );
-				// Versioned contract of the audit line; the old unversioned name still fires via Hooks::RENAMED (deprecated since 1.5.0).
-				$card_html = apply_filters( 'wp_pass_captain_event_card_html_v1', $card_html, $event, $types );
-				$card_html = Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types );
+				$card_html = self::filter_card_html( ob_get_clean(), $event, $types );
 				echo $grouped ? self::with_date_anchors( $card_html, $card['dates'] ) : $card_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				?>
 			<?php endforeach; ?>
@@ -724,6 +688,67 @@ final class PublicEvents {
 		<?php
 		// A307: payment return notice in front of the event list when the theme has no wp_body_open.
 		return Payments\ReturnNotice::take() . ob_get_clean();
+	}
+
+	/**
+	 * Cards of a listing with their data, or the finished HTML when the listing is not rendered as cards
+	 * (slim output, automatic list layout).
+	 *
+	 * @return string|array [cards, listing, card_listing, presale, meta, grouped]
+	 */
+	private static function listing_cards( array $rows, array $atts, $wrapper, $requested ) {
+		/**
+		 * The occurrences of an event listing are known (A376): modules load their per-occurrence/per-
+		 * event data for exactly these in one query (seat map links, buyer limits) instead of per card
+		 * or for the whole history.
+		 *
+		 * @param int[] $occurrence_ids Occurrences of the listing.
+		 * @param int[] $event_ids      Their events.
+		 */
+		do_action( 'wpcap_listing_occurrences', array_values( array_unique( array_map( static fn( $row ) => (int) $row->occurrence_id, $rows ) ) ), array_values( array_unique( array_map( static fn( $row ) => (int) $row->event_id, $rows ) ) ) );
+		$meta = array();
+		$listing = self::listing_data( $rows, $meta );
+		$card_listing = self::card_listing( $rows, $listing, $meta );
+		// A293: dates whose ticket types all start selling later get a "Vorverkauf ab …" card.
+		$presale = self::presale_starts( $rows, $listing );
+		$grouped = 'each' !== (string) ( $atts['dates'] ?? '' ) && ! absint( $atts['occurrence'] ?? 0 );
+		$cards = $grouped ? self::card_rows( $rows, $listing, $presale, $requested ) : $rows;
+		if ( self::slim_output( 'events' ) ) { return self::slim_listing( $cards, $listing, $presale, $wrapper ); }
+		if ( 'auto' === (string) ( $atts['layout'] ?? '' ) && ! absint( $atts['occurrence'] ?? 0 ) && count( $cards ) > self::auto_list_threshold() ) {
+			if ( $requested ) { return Payments\ReturnNotice::take() . self::render_detail( $requested, $atts, true, $wrapper ); }
+			return Payments\ReturnNotice::take() . self::render_list( $rows, $wrapper );
+		}
+		return array( $cards, $listing, $card_listing, $presale, $meta, $grouped );
+	}
+
+	/** Properties of the older card contract (theme copies of event-card.php) on the card's ticket types. */
+	private static function card_contract_types( $event, array $types ) {
+		foreach ( $types as $type ) {
+			$type->max = Frontend\EventCard::quantity_max( $type, $event );
+			$type->upcoming = false;
+			$type->sales_start_iso = '';
+			$type->waitlist = $type->max < 1 && (bool) apply_filters( 'wpcap_waitlist_frontend', true, $event, $type );
+		}
+	}
+
+	/** Card context of a listing card; grouped cards link their other dates (A342). */
+	private static function listing_card_context( $event, array $types, $card_listing, $grouped ) {
+		$card = Frontend\EventCard::context( $event, $types, $card_listing );
+		if ( $grouped ) {
+			// The other dates switch this card to them (A342); "url" is what the template links to.
+			foreach ( $card['dates'] as $i => $date ) {
+				if ( $date['linked'] ) { $card['dates'][ $i ]['url'] = self::occurrence_link( $date['occurrence_id'] ); }
+			}
+		}
+		return $card;
+	}
+
+	/** Card HTML through the card filters. */
+	private static function filter_card_html( $card_html, $event, array $types ) {
+		$card_html = apply_filters( 'wpcap_event_card_html', $card_html, $event, $types );
+		// Versioned contract of the audit line; the old unversioned name still fires via Hooks::RENAMED (deprecated since 1.5.0).
+		$card_html = apply_filters( 'wp_pass_captain_event_card_html_v1', $card_html, $event, $types );
+		return Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types );
 	}
 
 	/**

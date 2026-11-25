@@ -67,6 +67,7 @@ final class Page {
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'pass-captain' ) . '</h1>';
 		self::render_fiscal_notice();
 		Forms::render_notices();
+		ShiftPage::render_open_payouts_notice();
 		self::enqueue_offline_guard();
 		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Kassenbereiche', 'pass-captain' ) . '">';
 		foreach ( $tabs as $key => $label ) {
@@ -345,9 +346,10 @@ final class Page {
 	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
 
 	/**
-	 * Marks a form that books money (sale, "Nachbuchen", storno, payout of a refund): pos.js disables
-	 * its submit while the browser is offline (A527, decision E-13: without network only admissions via
-	 * the scanner app; sales and refunds are never queued offline).
+	 * Marks a form that books money (sale, "Nachbuchen", storno, payout of a refund; on the shift tabs
+	 * also opening/handover, cash in/out, count, closing and Z correction): pos.js disables its submit
+	 * while the browser is offline (A527, decision E-13: without network only admissions via the scanner
+	 * app; sales, refunds and shift bookings are never queued offline).
 	 */
 	const ONLINE_ONLY = 'data-wpcap-pos-online="1"';
 
@@ -355,7 +357,7 @@ final class Page {
 	public static function enqueue_offline_guard() {
 		wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
 		\PassCaptain\Assets::inline_script( 'wpcap-pos', 'window.wpcapPosOffline=' . wp_json_encode( array(
-			'offline' => __( 'Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich.', 'pass-captain' ),
+			'offline' => __( 'Keine Netzverbindung: Verkäufe, Stornos, Auszahlungen und Schichtbuchungen (Einlage, Entnahme, Zählung, Abschluss) sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich.', 'pass-captain' ),
 			'online' => __( 'Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich.', 'pass-captain' ),
 			'blocked' => __( 'Ohne Netzverbindung gesperrt', 'pass-captain' ),
 		) ) . ';', 'before' );

@@ -18,6 +18,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class StripeGateway implements GatewayInterface, RefundLookupInterface, PaymentLookupInterface {
 	const API = 'https://api.stripe.com/v1/';
 
+	/**
+	 * Stripe API version every request is pinned to (STRIPE-1): responses keep the shape the code reads,
+	 * whatever version the account defaults to. Checked in test mode on 25.11.2026 (Checkout Session
+	 * create/expire/read, refunds and webhook endpoint lists). Filter `wpcap_stripe_api_version`.
+	 */
+	const API_VERSION = '2026-11-18.endive';
+
 	/** Maximum age (and clock skew) of a webhook signature in seconds. */
 	const TOLERANCE = 300;
 
@@ -713,6 +720,8 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface, Pa
 			'timeout' => \PassCaptain\Config::get( 'http_timeout' ),
 			'headers' => array( 'Authorization' => 'Bearer ' . $secret ),
 		);
+		$version = (string) apply_filters( 'wpcap_stripe_api_version', self::API_VERSION );
+		if ( '' !== $version ) { $args['headers']['Stripe-Version'] = $version; }
 		if ( 'POST' === $method ) {
 			$args['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
 			$args['body'] = http_build_query( $params, '', '&' );

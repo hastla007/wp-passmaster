@@ -53,13 +53,13 @@ final class SettingsPage {
 		$fields = array();
 		foreach ( \PassCaptain\DocumentNumbers::labels() as $kind => $label ) {
 			/* translators: %s: document kind, e.g. Rechnungen */
-			$fields[ $kind . '_number_pattern' ] = array( 'type' => 'text', 'label' => sprintf( __( '%s: Nummernmuster', 'pass-captain' ), $label ), 'description' => __( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DocumentNumbers::class, 'sanitize_pattern' ) );
+			$fields[ $kind . '_number_pattern' ] = array( 'type' => 'text', 'label' => sprintf( __( '%s: Nummernmuster', 'pass-captain' ), $label ), 'description' => /* translators: Keep the placeholders {prefix}, {year}, {yy}, {number} unchanged. */ __( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\DocumentNumbers::class, 'sanitize_pattern' ) );
 			/* translators: %s: document kind */
 			$fields[ $kind . '_number_digits' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Stellen der laufenden Nummer', 'pass-captain' ), $label ), 'min' => 1, 'max' => \PassCaptain\DocumentNumbers::MAX_DIGITS, 'description' => __( 'Mit Nullen aufgefüllt, z. B. 6 = 000123. Standard: 6.', 'pass-captain' ) );
 			/* translators: %s: document kind */
 			$fields[ $kind . '_number_start' ] = array( 'type' => 'int', 'label' => sprintf( __( '%s: Startnummer', 'pass-captain' ), $label ), 'min' => 0, 'max' => 999999999, 'description' => __( 'Erste Nummer eines neuen Nummernkreises (bei jährlichem Neubeginn in jedem Jahr). 0 = ab 1. Nur nach oben: Sie muss größer sein als die zuletzt vergebene Nummer.', 'pass-captain' ), 'sanitize' => static function ( $value, $current = null ) use ( $kind ) { return \PassCaptain\DocumentNumbers::sanitize_start( $kind, $value, $current ); } );
 			/* translators: %s: document kind */
-			$fields[ $kind . '_number_yearly' ] = array( 'type' => 'bool', 'label' => sprintf( __( '%s: jedes Jahr neu beginnen', 'pass-captain' ), $label ), 'description' => __( 'Nur wenn das Muster {year} oder {yy} enthält; sonst läuft die Nummer über die Jahre weiter.', 'pass-captain' ) );
+			$fields[ $kind . '_number_yearly' ] = array( 'type' => 'bool', 'label' => sprintf( __( '%s: jedes Jahr neu beginnen', 'pass-captain' ), $label ), 'description' => /* translators: Keep the placeholders {year}, {yy} unchanged. */ __( 'Nur wenn das Muster {year} oder {yy} enthält; sonst läuft die Nummer über die Jahre weiter.', 'pass-captain' ) );
 		}
 		return $fields;
 	}
@@ -86,6 +86,7 @@ final class SettingsPage {
 			}
 		}
 		echo '</tbody></table>';
+		/* translators: Keep the placeholders {prefix}, {year}, {yy}, {number} unchanged. */
 		echo '<p class="description">' . esc_html__( 'Platzhalter {prefix} (Präfix), {year} (Jahr, vierstellig), {yy} (Jahr, zweistellig), {number} (laufende Nummer, Pflicht). Standard: {prefix}-{year}-{number}.', 'pass-captain' ) . ' ' . esc_html__( 'Die Präfixe stehen bei den Rechnungsdaten, an der Kasse und bei den Partnern. Nummernkreise der Veranstalter im Vermittlermodell behalten das Standardformat.', 'pass-captain' ) . '</p>';
 	}
 
@@ -337,8 +338,8 @@ final class SettingsPage {
 				'title' => __( 'Rechtstexte', 'pass-captain' ),
 				'tab' => 'legal',
 				'fields' => array(
-					'imprint_url' => array( 'type' => 'url', 'label' => __( 'Impressum (Adresse)', 'pass-captain' ), 'description' => __( 'Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht.', 'pass-captain' ) ),
-					'privacy_url' => array( 'type' => 'url', 'label' => __( 'Datenschutzerklärung (Adresse)', 'pass-captain' ), 'description' => __( 'Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz).', 'pass-captain' ) ),
+					'imprint_url' => array( 'type' => 'url', 'label' => __( 'Impressum (Adresse)', 'pass-captain' ), 'description' => /* translators: Keep the placeholder {imprint_url} unchanged. */ __( 'Link zum Impressum; erscheint im Checkout, in der Fußzeile der E-Mails und als Platzhalter {imprint_url}. Leer = kein Link. Rechtsprüfung: In vielen Ländern ist ein Impressum Pflicht.', 'pass-captain' ) ),
+					'privacy_url' => array( 'type' => 'url', 'label' => __( 'Datenschutzerklärung (Adresse)', 'pass-captain' ), 'description' => /* translators: Keep the placeholder {privacy_url} unchanged. */ __( 'Link zur Datenschutzerklärung im Checkout, in der Fußzeile der E-Mails und als Platzhalter {privacy_url}. Leer = die Datenschutz-Seite von WordPress (Einstellungen → Datenschutz).', 'pass-captain' ) ),
 					'require_terms' => array( 'type' => 'bool', 'label' => __( 'Zustimmung im Checkout verlangen', 'pass-captain' ), 'description' => __( 'Zeigt die AGB/Teilnahmebedingungen im Checkout an und verlangt die Bestätigung. Ohne diese Option erscheinen die AGB im Checkout nicht (die Verbraucherinformationen immer).', 'pass-captain' ) ),
 					'terms_text' => array( 'type' => 'html', 'label' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ), 'description' => __( 'Text, den Käufer im Checkout bestätigen, wenn „AGB bestätigen lassen“ eingeschaltet ist. Rechtlich prüfen lassen.', 'pass-captain' ) ),
 					'consumer_info_text' => array( 'type' => 'html', 'label' => __( 'Verbraucherinformationen (z. B. Widerrufshinweis)', 'pass-captain' ), 'description' => __( 'Pflichtinformationen für Verbraucher, verlinkt im Checkout und in der Bestätigung. Rechtlich prüfen lassen.', 'pass-captain' ) ),
@@ -354,7 +355,7 @@ final class SettingsPage {
 				'fields' => array(
 					'default_min_age' => array( 'type' => 'int', 'label' => __( 'Mindestalter für neue Ticketarten', 'pass-captain' ), 'min' => 0, 'max' => 99, 'description' => __( '0 = keines. Wird beim Anlegen einer Ticketart vorausgefüllt und kann dort geändert werden; bestehende Ticketarten bleiben unverändert.', 'pass-captain' ) ),
 					'min_age_checkbox' => array( 'type' => 'bool', 'label' => __( 'Alter im Checkout bestätigen lassen', 'pass-captain' ), 'description' => __( 'Hat eine bestellte Ticketart ein Mindestalter, müssen Käufer im eigenen Checkout bestätigen, dass alle Ticketinhaber alt genug sind; der Server prüft die Bestätigung. Ob und wie das Alter zu prüfen ist, hängt vom Land ab (Jugendschutz) – rechtlich prüfen lassen.', 'pass-captain' ) ),
-					'min_age_notice_text' => array( 'type' => 'text', 'label' => __( 'Text der Altersbestätigung', 'pass-captain' ), 'description' => __( 'Leer = eingebauter Text in der Sprache der Käufer. Platzhalter {min_age} = höchstes Mindestalter der Bestellung. Übersetzungen unter „Rechtstexte je Sprache“.', 'pass-captain' ) ),
+					'min_age_notice_text' => array( 'type' => 'text', 'label' => __( 'Text der Altersbestätigung', 'pass-captain' ), 'description' => /* translators: Keep the placeholder {min_age} unchanged. */ __( 'Leer = eingebauter Text in der Sprache der Käufer. Platzhalter {min_age} = höchstes Mindestalter der Bestellung. Übersetzungen unter „Rechtstexte je Sprache“.', 'pass-captain' ) ),
 				),
 			),
 			'refunds' => array(
@@ -367,7 +368,7 @@ final class SettingsPage {
 					'auto_refund_unmatched_payments' => array( 'type' => 'bool', 'label' => __( 'Doppelzahlungen und Zahlungen auf stornierte/abgelaufene Bestellungen automatisch erstatten', 'pass-captain' ), 'description' => __( 'Standard aus: Die Fälle erscheinen im Systemstatus und werden manuell geklärt. Eingeschaltet erstattet ein Hintergrund-Job den Betrag beim Zahlungsanbieter.', 'pass-captain' ) ),
 					'reschedule_refund_request' => array( 'type' => 'bool', 'label' => __( 'Nach einer Terminverschiebung Erstattungsantrag im Bestellportal erlauben', 'pass-captain' ), 'description' => __( 'Ticketinhaber:innen können bis zur Frist eine Erstattung beantragen; jeder Antrag braucht eine Freigabe unter „Erstattungen“.', 'pass-captain' ) ),
 					'reschedule_refund_hours' => array( 'type' => 'int', 'label' => __( 'Antragsfrist: Stunden vor dem neuen Termin', 'pass-captain' ), 'min' => 0, 'max' => 720, 'description' => __( '0 = bis zum Beginn des neuen Termins.', 'pass-captain' ) ),
-					'reschedule_refund_note' => array( 'type' => 'textarea', 'label' => __( 'Erstattungshinweis in der Verschiebungs-Mail', 'pass-captain' ), 'description' => __( 'Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen.', 'pass-captain' ) ),
+					'reschedule_refund_note' => array( 'type' => 'textarea', 'label' => __( 'Erstattungshinweis in der Verschiebungs-Mail', 'pass-captain' ), 'description' => /* translators: Keep the placeholder {refund_deadline} unchanged. */ __( 'Platzhalter {refund_deadline} (Frist). Leer = Hinweis an den Veranstalter wenden. Kein Rechtsrat – Rücktrittsrechte bei erheblicher Verschiebung bitte prüfen.', 'pass-captain' ) ),
 					'portal_refund_request_hours' => array( 'type' => 'int', 'label' => __( 'Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)', 'pass-captain' ), 'min' => 0, 'max' => 8760, 'description' => __( '0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe.', 'pass-captain' ) ),
 				),
 			),
@@ -515,6 +516,7 @@ final class SettingsPage {
 			'numbers' => array(
 				'title' => __( 'Nummernkreise', 'pass-captain' ),
 				'tab' => 'invoices',
+				/* translators: Keep the placeholders {prefix}, {year}, {yy}, {number} unchanged. */
 				'description' => __( 'Muster mit den Platzhaltern {prefix}, {year}, {yy} und {number}. Nummern bleiben fortlaufend und lückenlos; eine Änderung gilt ab der nächsten Nummer, vergebene Nummern werden nie wiederverwendet. Die Startnummer kann nur über die zuletzt vergebene Nummer angehoben werden. Rechtlich prüfen lassen, bevor du ein Muster im laufenden Jahr änderst.', 'pass-captain' ),
 				'render' => array( __CLASS__, 'render_number_table' ),
 				'fields' => self::number_fields(),
@@ -1289,6 +1291,7 @@ final class SettingsPage {
 			$field_id = 'wpcap-legal-' . $locale . '-min_age_notice_text';
 			echo '<tr><th scope="row"><label for="' . esc_attr( $field_id ) . '">' . esc_html__( 'Text der Altersbestätigung', 'pass-captain' ) . '</label></th><td>';
 			echo '<input type="text" id="' . esc_attr( $field_id ) . '" name="' . esc_attr( 'legal_texts[' . $locale . '][min_age_notice_text]' ) . '" class="large-text" maxlength="500" value="' . esc_attr( isset( $texts['min_age_notice_text'] ) && is_scalar( $texts['min_age_notice_text'] ) ? (string) $texts['min_age_notice_text'] : '' ) . '">';
+			/* translators: Keep the placeholder {min_age} unchanged. */
 			echo '<p class="description">' . esc_html__( 'Leer: es gilt der Text der Standardsprache bzw. der eingebaute Text. Platzhalter {min_age} = Mindestalter.', 'pass-captain' ) . '</p>';
 			echo '</td></tr>';
 			echo '</tbody></table>';

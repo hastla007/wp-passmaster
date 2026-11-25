@@ -50,6 +50,7 @@ Ein Add-on erkennt die vorhandenen Erweiterungspunkte an zwei Konstanten der Hau
 | 1.2.0 | 1.6.0 | zusätzlich das Leistungsdatum in `Api\Invoices::get()`: `service_date` (Y-m-d, nur wenn alle Positionen dasselbe Datum haben, sonst leer) und `service_period` (`start`/`end`, immer gesetzt) je Dokument, `service_date`/`service_date_end` je Position (PASS-INV-15; lokales Datum des Termins). Rechnungen vor 1.2.0 nehmen den Zeitraum aus den Terminen der Bestellung, ohne Datum je Position. |
 | 1.3.0 | 1.6.0 | zusätzlich die [Lesefassade für Zustände](#lesefassade-für-zustände) (`PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()`); additiv, deshalb nur die zweite Stelle |
 | 1.4.0 | 1.7.0 | zusätzlich der Gutschein-Abgleich `PassCaptain\Integrations\Vouchers\Reconciliation::orders()` (`Reconciliation::VERSION` 1, [VOUCHERS.md](VOUCHERS.md#abgleich-für-das-gutscheinsystem-reconciliation-vertrag-v1)); der [Lesedienst für Connectoren](#lesedienst-für-connectoren) (`PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`; Capability `wpcap_read_holder_email`), der [Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors) (`wpcap_connector_audit()`) und die [Freigabe eines Connectors](#freigabe-eines-connectors-opt-in) (`wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()`) (PASS-E17-01); außerdem die öffentlichen Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()` (`PassCaptain\Api\Actions`, Vertrag `actions` 1.0.0, [CONTRACTS.md](CONTRACTS.md#öffentliche-aktionsfunktionen-pc-7)); die Filter `wp_pass_captain_settings_schema_v1` (Einstellungsregister), `wp_pass_captain_country_presets_v1` (Länderprofile, [HOOKS.md](HOOKS.md)) und `wp_pass_captain_payment_rules_v1` (Regeln für Zahlungsarten, [HOOKS.md](HOOKS.md)) sowie `wp_pass_captain_invoice_number_v1` (Belegnummer nach dem Nummernmuster, SET-PC-03, [HOOKS.md](HOOKS.md#rechnungsdaten)). Entfernt (Suite-Entscheidung D13, PC-7): der Workflow-Providervertrag `wp_pass_captain_workflow_provider_v1` samt Workflow-Commands und Mail-Übergabe – er wurde von Workflow Captain nie genutzt (dessen Adapter arbeitet nur mit den Actions und der Lesefassade); deshalb kein Sprung der ersten Stelle |
+| 1.5.0 | 1.7.0 | zusätzlich im [Lesedienst für Connectoren](#lesedienst-für-connectoren) (C9, Wunsch des LearnBoating-Ticket-Connectors): auf Anfrage der Veranstaltungsort am Termin (`include_location` → `location`, `venue_country`) und das Kennzeichen „Inhaber gewechselt“ (`include_holder_changes` → `holder_changed`, `holder_change_count`); die Ticket-IDs je Termin, Event oder Ticketart `wpcap_get_ticket_ids()` (`TicketDetails::ticket_ids()`) und die Liste der Events mit Ticketarten, auch ohne künftige Termine, `wpcap_get_event_catalog()` (`TicketDetails::catalog()`). Additiv: ohne die neuen Argumente liefern `wpcap_get_ticket_details()` und `wpcap_get_order_ticket_details()` genau die Arrays von 1.4.0 |
 
 **Eine Bedeutung je Version (PC-8):** `1.2.0` bedeutet nur das Leistungsdatum in `Api\Invoices::get()`, `1.3.0` die
 Lesefassade `wpcap_get_*_state()`. Der Arbeitsstand `claude/plugin-todo-liste-2a83v4`, auf dem `1.2.0` schon „Lesefassade“
@@ -134,6 +135,7 @@ Tabelle jeden versionierten Hook des Codes enthält und keinen nennt, den es nic
 | `PassCaptain\Api\Tickets::get()`, `wpcap_get_ticket()` (Vertrag `ticket_read`, [CONTRACTS.md](CONTRACTS.md#ticket-lesevertrag-v1)) | 1.5.0 |
 | `PassCaptain\Api\ReadFacade` (`order()`, `ticket()`, `refund()`, `occurrence()`, `event()`, `VERSION`), `wpcap_get_order_state()`, `wpcap_get_ticket_state()`, `wpcap_get_refund_state()`, `wpcap_get_occurrence_state()`, `wpcap_get_event_state()` | 1.5.0 (Vertrag 1.3.0) |
 | `PassCaptain\Api\TicketDetails` (`ticket()`, `order()`, `VERSION`, `EMAIL_CAP`), `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | 1.6.0 (Vertrag 1.4.0) |
+| `PassCaptain\Api\TicketDetails::ticket_ids()`, `catalog()`, `wpcap_get_ticket_ids()`, `wpcap_get_event_catalog()`; Argumente `include_location`, `include_holder_changes` | 1.7.0 (Vertrag 1.5.0) |
 | `PassCaptain\Integrations\ConnectorAudit::record()`, `wpcap_connector_audit()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Integrations\ConnectorRegistry::set_enabled()`, `is_enabled()`, `is_registered()`, `wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()` | 1.6.0 (Vertrag 1.4.0) |
 | `PassCaptain\Api\Actions` (`resend_ticket_mail()`, `revoke_ticket()`, `cancel_event()`, `reschedule_occurrence()`, `confirm_attendance()`, `VERSION`), `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()` | 1.7.0 (Vertrag 1.4.0) |
@@ -183,6 +185,7 @@ ihnen stehen im `CHANGELOG.md`.
 | Zugangsschranke vor dem Kauf (Warteraum) | `wp_pass_captain_checkout_allowed_v1` | Versionierter Filter | `src/Sales/CheckoutGate.php`, `src/Integrations/WooCommerce/CheckoutGate.php` |
 | Zustand von Bestellung, Ticket, Erstattung, Termin, Event lesen | `PassCaptain\Api\ReadFacade`, `wpcap_get_*_state()` | Lese-API (Vertrag 1.3.0) | `src/Api/ReadFacade.php`, `src/functions.php` |
 | Ticket oder Bestellung mit Termin, Event, Inhaber und Check-ins lesen (Connectoren) | `PassCaptain\Api\TicketDetails`, `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` | Lese-API (Vertrag 1.4.0) | `src/Api/TicketDetails.php`, `src/functions.php` |
+| Ticket-IDs je Termin, Event oder Ticketart; Events und Ticketarten auch ohne künftige Termine (Connectoren) | `wpcap_get_ticket_ids()`, `wpcap_get_event_catalog()` (`PassCaptain\Api\TicketDetails`) | Lese-API (Vertrag 1.5.0) | `src/Api/TicketDetails.php`, `src/functions.php` |
 | Aktionen ausführen (Ticketmail erneut senden, Ticket widerrufen, Event absagen, Termin verschieben, Teilnahme bestätigen) | `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()` (`PassCaptain\Api\Actions`) | Schreib-API mit Capability, Audit, optionalem Idempotency-Key (Vertrag 1.4.0) | `src/Api/Actions.php`, `src/functions.php` |
 | API-Scopes für eigene REST-Routen | `wp_pass_captain_api_scopes_v1`, `PassCaptain\Api\Auth::request_can()` / `wpcap_api_request_can()` | Filter + Prüf-API | `src/DeveloperKeys.php`, `src/Api/Auth.php` |
 
@@ -583,6 +586,8 @@ abzufragen. Er baut auf der [Lesefassade](#lesefassade-für-zustände) auf: `tic
 |---|---|---|---|
 | `wpcap_get_ticket_details( $id, $args = [] )` | `PassCaptain\Api\TicketDetails::ticket( $id, $args )` | `ticket_id` oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.4.0) |
 | `wpcap_get_order_ticket_details( $id, $args = [] )` | `TicketDetails::order( $id, $args )` | `order_id` oder `public_id` (32 Hex-Zeichen) | 1.6.0 (Vertrag 1.4.0) |
+| `wpcap_get_ticket_ids( $args = [] )` | `TicketDetails::ticket_ids( $args )` | genau eins von `occurrence_id`, `event_id`, `ticket_type_id` in `$args` | 1.7.0 (Vertrag 1.5.0) |
+| `wpcap_get_event_catalog( $args = [] )` | `TicketDetails::catalog( $args )` | – | 1.7.0 (Vertrag 1.5.0) |
 
 Rückgabe (`null`, wenn es den Datensatz nicht gibt; alle Schlüssel immer vorhanden; `version` =
 `TicketDetails::VERSION` = 1):
@@ -622,6 +627,67 @@ if ( $details && ! $details['occurrence']['cancelled'] ) {
 ```
 
 Test: `tests/integration/modules/zz_e17_connector_api.php`.
+
+### Erweiterungen in Vertrag 1.5.0
+
+Seit Vertragsversion 1.5.0 (Plugin 1.7.0, C9, Wunsch des LearnBoating-Ticket-Connectors) kommen vier Teile dazu,
+alle additiv: Ohne die neuen Argumente liefern `wpcap_get_ticket_details()` und `wpcap_get_order_ticket_details()`
+genau die Arrays von 1.4.0 (gleiche Schlüssel in gleicher Reihenfolge), `version` bleibt 1. Wie bisher prüft der
+Dienst keine Rechte außer für die E-Mail-Adresse (`wpcap_read_holder_email`); die neuen Teile enthalten keine
+E-Mail-Adressen, Namen von Personen oder andere personenbezogenen Daten.
+
+Neue `$args` für `wpcap_get_ticket_details()` und `wpcap_get_order_ticket_details()`:
+
+- `include_location` (bool): `occurrence` bekommt `location` (Veranstaltungsort des Termins als Text, `null`
+  wenn leer) und `venue_country` (ISO-Ländercode des Veranstaltungsorts, `null` wenn nicht gesetzt)
+  (`TicketDetails::LOCATION_KEYS`).
+- `include_holder_changes` (bool): `holder` bekommt `holder_changed` (bool: Wurde der Inhaber je gewechselt?) und
+  `holder_change_count` (int: Zahl der Inhaberwechsel durch Zuweisung an eine andere Person plus Übertragungen,
+  wie beim Limit `max_holder_changes`) (`TicketDetails::HOLDER_CHANGE_KEYS`). Nur die Zahl, nie frühere Inhaber.
+
+**`wpcap_get_ticket_ids( $args )`** liefert die öffentlichen IDs (`public_id`) der Tickets eines Termins, Events
+oder einer Ticketart, nach Ticket-ID sortiert, seitenweise. `null`, wenn die Argumente ungültig sind oder es den
+Termin, das Event bzw. die Ticketart nicht gibt.
+
+| Argument | Bedeutung |
+|---|---|
+| `occurrence_id`, `event_id`, `ticket_type_id` | genau eins davon (positive ID) |
+| `statuses` | Liste von Ticketstatus (z. B. `valid`, `checked_in`, `revoked`) oder `'any'`; ohne Angabe nur gültige und eingecheckte, nicht erstattete Tickets |
+| `limit` | Tickets je Seite, Vorgabe 100, höchstens 1000 |
+| `after` | Ticket-ID, nach der die Seite beginnt (Vorgabe 0); für die nächste Seite `next_after` der vorigen übergeben |
+
+Rückgabe (`TicketDetails::TICKET_IDS_KEYS`): `version`, `scope` (`occurrence_id`, `event_id` oder
+`ticket_type_id`), `scope_id`, `statuses` (die angewandte Liste, leer bei `'any'`), `ticket_ids` (Liste der
+`public_id`), `next_after` (int für die nächste Seite, `null` auf der letzten Seite).
+
+**`wpcap_get_event_catalog( $args )`** liefert die Events mit ihren Ticketarten, auch Events und Ticketarten ohne
+künftige Termine, nach Event-ID sortiert, seitenweise. Argumente: `statuses` (Liste von Eventstatus, z. B.
+`published`, `draft`, `cancelled`; Vorgabe alle), `limit` (Events je Seite, Vorgabe 50, höchstens 200), `after`
+(Event-ID). `null` bei ungültigen Argumenten.
+
+| Teil | Schlüssel |
+|---|---|
+| Ergebnis (`CATALOG_KEYS`) | `version`, `events`, `next_after` |
+| je Event (`CATALOG_EVENT_KEYS`) | `event_id`, `name`, `status`, `cancelled` (bool), `occurrence_count`, `next_starts_at` (Beginn des nächsten nicht abgesagten künftigen Termins, UTC, RFC 3339; `null` ohne künftigen Termin), `ticket_types` |
+| je Ticketart (`CATALOG_TYPE_KEYS`) | `ticket_type_id`, `occurrence_id`, `name`, `status`, `kind` (`ticket` oder `addon` für eine Zusatzleistung), `visibility`, `currency`, `price_minor` |
+
+Nicht enthalten: Beschreibungen, Slugs, Bilder, Zugangscodes, Mitarbeiterhinweise, Kontingente und Steuerangaben. Die
+Namen von Event und Ticketart sind Rohtext; der Connector maskiert sie bei der Ausgabe selbst.
+
+```php
+$ok = defined( 'WPCAP_CONTRACT_VERSION' ) && version_compare( WPCAP_CONTRACT_VERSION, '1.5.0', '>=' )
+	&& version_compare( WPCAP_CONTRACT_VERSION, '2.0.0', '<' );
+$after = 0;
+do {
+	$page = $ok ? wpcap_get_ticket_ids( array( 'event_id' => $event_id, 'after' => $after ) ) : null;
+	foreach ( $page ? $page['ticket_ids'] : array() as $public_id ) {
+		$details = wpcap_get_ticket_details( $public_id, array( 'include_location' => true, 'include_holder_changes' => true, 'source' => 'my_connector' ) );
+	}
+	$after = $page ? $page['next_after'] : null;
+} while ( null !== $after );
+```
+
+Test: `tests/integration/modules/zz_c9_read_contract.php`.
 
 ## Pass Captain Pro / Add-on-Schnittstellen
 
@@ -859,6 +925,7 @@ Funktionen; der Connector soll auf sie umstellen (Aufgabe dort: LB-15):
 | eigene SQL-Abfragen auf Tickets, Bestellungen, Ticketarten, Termine, Events, Check-ins | `wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()` ([Lesedienst für Connectoren](#lesedienst-für-connectoren)); E-Mail des Inhabers nur mit `wpcap_read_holder_email` |
 | `PassCaptain\Audit::record()` | `wpcap_connector_audit()` ([Protokolleintrag eines Connectors](#protokolleintrag-eines-connectors)) |
 | `update_option( 'wpcap_enabled_connectors', … )` | `wpcap_set_connector_enabled()`, `wpcap_is_connector_enabled()` ([Freigabe eines Connectors](#freigabe-eines-connectors-opt-in)) |
+| Umwege für Veranstaltungsort, Ticketlisten je Termin/Event/Ticketart, Events und Ticketarten ohne künftige Termine, Inhaberwechsel (ab Vertrag 1.5.0, C9) | `include_location`, `include_holder_changes`, `wpcap_get_ticket_ids()`, `wpcap_get_event_catalog()` ([Erweiterungen in Vertrag 1.5.0](#erweiterungen-in-vertrag-150)) |
 
 Der Connector prüft dazu neben `WPCAP_VERSION` auch `WPCAP_CONTRACT_VERSION` (mindestens 1.4.0, kleiner als 2.0.0) und
 bleibt auf älteren Ständen bei seinem bisherigen Weg. Tabellenstruktur, interne Klassen und die Option können sich mit
@@ -875,6 +942,7 @@ jeder Schemaversion ändern; die Funktionen oben nicht innerhalb von Version 1.
 | `wpcap_refund_completed` | anteilige Umkehr für die erstatteten Tickets (Nettobetrag der Erstattung) |
 | `wpcap_order_refunded` / `wpcap_order_cancelled` | Umkehr des Rests (nur wenn ein Verkauf gemeldet wurde) |
 | Bestellungen über WooCommerce | werden nicht gemeldet – Affiliate Captain erfasst die Woo-Bestellung selbst |
+| Einlass, Teilnahmebestätigung, Review-Ereignisse (`experience_*`) | werden nie gemeldet: Review-Klicks und -Bewertungen erzeugen keine Partnerprovision; die Provision hängt nur am Verkauf. Affiliate Captain ist für Review Captain höchstens für spätere, aggregierte Qualitätsberichte vorgesehen (Wächtertest `zz_p1_review_no_commission`). |
 
 Ergebnisse stehen im Audit-Log (`affiliate_sale`, `affiliate_refund`, `…_queued`, `…_failed`). Schlägt das Melden eines Verkaufs fehl (Fehler oder Exception von Affiliate Captain), plant der Adapter genau einen Job `affiliate_sale_retry` je Bestellung (Idempotenzschlüssel = Bestell-ID); Zahlung und Tickets bleiben unberührt. Der Job meldet den Verkauf erneut (doppelte Meldungen verhindern der gespeicherte `affiliate_lines`-Schnappschuss und die Idempotenz von Affiliate Captain) und ist erledigt, sobald gemeldet, bereits gemeldet oder nicht mehr meldbar; solange Affiliate Captain inaktiv ist oder weiter scheitert, wiederholt die Job-Queue mit Backoff und legt ihn nach 8 Versuchen als Dead-Letter auf die Systemstatus-Seite. Filter siehe `docs/HOOKS.md`.
 Ergebnisse stehen im Audit-Log (`affiliate_sale`, `affiliate_refund`, `…_queued`, `…_failed`). Filter siehe `docs/HOOKS.md`.

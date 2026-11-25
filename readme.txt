@@ -23,7 +23,7 @@ Pass Captain manages events, dates, ticket types, orders, tickets and admission 
 * Versioned tax profiles per country and tax class, frozen on each order line for invoices and refunds (rates must be reviewed by the site owner; none are shipped).
 * Waiting lists with automatic offers and reservation when capacity frees up.
 * Service bookings for courses, rentals and similar resources: time slots, booking rules (cut-off, lead time, per-customer limits, rebooking and cancellation deadlines), provider confirmation, no-show handling, slot waiting lists and service passes; a public booking page via `[wpcap_service_booking]` or a block, free or paid.
-* Seating plans, box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
+* Seating plans (experimental in this release, see FAQ), box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
 * WooCommerce (optional): HPOS and legacy order storage, classic and block checkout, capacity reserved at checkout, tickets after payment, revocation on cancellation and refunds; carts with tickets from several sellers can be rejected or split into one order per seller.
 * Email templates per language, reminders by email and SMS, signed webhooks, partner API and read-only developer keys.
 * Security: provider credentials encrypted at rest (libsodium) with the key kept outside the database, role-based event scoping and data minimisation, step-up two-factor checks, time-limited support access and an audit log with viewer and CSV export.
@@ -117,6 +117,14 @@ In its own database tables (prefix `wpcap_`, created on activation and removed o
 
 No, by design. Without network only admissions are possible, with the installable offline scanner (signed packages, scans are synced later). Box office sales, stornos and refund payouts need the network: the sale must reserve the remaining stock on the server, receive the payment confirmation and, where fiscalization is active, the provider's signed receipt. Nothing is queued offline; while the browser reports no connection, the box office shows a notice and disables these buttons until the connection is back. Details: docs/OFFLINE-SCANNER.md and docs/OPERATIONS.md.
 
+= Is there a native scanner app for iOS or Android? =
+
+No. Pass Captain ships no native app and publishes none in an app store. Admission works in the browser: the web scanner (`[wpcap_scanner]`) and the installable offline scanner web app, both using the device camera. The mobile scanner REST API (docs/MOBILE-API.md) is the contract for native apps that are built and published as a separate product or project; the API alone is not an app.
+
+= Is the seat map stable? =
+
+The seat map (seating plans with the graphical editor and seat selection in the checkout) is marked as experimental in this release. It works and is tested, but its operation and display may still change in later versions, and touch operation on phones (zoom and pan) is not finished yet. The admin screen "Saalpläne" and the module list in the settings show the label "experimentell". Check a seat map in the checkout on desktop and phone before selling with it.
+
 = Operations =
 
 Queues (emails, SMS, jobs, webhooks) are processed via WP-Cron with a time budget of about 20 seconds per run; if a backlog remains, another run follows immediately. If Action Scheduler is available (for example with WooCommerce), follow-up runs are scheduled through it. For busy shops, set `define( 'DISABLE_WP_CRON', true );` in wp-config.php and run `wp cron event run --due-now` every minute from a system cron job. On Multisite this command only runs the main site's events; run it for every site instead, e.g. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
@@ -134,7 +142,7 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 = 1.7.0 =
 * Service fee: included in every price shown before purchase (event card, event page, REST, JSON-LD), own tax setting (like the ticket or own tax profile), refund rules (always refunded on cancellation, buyer's wish per setting) and shown separately in partner settlements and reports (optional pass-on to partners).
 * Vouchers: single-purpose vouchers only for the VAT of their sale, discount codes as price reduction; versioned read API for voucher reconciliation (extension contract 1.4.0).
-* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions.
+* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions; extension contract 1.5.0 adds the occurrence location and a holder-changed flag on request, `wpcap_get_ticket_ids()` and `wpcap_get_event_catalog()`.
 * Public action functions `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()`; the unused workflow provider contract was removed (Pass Captain sends all mails itself). `wpcap_event_cancelled` now fires once per cancellation after the tickets are revoked.
 
 = 1.6.0 =

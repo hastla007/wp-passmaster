@@ -8,6 +8,7 @@ namespace PassCaptain\Modules;
 use PassCaptain\Printing\BatchJob;
 use PassCaptain\Printing\InvoicePdf;
 use PassCaptain\Printing\Page;
+use PassCaptain\Printing\Templates;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -74,9 +75,14 @@ final class PrintTemplates {
 	public static function settings_defaults() {
 		return array(
 			'print_attach_invoice_pdf' => 0,
+			// Print margin to the page edge in mm for tickets, badges, invoice PDFs, receipts and the print
+			// check (owner decision 25.11.2026: configurable, default 4 mm; Printing\Templates::margin_mm()).
+			'print_margin_mm' => Templates::MARGIN_DEFAULT_MM,
 			// SET-PC-33: logo (media id, 0 = none) and footer of ticket PDFs ('' = built-in text), footer per
 			// language (locale => text), imprint/privacy links in the footer. Per event: EventOverrides.
-			'ticket_pdf' => array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1 ),
+			// PASS-FE-07: start design of the ticket PDF ('' = built-in layout, otherwise a ticket starter of
+			// Printing\Templates::starters()) for events without an own ticket template.
+			'ticket_pdf' => array( 'logo' => 0, 'footer' => '', 'translations' => array(), 'legal_links' => 1, 'design' => '' ),
 		);
 	}
 
@@ -84,6 +90,7 @@ final class PrintTemplates {
 	public static function settings_schema() {
 		return array(
 			'print_attach_invoice_pdf' => array( 'type' => 'bool', 'label' => __( 'Rechnung als PDF anhängen', 'pass-captain' ), 'help' => __( 'Rechnungen werden als PDF an die Bestätigungsmail angehängt.', 'pass-captain' ), 'page' => 'wpcap-print' ),
+			'print_margin_mm' => array( 'type' => 'int', 'min' => Templates::MARGIN_MIN_MM, 'max' => Templates::MARGIN_MAX_MM, 'label' => __( 'Druckrand (mm)', 'pass-captain' ), 'help' => __( 'Abstand, den gedruckte Inhalte mindestens zum Blattrand halten: Ticket- und Namensschild-PDFs, Fußzeile der Rechnungs-PDFs, Kassen- und Z-Bons (seitlich), Teilnehmer- und No-show-Listen (mindestens 12 mm). Die Druckprüfung der Vorlagen warnt, wenn Inhalte näher am Rand liegen. Standard 4 mm (die meisten Bürodrucker drucken die äußeren 4 mm nicht), 0 für randlos druckende Geräte; Etikettenbögen behalten ihr festes Raster, Armbänder höchstens 1 mm.', 'pass-captain' ), 'page' => 'wpcap-print' ),
 			'ticket_pdf' => array(
 				'type' => 'group',
 				'label' => __( 'Ticket-PDF: Logo und Fußzeile', 'pass-captain' ),
@@ -93,6 +100,7 @@ final class PrintTemplates {
 					'logo' => array( 'type' => 'int', 'min' => 0, 'max' => PHP_INT_MAX, 'label' => __( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) ),
 					'footer' => array( 'type' => 'textarea', 'label' => __( 'Fußzeile', 'pass-captain' ) ),
 					'legal_links' => array( 'type' => 'bool', 'label' => __( 'Impressum und Datenschutz in der Fußzeile verlinken', 'pass-captain' ) ),
+					'design' => array( 'type' => 'choice', 'options' => Templates::ticket_designs(), 'label' => __( 'Startdesign des Ticket-PDFs', 'pass-captain' ) ),
 				),
 			),
 		);

@@ -6,12 +6,14 @@
  * buyer REST endpoints and the public booking/waitlist pages. Docs: docs/SERVICE-BOOKINGS.md.
  *
  * Tables live in the core schema (Installer): wpcap_resources, wpcap_service_slots,
- * wpcap_service_bookings, wpcap_service_waitlist.
+ * wpcap_service_bookings, wpcap_service_waitlist; the module schema adds wpcap_service_noshow_fees
+ * (no-show fee by payment link, Services\NoShowFees).
  */
 namespace PassCaptain\Modules;
 
 use PassCaptain\ServiceBookings;
 use PassCaptain\Services\Api;
+use PassCaptain\Services\NoShowFees;
 use PassCaptain\Services\Portal;
 use PassCaptain\Waitlists;
 
@@ -40,6 +42,12 @@ final class Services {
 		add_action( 'admin_post_wpcap_service_portal', array( Portal::class, 'handle_post' ) );
 		add_action( 'admin_post_nopriv_wpcap_service_portal', array( Portal::class, 'handle_post' ) );
 		add_filter( 'wpcap_order_portal_sections', array( Portal::class, 'order_section' ), 10, 3 );
+		NoShowFees::register();
+	}
+
+	/** Module tables: no-show fees (payment link, E-18). */
+	public static function schema( $prefix, $charset ) {
+		return NoShowFees::schema( $prefix, $charset );
 	}
 
 	/** Cron entry point (wpcap_process_jobs, priority 5). */

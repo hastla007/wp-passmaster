@@ -1,5 +1,20 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht
+
+### Wallet
+- Wallet-Seite: „Pässe für bestehende Tickets erzeugen“ – Tickets, die vor dem Einschalten von Wallet ausgestellt wurden, erhalten ihre Pässe mit dem bisherigen Code (kein neuer Code, keine Mail); die Pässe erscheinen im Bestellportal. Stapel zu 200 Tickets, Rest im Hintergrund (Job `wallet_backfill`).
+
+### Saalplan, Kalender, Zahlungsfristen
+- Saalpläne sind in diesem Release als „experimentell“ gekennzeichnet: Hinweis in Liste und Editor, Modulliste, readme (FAQ) und Release-Matrix (Owner-Entscheidung E-09).
+- Kalenderdateien (.ics): Steuerzeichen in Eventname und Ort werden entfernt, Termine ohne Dauer erhalten kein ungültiges DTEND mehr, Kauf-Links mit Leerzeichen oder Umlauten werden korrekt kodiert. Im Kalender-Abo sinkt SEQUENCE nie unter die Terminrevision der Mail. Neuer RFC-5545-Prüftest für Download, Abo, Portal und Mails.
+- Mollie: Die Überweisungsfrist (`dueDate`) endet jetzt vor dem Ende der Reservierung; ein späteres `expiresAt` verlängert die Reservierung begrenzt. PayPal: Die Statusabfrage zieht eine genehmigte Zahlung nur noch bei aktiver Reservierung ein (Owner-Entscheidung E-20).
+- No-Show-Gebühr: Zahlungslink mit Fälligkeit über die vorhandenen Zahlungsarten (Ansicht „No-Show-Gebühren“ unter Services, neue Tabelle `wpcap_service_noshow_fees`, zwei neue Mailtypen); keine automatische Abbuchung, kein Mahnwesen (Owner-Entscheidung E-18). Die Late-Payment-Prüfung überspringt Zeilen mit Menge 0.
+- Erstattung bereits eingecheckter Tickets: Im Admin (Freigabe, WooCommerce-Erstattungsdialog/REST, Servicebuchungen) nur mit Freigaberecht und Begründung; Begründung im Audit (`refund_checkin_override`) und als Bestellnotiz. Standard bleibt „erlauben“ (Owner-Entscheidung E-11).
+- Teilnehmerverwaltung: Sortierung nach Event.
+- Lese-Schnittstelle (Vertrag 1.5.0): optional Ort und Inhaberwechsel-Hinweis, Ticket-IDs je Termin/Event/Tickettyp, Event- und Tickettyp-Katalog ohne personenbezogene Daten.
+- Betriebsdokumente: Vorschläge für Support, Sicherheit und Release-Ablauf (Freigabe durch die Produktverantwortung offen).
+
 ## 1.7.0 – 2026-11-23
 
 ### Wichtige Verhaltensänderungen beim Update
@@ -10,6 +25,7 @@
 - **Datenbankschema 3.18.4:** Erstattungen speichern erstattete und einbehaltene Servicegebühr mit USt (`fee_minor`, `fee_tax_minor`, `fee_kept_minor`, `fee_kept_tax_minor`).
 - **PC-7:** Kein eigener Workflow-Vertrag mehr im Kern (Entscheidung vom 23.11.2026, Suite-Entscheidungen D13/D10): Filter `wp_pass_captain_workflow_provider_v1`, Workflow-Outbox, Workflow-Commands und die Übergabe optionaler Mails an Workflow Captain entfallen; Pass Captain versendet alle Mails selbst. Workflow Captain nutzt die `wpcap_*`-Actions, die Lesefassade `wpcap_get_*_state()` und die neuen Aktionsfunktionen. Die Outbox (`Suite\Outbox`) dient nur noch dem Review-Vertrag; ihre Hooks heißen `wpcap_outbox_*` statt `wpcap_workflow_*`. Ein Wächtertest verhindert die Rückkehr. Der Vertrag wurde nie genutzt und war nur in 1.6.0 veröffentlicht; deshalb bleibt `WPCAP_CONTRACT_VERSION` bei 1.4.0 (Ausnahme von der Regel „Entfernen = neue erste Stelle“, dokumentiert in docs/EXTENSIONS.md).
 - **PC-9:** `wpcap_event_cancelled` feuert jetzt einmal je Absage, nachdem alle Termine abgesagt und alle Tickets widerrufen sind (Argumente `int $event_id, array $context`); bisher direkt nach dem Commit, bevor die Tickets widerrufen waren.
+- **Rechnungen nur mit vollständigen Rechnungsstellerdaten:** Eine Rechnung im eigenen Namen der Plattform (auch die automatische nach Zahlung) wird abgelehnt, solange Name, Anschrift oder USt-IdNr./Steuernummer unter „Rechnungssteller“ fehlen (Fehler `wpcap_invoice_platform_incomplete`, Audit `invoice_refused`); fehlende Rechnungen lassen sich nach dem Ergänzen erstellen.
 - **SET-PC-01:** Gespeicherte Einstellungen außerhalb der erlaubten Grenzen oder mit unbekanntem Auswahlwert werden nicht mehr stillschweigend gekappt bzw. ersetzt: Die Einstellungsseite meldet den Fehler und behält den bisherigen Wert.
 
 ### Bestellportal und Selbstbedienung
@@ -77,6 +93,8 @@
 - E2E-Tests unter realen Bedingungen für alle Käufer-Widgets sowie Check-out offline, Erstattung und Umbuchung einer Servicebuchung.
 
 ### Code, Build und Lieferkette
+- Stripe: jede Anfrage ist auf die im Testmodus geprüfte API-Version `2026-11-18.endive` festgelegt (Header `Stripe-Version`, Filter `wpcap_stripe_api_version`); Antworten ändern sich nicht mehr mit der Kontoversion.
+- Neu: `Orders::max_lines()` mit Filter `wpcap_max_lines` (Standard 10 Bestellzeilen je Checkout, 1–100); bisher fest im Code. Add-ons wie die Schreib-API von Pass Captain Pro lesen den Wert von dort.
 - Intern: `Orders` in Teilklassen zerlegt (Verfügbarkeit, Teilnehmerangaben, Kapazität; keine Verhaltensänderung).
 - Übersetzung: Platzhalternamen in Hilfetexten separat übersetzbar.
 - Gebündelte QR-Bibliothek (bacon/bacon-qr-code, dasprid/enum) wird namespace-präfixiert ausgeliefert (Strauss, `vendor-prefixed/`); andere Plugins mit eigener Bacon-/endroid-Version kollidieren nicht mehr (A103).
@@ -131,6 +149,7 @@
 
 ### Schnittstellen für Connectoren und Workflow (Vertrag 1.4.0)
 - **PASS-E17-01:** Lesedienst `wpcap_get_ticket_details()` / `wpcap_get_order_ticket_details()` (Termin, Event, Inhaber, Check-ins; E-Mail des Inhabers nur mit Capability `wpcap_read_holder_email`), Protokolleintrag `wpcap_connector_audit()`, Freigabe `wpcap_set_connector_enabled()` / `wpcap_is_connector_enabled()` statt Optionsschreiben.
+- **C9 (Vertrag 1.5.0, additiv):** Lesedienst auf Anfrage mit Veranstaltungsort (`include_location`) und Kennzeichen „Inhaber gewechselt“ (`include_holder_changes`, nur Zahl), neu `wpcap_get_ticket_ids()` (Ticket-IDs je Termin, Event oder Ticketart, seitenweise) und `wpcap_get_event_catalog()` (Events und Ticketarten auch ohne künftige Termine, ohne personenbezogene Daten).
 - **PC-7:** Öffentliche Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()` und `wpcap_confirm_attendance()` (Vertrag `actions` 1.0.0): Rechteprüfung für den aktuellen oder einen genannten Benutzer, regulärer Kerndienst, Audit-Eintrag, optionaler Idempotency-Key.
 - **PC-8:** docs/EXTENSIONS.md: eine Bedeutung je Vertragsversion (1.2.0 = Leistungsdatum der Rechnungs-API, 1.3.0 = Lesefassade).
 

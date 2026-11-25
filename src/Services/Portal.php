@@ -8,6 +8,7 @@
  * - ?wpcap_waitlist_leave=ID&token=…              event waitlist: unsubscribe
  * - ?wpcap_waitlist_confirm=ID&token=…            event waitlist: confirm the sign-up (double opt-in)
  * - ?wpcap_service_waitlist=ID&do=confirm&token=… slot waitlist: confirm the sign-up (double opt-in)
+ * - ?wpcap_noshow_fee=ID&token=…                  no-show fee: payment link (NoShowFees)
  * - section in the order portal                   bookings of the order (cancel, rebook)
  *
  * GET only shows a confirmation form (mail scanners and link previews never change anything); the
@@ -51,6 +52,8 @@ final class Portal {
 			$html = self::waitlist_page( absint( $get['wpcap_service_waitlist'] ), sanitize_key( \PassCaptain\Security\Input::text( $get['do'] ?? 'status' ) ), $token );
 		} elseif ( ! empty( $get['wpcap_waitlist_decline'] ) && $token ) {
 			$html = self::confirm_page( __( 'Wartelistenangebot ablehnen', 'pass-captain' ), __( 'Möchtest du das Angebot ablehnen? Das Ticket geht dann an die nächste Person auf der Warteliste.', 'pass-captain' ), array( 'do' => 'event_decline', 'id' => absint( $get['wpcap_waitlist_decline'] ), 'token' => $token ), __( 'Angebot ablehnen', 'pass-captain' ) );
+		} elseif ( ! empty( $get['wpcap_noshow_fee'] ) && $token ) {
+			$html = self::page( __( 'No-Show-Gebühr bezahlen', 'pass-captain' ), NoShowFees::page_html( absint( $get['wpcap_noshow_fee'] ), $token ) );
 		} elseif ( ! empty( $get['wpcap_waitlist_leave'] ) && $token ) {
 			$html = self::confirm_page( __( 'Von der Warteliste austragen', 'pass-captain' ), __( 'Möchtest du dich von der Warteliste austragen?', 'pass-captain' ), array( 'do' => 'event_leave', 'id' => absint( $get['wpcap_waitlist_leave'] ), 'token' => $token ), __( 'Austragen', 'pass-captain' ) );
 		}
@@ -66,9 +69,9 @@ final class Portal {
 		$in = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified below.
 		check_admin_referer( self::ACTION . '_' . sanitize_key( \PassCaptain\Security\Input::text( $in['do'] ?? '' ) ) . '_' . absint( $in['id'] ?? 0 ) );
 		$result = self::perform( (array) $in );
-		$redirect = is_array( $result ) ? (string) ( $result['supplement']['payment']['redirect_url'] ?? '' ) : '';
+		$redirect = is_array( $result ) ? (string) ( $result['supplement']['payment']['redirect_url'] ?? $result['noshow_fee']['payment']['redirect_url'] ?? '' ) : '';
 		if ( '' !== $redirect && wp_http_validate_url( $redirect ) ) {
-			// Hosted payment page of the gateway for the supplementary payment (URL from the gateway, not from the request).
+			// Hosted payment page of the gateway for the supplementary payment or no-show fee (URL from the gateway, not from the request).
 			wp_redirect( $redirect, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment provider host.
 			\PassCaptain\Http::end();
 		}
@@ -108,6 +111,8 @@ final class Portal {
 				$booking = ServiceBookings::for_order_access( \PassCaptain\Security\Input::text( $in['public_id'] ?? '' ), \PassCaptain\Security\Input::text( $in['access_token'] ?? '' ), $id );
 				if ( ! $booking ) { return self::denied(); }
 				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key, 'provider' => sanitize_key( \PassCaptain\Security\Input::text( $in['provider'] ?? '' ) ) ) );
+			case 'noshow_fee_pay':
+				return NoShowFees::pay( $id, $token, sanitize_key( \PassCaptain\Security\Input::text( $in['provider'] ?? '' ) ) );
 			case 'waitlist_confirm':
 				return ServiceWaitlist::confirm( $id, $token );
 			case 'event_confirm':
@@ -236,6 +241,7 @@ final class Portal {
 			'unsubscribed' => __( 'Du wurdest von der Warteliste ausgetragen.', 'pass-captain' ),
 			'waitlist_confirmed' => __( 'Danke! Deine Eintragung in die Warteliste ist bestätigt. Deine Position und einen Link zum Austragen bekommst du per E-Mail.', 'pass-captain' ),
 		);
+		if ( isset( $result['noshow_fee'] ) ) { return self::page( __( 'No-Show-Gebühr bezahlen', 'pass-captain' ), NoShowFees::result_html( $result ) ); }
 		if ( isset( $result['supplement'] ) ) {
 			$supplement = $result['supplement'];
 			$payment = (array) ( $supplement['payment'] ?? array() );

@@ -41,6 +41,8 @@ Ebenso ohne Hook: der Lesedienst für Connectoren `wpcap_get_ticket_details()` u
 der Protokolleintrag eines Connectors `wpcap_connector_audit()` (seit 1.6.0 mit Vertrag 1.4.0,
 [EXTENSIONS.md](EXTENSIONS.md#protokolleintrag-eines-connectors)) und die Freigabe `wpcap_set_connector_enabled()` /
 `wpcap_is_connector_enabled()` (seit 1.6.0 mit Vertrag 1.4.0, [EXTENSIONS.md](EXTENSIONS.md#freigabe-eines-connectors-opt-in)).
+Seit 1.7.0 mit Vertrag 1.5.0 außerdem `wpcap_get_ticket_ids()` und `wpcap_get_event_catalog()`
+([EXTENSIONS.md](EXTENSIONS.md#erweiterungen-in-vertrag-150)), ebenfalls ohne Hook.
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 `grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der
@@ -59,7 +61,7 @@ Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 
 ## Öffentliche Add-on-API
 
-Vertrag `addon`, Version **1.0.0** (`PassCaptain\PublicApi::VERSION`, Tabelle in [CONTRACTS.md](CONTRACTS.md)).
+Vertrag `addon`, Version **1.1.0** (`PassCaptain\PublicApi::VERSION`; 1.1.0: `wpcap_woocommerce_hold_fulfilment`, Tabelle in [CONTRACTS.md](CONTRACTS.md)).
 Versionsregel: Eine Minor-Version fügt nur Hooks oder Argumente am Ende hinzu. Innerhalb einer Hauptversion
 wird ein öffentlicher Hook nie entfernt, umbenannt oder mit anderen Argumenttypen aufgerufen; ein Hook, der
 wegfallen soll, bleibt mindestens eine Minor-Version lang als veraltet bestehen (`apply_filters_deprecated`,
@@ -67,7 +69,8 @@ Hinweis bei `WP_DEBUG`) und verschwindet erst mit der nächsten Hauptversion –
 
 **Einstieg:** Das Add-on hängt sich beim Laden seiner Hauptdatei an `wpcap_loaded` (bzw. prüft
 `did_action( 'wpcap_loaded' )`) und vergleicht die übergebene Version mit
-`PassCaptain\PublicApi::compatible( '1.0' )`. Ist der Kern nicht aktiv oder die Hauptversion anders, steigt
+`PassCaptain\PublicApi::compatible( '1.0' )`. Braucht es einen Hook, der erst mit einer Minor-Version dazukam
+(Spalte „Seit“), prüft es zusätzlich `isset( PassCaptain\PublicApi::hooks()[ $hook ] )`. Ist der Kern nicht aktiv oder die Hauptversion anders, steigt
 das Add-on mit einem Admin-Hinweis aus. Der Kern selbst kennt das Add-on nicht, prüft keine Lizenzen und
 funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
 
@@ -108,6 +111,7 @@ funktioniert ohne es vollständig ([FREE-PREMIUM.md](FREE-PREMIUM.md)).
 | `wpcap_export_formats` | Filter | 1.0 | Exporte | Weitere Formate des Buchhaltungsexports: `id => ['label', 'rows' => callable( $from, $to ): array[]]` (erste Zeile = Kopf). Schaltfläche auf der Berichtsseite; Download als UTF-8-CSV (Semikolon) mit derselben Berechtigung, Nonce und Audit-Eintrag (`accounting_exported`, `format` = id) wie der eingebaute Export; Formelzeichen am Zellanfang werden entschärft. `csv` und `datev` sind reserviert. |
 | `wpcap_payment_gateways` | Filter | 1.0 | Zahlungen | Zahlungsadapter registrieren (`GatewayInterface`). |
 | `wp_pass_captain_checkin_service_v1` | Filter | 1.0 | Scanner | Check-in-Dienst für fremde Scanner ([VOUCHERS.md](VOUCHERS.md)). |
+| `wpcap_woocommerce_hold_fulfilment` | Filter | 1.1 | Bestellungen | Ticketausgabe einer bezahlten WooCommerce-Bestellung zurückhalten (`bool $hold`, `WC_Order $wc_order`; z. B. Voucher Captain bei nicht belastbarer Geschenkkarte). Die Reservierung bleibt; die Tickets folgen, wenn die Bestellung wieder auf „In Bearbeitung“/„Abgeschlossen“ gesetzt wird. Eine Integration prüft vorher `isset( PassCaptain\PublicApi::hooks()['wpcap_woocommerce_hold_fulfilment'] )`: ein älterer Kern kennt das Zurückhalten nicht oder nicht verlässlich und stellt die Tickets trotz Fehlbetrag aus. |
 
 Nicht enthalten ist ein Gebühren-Filter `wpcap_order_fees` (A331): Bestellgebühren brauchen ein eigenes
 Datenmodell (eigene Rechnungszeile, USt-Behandlung, Erstattung, Preisangabe im Checkout) – das ist eine offene
@@ -379,6 +383,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
 | `wpcap_max_line_quantity` | `int $limit` (Einstellung `max_line_quantity`, Standard 100; SET-PC-20) | Absolute Obergrenze der Menge je Bestellzeile in `Orders::create()`, geprüft vor dem Sperren (Schutz gegen absurde Mengen); `max_per_order` der Ticketart gilt zusätzlich. |
+| `wpcap_max_lines` | `int $limit` (Standard 10, wirksam 1–100) | Höchstzahl der Bestellzeilen (verschiedene Ticketarten) je Checkout in `Orders::create()`; `Orders::max_lines()` liefert den Wert für Add-ons (z. B. die Schreib-API von Pass Captain Pro). |
 | `wpcap_client_ip` | `string $ip` (Ergebnis von `ClientIp::get()`), `array $server` (Server-Variablen des Requests) | Client-IP für Ratenbegrenzungen (`Orders::client_ip()`). Für Proxys genügt in der Regel die Einstellung „Vertrauenswürdige Proxys“ (siehe `docs/SECURITY.md`); dieser Filter bleibt für Sonderfälle. Einen Header nur übernehmen, wenn die direkte Gegenstelle der vertrauenswürdige Proxy ist; ungültige Rückgaben fallen auf das `ClientIp`-Ergebnis zurück. |
 | `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`, bzw. Header eines vertrauenswürdigen Proxys, siehe `wpcap_trusted_proxies`). Ungültige Rückgaben fallen auf die erkannte Adresse zurück. |
 | `wpcap_trusted_proxies` | `string[] $proxies` (Einstellung `trusted_proxies` bzw. Konstante `WPCAP_TRUSTED_PROXIES`) | IP-Adressen/CIDR-Bereiche, deren Weiterleitungs-Header ausgewertet wird (`ClientIp::get()`). Leer = immer `REMOTE_ADDR`. Ungültige Einträge werden ignoriert. |
@@ -476,6 +481,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_payment_return_url` | `string $url, string $status, string $public_id, string $provider` | Rückkehr-URL nach der Zahlungsseite (`success`, `pending`, `failed`, `cancel`, nach Storno durch die Käuferin `cancelled`; `$provider` dann `return`). Basis ist seit A554 die Seite, auf der der Checkout lief (`return_url` des Formulars, nur URLs dieser Website), sonst die Startseite; die URL trägt `wpcap_rk` (Schlüssel für „Zahlung fortsetzen“/„Bestellung stornieren“), der beim Filtern erhalten bleiben muss. |
 | `wpcap_payment_return_url` | `string $url, string $status, string $public_id, string $provider` | Rückkehr-URL nach der Zahlungsseite (`success`, `pending`, `failed`, `cancel`). Standard: die Seite, auf der bestellt wurde (Checkout-Feld `return_to`, nur dieselbe Website), mit `?wpcap_payment=…&order=…&wpcap_rt=…` (Rückkehr-Token für „Erneut bezahlen“/„Reservierung freigeben“, `Payments\ReturnNotice`). |
 | `wpcap_stripe_session_params` | `array $params, array $order, array $items` | Parameter der Stripe Checkout Session. |
+| `wpcap_stripe_api_version` | `string $version` (Standard `StripeGateway::API_VERSION`, '' = Kontoversion) | Stripe-API-Version, die jeder Aufruf im Header `Stripe-Version` mitschickt (STRIPE-1). |
 | `wpcap_paypal_order_body` | `array $body, array $order, array $items` | Body der PayPal-Order. |
 | `wpcap_mollie_webhook_ip_limit` | `int $limit` (120) | Mollie-Webhook-Aufrufe je IP und Minute (darüber HTTP 429). Zählt jeden Aufruf mit gültig aussehender ID, auch unbekannte, und wird vor jeder Datenbankabfrage geprüft (A431). |
 | `wpcap_mollie_webhook_global_limit` | `int $limit` (1200) | Mollie-Webhook-Abfragen bekannter Zahlungen insgesamt je Minute (unbekannte IDs zählen nicht, damit sie echte Webhooks nicht blockieren). |
@@ -592,6 +598,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_print_batch_inline_budget` | `float $seconds` (3) | Renderzeit im Admin-Request direkt nach dem Anlegen (kleine Stapel sind sofort fertig). |
 | `wpcap_print_batch_keep_days` | `int $days` (Einstellung `print_batch_keep_days`, Standard 7; SET-PC-21) | Aufbewahrung von Stapeldrucken und ihren Dateien nach der letzten Änderung. |
 | `wpcap_print_logo_file` | `string $file`, `int $attachment_id` | A685: lokale Datei des Logos einer Druckvorlage (`@logo|<Mediathek-ID>`; Standard `get_attached_file()`); `''` = kein Logo. JPEG oder PNG, höchstens 1 MB. |
+| `wpcap_print_check_margin` | `float $mm` (Einstellung `print_margin_mm`, Standard 4; Einlassband höchstens 1), `string $kind` | PASS-FE-07: Mindestabstand des Drucks zum Blattrand für die Druckprüfung (`Printing\PrintCheck`); 0 für randlos druckende Geräte. Die Einstellung wirkt auch auf die Layouts, der Filter nur auf die Prüfung. |
 | `wpcap_print_batch_dir` | `string $dir` (`uploads/pass-captain-private`) | Privates Verzeichnis der Stapeldruck-Dateien. |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
 | `wpcap_cleanup_budget` | `float $seconds` (10) | Zeitbudget der stündlichen Aufräumung abgeschlossener Zeilen (`Privacy\Retention::housekeeping()`, A444); der nächste Lauf setzt fort. |

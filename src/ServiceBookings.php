@@ -515,6 +515,13 @@ final class ServiceBookings {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen. Storniere ohne Erstattung oder bitte eine berechtigte Person.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
+		// E11-1: tickets already used for admission are refunded by staff only with a reason, in the order's
+		// refund form (Refunds::request() with used_override); the booking cancellation has no reason field.
+		$booking_tickets = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $booking->ticket_ids, true ) ) ) );
+		if ( $was_paid && (int) $booking->order_id && $refund_wanted && in_array( $actor, array( 'admin', 'partner' ), true ) && $booking_tickets && Orders::used_ticket_ids( $booking_tickets ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_used_tickets', __( 'Mindestens ein Ticket dieser Buchung wurde bereits zum Einlass genutzt. Storniere ohne Erstattung oder lege die Erstattung mit Begründung in der Bestellung an.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		$declined = in_array( $reason, array( 'partner_declined', 'confirmation_timeout' ), true );
 		$stored_reason = ( ! $refund_wanted && in_array( $actor, array( 'admin', 'partner' ), true ) ) ? 'admin_no_refund' : $reason;
 		$updated = $wpdb->update( "{$p}wpcap_service_bookings", array( 'status' => $declined ? 'declined' : 'cancelled', 'cancel_reason' => substr( $stored_reason, 0, 64 ), 'confirm_by' => null, 'expires_at' => null, 'updated_at' => Clock::mysql() ), array( 'booking_id' => (int) $booking->booking_id ) );

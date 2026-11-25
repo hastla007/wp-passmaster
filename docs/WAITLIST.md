@@ -118,6 +118,13 @@ Verkauf sind.
    Pflichtfeld, wird die Annahme abgelehnt (`wpcap_attendee_field_required`), das Angebot bleibt offen
    und die Seite verlinkt zurück zum Formular. Die Daten landen an der Bestellung und gehen bei der
    Ausstellung an die Tickets (Einwilligungsnachweis mit Quelle `waitlist`).
+   Bei kostenpflichtigen Angeboten fragt die Seite wie der Checkout optional die Rechnungsdaten ab
+   (Firma, Name, Anschrift, USt-IdNr., Bestellreferenz; `billing[…]`, auch über
+   `POST /waitlist/{id}/accept` mit `billing`). Liegt der Betrag über der Schwelle
+   „Name und Anschrift im Checkout verlangen ab Bestellbetrag“ (`billing_required_threshold_minor`), ist der Abschnitt geöffnet und
+   die Annahme ohne Rechnungsdaten wird abgelehnt (`wpcap_billing_required`, das Angebot bleibt offen);
+   ungültige Angaben ebenso (`wpcap_billing_invalid`). Die Daten landen an der Bestellung und gehen
+   wie im Checkout in die Rechnung; bis zur Ausstellung lassen sie sich im Bestellportal korrigieren.
    - Kostenlose Tickets: die Bestellung wird sofort abgeschlossen, die Tickets werden versendet
      (`paid`).
    - Kostenpflichtige Tickets: die Bestellung erhält die gewählte Zahlungsart, die Reservierung wird
@@ -252,7 +259,7 @@ Reiter *Warteschlange & Export* (`Admin\WaitlistsPage`):
 | `POST /events/{id}/waitlist` | öffentlich | Eintragen (`occurrence_id`, `ticket_type_id`, `email`, `quantity`). |
 | `GET /events/{id}/waitlist/entries` | Event verwalten | Einträge mit Rang und Status. |
 | `POST /events/{id}/waitlist/offer` | Event verwalten | Nächsten Eintrag einer Ticketart (`ticket_type_id`) sofort anbieten. |
-| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`). |
+| `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`, `terms_version`, `locale`, `attendees`, `billing`, `code`, `campaign_codes`, `voucher_code`). |
 | `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
 
 Das Austragen und die Double-Opt-in-Bestätigung laufen bewusst nicht über REST, sondern über die
@@ -271,4 +278,25 @@ ihre 303-Weiterleitungen sind `no-store` (`PageCache::no_store()`).
 - Platzhalter-Bestellungen erscheinen in der Bestellliste als ausstehend mit Zahlungsart
   `waitlist_offer`; sie werden nicht bezahlt, sondern bei der Annahme auf die gewählte Zahlungsart
   umgestellt.
-- Rabattcodes, Gutscheine und Rechnungsdaten werden bei Wartelisten-Bestellungen nicht abgefragt.
+- **Rabattcodes und Gutscheine (Entscheidung Inhaber 25.11.2026: Rabatte gelten):** Eine Buchung über ein
+  Wartelistenangebot gilt als normale Buchung. Die Angebotsseite bezahlter Angebote hat das Feld „Gutschein- oder
+  Rabattcode (optional)“ wie der Checkout (ein bekannter Rabattcode ist ein Rabatt, alles andere wird bei
+  verbundenem Gutschein-Plugin als Gutschein eingelöst); über REST `code`, `campaign_codes` und `voucher_code`.
+  Rabattcodes werden mit allen Regeln des Checkouts geprüft (Gültigkeit, Nutzungslimit, Limit je Käufer:in für die
+  E-Mail-Adresse des Eintrags, Mindestmenge, Kombinierbarkeit, Höchstrabatt) und in derselben Transaktion eingelöst,
+  in der das Angebot angenommen wird – Bestellung und Reservierungen des Angebots bleiben dabei gesperrt, das
+  Kontingent ändert sich nicht. Rabattaufteilung je Zeile, USt. auf den rabattierten Betrag und Preis-Snapshot wie
+  im Checkout. Automatische Kampagnen ohne Code kommen nicht hinzu (der Angebotspreis stand mit dem Angebot fest).
+  Ein Gutschein wird nach der Annahme wie im Checkout angewendet (`Integrations\Vouchers\Checkout`); deckt er alles,
+  ist die Bestellung sofort gebucht. Ein Rabatt von 100 % bucht ebenfalls sofort, ohne Zahlungsart.
+  Zahlungsregeln und Rechnungsdaten-Schwelle gelten für den Betrag nach dem Rabatt. Käuferlimits bleiben: das
+  Angebot entsteht nur innerhalb des Limits, und die Bestellung zählt danach wie jede andere.
+  Scheitert die Annahme nach dem Einlösen (Gutschein abgelehnt, Zahlungsart für den Restbetrag nicht erlaubt, Start
+  der Zahlung fehlgeschlagen), ist das Angebot wieder offen, zum Angebotspreis: Gutschein-Reservierung und
+  Code-Nutzung werden freigegeben, Zeilen, USt. und Summen zurückgesetzt (der Angebotspreis liegt dafür im
+  Preis-Snapshot unter `waitlist_offer_price`). Ablauf und Ablehnung stornieren die Platzhalter-Bestellung und geben
+  beides über die üblichen Wege frei. Zahlung, Rechnung, Gutschrift und Erstattung nutzen die gespeicherten Beträge
+  wie bei jeder Bestellung (Test `zz_p14_waitlist_discounts`). Rechnungsdaten fragt die Angebotsseite ab (siehe oben).
+- **Anzahl je Eintrag:** höchstens die Höchstmenge je Bestellung der Ticketart und höchstens `max_line_quantity`
+  (Einstellung „Höchstmenge je Bestellposition“) – sonst wird die Eintragung abgelehnt bzw. ein älterer Eintrag beim
+  Anbieten als „Nicht anbietbar“ (`quantity_limit`) markiert, statt ein Angebot zu machen, das der Checkout ablehnt.

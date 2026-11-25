@@ -149,8 +149,12 @@ der Ticketseite (`Service::ticket_links()`). Aufgeführt werden nur Tickets, die
 Pass existiert; ohne Pässe erscheint der Abschnitt nicht. Übertragene, zugewiesene oder im Admin per „Inhaber
 ändern“ weitergegebene Tickets bekommen ihre Pässe nur mit der Mail an die neue Person.
 
+## Bestehende Tickets
+
+Wird Wallet erst nach dem Verkauf eingeschaltet, erzeugt die Schaltfläche **„Pässe für bestehende Tickets erzeugen“** auf der Wallet-Seite (admin-post `wpcap_wallet_backfill`, Recht `manage_options`, Audit `wallet_backfill_started`) die Pässe gültiger Tickets kommender, nicht abgesagter Termine mit ihrem **bisherigen Code** (verschlüsselte Kopie aus `TicketCodes`, A586): Es entsteht kein neuer Code, gedruckte und versendete Tickets bleiben gültig, und es geht keine E-Mail an Käufer. Die Pässe erscheinen im Bestellportal (Wallet-Buttons je Ticket). Je Durchlauf 200 Tickets (`Service::BACKFILL_BATCH`), der Rest folgt als Job `wallet_backfill`; die Pass-Zeilen entstehen wie beim Stapeldruck über den Job `wallet_issue`. Tickets, deren gespeicherter Code nicht lesbar ist (anderer Schlüssel), werden übersprungen; Tickets ohne gespeicherten Code zählt die Seite und verweist auf „Tickets erneut senden“. Test: `tests/integration/modules/zz_p5_wallet_backfill.php`.
+
 ## Nicht enthalten / offen
 
-- Tickets, die vor Aktivierung des Moduls ausgestellt wurden, erhalten erst nach einer Code-Erneuerung (z. B. „Tickets erneut senden“) einen Pass.
+- Tickets, die vor Aktivierung des Moduls ausgestellt wurden, ohne gespeicherten Code (vor Schema 3.10.17 oder mit `wpcap_store_ticket_codes` = false) erhalten erst nach einer Code-Erneuerung (z. B. „Tickets erneut senden“) einen Pass. Tickets mit gespeichertem Code: siehe „Bestehende Tickets“.
 - Check-in ändert den Pass nicht.
 - Google-Speichern-Links: siehe oben (A583) – der vollständige JWT („fat JWT“) wird nur noch als Rückfall für ein einzelnes Ticket erzeugt, wenn die Wallet-API beim Klick nicht erreichbar ist.

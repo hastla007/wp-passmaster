@@ -14,8 +14,9 @@ use PassCaptain\Sales;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 /**
- * Implementation behind Orders::capacity_error() (counters or summed paid lines and holds). Moved out of
- * Orders without behaviour change (TODO "Gott-Klasse Orders"). Callers hold the row locks.
+ * Implementation behind Orders::capacity_error() (counters or summed paid lines and holds) and
+ * Orders::reserve_capacity() (filter `wpcap_reserve_capacity`). Moved out of Orders without behaviour change
+ * (TODO "Gott-Klasse Orders"). Callers hold the row locks.
  *
  * @internal Not part of the add-on API: only Orders calls it; use the Orders facade (same signatures).
  */
@@ -118,5 +119,28 @@ final class Capacity {
 			}
 		}
 		return '';
+	}
+
+	/**
+	 * Runs the `wpcap_reserve_capacity` filter inside an order/recovery transaction. Ticket types and
+	 * occurrences are already locked (FOR UPDATE) and no consistent read has happened yet, so a module
+	 * that locks its own rows here and only then reads usage sees every committed reservation.
+	 *
+	 * @param array $demand  ticket_type_id => quantity.
+	 * @param array $context phase ('create'|'recover'|'exchange'), order_id (excluded from usage; 0 on
+	 *                       create), types (locked rows by id), occurrences (locked rows by id), now,
+	 *                       source, email (buyer e-mail), user_id (current user, 0 for guests/cron),
+	 *                       internal (trusted channel options of Orders::create(); empty on recover).
+	 * @return \WP_Error|null
+	 */
+	public static function reserve( array $demand, array $context ) {
+		/**
+		 * Check/lock additional shared capacity (e.g. quota pools across occurrences). Return a
+		 * WP_Error to reject; its code is mapped through `wpcap_checkout_error_messages`, else its
+		 * message is shown. Lock resource rows FOR UPDATE in a stable order (e.g. by id) before
+		 * reading usage, and use only locking reads before that.
+		 */
+		$result = apply_filters( 'wpcap_reserve_capacity', true, $demand, $context );
+		return $result instanceof \WP_Error ? $result : null;
 	}
 }

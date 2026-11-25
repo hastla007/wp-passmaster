@@ -244,12 +244,27 @@ Zusätzlich prüft `tests/integration/modules/zzzzzz_y1_security.php` den **Gelt
 ### Schwachstellen melden
 
 - Meldungen ausschließlich **privat über GitHub Security Advisories des Repositories** („Security“ →
-  „Report a vulnerability“). Entscheidung offen: zusätzlicher privater Kanal (z. B. Sicherheits-Postfach)
-  – bis dahin gibt es keinen.
+  „Report a vulnerability“). Ein zusätzlicher privater Kanal ist vorgeschlagen (unten); bis zur Freigabe gibt
+  es keinen.
 - Keine Ticketcodes, Kundendaten, API-Schlüssel oder funktionsfähigen Exploits in öffentlichen Issues,
   Foren oder Pull Requests. Öffentliche Issues mit solchen Inhalten werden ausgeblendet und als Advisory
   weitergeführt.
 - Hilfreich: betroffene Version, Konfiguration (WooCommerce, Module), Reproduktionsschritte, Auswirkung.
+
+> **Vorschlag – Freigabe Owner** (zusätzlicher Kanal und security.txt):
+>
+> - Sicherheits-Postfach `<security-adresse>` nur für Meldungen (nicht für Support), gelesen von denselben
+>   Personen wie die Advisories. Eingänge dort werden als privates GitHub Security Advisory weitergeführt, damit
+>   es nur eine Liste gibt. Ein PGP-Schlüssel (`<pgp-fingerprint>`) ist optional; ohne ihn bleibt das Advisory
+>   der empfohlene Weg für vertrauliche Details.
+> - `security.txt` nach RFC 9116 auf der Produktwebsite unter
+>   `https://<produkt-domain>/.well-known/security.txt` mit `Contact: mailto:<security-adresse>`, einem zweiten
+>   `Contact:` auf die Advisory-Seite des Repositories, `Policy:` auf diesen Abschnitt, `Preferred-Languages: de, en`,
+>   `Canonical:` und `Expires:` höchstens ein Jahr in der Zukunft. Das Ablaufdatum wird mit dem ersten
+>   Minor-Release jedes Jahres erneuert (Punkt in der Freigabe-Checkliste). Das Plugin selbst legt **keine**
+>   `security.txt` auf den Websites der Betreiber an, denn dort sind die Betreiber zuständig.
+> - Eine kurze `SECURITY.md` im Wurzelverzeichnis des Repositories, die auf diesen Abschnitt verweist, damit
+>   GitHub die Richtlinie im Reiter „Security“ zeigt (nicht im ZIP, `.distignore`).
 
 ### Reaktionszeiten (Zielwerte)
 
@@ -261,8 +276,19 @@ Zusätzlich prüft `tests/integration/modules/zzzzzz_y1_security.php` den **Gelt
 | Fix mittel/niedrig | mit dem nächsten regulären Release, spätestens 90 Tage |
 | Veröffentlichung | Advisory (mit CVE, sofern vergeben) nach Verfügbarkeit des Fixes, abgestimmt mit der meldenden Person |
 
-Fixes erhalten die aktuelle und die vorherige Minor-Version ([SUPPORT.md](SUPPORT.md)). Entscheidung offen:
-die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
+Fixes erhalten die aktuelle und die vorherige Minor-Version ([SUPPORT.md](SUPPORT.md)).
+
+> **Vorschlag – Freigabe Owner** (Zielwerte und Offenlegung): Die Tabelle oben gilt wie geschrieben; Werktage zählen nach den
+> Feiertagen in `<sitz-region>`. Ergänzend:
+>
+> - **Offenlegungsfrist:** koordinierte Offenlegung, sobald der Fix veröffentlicht ist, spätestens **90 Tage**
+>   nach Eingang der Meldung. Eine Verlängerung um höchstens 30 Tage nur in Absprache mit der meldenden Person
+>   und nur, wenn ein Fix in Arbeit ist. Nach Ablauf darf die meldende Person die Lücke nach Vorankündigung selbst
+>   veröffentlichen.
+> - **Aktiv ausgenutzte Lücken:** Gegenmaßnahme (Einstellung, Modul abschalten) oder Fix innerhalb von
+>   72 Stunden, Advisory mit Gegenmaßnahme sofort, auch vor dem Fix.
+> - **CVE** über GitHub als CNA bei Schweregrad mittel und höher; die meldende Person wird auf Wunsch genannt.
+> - **Kein Bug-Bounty** (keine Belohnung); das steht so in der Richtlinie, damit niemand eine erwartet.
 
 ### Incident-Handling
 
@@ -299,7 +325,14 @@ die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
   (`tests/js/seating-editor-sinks.test.js`).
 - Kadenz: monatlich Composer- und GitHub-Actions-Abhängigkeiten aktualisieren (Pinning beibehalten,
   `composer.lock` committen, reproduzierbaren Build prüfen), Sicherheitsupdates sofort. Dependabot
-  (`.github/dependabot.yml`) schlägt wöchentlich Updates für Composer, npm und GitHub Actions vor.
+  (`.github/dependabot.yml`) schlägt täglich um 05:00 (Europe/Vienna) Updates für Composer, npm und GitHub
+  Actions vor, je Ökosystem als ein gruppierter Pull Request (Sicherheitsupdates als eigene Gruppe, A195).
+
+  > **Vorschlag – Freigabe Owner** (Update-Bot): Dependabot bleibt das einzige Update-Werkzeug (kein zweiter Bot wie Renovate,
+  > kein automatisches Mergen). Eine berechtigte Person mergt die Gruppen-PRs nach grüner CI: die Gruppe
+  > „security“ innerhalb von 7 Tagen, bei kritisch/hoch innerhalb von 2 Werktagen; die Gruppe „all“ mindestens
+  > einmal im Monat (passt zur Kadenz oben). Major-Updates von Entwicklungswerkzeugen (PHPUnit, PHPStan,
+  > Playwright) werden einzeln geprüft und dürfen bis zum nächsten Minor-Release warten.
 - **CI/Release-Härtung (A653):** Alle GitHub Actions sind per vollständigem Commit-SHA gepinnt, die
   Version steht als Kommentar dahinter (`uses: actions/checkout@<sha> # v4.4.0`; Dependabot aktualisiert
   SHA und Kommentar gemeinsam). Jeder Workflow setzt `permissions` auf Workflow-Ebene (`contents: read`,

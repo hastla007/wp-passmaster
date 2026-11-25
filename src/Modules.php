@@ -49,7 +49,7 @@ final class Modules {
 		'SalesRules' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
 		'Seating' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
 		'Series' => array( 'admin_handlers', 'admin_pages', 'register', 'schema' ),
-		'Services' => array( 'register' ),
+		'Services' => array( 'register', 'schema' ),
 		'Sms' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),
 		'Waitlist' => array( 'admin_handlers', 'admin_pages', 'register', 'settings_defaults', 'settings_schema' ),
 		'Wallet' => array( 'admin_handlers', 'admin_pages', 'register', 'schema', 'settings_defaults', 'settings_schema' ),

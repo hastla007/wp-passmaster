@@ -215,7 +215,7 @@ final class Types {
 	private static function service_types() {
 		$base = self::service_placeholders();
 		$sample = static function () { return self::service_sample(); };
-		$footer = static function () { return "\n\n" . __( 'Umbuchen oder stornieren kannst du über den Link zu deiner Bestellung (bzw. den Buchungslink) – stornieren bis {cancel_until}, umbuchen bis {rebook_until}.', 'pass-captain' ) . '{manage_link}'; };
+		$footer = static function () { return "\n\n" . /* translators: Keep the placeholders {cancel_until}, {rebook_until} unchanged. */ __( 'Umbuchen oder stornieren kannst du über den Link zu deiner Bestellung (bzw. den Buchungslink) – stornieren bis {cancel_until}, umbuchen bis {rebook_until}.', 'pass-captain' ) . '{manage_link}'; };
 		return array(
 			'service_booking_confirmed' => array(
 				'label' => __( 'Servicebuchung: Bestätigung', 'pass-captain' ),
@@ -283,6 +283,25 @@ final class Types {
 				/* translators: 1: resource, 2: date, 3: fee note */
 				'body' => static function () { return sprintf( __( "Für deinen Termin %1\$s am %2\$s haben wir keinen Check-in erhalten; er wurde als nicht wahrgenommen vermerkt.\n%3\$s\n\nFalls das ein Irrtum ist, antworte bitte auf diese E-Mail.", 'pass-captain' ), '{resource_name}', '{slot_date}', '{fee_info}' ); },
 				'sample' => $sample,
+			),
+			'service_noshow_fee_link' => array(
+				'label' => __( 'Servicebuchung: Zahlungslink No-Show-Gebühr', 'pass-captain' ),
+				'description' => __( 'Zahlungslink mit Fälligkeit für die No-Show-Gebühr eines nicht wahrgenommenen Termins (vom Veranstalter versendet).', 'pass-captain' ),
+				'placeholders' => $base + array( 'fee_amount' => __( 'Betrag der Gebühr', 'pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'pass-captain' ), 'pay_link' => __( 'Zahlungslink', 'pass-captain' ) ),
+				/* translators: %s: resource */
+				'subject' => static function () { return sprintf( __( 'No-Show-Gebühr für %s', 'pass-captain' ), '{resource_name}' ); },
+				/* translators: 1: resource, 2: date, 3: amount, 4: due date, 5: payment link */
+				'body' => static function () { return sprintf( __( "Deinen Termin %1\$s am %2\$s hast du nicht wahrgenommen. Laut Buchungsbedingungen wird dafür eine Gebühr von %3\$s fällig.\n\nBitte bezahle sie bis %4\$s über diesen Link:\n%5\$s\n\nFalls das ein Irrtum ist, antworte bitte auf diese E-Mail.", 'pass-captain' ), '{resource_name}', '{slot_date}', '{fee_amount}', '{due_date}', '{pay_link}' ); },
+				'sample' => static function () { return self::service_sample() + array( 'fee_amount' => '25,00 €', 'due_date' => '29.06.2027 10:00 (Europe/Vienna)', 'pay_link' => Mailer::link( home_url( '/?wpcap_noshow_fee=3&token=' . str_repeat( 'f6', 32 ) ) ) ); },
+			),
+			'service_noshow_fee_paid' => array(
+				'label' => __( 'Servicebuchung: No-Show-Gebühr bezahlt', 'pass-captain' ),
+				'description' => __( 'Zahlungsbestätigung der No-Show-Gebühr mit dem Link zum Beleg (Bestellung, gegebenenfalls mit Rechnung).', 'pass-captain' ),
+				'placeholders' => $base + array( 'fee_amount' => __( 'Betrag der Gebühr', 'pass-captain' ), 'receipt_link' => __( 'Link zum Beleg', 'pass-captain' ), 'invoice_info' => __( 'Rechnungsnummer (falls ausgestellt)', 'pass-captain' ) ),
+				'subject' => static function () { return __( 'Zahlung der No-Show-Gebühr erhalten', 'pass-captain' ); },
+				/* translators: 1: amount, 2: resource, 3: date, 4: invoice number line, 5: receipt link */
+				'body' => static function () { return sprintf( __( "Vielen Dank, wir haben deine Zahlung von %1\$s für die No-Show-Gebühr (%2\$s, %3\$s) erhalten.\n%4\$s\n\nBeleg: %5\$s", 'pass-captain' ), '{fee_amount}', '{resource_name}', '{slot_date}', '{invoice_info}', '{receipt_link}' ); },
+				'sample' => static function () { return self::service_sample() + array( 'fee_amount' => '25,00 €', 'invoice_info' => 'Rechnungsnummer: RE-2027-0042', 'receipt_link' => Mailer::link( home_url( '/?wpcap_order=' . str_repeat( 'a1', 16 ) . '&wpcap_access=' . str_repeat( 'b2', 32 ) ) ) ); },
 			),
 			'service_waitlist_joined' => array(
 				'label' => __( 'Warteliste Zeitfenster: Eintragung', 'pass-captain' ),
@@ -609,7 +628,7 @@ final class Types {
 				'subject' => static function () { return sprintf( __( 'Terminänderung: %s', 'pass-captain' ), '{event_name}' ); },
 				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note */
 				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. %6\$s", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}', '{refund_note}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'refund_note' => str_replace( '{refund_deadline}', '22.01.2027 20:00', (string) \PassCaptain\Settings::get( 'reschedule_refund_note' ) ) ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'refund_note' => str_replace( '{refund_deadline}', '22.01.2027 20:00 (Europe/Vienna)', (string) \PassCaptain\Settings::get( 'reschedule_refund_note' ) ) ); },
 				// Callers without a refund note (no request window configured): the general hint to contact the organiser.
 				'vars' => static function () { return array( 'refund_note' => __( 'Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.', 'pass-captain' ) ); },
 			),
@@ -640,6 +659,7 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'pass-captain' ); },
@@ -682,6 +702,7 @@ final class Types {
 					'quantity' => __( 'Gewünschte bzw. reservierte Anzahl', 'pass-captain' ),
 					'status_note' => __( 'Satz zum Stand (bleibt auf der Warteliste bzw. Angebot bleibt gültig)', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event name placeholder */
@@ -721,6 +742,7 @@ final class Types {
 					'event_name' => __( 'Event', 'pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
 					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
+					/* translators: Keep the placeholder {unsubscribe_link} unchanged. */
 					'leave_link' => __( 'Link zum Austragen (ältere Bezeichnung, wie {unsubscribe_link})', 'pass-captain' ),
 				) + self::waitlist_date_placeholders(),
 				/* translators: %s: event */

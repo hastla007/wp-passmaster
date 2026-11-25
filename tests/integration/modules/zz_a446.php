@@ -201,7 +201,7 @@ check( 'A446 WP Rocket cleans the posts and the URLs', in_array( array( 'rocket_
 check( 'A446 LiteSpeed purges posts and URLs', in_array( array( 'ls_post', 9101 ), $calls, true ) && in_array( array( 'ls_url', $url( 9103 ) ), $calls, true ) );
 check( 'A446 W3TC flushes posts and URLs; WP Super Cache deletes the URLs', in_array( array( 'w3tc_post', 9103 ), $calls, true ) && in_array( array( 'w3tc_url', $url( 9101 ) ), $calls, true ) && in_array( array( 'wpsc', $url( 9101 ) ), $calls, true ) && in_array( array( 'wpsc', $url( 9103 ) ), $calls, true ) );
 $cf = array_values( array_filter( $calls, static function ( $c ) { return 'cloudflare' === $c[0]; } ) );
-check( 'A446 Cloudflare plugin purges the posts with our URLs added to its list', 1 === count( $cf ) && array( 9101, 9103 ) === $cf[0][1] && array( 'https://example.test/', $url( 9101 ), $url( 9103 ) ) === $cf[0][2] && ! wpa446_has_cb( 'cloudflare_purge_by_url' ) );
+check( 'A446 Cloudflare plugin purges the posts with our URLs added to its list', 1 === count( $cf ) && array( 9101, 9103 ) === $cf[0][1] && array( 'https://example.test/', $url( 9101 ), $url( 9103 ) ) === $cf[0][2] && ! has_filter( 'cloudflare_purge_by_url' ) );
 remove_action( 'litespeed_purge_post', $wpa446_ls_post, 10 );
 remove_action( 'litespeed_purge_url', $wpa446_ls_url, 10 );
 
@@ -224,9 +224,4 @@ remove_filter( 'wpcap_page_cache_varnish', $wpa446_varnish );
 remove_filter( 'pre_http_request', $wpa446_pre, 10 );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_page_cache_adapters'] );
 
-/** Whether any callback is registered for a hook (the stub has_filter ignores the callback). */
-function wpa446_has_cb( $hook ) {
-	foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $cbs ) { if ( $cbs ) { return true; } }
-	return false;
-}
 PageCache::reset();

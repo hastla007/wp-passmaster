@@ -33,6 +33,8 @@ final class Webhooks {
 		// A674: further post-commit events.
 		add_action( 'wpcap_ticket_transferred', array( __CLASS__, 'ticket_transferred' ), 50, 2 );
 		add_action( 'wpcap_ticket_checked_out', array( __CLASS__, 'ticket_checked_out' ), 50, 2 );
+		// PASS-WF-02: an allowed attendance confirmation without a scan (wpcap_confirm_attendance()).
+		add_action( 'wpcap_attendance_confirmed', array( __CLASS__, 'attendance_confirmed' ), 50, 2 );
 		add_action( 'wpcap_occurrence_changed', array( __CLASS__, 'occurrence_changed' ), 50, 3 );
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'event_cancelled' ), 50, 2 );
 		add_action( 'wpcap_refund_reversed', array( __CLASS__, 'refund_reversed' ), 50, 2 );
@@ -301,6 +303,21 @@ final class Webhooks {
 		$t[0]['checked_out_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
 		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'web' ) );
 		return Dispatcher::emit( 'ticket.checked_out', 'checkout|' . ( $checkin_id ? $checkin_id : (int) $ticket_id . '|' . wp_generate_uuid4() ), $t[0], $t[1] );
+	}
+
+	/**
+	 * attendance.confirmed (PASS-WF-02) for a confirmation without a scan (wpcap_confirm_attendance(), method
+	 * manual/list/session/online). Same event id as the first check-in ('attendance|<ticket>'), so a ticket
+	 * sends attendance.confirmed at most once, whichever path confirms it first.
+	 */
+	public static function attendance_confirmed( $ticket_id, $context = array() ) {
+		$t = self::ticket_object( $ticket_id );
+		if ( ! $t ) { return 0; }
+		$context = is_array( $context ) ? $context : array();
+		$t[0]['confirmed_at'] = gmdate( 'Y-m-d\TH:i:s\Z', \PassCaptain\Clock::now() );
+		$t[0]['method'] = sanitize_key( (string) ( $context['method'] ?? 'manual' ) );
+		$t[0]['source'] = sanitize_key( (string) ( $context['source'] ?? 'api' ) );
+		return Dispatcher::emit( 'attendance.confirmed', 'attendance|' . (int) $ticket_id, $t[0], $t[1] );
 	}
 
 	/** ticket.transferred (A674): another person holds the ticket (portal transfer or holder change by assignment). */

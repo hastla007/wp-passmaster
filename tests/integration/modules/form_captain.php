@@ -56,14 +56,6 @@ check( 'event screen shows nothing without Form Captain and without assignment',
 
 require __DIR__ . '/form_captain/fake-contract.php';
 require __DIR__ . '/form_captain/fake-interface.php';
-if ( ! function_exists( 'has_filter' ) ) {
-	function has_filter( $hook, $callback = false ) {
-		foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $callbacks ) {
-			foreach ( $callbacks as $entry ) { if ( false === $callback || $entry[0] === $callback ) { return true; } }
-		}
-		return false;
-	}
-}
 $GLOBALS['fcfake']['forms'] = array(
 	array( 'id' => 7, 'public_id' => 'a1b2c3d4e5f6g7h8', 'title' => 'Anfrage', 'status' => 'published', 'version' => 1, 'fields' => array() ),
 	array( 'id' => 8, 'public_id' => 'zzzzzzzzzzzzzzz8', 'title' => 'Entwurf', 'status' => 'draft', 'version' => 0, 'fields' => array() ),

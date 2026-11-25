@@ -1,6 +1,6 @@
 # Ereignisse des Kerns für andere Captain-Plugins (Ist-Stand)
 
-Stand: 24.11.2026, Plugin 1.7.0 (Erweiterungsvertrag `WPCAP_CONTRACT_VERSION` 1.4.0, siehe
+Stand: 25.11.2026, Plugin 1.7.0 (Erweiterungsvertrag `WPCAP_CONTRACT_VERSION` 1.5.0, siehe
 [CONTRACTS.md](CONTRACTS.md)). Dieses Dokument beschreibt, was Pass Captain **heute** aussendet. Die gemeinsame
 Spezifikation der Suite liegt in Workflow Captain (`wp-workflowmaster`, `docs/SPEC-suite-events.md`,
 1.0.0-draft.13); Pass Captain liefert dafür nach Entscheidung PC-7 keinen eigenen Workflow-Vertrag, sondern die
@@ -101,7 +101,7 @@ Ereignis stabil), `type`, `api_version`, `created`, `data.object`.
 | `occurrence.changed` | `wpcap_occurrence_changed` (A674, je Revision) | Termin, zusätzlich `changed_fields`, `revision` | nein |
 | `event.cancelled` | `wpcap_event_cancelled` (A674; jeder Termin sendet zusätzlich `occurrence.cancelled`) | `id`, `status`, `occurrence_ids` | nein |
 | `ticket.checked_out` | `wpcap_ticket_checked_out` (A674, je Auslass) | Ticket, zusätzlich `checked_out_at`, `source` | wie `ticket.issued` |
-| `attendance.confirmed` | `wpcap_ticket_checked_in`, einmal je Ticket beim ersten Einlass (A674) | Ticket, zusätzlich `confirmed_at`, `method`, `source` | wie `ticket.issued` |
+| `attendance.confirmed` | `wpcap_ticket_checked_in` beim ersten Einlass (A674) oder `wpcap_attendance_confirmed` (PASS-WF-02), zusammen einmal je Ticket | Ticket, zusätzlich `confirmed_at`, `method`, `source` | wie `ticket.issued` |
 | `ticket.transferred` | `wpcap_ticket_transferred` (A674) | Ticket, zusätzlich `source`, `holder_changes` | wie `ticket.issued` |
 | `ticket.exchanged` | `wpcap_ticket_exchanged` | Ticket, zusätzlich Umtauschbeträge (`currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) | wie `ticket.issued` |
 | `refund.reversed` | `wpcap_refund_reversed` (A674/A675: gebuchte Erstattung beim Anbieter gescheitert und storniert) | Bestellung, zusätzlich `refund` mit `reversed: true` | wie `order.paid` |

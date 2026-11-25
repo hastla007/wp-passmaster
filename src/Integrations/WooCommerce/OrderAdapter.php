@@ -54,12 +54,16 @@ final class OrderAdapter {
 	const FISCAL_MODE_META = '_wpcap_fiscal_seller_mode';
 	const ATTENDEE_META = '_wpcap_attendees';
 	const DEFER_NOTE    = '_wpcap_deferred_note';
+	/** Refund meta: reason of a person refunding checked-in tickets (E11-1, set by guard_refund()). */
+	const CHECKIN_OVERRIDE_META = '_wpcap_checkin_override_reason';
+
 	/** Option: WooCommerce refunds with quantities may refund checked-in tickets ('yes'/'no', default 'no'). */
 	const CHECKED_IN_OPTION = 'wpcap_woocommerce_refund_checked_in';
 	/**
 	 * Version of the "wpcap_woocommerce_hold_fulfilment" contract (since 1.4): a filter returning true keeps the
 	 * tickets of a paid order reserved until the order is set to processing/completed again. Integrations
-	 * (Voucher Captain) check this constant before relying on the hold.
+	 * (Voucher Captain) check isset( PublicApi::hooks()['wpcap_woocommerce_hold_fulfilment'] ) (public add-on
+	 * API 1.1) or this constant before relying on the hold.
 	 */
 	const HOLD_FULFILMENT = 1;
 
@@ -1579,6 +1583,7 @@ final class OrderAdapter {
 				$recorded = self::record_refund( $wc_order, $refund, $core_ids );
 				if ( $recorded ) {
 					self::record_fiscal_extra_refund( $wc_order, $refund, $core_ids );
+					self::note_checked_in_override( $wc_order, $refund, $core_ids );
 				}
 				return $recorded;
 			} catch ( \Throwable $error ) {
@@ -1602,6 +1607,7 @@ final class OrderAdapter {
 			self::record_fiscal_extra_refund( $wc_order, $refund, $core_ids );
 		}
 		self::note_refund( $wc_order, $revoked, $kept );
+		self::note_checked_in_override( $wc_order, $refund, $core_ids );
 		return true;
 	}
 
@@ -1777,8 +1783,14 @@ final class OrderAdapter {
 	 * while refunding checked-in tickets is not allowed. WooCommerce turns the exception into an error
 	 * shown in the refund dialog; nothing is refunded. Amount-only refunds are never refused.
 	 *
+	 * E11-1: where it is allowed, a person (logged-in user: refund dialog, REST API) refunds checked-in
+	 * tickets only with the approver capability (Refunds::APPROVE_CAP) and a refund reason; the reason
+	 * is kept on the refund (CHECKIN_OVERRIDE_META) and written to the audit log and the order notes by
+	 * sync_refund(). Refunds without a user (gateway webhooks, cron) were already paid out at the
+	 * provider and are not refused.
+	 *
 	 * @param object $refund WC_Order_Refund being created.
-	 * @param array  $args   wc_create_refund() arguments (order_id, line_items[item_id][qty]).
+	 * @param array  $args   wc_create_refund() arguments (order_id, line_items[item_id][qty], reason).
 	 * @throws \Exception When the refund would need checked-in tickets.
 	 */
 	public static function guard_refund( $refund, $args = array() ) {
@@ -1786,9 +1798,11 @@ final class OrderAdapter {
 		$order_id = absint( $args['order_id'] ?? ( is_object( $refund ) && is_callable( array( $refund, 'get_parent_id' ) ) ? $refund->get_parent_id() : 0 ) );
 		$wc_order = $order_id ? wc_get_order( $order_id ) : null;
 		$core_ids = $wc_order ? self::core_order_ids( $wc_order ) : array();
-		if ( ! $core_ids || self::checked_in_refund_allowed( $wc_order ) ) {
+		if ( ! $core_ids ) {
 			return;
 		}
+		$allowed  = self::checked_in_refund_allowed( $wc_order );
+		$needs_checked_in = false;
 		$quantities = array();
 		foreach ( (array) ( $args['line_items'] ?? array() ) as $item_id => $line ) {
 			$qty  = absint( is_array( $line ) ? ( $line['qty'] ?? 0 ) : 0 );
@@ -1809,6 +1823,10 @@ final class OrderAdapter {
 				return 'checked_in' !== $t['status'];
 			} ) );
 			if ( $qty > $usable && count( $open ) > $usable ) {
+				$needs_checked_in = true;
+				if ( $allowed ) {
+					continue;
+				}
 				$type = self::ticket_type( $type_id );
 				$name = $type ? sprintf( '%s – %s', $type->event_name, $type->name ) : '#' . $type_id;
 				throw new \Exception(
@@ -1822,6 +1840,53 @@ final class OrderAdapter {
 					)
 				);
 			}
+		}
+		if ( $needs_checked_in && $allowed ) {
+			self::guard_checked_in_override( $refund, $args );
+		}
+	}
+
+	/**
+	 * E11-1: a person refunding checked-in tickets needs the approver capability and a reason.
+	 *
+	 * @throws \Exception Without capability or reason.
+	 */
+	private static function guard_checked_in_override( $refund, array $args ) {
+		if ( ! get_current_user_id() ) {
+			return;
+		}
+		if ( ! current_user_can( \PassCaptain\Refunds::APPROVE_CAP ) ) {
+			throw new \Exception( esc_html__( 'Pass Captain: Bereits eingecheckte Tickets dürfen nur Personen mit Freigabeberechtigung für Erstattungen erstatten.', 'pass-captain' ) );
+		}
+		$reason = $args['reason'] ?? ( is_object( $refund ) && is_callable( array( $refund, 'get_reason' ) ) ? $refund->get_reason() : '' );
+		$reason = trim( sanitize_text_field( (string) $reason ) );
+		if ( '' === $reason ) {
+			throw new \Exception( esc_html__( 'Pass Captain: Für die Erstattung bereits eingecheckter Tickets bitte einen Grund für die Erstattung angeben.', 'pass-captain' ) );
+		}
+		if ( is_object( $refund ) && is_callable( array( $refund, 'update_meta_data' ) ) ) {
+			$refund->update_meta_data( self::CHECKIN_OVERRIDE_META, \PassCaptain\Text::cut( $reason, 200 ) );
+		}
+	}
+
+	/**
+	 * E11-1: audit entry and order note for a WooCommerce refund that refunds checked-in tickets with a
+	 * reason (guard_checked_in_override()); once per refund, called by sync_refund().
+	 */
+	private static function note_checked_in_override( $wc_order, $refund, array $core_ids ) {
+		if ( ! is_object( $refund ) ) {
+			return;
+		}
+		$reason = is_callable( array( $refund, 'get_meta' ) ) ? (string) $refund->get_meta( self::CHECKIN_OVERRIDE_META, true ) : '';
+		if ( '' === $reason ) {
+			return;
+		}
+		$refund_id = is_callable( array( $refund, 'get_id' ) ) ? (int) $refund->get_id() : 0;
+		foreach ( $core_ids as $core_id ) {
+			\PassCaptain\Audit::record( \PassCaptain\Refunds::CHECKIN_OVERRIDE_ACTION, 'order', (int) $core_id, array( 'reason' => $reason, 'woocommerce_refund_id' => $refund_id, 'basis' => 'woocommerce' ) );
+		}
+		if ( $wc_order ) {
+			/* translators: %s: reason given for the refund */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung bereits eingecheckter Tickets mit Begründung: %s', 'pass-captain' ), $reason ) );
 		}
 	}
 

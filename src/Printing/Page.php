@@ -173,7 +173,7 @@ final class Page {
 		<?php if ( ! $edit ) : ?><label><?php esc_html_e( 'Gilt für', 'pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ), array( absint( Forms::query_arg( 'event_id', 0 ) ) ) ), (string) absint( Forms::query_arg( 'event_id', 0 ) ) ); ?></label><?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?><?php endif; ?></p>
 		<?php list( $edit_content, $edit_design ) = Templates::split( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?>
 		<p><textarea name="body" rows="8" cols="70" class="code" aria-label="<?php esc_attr_e( 'Vorlagentext', 'pass-captain' ); ?>" aria-describedby="wpcap-print-body-help"><?php echo esc_html( $edit_content ); ?></textarea></p>
-		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
+		<p class="description" id="wpcap-print-body-help"><?php echo esc_html( /* translators: Keep the placeholder {qr} unchanged. */ __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?>
 		<?php
 		$field_keys = Templates::field_keys();
 		/* translators: 1: placeholder pattern for participant fields, e.g. {field:Schlüssel}, 2: list of placeholders for participant fields */
@@ -222,8 +222,13 @@ final class Page {
 		<?php self::render_ticket_pdf(); ?>
 
 		<?php if ( current_user_can( 'manage_options' ) ) : ?>
-		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<?php Forms::open_form( 'wpcap_print_settings' ); ?>
+		<h2 id="wpcap-print-margin"><?php esc_html_e( 'Druckrand', 'pass-captain' ); ?></h2>
+		<?php $margin_entry = \PassCaptain\SettingsSchema::get( 'print_margin_mm' ); ?>
+		<p><label for="wpcap-print-margin-mm"><?php esc_html_e( 'Druckrand (mm)', 'pass-captain' ); ?></label>
+		<input type="number" class="small-text" id="wpcap-print-margin-mm" name="print_margin_mm" min="<?php echo esc_attr( (string) Templates::MARGIN_MIN_MM ); ?>" max="<?php echo esc_attr( (string) Templates::MARGIN_MAX_MM ); ?>" step="1" required value="<?php echo esc_attr( (string) Templates::margin_mm() ); ?>" aria-describedby="wpcap-print-margin-help"></p>
+		<p class="description" id="wpcap-print-margin-help"><?php echo esc_html( $margin_entry ? (string) $margin_entry['help'] : '' ); ?></p>
+		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<p><label><input type="checkbox" name="print_attach_invoice_pdf" value="1" <?php checked( (bool) Settings::get( 'print_attach_invoice_pdf' ) ); ?>> <?php esc_html_e( 'Rechnung als PDF an die Ticket-E-Mail anhängen (wenn eine Rechnung existiert oder automatische Rechnungen aktiv sind)', 'pass-captain' ); ?></label></p>
 		<p class="description"><?php
 		/* translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token> */
@@ -248,7 +253,22 @@ final class Page {
 			self::send_preview( $kind, $body );
 		}
 		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), self::posted_body( $in ), Forms::int( $in, 'owner_event_id' ) );
-		Forms::finish( $result, __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+		Forms::finish( self::with_print_check( $result ), __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/**
+	 * PASS-FE-07: a saved template with findings of the print check (QR quiet zone and contrast, module size,
+	 * print margins) as a warning after the success message; saving is never refused for them.
+	 *
+	 * @param int|\WP_Error $result Result of save_template().
+	 * @return int|array|\WP_Error
+	 */
+	public static function with_print_check( $result ) {
+		if ( is_wp_error( $result ) || ! $result ) { return $result; }
+		$template = Templates::get_template( (int) $result );
+		$problems = $template ? PrintCheck::check( (string) $template->kind, (string) $template->body )['problems'] : array();
+		if ( ! $problems ) { return $result; }
+		return array( 'template_id' => (int) $result, 'warning' => __( 'Druckprüfung:', 'pass-captain' ) . ' ' . implode( ' ', $problems ) );
 	}
 
 	/** A686: link to the PDF preview of a stored template. */
@@ -466,6 +486,7 @@ final class Page {
 		$raw = array(
 			'logo' => is_scalar( $in['logo'] ?? null ) ? trim( (string) $in['logo'] ) : '',
 			'footer' => is_scalar( $in['footer'] ?? null ) ? (string) $in['footer'] : '',
+			'design' => is_scalar( $in['design'] ?? null ) ? (string) $in['design'] : '',
 		);
 		$checked = \PassCaptain\SettingsSchema::check_group( 'ticket_pdf', $raw );
 		$errors = is_wp_error( $checked ) ? (array) ( $checked->get_error_data()['messages'] ?? array( $checked->get_error_message() ) ) : array();
@@ -486,6 +507,8 @@ final class Page {
 			'logo' => (int) ( $checked['logo'] ?? 0 ),
 			'footer' => trim( (string) ( $checked['footer'] ?? '' ) ),
 			'translations' => $translations,
+			// PASS-FE-07: start design ('' = built-in layout; per event: the global design).
+			'design' => (string) ( $checked['design'] ?? '' ),
 		);
 		if ( $event_id ) {
 			$values = array_filter( $values );
@@ -534,6 +557,12 @@ final class Page {
 		echo '<tr><th scope="row"><label for="wpcap-tpdf-logo">' . esc_html__( 'Logo (Mediathek-ID, JPEG oder PNG)', 'pass-captain' ) . '</label></th><td><input type="number" min="0" step="1" class="small-text" id="wpcap-tpdf-logo" name="logo" value="' . esc_attr( $logo ? (string) $logo : '' ) . '"><p class="description">' . esc_html( $event_id ? __( 'Leer = Logo der Standardeinstellung. Ein Logo in der Druckvorlage des Events hat Vorrang.', 'pass-captain' ) : __( 'Oben links auf jedem Ticket-PDF; leer = kein Logo. Ein Logo in der Druckvorlage hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
 		$footer = $event_id ? (string) ( $own['footer'] ?? '' ) : ( '' !== (string) $global['footer'] ? (string) $global['footer'] : \PassCaptain\TicketPdf::default_footer() );
 		echo '<tr><th scope="row"><label for="wpcap-tpdf-footer">' . esc_html__( 'Fußzeile', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-tpdf-footer" name="footer" class="large-text" rows="2">' . esc_textarea( $footer ) . '</textarea><p class="description">' . esc_html( $event_id ? __( 'Leer = Fußzeile der Standardeinstellung.', 'pass-captain' ) : __( 'Unten auf jeder Ticketseite, höchstens drei Zeilen. Der Filter wpcap_ticket_pdf_footer hat Vorrang.', 'pass-captain' ) ) . '</p></td></tr>';
+		// PASS-FE-07: start design for events without an own ticket template (Druckvorlagen above).
+		$designs = Templates::ticket_designs();
+		if ( $event_id ) { $designs[''] = __( 'wie Standardeinstellung', 'pass-captain' ); }
+		echo '<tr><th scope="row"><label for="wpcap-tpdf-design">' . esc_html__( 'Startdesign', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'design', $designs, $event_id ? (string) ( $own['design'] ?? '' ) : (string) ( Settings::get( 'ticket_pdf', array() )['design'] ?? '' ), 'wpcap-tpdf-design' );
+		echo '<p class="description">' . esc_html__( 'Gilt für Events ohne eigene Ticket-Druckvorlage. Eine dem Event zugewiesene Vorlage hat Vorrang.', 'pass-captain' ) . '</p></td></tr>';
 		$translations = $event_id ? (array) ( $own['translations'] ?? array() ) : (array) $global['translations'];
 		foreach ( self::footer_locales() as $locale ) {
 			/* translators: %s: locale code, e.g. en_US */
@@ -548,7 +577,27 @@ final class Page {
 	public static function handle_settings() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_settings' );
-		Settings::update( array( 'print_attach_invoice_pdf' => Forms::flag( Forms::post(), 'print_attach_invoice_pdf' ) ? 1 : 0 ) );
-		Forms::finish( true, __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+		Forms::finish( self::save_settings( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/**
+	 * Saves the print settings form: invoice PDF attachment and the print margin (owner decision
+	 * 25.11.2026). The margin is checked by the settings register (whole number 0–15 mm); an invalid value
+	 * is refused with a message and nothing is saved, never clamped to the nearest limit. An empty field
+	 * means the default (4 mm), as on the core settings screen.
+	 *
+	 * @param array $in Form input.
+	 * @return true|\WP_Error
+	 */
+	public static function save_settings( array $in ) {
+		$values = array( 'print_attach_invoice_pdf' => Forms::flag( $in, 'print_attach_invoice_pdf' ) ? 1 : 0 );
+		if ( array_key_exists( 'print_margin_mm', $in ) ) {
+			$raw = is_scalar( $in['print_margin_mm'] ) ? trim( (string) $in['print_margin_mm'] ) : $in['print_margin_mm'];
+			$values['print_margin_mm'] = '' === $raw ? Templates::MARGIN_DEFAULT_MM : $raw;
+		}
+		$checked = \PassCaptain\SettingsSchema::check_many( $values );
+		if ( is_wp_error( $checked ) ) { return new \WP_Error( $checked->get_error_code(), $checked->get_error_message(), array( 'status' => 400, 'field' => 'print_margin_mm' ) ); }
+		Settings::update( $checked );
+		return true;
 	}
 }

@@ -9,6 +9,7 @@ Begriffe:
 |---|---|
 | **vorhanden** | Im Kern ausgeliefert und automatisch getestet. |
 | **teilweise** | Grundfunktion vorhanden, Lücke steht dabei. |
+| **experimentell** | Ausgeliefert und getestet, aber Bedienung oder Darstellung können sich noch ändern; im Admin und in `readme.txt` sichtbar gekennzeichnet (Entscheidung E-09). |
 | **offen** | Geplant, noch nicht gebaut (mit Fundstelle in `TODO.md`/`ARBEITSLISTE.md`). |
 | **nicht geplant** | Bewusst nicht im Umfang. |
 | **Pro** | Nur im getrennten Add-on `pass-captain-pro` (siehe [FREE-PREMIUM.md](FREE-PREMIUM.md)). |
@@ -20,7 +21,7 @@ Alles, was der Kern ausliefert, bleibt dauerhaft frei (FREE-PREMIUM.md, Regel 1�
 | Funktion | Kern | Pro | Anmerkung / Fundstelle |
 |---|---|---|---|
 | Events, Termine, Serien, Ticketarten, Kontingente | vorhanden | – | Serien mit Preisregeln; Duplizieren (A426) |
-| Sitzplätze / Saalplan | teilweise | – | Auswahl vorhanden; mobile Bedienung (Zoom/Pan, Legende mit Form) offen (A090) |
+| Sitzplätze / Saalplan | teilweise, **experimentell** | – | Auswahl vorhanden; mobile Bedienung (Zoom/Pan, Legende mit Form) offen (A090). Entscheidung E-09 (25.11.2026): im ersten Release als „experimentell“ gekennzeichnet (Admin-Seite „Saalpläne“, Modulliste in den Einstellungen, `readme.txt`-FAQ; E09-1) |
 | Eigener Checkout (Stripe, PayPal, Mollie, Überweisung, Vor-Ort) | vorhanden | – | GiroCode (A601); Zahlungsarten je Land nur bei Mollie (A154 teilweise) |
 | WooCommerce-Checkout inkl. Blocks, HPOS, Multi-Seller | vorhanden | – | `woocommerce*.php`, `tests/e2e/woocommerce-blocks.test.js` |
 | Gutscheine, Kampagnen, Codes, Preisregeln (Frühbucher/Nachfrage) | vorhanden | – | Gutscheine über Voucher Captain |

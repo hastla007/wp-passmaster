@@ -12,6 +12,8 @@
  * - Updates: every occurrence carries SEQUENCE and LAST-MODIFIED (wpcap_calendar_sequences). The
  *   sequence is raised on wpcap_occurrence_rescheduled / wpcap_occurrence_cancelled and whenever a feed
  *   render sees changed data (start, end, location, status, title), so clients replace the entry.
+ *   The feed writes max(occurrence revision, own counter), so it is never lower than the SEQUENCE of
+ *   the download and the mails for the same UID (Calendar\Revisions).
  */
 namespace PassCaptain\Integrations;
 
@@ -112,7 +114,8 @@ final class CalendarFeeds {
 	private static function rows( $feed ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$sql = "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,e.status AS event_status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status IN ('published','cancelled') AND o.starts_at>=%s";
+		$revision = \PassCaptain\Calendar\Revisions::ready() ? 'o.revision,o.revised_at,' : '';
+		$sql = "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,o.status,{$revision}e.status AS event_status,e.name AS event_name,e.description AS event_description FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status IN ('published','cancelled') AND o.starts_at>=%s";
 		$args = array( gmdate( 'Y-m-d H:i:s', \PassCaptain\Clock::now() - 30 * DAY_IN_SECONDS ) );
 		if ( 'event' === $feed->scope ) {
 			$sql .= ' AND o.event_id=%d';
@@ -192,8 +195,9 @@ final class CalendarFeeds {
 		foreach ( $rows as $row ) {
 			$entry = Ics::entry_from_row( $row );
 			if ( 'cancelled' === ( $row->event_status ?? '' ) ) { $entry['status'] = 'cancelled'; }
-			$entry['sequence'] = $sequences[ (int) $row->occurrence_id ]['sequence'] ?? 0;
-			$entry['last_modified'] = $sequences[ (int) $row->occurrence_id ]['changed_at'] ?? \PassCaptain\Clock::now();
+			// SEQUENCE never lower than the occurrence revision the download and the mails carry (same UID).
+			$entry['sequence'] = max( (int) ( $row->revision ?? 0 ), (int) ( $sequences[ (int) $row->occurrence_id ]['sequence'] ?? 0 ) );
+			$entry['last_modified'] = max( (int) $entry['last_modified'], (int) ( $sequences[ (int) $row->occurrence_id ]['changed_at'] ?? \PassCaptain\Clock::now() ) );
 			$entries[] = $entry;
 		}
 		$name = '' !== (string) $feed->label ? (string) $feed->label : ( 'event' === $feed->scope && $rows ? (string) $rows[0]->event_name : (string) get_bloginfo( 'name' ) );

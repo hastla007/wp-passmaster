@@ -1073,8 +1073,23 @@ annulliert: Stripe Checkout Session `expire`, Mollie `DELETE` (nur wenn `isCance
 im Status `PENDING` (`PAYMENT.CAPTURE.PENDING`, Rückkehr/Webhook mit ausstehendem Capture) gelten als
 `payment_pending`: Die Reservierung wird verlängert (Filter `wp_pass_captain_delayed_payment_hold_minutes_v1`,
 Standard 7 Tage). Bei der Mollie-Überweisung wird das Fälligkeitsdatum (`dueDate`, die von Mollie dafür
-vorgesehene Angabe; `expiresAt` ist bei Mollie nur ein Antwortfeld) auf das Ende der Reservierung gesetzt –
+vorgesehene Angabe; `expiresAt` ist bei Mollie nur ein Antwortfeld) an das Ende der Reservierung gebunden –
 bei vorab gewählter Überweisung schon beim Anlegen, sonst per `PATCH` nach dem `open`-Webhook.
+
+**Zahlungsablauf beim Anbieter = Ende der Reservierung (E-20/E20-1, wie Stripe):** Stripe beendet die
+Checkout Session 5 Minuten vor dem Ende der Reservierung. Mollie kennt beim Anlegen nur für die Überweisung
+eine Frist (`dueDate`, ein Datum in UTC, frühestens morgen, höchstens 100 Tage): Pass Captain sendet den
+letzten Tag, der (24:00 UTC) mindestens 5 Minuten vor dem Ende der Reservierung endet – unabhängig von der
+Zeitzone der Website und des Events. Reicht selbst „morgen“ über die Reservierung hinaus, wird die
+Reservierung bis zum Ende dieses Tages verlängert, höchstens bis zum Beginn des Termins. Für sofortige
+Zahlarten (Karte, iDEAL, …) gibt es keine Frist im Request; meldet Mollie in der Antwort ein späteres
+`expiresAt`, wird die Reservierung bis dahin (plus 5 Minuten) verlängert, höchstens 31 Minuten ab jetzt und
+nie über den Beginn hinaus. Läuft die Reservierung ab, storniert der Annullierungs-Job die offene
+Mollie-Zahlung (`DELETE`, wenn `isCancelable`). PayPal (Orders API v2) hat weder ein Ablaufdatum noch einen
+Abbruch-Aufruf für nicht eingezogene Bestellungen; da erst Pass Captain einzieht (`intent=CAPTURE`), wird
+ohne aktive Reservierung nie eingezogen – bei Rückkehr, Webhook, Abgleich und Status-Abfrage. Was trotzdem
+später ankommt (Mollie-Zahlung, die nicht mehr storniert werden konnte, PayPal-Capture `PENDING`), läuft
+über die Nachprüfung verspäteter Zahlungen.
 
 **Klarna/Riverty über Mollie:** Diese Methoden autorisieren nur. Meldet Mollie `authorized`, zieht Pass
 Captain den vollen Betrag sofort ein (`POST /v2/payments/{id}/captures`, Idempotenzschlüssel
@@ -1403,6 +1418,13 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
   mit Auszahlungsbeleg in die eigene offene Schicht (nur Kassierkräfte der Schicht, je Erstattung
   einmal, Audit `pos_payout_paid`). Freikarten- und Rechnungs-Erstattungen werden wie bisher in die
   nächste offene Schicht gebucht.
+- **Betriebsablauf für offene Kassen-Rückzahlungen** (24.11.2026): Solange eine solche Rückzahlung
+  wartet, zeigt jeder Reiter der Kasse einen Hinweis mit Anzahl und Summe je Währung und dem Zeitpunkt
+  der ältesten (`ShiftPage::render_open_payouts_notice()`, nur Bestellungen im eigenen Event-Bereich).
+  Wer keine offene Schicht hat, wird zum Öffnen einer Schicht geführt, wer eine hat, zur Liste auf dem
+  Reiter „Schicht“. Ablauf: Verwaltung erstattet (Tickets sofort widerrufen) → die Kundin oder der
+  Kunde kommt an die Kasse → eine Kassierkraft öffnet ihre Schicht und klickt „Auszahlen“; erst dann
+  ändert sich der Soll-Bestand dieser Schicht. Für die Erstattung selbst muss keine Schicht offen sein.
 - **Zählen/Abschließen während eines Verkaufs** (A489): Ein Verkauf prüft unter der Schichtsperre,
   dass die Schicht noch offen ist, bevor die Zahlung bestätigt und Tickets ausgestellt werden; sonst
   wird die Bestellung ohne Tickets storniert. Solange ein Verkauf der Schicht noch gebucht wird
@@ -1754,6 +1776,38 @@ für das Logo), Badge „Name groß“ (26 pt) und Namensschild „Name groß“
 Hilfscode unter dem QR-Code. Die angelegte Vorlage lässt sich danach wie jede andere bearbeiten und einem Event
 zuordnen.
 
+**Startdesign des Ticket-PDFs (PASS-FE-07):** Unter „Ticket-PDF: Logo und Fußzeile“ wählt die Verwaltung ein
+Startdesign für alle Events ohne eigene Ticket-Druckvorlage: „Eingebautes Layout“ (Standard, wie bisher) oder eine
+der drei Ticket-Startvorlagen. Je Event lässt sich ein anderes Startdesign wählen („wie Standardeinstellung“ =
+das globale). Eine dem Event zugewiesene Ticketvorlage hat immer Vorrang. Gespeichert wird `ticket_pdf.design`
+(bzw. die Event-Übersteuerung); ein unbekannter Wert druckt das eingebaute Layout.
+
+**Druckprüfung (PASS-FE-07):** Nach dem Speichern einer Vorlage misst `Printing\PrintCheck` das echte Layout mit
+Beispieldaten und zeigt Befunde als Warnung (gespeichert wird trotzdem): QR-Kontrast (dunkle Module mindestens 7:1
+auf Weiß), Ruhezone von 4 Modulen um den Code (ISO/IEC 18004; frei von Text, Logo und Flächen, innerhalb der Seite
+bzw. des Etiketts), Modulgröße mindestens 0,4 mm und Druckränder (mindestens 4 mm zum Blattrand, Einlassbänder
+1 mm; auf Etikettenbögen 1 mm Abstand zum Etikettenrand). Filter `wpcap_print_check_margin` (`float $mm`,
+`string $kind`) ändert den Blattrand, z. B. 0 für randlos druckende Geräte. Seit PASS-FE-07 zeichnen alle Layouts
+den QR-Code mit 4 Modulen Ruhezone innerhalb seiner Fläche (vorher 1 Modul; Text darunter kam bis auf 2 Module
+heran), und Etiketten 70 × 37 mm halten 4 mm Innenabstand.
+
+**Druckrand (Entscheidung Inhaber 25.11.2026):** Unter *Druck & Listen → Druckrand* (nur Administrator:innen)
+lässt sich der Mindestabstand zum Blattrand in ganzen Millimetern einstellen: Einstellung `print_margin_mm`,
+Standard 4 mm, erlaubt 0–15 mm. Werte außerhalb (auch über Import und WP-CLI) werden mit Meldung abgelehnt, nicht
+auf die Grenze gesetzt; ein leeres Feld bedeutet 4 mm. Der Rand gilt für alle Druckwege:
+
+- Ticket-PDFs (E-Mail, Bestellportal, Verwaltung, Stapeldruck) und Namensschilder A6: Seitenabstand, Kopfzeile
+  und Fußzeile halten den Rand; bei großem Rand rückt der Inhalt über der Fußzeile nach oben.
+- Rechnungs- und Gutschrift-PDF: Seitenzahl und Linie der Fußzeile (die Textspalte beginnt ohnehin 17,6 mm vom
+  Rand, daher die Obergrenze von 15 mm).
+- Kassenbon und Z-Bon (80 mm): seitlicher Innenabstand gleich dem Rand.
+- Teilnehmer- und No-show-Liste: Seitenrand mindestens 12 mm, sonst der eingestellte Rand.
+- Druckprüfung: Blattrand = Einstellung; Einlassbänder höchstens 1 mm (Thermodrucker); der Filter
+  `wpcap_print_check_margin` hat weiter das letzte Wort.
+
+Etikettenbögen (70 × 37, 2 × 7, Namensschilder 4 je Blatt) behalten ihr festes Raster des Bogens; liegt der Rand
+darüber, meldet die Druckprüfung das. Mit 4 mm sehen alle Ausdrucke aus wie vorher (Test `zz_p14_print_margin`).
+
 ### Teilnehmerfelder, Etikettenformate, Sortierung und Vorschau (A686)
 
 - **Teilnehmerfeld-Mapping:** `{field:<Schlüssel>}` druckt die Antwort auf das Teilnehmerfeld mit diesem Schlüssel
@@ -2021,6 +2075,16 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
 
 Tickets, die bereits zum Einlass genutzt wurden (Status „eingecheckt“, ein nicht zurückgenommener Check-in oder ein Eintritt im Einlassmodul), werden in der Bestellansicht nur erstattet, wenn eine Person mit `wpcap_approve_refunds` im Feld „Ausnahme für bereits eingelassene Tickets“ eine Begründung angibt. Die Erstattung landet dann immer in „Erstattungen zur Freigabe“ (Vier-Augen-Prinzip), Grund und Ausnahme stehen im Erstattungsgrund und im Audit-Log. Automatische Erstattungen bei Terminabsage sowie Kassen-Stornos (mit eigener Ausnahme an der Kasse) sind davon nicht betroffen; das Bestellportal bietet eingelassene Tickets gar nicht zur Stornierung an.
 
+Owner-Entscheidung E-11 (25.11.2026, umgesetzt als E11-1): Der Standard von `refund_after_checkin` bleibt „erlauben“, eingelassene Tickets erstatten aber nur Personen mit `wpcap_approve_refunds` (Rollen Administrator, Ticket-Administration und Finanzen), und immer mit Begründung. Das gilt auf dem Server in allen Wegen:
+
+- Bestellansicht (admin-post `wpcap_refund`, `Refunds::request()` mit `used_override`): wie oben.
+- Freigabe (`wpcap_approve_refund`, `Refunds::approve()`): Wurde ein Ticket erst nach der Anfrage eingelassen (oder stammt die Anfrage von der Käuferin bzw. dem Käufer), verlangt die Freigabe eine eigene Begründung (Feld „Ausnahme für bereits eingelassene Tickets“ neben „Freigeben“); mit der Einstellung „ablehnen“ wird sie verweigert.
+- WooCommerce: Eine Erstattung mit Mengen, die eingecheckte Tickets braucht, verlangt im Erstattungsdialog bzw. über die REST-API die Freigabeberechtigung und einen Erstattungsgrund; Erstattungen ohne angemeldete Person (Webhooks der Zahlungsanbieter, Cron) wurden beim Anbieter schon ausgezahlt und werden nicht abgelehnt.
+- Servicebuchungen: Das Stornieren mit Erstattung durch Admin oder Partner wird abgelehnt, wenn ein Ticket der Buchung schon eingelassen wurde (Storno ohne Erstattung oder Erstattung mit Begründung in der Bestellung).
+- Partner-API und Bestellportal lehnen eingelassene Tickets weiter ab; einen Sammel-Erstattungsweg gibt es nicht (Terminabsagen sind Systemabläufe).
+
+Jede Erstattung eingelassener Tickets schreibt den Audit-Eintrag `refund_checkin_override` (Grund, Erstattung, Tickets, Grundlage `exception`/`approval`/`allow_used`/`system`/`woocommerce`); der Verlauf der Bestellung zeigt ihn mit dem Grund an erster Stelle, WooCommerce zusätzlich als Bestellnotiz.
+
 ### Ticketart nach Verkaufsstart ändern (A334)
 
 Hat eine Ticketart bereits Bestellungen (bezahlt oder offen), zeigt ihr Formular „Bereits verkauft: N Tickets
@@ -2192,7 +2256,7 @@ Alle Regeln prüft der Server unter den Sperren aus A133 (`ServiceBookings::rule
 
 Statusfolge einer Buchung (ein gemeinsamer Buchungsablauf mit [SERVICE-BOOKINGS.md](SERVICE-BOOKINGS.md)): `held` (Reservierung, 10 Min.; mit verknüpfter, noch unbezahlter Bestellung angezeigt als `pending_payment`) → `confirmed` (bzw. `pending_confirmation`, wenn der Anbieter bestätigen muss); daneben `expired` (Reservierung bzw. unbezahlte Bestellung abgelaufen), `cancelled` (auch bezahlt, aber Termin inzwischen vergeben: Grund `capacity_lost`, Erstattung) sowie `no_show` (bestätigte Buchung, Gast nicht erschienen; nur ab Beginn des Zeitfensters, A143). Platz belegen `confirmed`/`pending_confirmation` sowie `held` bis `expires_at`. Ältere Buchungen mit dem früheren Status `pending_payment` werden wie `held` behandelt.
 
-- **Buchungszugang**: `POST /service-slots/{id}/bookings` liefert neben `booking_id` einen persönlichen `token` (64 Hex-Zeichen; gespeichert wird nur der SHA-256-Hash, Schema 3.10.4). Damit arbeiten `GET /service-bookings/{id}` (Status, Regeln, Umbuchungsziele, keine Daten anderer), `POST …/confirm`, `…/rebook` (`slot_id`) und `…/cancel`. Nach 10 falschen Tokens je Client und Stunde antwortet die API diesem Client mit 429, nach 50 falschen Tokens je Buchung in 10 Minuten (von beliebigen Clients) für den Rest dieser 10 Minuten auch der Buchung (A279, Filter `wpcap_service_booking_token_limits`). Die Datenschutz-Löschung entfernt den Token.
+- **Buchungszugang**: `POST /service-slots/{id}/bookings` liefert neben `booking_id` einen persönlichen `token` (64 Hex-Zeichen; gespeichert wird nur der SHA-256-Hash, Schema 3.10.4). Damit arbeiten `GET /service-bookings/{id}` (Status, Regeln, Umbuchungsziele, keine Daten anderer), `POST …/confirm`, `…/rebook` (`slot_id`) und `…/cancel`. Teurere Ziele (Preisregel `refund_difference`, bezahlte Buchung) liefert `GET` zusätzlich in `supplement_options` (mit `supplement_minor`, `currency`), dazu `supplement_providers` (aktive Zahlungsarten) und `open_supplement` (offene Zuzahlung mit Ziel, Betrag und Frist); `rebook_options` bleibt unverändert (gleicher Preis). `…/rebook` mit einem teureren `slot_id` und optional `provider` startet die Zuzahlung (`supplement.payment`), die Buchung wird erst nach Zahlungseingang umgebucht; derselbe `slot_id` erneut startet die Zahlung der offenen Zuzahlung wieder. Die Buchungsseite zeigt diese Ziele mit dem Zuzahlungsbetrag und den Button **Zuzahlung jetzt bezahlen**. Nach 10 falschen Tokens je Client und Stunde antwortet die API diesem Client mit 429, nach 50 falschen Tokens je Buchung in 10 Minuten (von beliebigen Clients) für den Rest dieser 10 Minuten auch der Buchung (A279, Filter `wpcap_service_booking_token_limits`). Die Datenschutz-Löschung entfernt den Token.
 - **Bestätigen ohne Preis**: Ressourcen ohne Ticketart sind kostenlos; die Buchung wird sofort bestätigt.
 - **Bestätigen mit Zahlung**: Hat die Ressource eine Ticketart (Feld „Preis (Ticketart)“, nur Ticketarten desselben Events), läuft die Zahlung über den normalen Checkout (`Rest\Controller::checkout()`: Zahlungsarten, AGB, Rabatt-/Gutscheincode, Rechnungsdaten, Zugangslink zum Bestellportal). `confirm` nimmt dafür `provider`, `accept_terms`, `terms_version`, `locale`, `billing`, `code` entgegen und liefert die Bestelldaten samt Zahlungsweiterleitung zurück. Die Bestellung wird innerhalb ihrer Transaktion mit der Buchung verknüpft (`pending_payment`, Reservierung = Bestellreservierung, höchstens bis zum Beginn); ist die Reservierung schon abgelaufen oder bereits verknüpft, wird die Bestellung abgebrochen – eine Buchung hat nie zwei Bestellungen. Die Ticketart ist nur Preisposition: ihr Verkaufszeitraum und der Beginn ihres Termins gelten nicht (wohl aber ein beendeter Termin), Überweisung wird bis zum Beginn des Zeitfensters angeboten. Die ausgestellten Tickets dienen als Beleg.
 - **Zahlung**: `wpcap_order_paid` bestätigt die Buchung. Kommt die Zahlung nach Ablauf der Reservierung, wird unter den Sperren erneut geprüft (Platz, Puffer, Leistungserbringer); ist der Termin inzwischen vergeben, wird die Buchung storniert (Grund `capacity_lost`, Zahlung ohne Termin), ihre Tickets automatisch erstattet (Systemerstattung, ggf. mit Freigabe; die Tickets werden dabei widerrufen) und Kund:in und Team werden informiert. Läuft eine unbezahlte Bestellung ab oder wird sie storniert, wird die Buchung `expired` bzw. `cancelled`; wird eine bezahlte Bestellung anderswo storniert oder erstattet (Bestellansicht, Anbieter-Dashboard), wird die Buchung storniert.

@@ -309,7 +309,7 @@ $wpp2_m2_hold = $wpp2_hold( $wpp2_m2['order_id'] );
 // at most until the start), at least as long as a bank transfer hold.
 $wpp2_delayed = time() + PassCaptain\Payments\Webhooks::delayed_hold_minutes( Orders::get( $wpp2_m2['order_id'] ), 'mollie' ) * MINUTE_IN_SECONDS;
 $wpp2_start = (int) strtotime( (string) $wpdb->get_var( $wpdb->prepare( "SELECT MIN(o.starts_at) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", $wpp2_m2['order_id'] ) ) . ' UTC' );
-check( 'bank transfer chosen: hold extended like a bank transfer hold, due date not after it', ! is_wp_error( $wpp2_pay ) && 'banktransfer' === ( $wpp2_body['method'] ?? '' ) && $wpp2_m2_hold >= $wpp2_expect - 120 && abs( $wpp2_m2_hold - min( $wpp2_delayed, $wpp2_start ) ) < 120 && ( $wpp2_body['dueDate'] ?? '' ) === gmdate( 'Y-m-d', $wpp2_m2_hold ) );
+check( 'bank transfer chosen: hold extended like a bank transfer hold, due date not after it', ! is_wp_error( $wpp2_pay ) && 'banktransfer' === ( $wpp2_body['method'] ?? '' ) && $wpp2_m2_hold >= $wpp2_expect - 120 && abs( $wpp2_m2_hold - min( $wpp2_delayed, $wpp2_start ) ) < 120 && ( $wpp2_body['dueDate'] ?? '' ) === gmdate( 'Y-m-d', $wpp2_m2_hold - 5 * MINUTE_IN_SECONDS - DAY_IN_SECONDS ) ); // E20-1: last UTC day ending before the hold.
 // Bank transfer chosen, but the start moved close meanwhile (no bank transfer hold possible).
 list( $wpp2_st3, $wpp2_so3 ) = wpp2_type();
 $GLOBALS['wpcap_test_transients'] = array();

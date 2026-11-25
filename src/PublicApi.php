@@ -20,11 +20,13 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class PublicApi {
-	const VERSION = '1.0.0';
+	const VERSION = '1.1.0'; // 1.1.0: wpcap_woocommerce_hold_fulfilment.
 
 	/**
 	 * Public hooks: name => [type (action|filter), since (API version), area].
 	 * Areas: bootstrap, admin, settings, checkout, orders, tickets, mail, rest, reports, exports, payments, scanner.
+	 * An integration that relies on a hook added in a minor version checks isset( PublicApi::hooks()[ $hook ] )
+	 * (or version_compare( PublicApi::VERSION, <since>, '>=' )), not only the major version.
 	 */
 	const HOOKS = array(
 		'wpcap_loaded'                        => array( 'action', '1.0', 'bootstrap' ),
@@ -55,6 +57,9 @@ final class PublicApi {
 		'wpcap_export_formats'                => array( 'filter', '1.0', 'exports' ),
 		'wpcap_payment_gateways'              => array( 'filter', '1.0', 'payments' ),
 		'wp_pass_captain_checkin_service_v1'  => array( 'filter', '1.0', 'scanner' ),
+		// Keeps the tickets of a paid WooCommerce order back (Voucher Captain: gift card not chargeable); the hold
+		// itself exists since 1.4 (OrderAdapter::HOLD_FULFILMENT = 1), public and versioned since API 1.1.
+		'wpcap_woocommerce_hold_fulfilment'   => array( 'filter', '1.1', 'orders' ),
 	);
 
 	/**
@@ -74,6 +79,8 @@ final class PublicApi {
 		'wpcap_get_event_state'          => '1.3.0',
 		'wpcap_get_ticket_details'       => '1.4.0', // PASS-E17-01: read service for connectors.
 		'wpcap_get_order_ticket_details' => '1.4.0',
+		'wpcap_get_ticket_ids'           => '1.5.0', // C9: ticket IDs per occurrence, event or ticket type.
+		'wpcap_get_event_catalog'        => '1.5.0', // C9: events and ticket types, also without future dates.
 		'wpcap_connector_audit'          => '1.4.0', // PASS-E17-01: audit entry of a connector.
 		'wpcap_set_connector_enabled'    => '1.4.0', // PASS-E17-01: opt-in instead of writing the option.
 		'wpcap_is_connector_enabled'     => '1.4.0',

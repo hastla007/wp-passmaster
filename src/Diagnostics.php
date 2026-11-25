@@ -213,6 +213,7 @@ final class Diagnostics {
 		foreach ( array( 'consumer_info_text' => __( 'Verbraucherinformationen', 'pass-captain' ), 'terms_text' => __( 'AGB / Teilnahmebedingungen', 'pass-captain' ) ) as $key => $label ) {
 			if ( '' === trim( (string) Settings::get( $key ) ) ) { $samples[] = array( 'setting' => $key, 'label' => $label ); }
 		}
+		/* translators: Keep the placeholders {consumer_info}, {terms} unchanged. */
 		return array( count( $samples ), $samples, 'warning', __( 'Verbraucherinformationen bzw. AGB sind leer. Unter „Einstellungen → Rechtstexte“ pflegen (z. B. Angaben zum Anbieter, Preise, Widerrufsrecht bzw. dessen Ausschluss); sie erscheinen im Checkout und über {consumer_info}/{terms} in Ticket- und Zugangs-E-Mails. Inhalte bitte rechtlich prüfen lassen.', 'pass-captain' ) );
 	}
 

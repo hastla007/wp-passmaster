@@ -219,6 +219,8 @@ check( 'SET-PC-15: "Zeitraum" uses the validity period, else the payment date', 
 check( 'SET-PC-15: an unknown choice is reported by the register', is_wp_error( SettingsSchema::validate( 'invoice_service_date_fallback', 'issue' ) ) && 'period' === SettingsSchema::validate( 'invoice_service_date_fallback', 'period' ) );
 
 // Issued invoice: a line without occurrence (add-on line through wpcap_invoice_items) gets the date of the setting.
+// The settings screen save above posted the invoices tab without seller data; L908 needs it for invoices.
+$spx_set( array( 'seller_name' => 'Leistungsdatum GmbH', 'seller_address' => "Ring 1\n1010 Wien", 'seller_tax_number' => '12/345/67890' ) );
 $spx_type = ex_type( ex_occ( ex_event( 'Leistungsdatum' ) ), 'Pass', 3000 );
 $spx_items_filter = static function ( $items ) {
 	foreach ( $items as $i => $item ) { $item = clone $item; $item->starts_at = ''; $item->ends_at = ''; $item->valid_from = '2026-06-01'; $item->valid_until = '2026-08-31'; $items[ $i ] = $item; }

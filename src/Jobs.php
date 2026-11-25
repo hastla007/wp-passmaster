@@ -42,8 +42,12 @@ final class Jobs {
 			$row['order_id'] = $order_id;
 			$formats[] = '%d';
 		}
-		$result = $wpdb->insert( $wpdb->prefix . 'wpcap_jobs', $row, $formats );
-		if ( false === $result && false === strpos( strtolower( $wpdb->last_error ), 'duplicate' ) ) { return new \WP_Error( 'wpcap_job_enqueue', __( 'Job konnte nicht eingeplant werden.', 'pass-captain' ) ); }
+		// A repeated key is the normal idempotent case: the no-op ON DUPLICATE KEY UPDATE keeps it out of the
+		// database error log, every other failure still returns an error.
+		$columns = implode( ',', array_map( static function ( $column ) { return '`' . $column . '`'; }, array_keys( $row ) ) );
+		$sql = $wpdb->prepare( "INSERT INTO %i ({$columns}) VALUES (" . implode( ',', $formats ) . ') ON DUPLICATE KEY UPDATE idempotency_key=idempotency_key', array_merge( array( $wpdb->prefix . 'wpcap_jobs' ), array_values( $row ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- fixed column names and formats.
+		$result = $wpdb->query( $sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared above.
+		if ( false === $result ) { return new \WP_Error( 'wpcap_job_enqueue', __( 'Job konnte nicht eingeplant werden.', 'pass-captain' ) ); }
 		return true;
 	}
 

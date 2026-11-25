@@ -10,6 +10,10 @@ https://<site>/wp-json/pass-captain/v1/app/
 
 Die Web-Scanner-Seite (Shortcode `[wp_pass_captain_scanner]`) und die App nutzen denselben Check-in-Dienst (`PassCaptain\Checkin`). Ein Ticket kann deshalb nie über zwei Kanäle doppelt eingelassen werden.
 
+## Keine native App im Lieferumfang
+
+Pass Captain enthält **keine native Scanner-App** für iOS oder Android und stellt auch keine in einem App-Store bereit. Diese Schnittstelle allein ist keine Scanner-App: Sie ist der Vertrag für Apps, die als **eigenes, separates Produkt bzw. Projekt** (eigener Quellcode, eigene Veröffentlichung und eigener Support, z. B. vom Betreiber oder einem Dienstleister) gebaut werden. Im Plugin enthalten und ohne App nutzbar sind der Web-Scanner (Shortcode `[wpcap_scanner]` bzw. `[wp_pass_captain_scanner]`) und die installierbare Offline-Scanner-Web-App ([OFFLINE-SCANNER.md](OFFLINE-SCANNER.md)); beide laufen im Browser des Geräts und nutzen dessen Kamera.
+
 ## 1. Geräte koppeln
 
 1. Eine Person mit Einlassrecht (`wpcap_checkin`) öffnet **Pass Captain → Scanner-Geräte**. Dort wählt sie die Events, optional einen festen **Einlassbereich** (siehe Abschnitt 3), einen Gerätenamen und die Gültigkeit in Stunden (höchstens `device_max_hours`, Standard 24) und klickt **Kopplungs-QR erstellen**.

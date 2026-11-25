@@ -66,7 +66,8 @@ final class TicketPdf {
 			$occurrence_id = (int) ( $ticket['occurrence_id'] ?? 0 );
 			if ( ! isset( $bodies[ $occurrence_id ] ) ) {
 				$event_ids[ $occurrence_id ] = $occurrence_id ? (int) Reports\Scope::occurrence_event( $occurrence_id ) : 0;
-				$bodies[ $occurrence_id ] = self::with_logo( $event_ids[ $occurrence_id ] ? Templates::body_for_event( $event_ids[ $occurrence_id ], 'ticket' ) : Templates::default_body( 'ticket' ), $event_ids[ $occurrence_id ] );
+				// PASS-FE-07: without an own ticket template the start design of the event or the site applies.
+				$bodies[ $occurrence_id ] = self::with_logo( Templates::body_for_event( $event_ids[ $occurrence_id ], 'ticket' ), $event_ids[ $occurrence_id ] );
 			}
 			$values = self::values( self::data( $ticket, $meta ) + array( 'event_id' => $event_ids[ $occurrence_id ] ), $meta );
 			$values['qr'] = (string) ( $qr[ $i ] ?? $values['qr'] );
@@ -155,7 +156,10 @@ final class TicketPdf {
 	 * SET-PC-33: logo and footer of ticket PDFs for an event: the global setting "ticket_pdf"
 	 * (Druck & Listen) with the event's overrides (EventOverrides, area ticket_pdf).
 	 *
-	 * @return array{logo:int,footer:string,translations:array,legal_links:int,event:array}
+	 * PASS-FE-07: `design` is the start design of the ticket PDF (Templates::ticket_designs()): the event's
+	 * own one, otherwise the global one; '' = built-in layout.
+	 *
+	 * @return array{logo:int,footer:string,translations:array,legal_links:int,design:string,event:array}
 	 */
 	public static function settings_for_event( $event_id ) {
 		$defaults = Modules\PrintTemplates::settings_defaults()['ticket_pdf'];
@@ -166,8 +170,14 @@ final class TicketPdf {
 			'footer' => (string) $global['footer'],
 			'translations' => is_array( $global['translations'] ) ? $global['translations'] : array(),
 			'legal_links' => empty( $global['legal_links'] ) ? 0 : 1,
+			'design' => self::known_design( (string) ( $own['design'] ?? '' ) ) ?: self::known_design( (string) $global['design'] ),
 			'event' => $own,
 		);
+	}
+
+	/** PASS-FE-07: $design when it is a ticket start design, otherwise ''. */
+	private static function known_design( $design ) {
+		return '' !== $design && isset( Templates::ticket_designs()[ $design ] ) ? $design : '';
 	}
 
 	/**

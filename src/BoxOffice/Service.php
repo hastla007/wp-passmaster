@@ -389,8 +389,6 @@ final class Service {
 	 * @return array|\WP_Error ['sale' => row, 'reused' => bool]
 	 */
 	public static function sell( array $input ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
 		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$form_key = (string) ( $input['form_key'] ?? '' );
 		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
@@ -406,12 +404,59 @@ final class Service {
 		if ( ! TerminalRegistry::allows( (int) ( $session->location_id ?? 0 ), (string) ( $session->fiscal_register_id ?? '' ) ) ) { return self::error( 'wpcap_pos_terminal', __( 'Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen.', 'pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
+		$refused = self::sell_occurrence_error( $occurrence_id, $session );
+		if ( $refused ) { return $refused; }
+		$methods = self::all_methods();
+		$method = (string) ( $input['method'] ?? '' );
+		$device_id = self::sell_device( $method, $methods, $session, $input );
+		if ( is_wp_error( $device_id ) ) { return $device_id; }
+		$lines = self::sell_lines( $occurrence_id, $session, $input );
+		if ( is_wp_error( $lines ) ) { return $lines; }
+		list( $items, $attendees ) = $lines;
+		$buyer = self::sell_buyer( $input, $method, $key_hash );
+		if ( is_wp_error( $buyer ) ) { return $buyer; }
+		list( $buyer_email, $billing ) = $buyer;
+
+		// 1. Pending sale row: claims the form key before any order exists.
+		$sale_id = self::sell_claim( $resume ? $existing : null, $key_hash, $session, $method, $device_id, $occurrence_id, $input );
+		if ( ! is_int( $sale_id ) ) { return $sale_id; }
+
+		// 2. Order through the shared checkout path (same capacity locks as online).
+		$order = array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key, 'billing' => $billing ? array( 'enabled' => true ) + $billing : null );
+		$order_id = self::sell_order( $sale_id, $order, self::sell_order_options( $method, $methods, $session, $items ) );
+		if ( ! is_int( $order_id ) ) { return $order_id; }
+
+		// 3a. Card terminal: the payment is started and confirmed asynchronously (poll or webhook);
+		// the sale stays pending with the order hold until then.
+		if ( self::DEVICE_METHOD === $method ) { return self::start_device_payment( $sale_id ); }
+
+		// 3. A489: the shift must still be open right before the payment is confirmed and the tickets are issued.
+		$refused = self::sell_lock_shift( (int) $session->session_id, $sale_id, $order_id );
+		if ( $refused ) { return $refused; }
+
+		// 4. Payment confirmation and issuance, then booking.
+		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
+		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
+		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
+		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
+		return self::finalize( $sale_id );
+	}
+
+	/** sell(): the cashier's event scope and the register's event; the refusal, else null. */
+	private static function sell_occurrence_error( $occurrence_id, $session ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! Scope::can_occurrence( $occurrence_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$register = Registers::get( $session->register_id );
 		if ( $register && (int) $register->event_id && (int) $register->event_id !== $event_id ) { return self::error( 'wpcap_pos_register_event', __( 'Diese Kasse verkauft nur Tickets für ein anderes Event.', 'pass-captain' ), 409 ); }
-		$methods = self::all_methods();
-		$method = (string) ( $input['method'] ?? '' );
+		return null;
+	}
+
+	/**
+	 * sell(): checks the payment method; the card terminal for DEVICE_METHOD ('' for other methods).
+	 *
+	 * @return string|\WP_Error
+	 */
+	private static function sell_device( $method, array $methods, $session, array $input ) {
 		if ( in_array( $method, self::FISCAL_METHODS, true ) && self::fiscal_block() ) {
 			return self::error( 'wpcap_pos_fiscal_required', __( 'Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden.', 'pass-captain' ), 409 );
 		}
@@ -427,7 +472,17 @@ final class Service {
 			if ( '' === $device_id && 1 === count( $devices ) ) { $device_id = (string) array_key_first( $devices ); }
 			if ( ! isset( $devices[ $device_id ] ) ) { return self::error( 'wpcap_pos_device', __( 'Bitte ein Kartenterminal wählen.', 'pass-captain' ) ); }
 		}
+		return $device_id;
+	}
 
+	/**
+	 * sell(): order lines and attendees of the requested quantities (ticket types of the occurrence, session currency).
+	 *
+	 * @return array|\WP_Error [items, attendees]
+	 */
+	private static function sell_lines( $occurrence_id, $session, array $input ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,currency,price_minor FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) ) as $t ) { $types[ (int) $t->ticket_type_id ] = $t; }
 		$items = array();
@@ -444,7 +499,15 @@ final class Service {
 			$attendees = array_merge( $attendees, self::build_attendees( $type_id, $qty, $attendees_in, $names_in ) );
 		}
 		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'pass-captain' ) ); }
+		return array( $items, $attendees );
+	}
 
+	/**
+	 * sell(): buyer e-mail (a placeholder address without one) and the optional billing data.
+	 *
+	 * @return array|\WP_Error [buyer_email, billing]
+	 */
+	private static function sell_buyer( array $input, $method, $key_hash ) {
 		$email = \PassCaptain\Http::optional_email( $input['email'] ?? '' );
 		if ( false === $email || self::is_placeholder_email( (string) $email ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'pass-captain' ) ); }
@@ -452,8 +515,17 @@ final class Service {
 		// Optional "Rechnung auf Firma": company, name, address, VAT ID for the invoice.
 		$billing = \PassCaptain\Billing::validate( $input['billing'] ?? null );
 		if ( is_wp_error( $billing ) ) { return $billing; }
+		return array( $buyer_email, $billing );
+	}
 
-		// 1. Pending sale row: claims the form key before any order exists.
+	/**
+	 * sell() step 1: stores the pending sale row (or resumes $resume, a pending claim without order).
+	 *
+	 * @return int|array|\WP_Error The sale id, or the result for a form key another submit already claimed.
+	 */
+	private static function sell_claim( $resume, $key_hash, $session, $method, $device_id, $occurrence_id, array $input ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
 		$row = array(
 			'session_id' => (int) $session->session_id,
@@ -477,9 +549,11 @@ final class Service {
 			$existing = self::sale_by_key( $key_hash );
 			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
-		$sale_id = $resume ? (int) $existing->sale_id : (int) $wpdb->insert_id;
+		return $resume ? (int) $resume->sale_id : (int) $wpdb->insert_id;
+	}
 
-		// 2. Order through the shared checkout path (same capacity locks as online).
+	/** sell() step 2: trusted Orders::create() options of a box office sale. */
+	private static function sell_order_options( $method, array $methods, $session, array $items ) {
 		$internal = array(
 			'external' => true,
 			// An invoice above the threshold needs the buyer's name and address (DE §14 UStG / AT §11 UStG).
@@ -501,7 +575,18 @@ final class Service {
 				$internal['line_taxes'][ $item['ticket_type_id'] ] = 0;
 			}
 		}
-		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key, 'billing' => $billing ? array( 'enabled' => true ) + $billing : null ), $internal );
+		return $internal;
+	}
+
+	/**
+	 * sell() step 2: creates the order and links it to the sale row; without an order the claim is released.
+	 *
+	 * @return int|\WP_Error The order id.
+	 */
+	private static function sell_order( $sale_id, array $order, array $internal ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order = Orders::create( $order, $internal );
 		if ( is_wp_error( $order ) ) {
 			// No order was created: release the form key claim.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND (order_id IS NULL OR order_id=0)", $sale_id ) );
@@ -516,16 +601,21 @@ final class Service {
 			// Payment is only confirmed for an order the sale row points to; resubmitting the form resumes.
 			return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
 		}
+		return $order_id;
+	}
 
-		// 3a. Card terminal: the payment is started and confirmed asynchronously (poll or webhook);
-		// the sale stays pending with the order hold until then.
-		if ( self::DEVICE_METHOD === $method ) { return self::start_device_payment( $sale_id ); }
-
-		// 3. A489: the shift must still be open (not counting/closed) right before the payment is
-		// confirmed and the tickets are issued – checked under the shift lock that counting and closing
-		// take, too. A count/close that comes later sees this pending sale as "in progress" and waits.
+	/**
+	 * sell() step 3 (A489): the shift must still be open (not counting/closed) right before the payment is
+	 * confirmed and the tickets are issued – checked under the shift lock that counting and closing take,
+	 * too. A count/close that comes later sees this pending sale as "in progress" and waits.
+	 *
+	 * @return \WP_Error|null The refusal (sale failed, order cancelled) or a retryable busy error, else null.
+	 */
+	private static function sell_lock_shift( $session_id, $sale_id, $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", (int) $session->session_id ) );
+		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		$locked_sale = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale_id ) );
 		// A transient database error is not "shift closed": the sale stays pending and resubmitting resumes it (W6).
@@ -538,13 +628,7 @@ final class Service {
 			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt.', 'pass-captain' ), 409 );
 		}
 		$wpdb->query( 'COMMIT' );
-
-		// 4. Payment confirmation and issuance, then booking.
-		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
-		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
-		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
-		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
-		return self::finalize( $sale_id );
+		return null;
 	}
 
 	/** Rolls back and returns a retryable error; the sale stays pending and resubmitting/"Nachbuchen" resumes it. */
@@ -1178,7 +1262,17 @@ final class Service {
 		return $sale && '' !== (string) $sale->receipt_number && in_array( $sale->status, self::BOOKED_STATES, true );
 	}
 
-	/** Receipt data of a booked sale (also used for the storno receipt); null for unbooked sales. */
+	/**
+	 * Receipt data of a booked sale (also used for the storno receipt); null for unbooked sales.
+	 *
+	 * Lines as paid (OrderLines::paid_columns(): a later partial refund does not change the reprint).
+	 * VAT per rate is computed from the gross after the order discount, allocated to the lines like
+	 * the invoice (Invoices::create(): stored line discounts, else the price snapshot split, else
+	 * OrderLines::after_discount()), so net + VAT per rate add up to the receipt total (TODO L914).
+	 * In the agent model (Vermittler) the organizer issues the receipt: seller block and notes
+	 * ("Vermittelt durch …", small business note) come from Partners\SalesModel::order_context(),
+	 * as on the invoice (TODO L902).
+	 */
 	public static function receipt( $sale_id ) {
 		$sale = self::sale( $sale_id );
 		if ( ! self::is_booked( $sale ) ) { return null; }
@@ -1186,18 +1280,22 @@ final class Service {
 		$tz = Scope::site_timezone();
 		$items = array();
 		$vat = array();
-		foreach ( Orders::items_for_order( $sale->order_id ) as $item ) {
+		$discount = $order ? (int) $order->discount_minor : 0;
+		$lines = array_values( (array) self::receipt_lines( (int) $sale->order_id ) );
+		$after = $order ? self::lines_after_discount( $order, $lines ) : array();
+		foreach ( $lines as $index => $item ) {
 			$gross = (int) $item->line_total_minor;
 			$tax = (int) $item->tax_minor;
 			$rate = (int) $item->tax_rate_bp;
+			$paid = (int) ( $after[ $index ] ?? $gross );
 			$items[] = array( 'name' => $item->name, 'event' => $item->event_name, 'quantity' => (int) $item->quantity, 'unit_minor' => (int) $item->unit_price_minor, 'total_minor' => $gross, 'tax_rate_bp' => $rate );
 			if ( ! isset( $vat[ $rate ] ) ) { $vat[ $rate ] = array( 'gross' => 0, 'tax' => 0, 'net' => 0 ); }
-			$vat[ $rate ]['gross'] += $gross;
+			$vat[ $rate ]['gross'] += $paid;
 			$vat[ $rate ]['tax'] += $tax;
-			$vat[ $rate ]['net'] += $gross - $tax;
+			$vat[ $rate ]['net'] += $paid - $tax;
 		}
 		ksort( $vat );
-		$discount = $order ? (int) $order->discount_minor : 0;
+		$issuer = self::receipt_issuer( (int) $sale->order_id );
 		return array(
 			'order_id' => (int) $sale->order_id,
 			'sale_id' => (int) $sale->sale_id,
@@ -1206,7 +1304,9 @@ final class Service {
 			'status' => $sale->status,
 			'date' => \PassCaptain\Frontend\Format::local( $sale->created_at, $tz ),
 			'voided_date' => $sale->voided_at ? \PassCaptain\Frontend\Format::local( $sale->voided_at, $tz ) : '',
-			'seller' => array( 'name' => (string) Settings::get( 'seller_name' ), 'address' => (string) Settings::get( 'seller_address' ), 'vat_id' => (string) Settings::get( 'seller_vat_id' ) ),
+			'seller' => $issuer['seller'],
+			'sales_model' => $issuer['model'],
+			'seller_notes' => $issuer['notes'],
 			'items' => $items,
 			'discount_minor' => $discount,
 			'vat' => $vat,
@@ -1222,6 +1322,60 @@ final class Service {
 			'register' => self::register_label( $sale->session_id ),
 			'order' => $order ? $order->public_id : '',
 			'footer' => (string) Settings::get( 'boxoffice_receipt_footer' ),
+		);
+	}
+
+	/** Order lines of a receipt, with the values as paid (OrderLines::paid_columns()). */
+	private static function receipt_lines( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,' . \PassCaptain\OrderLines::paid_columns() . ',tt.name,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- OrderLines::paid_columns() returns a fixed column list built from literals.
+	}
+
+	/**
+	 * Gross per line after the order discount, with the same allocation as the invoice: stored line
+	 * discounts (OrderLines::after_discount()), or the split of the price snapshot for orders that
+	 * only carry it there (Orders::snapshot_line_discounts()).
+	 *
+	 * @param object   $order Order row.
+	 * @param object[] $lines receipt_lines() rows (list).
+	 * @return int[] Line index => gross after discount.
+	 */
+	public static function lines_after_discount( $order, array $lines ) {
+		$lines = array_values( $lines );
+		if ( ! $lines ) { return array(); }
+		$discount = (int) $order->discount_minor;
+		$after = \PassCaptain\OrderLines::after_discount( $lines, $discount );
+		$stored = Orders::snapshot_line_discounts( $order );
+		$line_discount_sum = array_sum( array_map( static function ( $line ) { return (int) ( $line->discount_minor ?? 0 ); }, $lines ) );
+		if ( null !== $stored && 0 === $line_discount_sum && $discount > 0 ) {
+			foreach ( $lines as $index => $line ) {
+				if ( isset( $stored[ (int) $line->ticket_type_id ] ) ) { $after[ $index ] = max( 0, (int) $line->line_total_minor - min( (int) $line->line_total_minor, (int) $stored[ (int) $line->ticket_type_id ] ) ); }
+			}
+		}
+		return $after;
+	}
+
+	/**
+	 * Who issues the receipt: the platform (settings "Rechnungssteller") or, in the agent model, the
+	 * organizer (Partners\SalesModel::order_context()). Notes as on the invoice (Invoices::seller_notes():
+	 * small business note of the issuer, "Vermittelt durch …" in the agent model).
+	 *
+	 * @return array{model:string,seller:array,notes:string[]}
+	 */
+	public static function receipt_issuer( $order_id ) {
+		$platform = array( 'name' => (string) Settings::get( 'seller_name' ), 'address' => (string) Settings::get( 'seller_address' ), 'vat_id' => (string) Settings::get( 'seller_vat_id' ) );
+		$context = \PassCaptain\Partners\SalesModel::order_context( $order_id );
+		if ( is_wp_error( $context ) || \PassCaptain\Partners\SalesModel::AGENT !== ( $context['model'] ?? '' ) ) {
+			$note = (string) ( Invoices::seller()['small_business_note'] ?? '' );
+			return array( 'model' => \PassCaptain\Partners\SalesModel::OWN_NAME, 'seller' => $platform, 'notes' => '' !== $note ? array( $note ) : array() );
+		}
+		$seller = (array) $context['seller'];
+		$snapshot = array( 'seller' => $seller, 'agent' => $context['agent'] );
+		return array(
+			'model' => \PassCaptain\Partners\SalesModel::AGENT,
+			'seller' => array( 'name' => (string) ( $seller['name'] ?? '' ), 'address' => (string) ( $seller['address'] ?? '' ), 'vat_id' => (string) ( $seller['vat_id'] ?? '' ), 'tax_number' => (string) ( $seller['tax_number'] ?? '' ) ),
+			'notes' => array_values( array_map( 'strval', Invoices::seller_notes( $snapshot ) ) ),
 		);
 	}
 
@@ -1249,8 +1403,8 @@ final class Service {
 		$sign = $storno ? '-' : '';
 		$m = static function ( $minor ) use ( $r ) { return \PassCaptain\Money::format( $minor, $r['currency'] ); };
 		$h = '<!doctype html><html ' . \PassCaptain\Frontend\Format::html_lang_attributes() . '><head><meta charset="utf-8"><title>' . esc_html( $storno ? $r['storno_number'] : $r['number'] ) . '</title>'
-			. '<style>@page{size:80mm auto;margin:0}*{box-sizing:border-box}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td{padding:.4mm 0;vertical-align:top}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body data-wpcap-autoprint>';
-		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : '' ) . '</p>';
+			. '<style>@page{size:80mm auto;margin:0}*{box-sizing:border-box}body{width:80mm;margin:0;padding:3mm ' . (int) \PassCaptain\Printing\Templates::margin_mm() . 'mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td{padding:.4mm 0;vertical-align:top}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body data-wpcap-autoprint>';
+		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : ( ! empty( $r['seller']['tax_number'] ) ? '<br>' . esc_html( __( 'Steuernummer:', 'pass-captain' ) . ' ' . $r['seller']['tax_number'] ) : '' ) ) . '</p>';
 		$h .= '<h1>' . esc_html( $storno ? __( 'STORNOBELEG', 'pass-captain' ) : __( 'Beleg', 'pass-captain' ) ) . '</h1>';
 		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'pass-captain' ) . ' ' . ( $storno ? $r['storno_number'] : $r['number'] ) ) . '<br>';
 		if ( $storno ) { $h .= esc_html( __( 'Storno zu Beleg', 'pass-captain' ) . ' ' . $r['number'] ) . '<br>'; }
@@ -1263,7 +1417,9 @@ final class Service {
 		foreach ( $r['vat'] as $rate => $v ) {
 			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: VAT rate in percent, 2: net amount */ __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
 		}
-		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
+		$h .= '</table>';
+		foreach ( (array) ( $r['seller_notes'] ?? array() ) as $note ) { $h .= '<p class="small">' . esc_html( (string) $note ) . '</p>'; }
+		$h .= '<div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
 		if ( ! $storno && null !== $r['tendered_minor'] ) {
 			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
 		}

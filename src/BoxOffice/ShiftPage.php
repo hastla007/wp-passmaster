@@ -78,6 +78,36 @@ final class ShiftPage {
 		return null === $minor ? '–' : Scope::money( (int) $minor, $currency );
 	}
 
+	/* ------------------------------------------------------------------ open payouts (every tab) */
+
+	/**
+	 * Notice on every tab of the box office while refunds of cash/card box office sales wait for
+	 * their payout (A488): a refund from the order screen, an approval or an event cancellation moves
+	 * no money until a cashier pays it out in an open shift. Without an open shift of their own the
+	 * user is pointed to opening one; with one, to the list on the "Schicht" tab.
+	 */
+	public static function render_open_payouts_notice() {
+		$summary = Shifts::open_payout_summary();
+		if ( ! $summary ) { return; }
+		$tz = Scope::site_timezone();
+		$parts = array();
+		$oldest = '';
+		foreach ( $summary as $cur => $row ) {
+			/* translators: 1: number of payouts, 2: amount */
+			$parts[] = sprintf( _n( '%1$d über %2$s', '%1$d über zusammen %2$s', $row['count'], 'pass-captain' ), $row['count'], Scope::money( $row['amount_minor'], $cur ) );
+			if ( '' === $oldest || strcmp( $row['oldest'], $oldest ) < 0 ) { $oldest = $row['oldest']; }
+		}
+		$shift = Shifts::current_for_user( get_current_user_id(), array( 'open' ) );
+		echo '<div class="notice notice-warning inline wpcap-pos-open-payouts"><p><strong>' . esc_html( sprintf( /* translators: %s: list of counts and amounts per currency */ __( 'Offene Kassen-Rückzahlungen: %s.', 'pass-captain' ), implode( '; ', $parts ) ) ) . '</strong> ';
+		echo esc_html( sprintf( /* translators: %s: date and time of the oldest open payout */ __( 'Erstattungen bar oder mit Karte bezahlter Kassenverkäufe aus der Verwaltung oder einer Eventabsage werden erst gebucht, wenn eine Kassierkraft sie in ihrer offenen Schicht auszahlt. Die älteste wartet seit %s.', 'pass-captain' ), Scope::local( $oldest, $tz ) ) ) . ' ';
+		if ( $shift ) {
+			echo '<a href="' . esc_url( self::url( 'shift' ) . '#wpcap-open-payouts' ) . '">' . esc_html__( 'Zur Auszahlung in deiner Schicht', 'pass-captain' ) . '</a>';
+		} else {
+			echo esc_html__( 'Du hast keine offene Schicht: Öffne eine Schicht, um sie auszuzahlen.', 'pass-captain' ) . ' <a href="' . esc_url( self::url( 'sale' ) ) . '">' . esc_html__( 'Schicht öffnen', 'pass-captain' ) . '</a>';
+		}
+		echo '</p></div>';
+	}
+
 	/* ------------------------------------------------------------------ open / handover */
 
 	/** Shown on the sale tab while the user has no shift: handovers to accept and the open form. */
@@ -89,7 +119,7 @@ final class ShiftPage {
 			/* translators: 1: user, 2: register */
 			echo '<h2>' . esc_html( sprintf( __( 'Übergabe von %1$s an Kasse „%2$s“ annehmen', 'pass-captain' ), Service::user_name( $h->from_user ), $register ? $register->name : '#' . $h->register_id ) ) . '</h2>';
 			echo '<p class="description">' . esc_html( $register && (int) $register->blind_count ? __( 'Bitte das übergebene Bargeld zählen. Der übergebene Betrag wird erst nach der Zählung angezeigt.', 'pass-captain' ) : sprintf( /* translators: %s: amount */ __( 'Übergebener Betrag laut Übergabe: %s. Bitte nachzählen.', 'pass-captain' ), Scope::money( $h->amount_minor, $cur ) ) ) . '</p>';
-			Forms::open_form( 'wpcap_pos_handover', 'wpcap_pos_handover_' . (int) $h->handover_id );
+			Forms::open_form( 'wpcap_pos_handover', 'wpcap_pos_handover_' . (int) $h->handover_id, Page::ONLINE_ONLY );
 			Forms::hidden( 'handover_id', (int) $h->handover_id );
 			self::denomination_fields( 'handover' . (int) $h->handover_id, $cur, 'cash', __( 'Gezählter Betrag', 'pass-captain' ) );
 			echo '<p><label>' . esc_html__( 'Grund bei Abweichung', 'pass-captain' ) . ' <input type="text" name="reason" size="40" maxlength="255"></label></p>';
@@ -104,7 +134,7 @@ final class ShiftPage {
 		}
 		$options = array();
 		foreach ( $available as $r ) { $options[ (int) $r->register_id ] = $r->name . ( '' !== (string) $r->location ? ' – ' . $r->location : '' ) . ' (' . $r->currency . ( (int) $r->blind_count ? ', ' . __( 'Blindzählung', 'pass-captain' ) : '' ) . ')'; }
-		Forms::open_form( 'wpcap_pos_open' );
+		Forms::open_form( 'wpcap_pos_open', null, Page::ONLINE_ONLY );
 		echo '<p><label>' . esc_html__( 'Kasse', 'pass-captain' ) . ' ';
 		Forms::select( 'register_id', $options, (int) array_key_first( $options ) );
 		echo '</label></p>';
@@ -199,7 +229,7 @@ final class ShiftPage {
 			echo '</tbody></table>';
 		}
 		if ( $can && 'open' === $shift->status ) {
-			Forms::open_form( 'wpcap_pos_movement', 'wpcap_pos_movement_' . (int) $shift->session_id );
+			Forms::open_form( 'wpcap_pos_movement', 'wpcap_pos_movement_' . (int) $shift->session_id, Page::ONLINE_ONLY );
 			Forms::hidden( 'shift_id', (int) $shift->session_id );
 			echo '<p><label>' . esc_html__( 'Art', 'pass-captain' ) . ' ';
 			Forms::select( 'kind', array( 'cash_in' => __( 'Einlage (Geld in die Kasse)', 'pass-captain' ), 'cash_out' => __( 'Entnahme (Geld aus der Kasse)', 'pass-captain' ) ), 'cash_out' );
@@ -209,7 +239,7 @@ final class ShiftPage {
 		// A488: refunds from the back office that wait for the payout at a till.
 		$payouts = Shifts::open_payouts( $cur );
 		if ( $payouts ) {
-			echo '<h3>' . esc_html__( 'Offene Kassen-Rückzahlungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht.', 'pass-captain' ) . '</p>';
+			echo '<h3 id="wpcap-open-payouts">' . esc_html__( 'Offene Kassen-Rückzahlungen', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Erstattungen aus der Verwaltung (Bestellung, Freigabe, Absage), die noch nicht an der Kasse ausgezahlt wurden. Erst „Auszahlen“ bucht sie in diese Schicht.', 'pass-captain' ) . '</p>';
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Beleg', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Betrag', 'pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet am', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 			foreach ( $payouts as $payout ) {
 				echo '<tr><td>' . esc_html( (string) $payout->receipt_number ) . '</td><td>' . esc_html( Service::method_label( $payout->method ) ) . '</td><td>' . esc_html( Scope::money( (int) $payout->amount_minor, $payout->currency ) ) . '</td><td>' . esc_html( Scope::local( $payout->created_at, $tz ) ) . '</td><td>';
@@ -250,7 +280,7 @@ final class ShiftPage {
 		}
 		if ( ! $can ) { return; }
 		if ( ! ( $view['masked'] && $count ) ) { // Blind count: no recount by the cashiers.
-			Forms::open_form( 'wpcap_pos_count', 'wpcap_pos_count_' . (int) $shift->session_id );
+			Forms::open_form( 'wpcap_pos_count', 'wpcap_pos_count_' . (int) $shift->session_id, Page::ONLINE_ONLY );
 			Forms::hidden( 'shift_id', (int) $shift->session_id );
 			echo '<h4>' . esc_html( $count ? __( 'Neu zählen', 'pass-captain' ) : __( 'Zählung abgeben', 'pass-captain' ) ) . '</h4>';
 			self::denomination_fields( 'count', $cur, 'cash', __( 'Gezählter Bargeldbestand', 'pass-captain' ) );
@@ -258,7 +288,7 @@ final class ShiftPage {
 			echo '<p><button class="button">' . esc_html( $count ? __( 'Neu zählen', 'pass-captain' ) : __( 'Zählung abgeben', 'pass-captain' ) ) . '</button> <span class="description">' . esc_html__( 'Nach der Zählung sind keine Verkäufe mehr möglich.', 'pass-captain' ) . '</span></p></form>';
 		}
 		if ( ! $count || 'counting' !== $shift->status ) { return; }
-		Forms::open_form( 'wpcap_pos_close', 'wpcap_pos_close_' . (int) $shift->session_id, 'data-wpcap-confirm="' . esc_attr( __( 'Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden.', 'pass-captain' ) ) . '"' );
+		Forms::open_form( 'wpcap_pos_close', 'wpcap_pos_close_' . (int) $shift->session_id, Page::ONLINE_ONLY . ' data-wpcap-confirm="' . esc_attr( __( 'Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden.', 'pass-captain' ) ) . '"' );
 		Forms::hidden( 'shift_id', (int) $shift->session_id );
 		echo '<h4>' . esc_html__( 'Schicht abschließen (Z-Bericht)', 'pass-captain' ) . '</h4>';
 		echo '<p><label>' . esc_html__( 'Grund der Differenz (Pflicht bei Abweichung)', 'pass-captain' ) . ' <input type="text" name="reason" size="40" maxlength="255"></label></p>';
@@ -389,7 +419,7 @@ final class ShiftPage {
 		$z_options = array();
 		foreach ( ZReport::list_reports( 0, 100 ) as $z ) { $z_options[ (int) $z->z_id ] = ( $names[ (int) $z->register_id ] ?? '#' . $z->register_id ) . ' – Z ' . (int) $z->z_number; }
 		if ( ! $z_options ) { return; }
-		Forms::open_form( 'wpcap_pos_correction' );
+		Forms::open_form( 'wpcap_pos_correction', null, Page::ONLINE_ONLY );
 		echo '<p><label>' . esc_html__( 'Z-Bericht', 'pass-captain' ) . ' ';
 		Forms::select( 'z_id', $z_options, 0 );
 		echo '</label> <label>' . esc_html__( 'Richtung', 'pass-captain' ) . ' ';

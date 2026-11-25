@@ -263,6 +263,7 @@ final class StatusPage {
 		self::render_payment_cases();
 		self::render_schema();
 		self::render_diagnostics();
+		TranslationStatus::render(); // Bundled translations: coverage per language and the loaded file.
 		\PassCaptain\Integrations\WorkflowCaptain\Status::render();
 		echo '</div>';
 	}
