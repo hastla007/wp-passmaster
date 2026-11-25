@@ -389,8 +389,6 @@ final class Service {
 	 * @return array|\WP_Error ['sale' => row, 'reused' => bool]
 	 */
 	public static function sell( array $input ) {
-		global $wpdb;
-		$p = $wpdb->prefix;
 		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$form_key = (string) ( $input['form_key'] ?? '' );
 		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
@@ -406,12 +404,59 @@ final class Service {
 		if ( ! TerminalRegistry::allows( (int) ( $session->location_id ?? 0 ), (string) ( $session->fiscal_register_id ?? '' ) ) ) { return self::error( 'wpcap_pos_terminal', __( 'Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen.', 'pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
+		$refused = self::sell_occurrence_error( $occurrence_id, $session );
+		if ( $refused ) { return $refused; }
+		$methods = self::all_methods();
+		$method = (string) ( $input['method'] ?? '' );
+		$device_id = self::sell_device( $method, $methods, $session, $input );
+		if ( is_wp_error( $device_id ) ) { return $device_id; }
+		$lines = self::sell_lines( $occurrence_id, $session, $input );
+		if ( is_wp_error( $lines ) ) { return $lines; }
+		list( $items, $attendees ) = $lines;
+		$buyer = self::sell_buyer( $input, $method, $key_hash );
+		if ( is_wp_error( $buyer ) ) { return $buyer; }
+		list( $buyer_email, $billing ) = $buyer;
+
+		// 1. Pending sale row: claims the form key before any order exists.
+		$sale_id = self::sell_claim( $resume ? $existing : null, $key_hash, $session, $method, $device_id, $occurrence_id, $input );
+		if ( ! is_int( $sale_id ) ) { return $sale_id; }
+
+		// 2. Order through the shared checkout path (same capacity locks as online).
+		$order = array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key, 'billing' => $billing ? array( 'enabled' => true ) + $billing : null );
+		$order_id = self::sell_order( $sale_id, $order, self::sell_order_options( $method, $methods, $session, $items ) );
+		if ( ! is_int( $order_id ) ) { return $order_id; }
+
+		// 3a. Card terminal: the payment is started and confirmed asynchronously (poll or webhook);
+		// the sale stays pending with the order hold until then.
+		if ( self::DEVICE_METHOD === $method ) { return self::start_device_payment( $sale_id ); }
+
+		// 3. A489: the shift must still be open right before the payment is confirmed and the tickets are issued.
+		$refused = self::sell_lock_shift( (int) $session->session_id, $sale_id, $order_id );
+		if ( $refused ) { return $refused; }
+
+		// 4. Payment confirmation and issuance, then booking.
+		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
+		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
+		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
+		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
+		return self::finalize( $sale_id );
+	}
+
+	/** sell(): the cashier's event scope and the register's event; the refusal, else null. */
+	private static function sell_occurrence_error( $occurrence_id, $session ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! Scope::can_occurrence( $occurrence_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$register = Registers::get( $session->register_id );
 		if ( $register && (int) $register->event_id && (int) $register->event_id !== $event_id ) { return self::error( 'wpcap_pos_register_event', __( 'Diese Kasse verkauft nur Tickets für ein anderes Event.', 'pass-captain' ), 409 ); }
-		$methods = self::all_methods();
-		$method = (string) ( $input['method'] ?? '' );
+		return null;
+	}
+
+	/**
+	 * sell(): checks the payment method; the card terminal for DEVICE_METHOD ('' for other methods).
+	 *
+	 * @return string|\WP_Error
+	 */
+	private static function sell_device( $method, array $methods, $session, array $input ) {
 		if ( in_array( $method, self::FISCAL_METHODS, true ) && self::fiscal_block() ) {
 			return self::error( 'wpcap_pos_fiscal_required', __( 'Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden.', 'pass-captain' ), 409 );
 		}
@@ -427,7 +472,17 @@ final class Service {
 			if ( '' === $device_id && 1 === count( $devices ) ) { $device_id = (string) array_key_first( $devices ); }
 			if ( ! isset( $devices[ $device_id ] ) ) { return self::error( 'wpcap_pos_device', __( 'Bitte ein Kartenterminal wählen.', 'pass-captain' ) ); }
 		}
+		return $device_id;
+	}
 
+	/**
+	 * sell(): order lines and attendees of the requested quantities (ticket types of the occurrence, session currency).
+	 *
+	 * @return array|\WP_Error [items, attendees]
+	 */
+	private static function sell_lines( $occurrence_id, $session, array $input ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,currency,price_minor FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) ) as $t ) { $types[ (int) $t->ticket_type_id ] = $t; }
 		$items = array();
@@ -444,7 +499,15 @@ final class Service {
 			$attendees = array_merge( $attendees, self::build_attendees( $type_id, $qty, $attendees_in, $names_in ) );
 		}
 		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'pass-captain' ) ); }
+		return array( $items, $attendees );
+	}
 
+	/**
+	 * sell(): buyer e-mail (a placeholder address without one) and the optional billing data.
+	 *
+	 * @return array|\WP_Error [buyer_email, billing]
+	 */
+	private static function sell_buyer( array $input, $method, $key_hash ) {
 		$email = \PassCaptain\Http::optional_email( $input['email'] ?? '' );
 		if ( false === $email || self::is_placeholder_email( (string) $email ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'pass-captain' ) ); }
@@ -452,8 +515,17 @@ final class Service {
 		// Optional "Rechnung auf Firma": company, name, address, VAT ID for the invoice.
 		$billing = \PassCaptain\Billing::validate( $input['billing'] ?? null );
 		if ( is_wp_error( $billing ) ) { return $billing; }
+		return array( $buyer_email, $billing );
+	}
 
-		// 1. Pending sale row: claims the form key before any order exists.
+	/**
+	 * sell() step 1: stores the pending sale row (or resumes $resume, a pending claim without order).
+	 *
+	 * @return int|array|\WP_Error The sale id, or the result for a form key another submit already claimed.
+	 */
+	private static function sell_claim( $resume, $key_hash, $session, $method, $device_id, $occurrence_id, array $input ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
 		$row = array(
 			'session_id' => (int) $session->session_id,
@@ -477,9 +549,11 @@ final class Service {
 			$existing = self::sale_by_key( $key_hash );
 			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
-		$sale_id = $resume ? (int) $existing->sale_id : (int) $wpdb->insert_id;
+		return $resume ? (int) $resume->sale_id : (int) $wpdb->insert_id;
+	}
 
-		// 2. Order through the shared checkout path (same capacity locks as online).
+	/** sell() step 2: trusted Orders::create() options of a box office sale. */
+	private static function sell_order_options( $method, array $methods, $session, array $items ) {
 		$internal = array(
 			'external' => true,
 			// An invoice above the threshold needs the buyer's name and address (DE §14 UStG / AT §11 UStG).
@@ -501,7 +575,18 @@ final class Service {
 				$internal['line_taxes'][ $item['ticket_type_id'] ] = 0;
 			}
 		}
-		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key, 'billing' => $billing ? array( 'enabled' => true ) + $billing : null ), $internal );
+		return $internal;
+	}
+
+	/**
+	 * sell() step 2: creates the order and links it to the sale row; without an order the claim is released.
+	 *
+	 * @return int|\WP_Error The order id.
+	 */
+	private static function sell_order( $sale_id, array $order, array $internal ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order = Orders::create( $order, $internal );
 		if ( is_wp_error( $order ) ) {
 			// No order was created: release the form key claim.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND (order_id IS NULL OR order_id=0)", $sale_id ) );
@@ -516,16 +601,21 @@ final class Service {
 			// Payment is only confirmed for an order the sale row points to; resubmitting the form resumes.
 			return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
 		}
+		return $order_id;
+	}
 
-		// 3a. Card terminal: the payment is started and confirmed asynchronously (poll or webhook);
-		// the sale stays pending with the order hold until then.
-		if ( self::DEVICE_METHOD === $method ) { return self::start_device_payment( $sale_id ); }
-
-		// 3. A489: the shift must still be open (not counting/closed) right before the payment is
-		// confirmed and the tickets are issued – checked under the shift lock that counting and closing
-		// take, too. A count/close that comes later sees this pending sale as "in progress" and waits.
+	/**
+	 * sell() step 3 (A489): the shift must still be open (not counting/closed) right before the payment is
+	 * confirmed and the tickets are issued – checked under the shift lock that counting and closing take,
+	 * too. A count/close that comes later sees this pending sale as "in progress" and waits.
+	 *
+	 * @return \WP_Error|null The refusal (sale failed, order cancelled) or a retryable busy error, else null.
+	 */
+	private static function sell_lock_shift( $session_id, $sale_id, $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
-		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", (int) $session->session_id ) );
+		$locked_shift = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		$locked_sale = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale_id ) );
 		// A transient database error is not "shift closed": the sale stays pending and resubmitting resumes it (W6).
@@ -538,13 +628,7 @@ final class Service {
 			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassenschicht wird gerade gezählt oder wurde geschlossen. Der Verkauf wurde nicht gebucht; es wurden keine Tickets ausgestellt.', 'pass-captain' ), 409 );
 		}
 		$wpdb->query( 'COMMIT' );
-
-		// 4. Payment confirmation and issuance, then booking.
-		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
-		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
-		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
-		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
-		return self::finalize( $sale_id );
+		return null;
 	}
 
 	/** Rolls back and returns a retryable error; the sale stays pending and resubmitting/"Nachbuchen" resumes it. */
