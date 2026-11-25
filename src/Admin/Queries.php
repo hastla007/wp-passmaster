@@ -802,6 +802,8 @@ final class Queries {
 		$orderby = self::ticket_order( (string) ( $filters['orderby'] ?? '' ), (string) ( $filters['order'] ?? '' ) );
 		if ( false !== strpos( $orderby, 'o.' ) || false !== strpos( $orderby, 'tt.' ) ) { $needs_occ = true; }
 		$name_join = false !== strpos( $orderby, 'ta.' ) ? " LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id" : '';
+		// PASS-FE-05: the event sort reads the event name (only for the id query, the count needs no join).
+		if ( 0 === strpos( $orderby, 'e.' ) ) { $needs_occ = true; $name_join .= " INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id"; }
 		$from = "FROM {$p}wpcap_tickets t" . ( $needs_occ ? $occ_join : '' );
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
@@ -830,6 +832,7 @@ final class Queries {
 		return array(
 			'newest' => __( 'Neueste zuerst', 'pass-captain' ),
 			'oldest' => __( 'Älteste zuerst', 'pass-captain' ),
+			'event' => __( 'Nach Event', 'pass-captain' ), // PASS-FE-05.
 			'date' => __( 'Nach Termin', 'pass-captain' ),
 			'type' => __( 'Nach Ticketart', 'pass-captain' ),
 			'name' => __( 'Nach Name', 'pass-captain' ),
@@ -846,6 +849,8 @@ final class Queries {
 			'oldest' => 't.ticket_id ASC',
 			'date' => 'desc' === $order ? 'o.starts_at DESC, t.ticket_id DESC' : 'o.starts_at ASC, t.ticket_id ASC',
 			'type' => 'tt.name ASC, t.ticket_id ASC',
+			// PASS-FE-05: event name, within an event by date and ticket (lists over several events).
+			'event' => 'e.name ASC, o.event_id ASC, o.starts_at ASC, t.ticket_id ASC',
 			'name' => "COALESCE(NULLIF(ta.attendee_name,''),'~') ASC, t.ticket_id ASC",
 			// PASS-FE-05: status, within a status by date (several dates of an event) and ticket.
 			'status' => "FIELD(t.status,'valid','checked_in','revoked') ASC, t.status ASC, o.starts_at ASC, t.ticket_id ASC",
