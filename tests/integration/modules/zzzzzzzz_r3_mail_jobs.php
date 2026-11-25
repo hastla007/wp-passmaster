@@ -349,7 +349,7 @@ wpcap_faults_restore();
 $wpdb = $GLOBALS['wpdb'];
 check( 'failed ticket issuance goes through Log::error (wpcap_log), not only the audit table', is_wp_error( $r3_issue ) && (bool) array_filter( $r3_logs, static fn( $l ) => 'ticket_issue_failed' === $l['event'] ) );
 $r3_src = '';
-foreach ( array( 'src/Orders.php', 'src/Orders/Payment.php', 'src/Orders/Cancellation.php', 'src/Payments/Webhooks.php', 'src/Refunds.php', 'src/Integrations/Vouchers/Checkout.php', 'src/Integrations/WooCommerce/OrderAdapter.php' ) as $r3_file ) { $r3_src .= (string) file_get_contents( WPCAP_PATH . $r3_file ); }
+foreach ( array( 'src/Orders.php', 'src/Orders/Payment.php', 'src/Orders/Cancellation.php', 'src/Orders/Refunding.php', 'src/Orders/Expiry.php', 'src/Orders/Issuance.php', 'src/Orders/Resend.php', 'src/Payments/Webhooks.php', 'src/Refunds.php', 'src/Integrations/Vouchers/Checkout.php', 'src/Integrations/WooCommerce/OrderAdapter.php' ) as $r3_file ) { $r3_src .= (string) file_get_contents( WPCAP_PATH . $r3_file ); }
 check( 'no *_failed / *_db_error event is written with Audit::record alone in orders, webhooks, refunds, vouchers, WooCommerce', ! preg_match( "/Audit::record\\( '[a-z_]*(_failed|_db_error)'/", $r3_src ) );
 $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE job_type='ticket_issue' AND payload LIKE %s", $r3_jobs, '{"order_id":' . (int) $r3_io['order_id'] . '%' ) );
 
