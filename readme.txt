@@ -23,7 +23,7 @@ Pass Captain manages events, dates, ticket types, orders, tickets and admission 
 * Versioned tax profiles per country and tax class, frozen on each order line for invoices and refunds (rates must be reviewed by the site owner; none are shipped).
 * Waiting lists with automatic offers and reservation when capacity frees up.
 * Service bookings for courses, rentals and similar resources: time slots, booking rules (cut-off, lead time, per-customer limits, rebooking and cancellation deadlines), provider confirmation, no-show handling, slot waiting lists and service passes; a public booking page via `[wpcap_service_booking]` or a block, free or paid.
-* Seating plans, box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
+* Seating plans (experimental in this release, see FAQ), box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
 * WooCommerce (optional): HPOS and legacy order storage, classic and block checkout, capacity reserved at checkout, tickets after payment, revocation on cancellation and refunds; carts with tickets from several sellers can be rejected or split into one order per seller.
 * Email templates per language, reminders by email and SMS, signed webhooks, partner API and read-only developer keys.
 * Security: provider credentials encrypted at rest (libsodium) with the key kept outside the database, role-based event scoping and data minimisation, step-up two-factor checks, time-limited support access and an audit log with viewer and CSV export.
@@ -120,6 +120,10 @@ No, by design. Without network only admissions are possible, with the installabl
 = Is there a native scanner app for iOS or Android? =
 
 No. Pass Captain ships no native app and publishes none in an app store. Admission works in the browser: the web scanner (`[wpcap_scanner]`) and the installable offline scanner web app, both using the device camera. The mobile scanner REST API (docs/MOBILE-API.md) is the contract for native apps that are built and published as a separate product or project; the API alone is not an app.
+
+= Is the seat map stable? =
+
+The seat map (seating plans with the graphical editor and seat selection in the checkout) is marked as experimental in this release. It works and is tested, but its operation and display may still change in later versions, and touch operation on phones (zoom and pan) is not finished yet. The admin screen "Saalpläne" and the module list in the settings show the label "experimentell". Check a seat map in the checkout on desktop and phone before selling with it.
 
 = Operations =
 

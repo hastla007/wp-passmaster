@@ -140,7 +140,7 @@ final class Dashboard {
 			'Reminders' => __( 'Erinnerungen', 'pass-captain' ),
 			'Reports' => __( 'Berichte', 'pass-captain' ),
 			'SalesRules' => __( 'Verkaufsregeln', 'pass-captain' ),
-			'Seating' => __( 'Saalpläne', 'pass-captain' ),
+			'Seating' => __( 'Saalpläne (experimentell)', 'pass-captain' ), // E-09/E09-1: shipped as experimental.
 			'Series' => __( 'Serien', 'pass-captain' ),
 			'Sms' => __( 'SMS', 'pass-captain' ),
 			'Wallet' => __( 'Wallet', 'pass-captain' ),
