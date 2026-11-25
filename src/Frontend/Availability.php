@@ -101,7 +101,8 @@ final class Availability {
 				if ( $row->sales_start && $row->sales_start > $now ) {
 					$state['status'] = 'upcoming';
 				} else {
-					$open[ $id ] = (int) $row->max_per_order;
+					// SET-PC-P2: the checkout also refuses more than the setting max_line_quantity per line.
+					$open[ $id ] = min( (int) $row->max_per_order, Orders::max_line_quantity() );
 				}
 			}
 			$out[ $id ] = $state;
