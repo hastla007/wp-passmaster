@@ -34,12 +34,13 @@ if ( ! function_exists( 'wp_verify_nonce' ) ) { function wp_verify_nonce( $n, $a
 
 global $wpdb;
 $p = $wpdb->prefix;
-$p2t_saved = array_intersect_key( Settings::all(), array_flip( array( 'attendee_edit_hours', 'portal_refund_request_hours', 'reschedule_refund_request', 'reschedule_refund_hours', 'manual_hold_hours', 'manual_cutoff_hours', 'manual_hold_max_percent', 'reminders', 'refund_approval_threshold', 'auto_invoice' ) ) );
+$p2t_saved = array_intersect_key( Settings::all(), array_flip( array( 'attendee_edit_hours', 'portal_refund_request_hours', 'reschedule_refund_request', 'reschedule_refund_hours', 'reschedule_refund_note', 'manual_hold_hours', 'manual_cutoff_hours', 'manual_hold_max_percent', 'reminders', 'refund_approval_threshold', 'auto_invoice' ) ) );
 $p2t_saved_tz = $GLOBALS['wpcap_test_options']['timezone_string'] ?? null;
 $p2t_saved_user = $GLOBALS['wpcap_test_user_id'] ?? null;
+$p2t_saved_php_tz = date_default_timezone_get();
 $GLOBALS['wpcap_test_options']['timezone_string'] = 'Europe/Vienna'; // Site time zone.
 $GLOBALS['wpcap_test_user_id'] = 1;
-Settings::update( array( 'attendee_edit_hours' => 24, 'portal_refund_request_hours' => 48, 'reschedule_refund_request' => 1, 'reschedule_refund_hours' => 24, 'manual_hold_hours' => 72, 'manual_cutoff_hours' => 24, 'manual_hold_max_percent' => 0, 'refund_approval_threshold' => 0, 'auto_invoice' => 0 ) );
+Settings::update( array( 'attendee_edit_hours' => 24, 'portal_refund_request_hours' => 48, 'reschedule_refund_request' => 1, 'reschedule_refund_hours' => 24, 'reschedule_refund_note' => Settings::defaults()['reschedule_refund_note'], 'manual_hold_hours' => 72, 'manual_cutoff_hours' => 24, 'manual_hold_max_percent' => 0, 'refund_approval_threshold' => 0, 'auto_invoice' => 0 ) );
 Settings::update( array( 'reminders' => array( 'enabled' => 1, 'offsets' => array( 24, 1 ), 'subject' => 'P2T Erinnerung {event}', 'body' => '{event} am {date} um {time} ({timezone}), noch {hours} h', 'sms' => 0, 'sms_body' => '' ) ) );
 Reminders::register();
 
@@ -186,7 +187,9 @@ foreach ( array( 'UTC', 'Asia/Kathmandu' ) as $p2t_php ) {
 		$deadline = RescheduleRefunds::deadline( $new_start );
 		$order = Orders::get( $oid );
 		check( "$tag deadline is 24 real hours before the new start: {$p2t_expect[ $tz ]} local (the day before has no switch)", p2t_ts( $new_start ) - 24 * HOUR_IN_SECONDS === $deadline && 0 === strpos( RescheduleRefunds::deadline_label( $new_start, $tz ), $p2t_expect[ $tz ] ) );
-		check( "$tag the deadline text names the event's time zone (A608)", false !== strpos( RescheduleRefunds::deadline_label( $new_start, $tz ), "($tz)" ) && false !== strpos( RescheduleRefunds::mail_note( $new_start, $tz ), $p2t_expect[ $tz ] . " ($tz)" ) );
+		$p2t_label = RescheduleRefunds::deadline_label( $new_start, $tz );
+		$p2t_note = RescheduleRefunds::mail_note( $new_start, $tz );
+		check( "$tag the deadline text names the event's time zone (A608)" . ( false === strpos( $p2t_note, $p2t_expect[ $tz ] . " ($tz)" ) ? " – label: $p2t_label, note: $p2t_note" : '' ), false !== strpos( RescheduleRefunds::deadline_label( $new_start, $tz ), "($tz)" ) && false !== strpos( RescheduleRefunds::mail_note( $new_start, $tz ), $p2t_expect[ $tz ] . " ($tz)" ) );
 		p2t_at( $deadline - 1 );
 		$before = RescheduleRefunds::eligible_tickets( $order );
 		p2t_at( $deadline );
@@ -261,7 +264,7 @@ foreach ( array( 'UTC', 'Asia/Kathmandu' ) as $p2t_php ) {
 	}
 	p2t_at( null );
 }
-date_default_timezone_set( 'UTC' );
+date_default_timezone_set( $p2t_saved_php_tz );
 
 // Restore.
 p2t_at( null );
@@ -269,3 +272,4 @@ Settings::update( $p2t_saved );
 if ( null === $p2t_saved_tz ) { unset( $GLOBALS['wpcap_test_options']['timezone_string'] ); } else { $GLOBALS['wpcap_test_options']['timezone_string'] = $p2t_saved_tz; }
 $GLOBALS['wpcap_test_user_id'] = $p2t_saved_user;
 wpcap_test_reset_transients();
+check( 'SET-PC-P2 time: isolation – real clock, PHP and site time zone and settings restored', ! array_key_exists( 'wpcap_now', $GLOBALS['wpcap_test_filters'] ?? array() ) && abs( PassCaptain\Clock::now() - time() ) <= 2 && $p2t_saved_php_tz === date_default_timezone_get() && ( $GLOBALS['wpcap_test_options']['timezone_string'] ?? null ) === $p2t_saved_tz && $p2t_saved === array_intersect_key( Settings::all(), $p2t_saved ) );
