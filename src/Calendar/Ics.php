@@ -26,9 +26,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Ics {
 	const PRODID = '-//Pass Captain//Event Calendar//DE';
 
-	/** Escapes a TEXT property value (RFC 5545 3.3.11); stored HTML entities are decoded first (A497). */
+	/**
+	 * Escapes a TEXT property value (RFC 5545 3.3.11); stored HTML entities are decoded first (A497).
+	 * Control characters other than HTAB and line breaks are not allowed in TEXT and are removed.
+	 */
 	public static function escape_text( $value ) {
 		$value = str_replace( array( "\r\n", "\r" ), "\n", \PassCaptain\Text::plain( $value ) );
+		$value = (string) preg_replace( '/[\x00-\x08\x0B-\x1F\x7F]/', '', $value );
 		return str_replace( array( '\\', ';', ',', "\n" ), array( '\\\\', '\\;', '\\,', '\\n' ), $value );
 	}
 
@@ -50,6 +54,12 @@ final class Ics {
 			$current .= $char;
 		}
 		return $out . $current;
+	}
+
+	/** URI value (RFC 5545 3.3.13): control characters dropped, spaces and non-ASCII octets percent-encoded. */
+	public static function uri( $url ) {
+		$url = (string) preg_replace( '/[\x00-\x1F\x7F]/', '', (string) $url );
+		return (string) preg_replace_callback( '/[^\x21-\x7E]/', static function ( $m ) { return rawurlencode( $m[0] ); }, $url );
 	}
 
 	/** UTC DATE-TIME value from a Unix timestamp. */
@@ -115,11 +125,12 @@ final class Ics {
 			$lines[] = 'SEQUENCE:' . max( 0, (int) ( $entry['sequence'] ?? 0 ) );
 			if ( ! empty( $entry['last_modified'] ) ) { $lines[] = 'LAST-MODIFIED:' . self::utc( (int) $entry['last_modified'] ); }
 			$lines[] = 'DTSTART:' . self::utc( $entry['start'] );
-			$lines[] = 'DTEND:' . self::utc( max( (int) $entry['end'], (int) $entry['start'] ) );
+			// RFC 5545 3.8.2.2: DTEND must be later than DTSTART; without a duration it is left out.
+			if ( (int) $entry['end'] > (int) $entry['start'] ) { $lines[] = 'DTEND:' . self::utc( $entry['end'] ); }
 			$lines[] = 'SUMMARY:' . self::escape_text( $entry['summary'] );
 			if ( '' !== (string) ( $entry['location'] ?? '' ) ) { $lines[] = 'LOCATION:' . self::escape_text( $entry['location'] ); }
 			if ( '' !== (string) ( $entry['description'] ?? '' ) ) { $lines[] = 'DESCRIPTION:' . self::escape_text( $entry['description'] ); }
-			if ( '' !== (string) ( $entry['url'] ?? '' ) ) { $lines[] = 'URL:' . str_replace( array( "\r", "\n" ), '', (string) $entry['url'] ); }
+			if ( '' !== (string) ( $entry['url'] ?? '' ) ) { $lines[] = 'URL:' . self::uri( $entry['url'] ); }
 			if ( '' !== $organizer ) { $lines[] = 'ORGANIZER;CN=' . self::param_value( \PassCaptain\Orders::site_name() ) . ':mailto:' . str_replace( array( "\r", "\n" ), '', $organizer ); }
 			$lines[] = 'STATUS:' . ( $cancelled ? 'CANCELLED' : 'CONFIRMED' );
 			$lines[] = 'TRANSP:' . ( $cancelled ? 'TRANSPARENT' : 'OPAQUE' );
