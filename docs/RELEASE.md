@@ -169,8 +169,41 @@ Freigegeben von (Name, Rolle, Datum):  ______________________
 Zweite Person (Vier-Augen-Prinzip):    ______________________
 ```
 
-Entscheidung offen: wer Releases freigeben darf (Rolle/Personen) und ob das Vier-Augen-Prinzip für
-Patch-Releases gilt.
+> **Vorschlag – Freigabe Owner** (Release-Freigabe und Vier-Augen-Prinzip):
+>
+> - **Fachliche Freigabe** durch die Produktverantwortung (`<release-freigabe>`): Sie unterschreibt das
+>   Freigabeprotokoll („Freigegeben von“). Die Entwicklung führt Gates und Abnahme durch und füllt das Protokoll
+>   aus, gibt aber nicht allein frei.
+> - **Vier-Augen-Prinzip** (`<zweite-person>`) für alle Major- und Minor-Releases sowie für Patch-Releases mit
+>   Schemaänderung, Sicherheitsfix oder Änderungen an Zahlung, Erstattung oder Einlass. Bei anderen
+>   Patch-Releases genügt als zweite Person die Freigabe (Approve) des Release-PRs auf GitHub; eine zweite
+>   Unterschrift im Protokoll ist dann nicht nötig.
+> - Technisch abgesichert durch einen Branch-Schutz auf `main` mit mindestens einer verpflichtenden Freigabe,
+>   da der Merge des Release-Commits über `release.yml` automatisch veröffentlicht.
+> - **Notfall:** Ist bei einer kritischen Sicherheitslücke die zweite Person nicht innerhalb von 24 Stunden
+>   erreichbar, gibt `<release-freigabe>` allein frei. Die zweite Prüfung wird innerhalb von 5 Werktagen
+>   nachgeholt und im Protokoll vermerkt.
+
+### Rhythmus, Signaturen und Rückzug
+
+> **Vorschlag – Freigabe Owner**:
+>
+> - **Rhythmus** wie in [SUPPORT.md](SUPPORT.md#patch--und-supportzeiträume) vorgeschlagen: ein Minor-Release je
+>   Quartal, Patches bei Bedarf, Sicherheitsfixes sofort, veröffentlicht nur dienstags bis donnerstags.
+> - **Signaturen:** Maßgeblich sind `pass-captain.zip.sha256` und die Build-Provenance-Attestierung
+>   (`actions/attest-build-provenance`). Die Attestierung wird immer erzeugt, bei privatem Repository also mit
+>   `WPCAP_ATTEST=1`. Prüfung: `gh attestation verify pass-captain.zip --repo <owner>/<repo>`; der Befehl steht
+>   in den Release-Notes. Keine zusätzliche GPG-Signatur der ZIPs, weil WordPress.org sie nicht auswertet und
+>   ein weiterer Schlüssel verwaltet werden müsste. Tags werden nie verschoben oder gelöscht
+>   (`build/verify-release.sh`).
+> - **Rückzug eines fehlerhaften Releases:** Ein Downgrade gibt es nicht (Schema nur vorwärts, siehe
+>   [SUPPORT.md](SUPPORT.md#versionierung)). Stattdessen: (1) Verbreitung stoppen: Release auf GitHub in den
+>   Notes als „zurückgezogen“ kennzeichnen und die Vorgängerversion als „Latest“ markieren; auf WordPress.org
+>   `Stable tag` auf den Vorgänger-Tag zurücksetzen. Das hält weitere Updates auf, ändert aber bereits
+>   aktualisierte Sites nicht. (2) Vorwärts korrigieren: Patch-Release X.Y.(Z+1), bei kritischen Fehlern
+>   (Verkauf, Einlass, Zahlungen, Datenverlust) innerhalb von 2 Werktagen. (3) Betreiber, die nicht warten können,
+>   spielen die Sicherung vor dem Upgrade zurück ([OPERATIONS.md](OPERATIONS.md)). (4) Hinweis in CHANGELOG,
+>   Release-Notes und bei Sicherheitsbezug als Advisory.
 
 ### WordPress.org-Pflichtangaben (A269, A270)
 
@@ -195,7 +228,7 @@ die Zahl, meldet der Job das und die Baseline wird mit
 Einreichung bei WordPress.org muss die Baseline leer sein (Fehler beheben oder begründet per `phpcs:ignore`
 ausnehmen). Lokal: Plugin Check in einem Test-WordPress installieren, ZIP installieren, denselben Befehl ausführen.
 
-### WordPress.org-SVN, Assets und Screenshots (Release-Entscheidung, offen)
+### WordPress.org-SVN, Assets und Screenshots (Release-Entscheidung, Vorschlag unten)
 
 Noch **nicht** umgesetzt und bewusst nicht automatisiert, weil es eine Release-Entscheidung ist: Veröffentlichung
 im WordPress.org-SVN (`trunk/`, `tags/<Version>/`, `assets/`), etwa per `10up/action-wordpress-plugin-deploy` mit
@@ -204,5 +237,13 @@ fehlen: Entscheidung zu Quellsprache/Readme (A304), ein Ordner `.wordpress-org/`
 `banner-1544x500.png`), Icon (`icon-128x128.png`, `icon-256x256.png` oder `icon.svg`) und Screenshots
 (`screenshot-1.png` …, passend zu `== Screenshots ==` in `readme.txt`), sowie die Festlegung, ob GitHub-Releases
 und SVN-Tags aus demselben ZIP entstehen (empfohlen: der Deploy-Job nutzt das ZIP von `build/release.sh`).
+
+> **Vorschlag – Freigabe Owner** (WordPress.org-Deploy): Erst nach der Freigabe durch das Review-Team von WordPress.org wird
+> ein eigener Job ergänzt. Er läuft nur bei einem veröffentlichten GitHub-Release (kein Pre-Release), lädt genau
+> dessen `pass-captain.zip` herunter, prüft die `.sha256` und überträgt den Inhalt nach `trunk/` und
+> `tags/<Version>/`; `assets/` kommt aus `.wordpress-org/`. Die Action wird per Commit-SHA gepinnt (A653). Die
+> SVN-Zugangsdaten liegen in einer GitHub-Umgebung `wordpress-org`, die eine Freigabe durch `<release-freigabe>`
+> verlangt. So gilt das Vier-Augen-Prinzip auch für WordPress.org. Banner, Icon und Screenshots liefert der Owner;
+> die Sprachfrage ist mit A304 entschieden (englische Quelltexte erst nach dem Verkaufsstart, SET-PC-46).
 
 Fehlt das Protokoll oder ist ein Punkt offen, bricht der Release-Workflow mit einer Meldung ab, welche Angabe fehlt; CI auf `main` bleibt davon unberührt. Frühere Releases (bis 1.4.0) wurden vor Einführung dieses Gates veröffentlicht.
