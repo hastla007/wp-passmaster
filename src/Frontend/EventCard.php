@@ -249,9 +249,11 @@ final class EventCard {
 		return min( $prices ) === max( $prices ) ? $money : sprintf( __( 'ab %s', 'pass-captain' ), $money );
 	}
 
-	/** Most tickets of a type one order may hold on this card (max per order, seats left, buyer limits). */
+	/** Most tickets of a type one order may hold on this card (max per order, line cap, seats left, buyer limits). */
 	public static function quantity_max( $type, $event = null ) {
-		$max = null === $type->available ? (int) $type->max_per_order : min( (int) $type->max_per_order, (int) $type->available );
+		// SET-PC-P2: the checkout also refuses more than the setting max_line_quantity per line.
+		$max = min( (int) $type->max_per_order, \PassCaptain\Orders::max_line_quantity() );
+		$max = null === $type->available ? $max : min( $max, (int) $type->available );
 		return max( 0, min( $max, (int) apply_filters( 'wpcap_event_card_quantity_max', $max, $type, $event ) ) );
 	}
 
