@@ -128,7 +128,7 @@ final class NoShowFees {
 			$where = $wpdb->prepare( ' AND f.status=%s', $status );
 		}
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids and prepared status condition.
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.customer_email,b.quantity,b.fee_minor,b.currency,b.noshow_at,s.starts_at,s.resource_id,r.name AS resource_name,r.timezone AS resource_timezone,f.fee_id,f.status AS fee_status,f.due_at,f.sent_at,f.sent_count,f.paid_at,f.cancelled_at,f.order_id AS fee_order_id,f.paid_order_id FROM %i b INNER JOIN %i s ON s.slot_id=b.slot_id INNER JOIN %i r ON r.resource_id=s.resource_id LEFT JOIN %i f ON f.booking_id=b.booking_id WHERE b.status='no_show' AND b.fee_minor>0 AND s.resource_id IN ($in)$where ORDER BY b.noshow_at DESC, b.booking_id DESC LIMIT %d", $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', self::table(), absint( $limit ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.customer_email,b.quantity,b.fee_minor,b.currency,b.noshow_at,s.starts_at,s.resource_id,r.name AS resource_name,r.timezone AS resource_timezone,f.fee_id,f.status AS fee_status,f.amount_minor AS fee_amount,f.currency AS fee_currency,f.due_at,f.sent_at,f.sent_count,f.paid_at,f.cancelled_at,f.order_id AS fee_order_id,f.paid_order_id FROM %i b INNER JOIN %i s ON s.slot_id=b.slot_id INNER JOIN %i r ON r.resource_id=s.resource_id LEFT JOIN %i f ON f.booking_id=b.booking_id WHERE b.status='no_show' AND b.fee_minor>0 AND s.resource_id IN ($in)$where ORDER BY b.noshow_at DESC, b.booking_id DESC LIMIT %d", $p . 'wpcap_service_bookings', $p . 'wpcap_service_slots', $p . 'wpcap_resources', self::table(), absint( $limit ) ) );
 	}
 
 	/* ================================================================== Staff actions */
@@ -478,11 +478,11 @@ final class NoShowFees {
 	}
 
 	/** Mail placeholders: those of the booking plus fee_amount and due_date. */
-	private static function mail_vars( $booking, $fee, $resource ) {
+	private static function mail_vars( $booking, $fee, $res ) {
 		$slot = ServiceResources::slot( (int) $booking->slot_id );
-		$vars = ServiceBookings::mail_vars( $booking, $slot, $resource );
+		$vars = ServiceBookings::mail_vars( $booking, $slot, $res );
 		$vars['fee_amount'] = Money::format( (int) $fee->amount_minor, (string) $fee->currency );
-		$vars['due_date'] = $fee->due_at ? \PassCaptain\Frontend\Format::deadline( (string) $fee->due_at, ServiceResources::timezone_of( $resource ) ) : '';
+		$vars['due_date'] = $fee->due_at ? \PassCaptain\Frontend\Format::deadline( (string) $fee->due_at, ServiceResources::timezone_of( $res ) ) : '';
 		return $vars;
 	}
 

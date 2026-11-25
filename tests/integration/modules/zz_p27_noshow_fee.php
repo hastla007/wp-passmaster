@@ -26,8 +26,9 @@ use PassCaptain\Settings;
 
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 
-svc_setup();
-PassCaptain\Modules\Mollie::register();
+// Services module only (not svc_setup(): zzzz_services_a_rules.php registers ServiceBookingFlow itself).
+wpcap_test_ensure_registered( PassCaptain\Modules\Services::class );
+wpcap_test_ensure_registered( PassCaptain\Modules\Mollie::class );
 // Invoice on payment (auto_invoice) as in a request (Invoices::register()); removed again at the end.
 $nf_invoice_hook = array( PassCaptain\Invoices::class, 'maybe_auto_issue' );
 $nf_added_hook = false === has_action( 'wpcap_order_paid', $nf_invoice_hook );
@@ -38,18 +39,19 @@ $nf_user = $GLOBALS['wpcap_test_user_id'] ?? null;
 $nf_denied = $GLOBALS['wpcap_test_denied_caps'] ?? array();
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
-$nf_keys = array( 'stripe_secret_key', 'stripe_webhook_secret', 'paypal_mode', 'paypal_client_id', 'paypal_client_secret', 'paypal_webhook_id', 'mollie_api_key', 'enabled_providers', 'bank_iban', 'bank_recipient', 'auto_invoice' );
+$nf_keys = array( 'stripe_secret_key', 'stripe_webhook_secret', 'paypal_mode', 'paypal_client_id', 'paypal_client_secret', 'paypal_webhook_id', 'mollie_api_key', 'enabled_providers', 'bank_iban', 'bank_recipient', 'auto_invoice', 'refund_approval_threshold', 'require_terms' );
 $nf_settings = array();
 foreach ( $nf_keys as $k ) { $nf_settings[ $k ] = Settings::get( $k ); }
 // Test isolation: the invoice counter is restored at the end (the module issues invoices).
 $nf_sequences = (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_invoice_sequences", ARRAY_A );
+$nf_invoice_max = (int) $wpdb->get_var( "SELECT COALESCE(MAX(invoice_id),0) FROM {$p}wpcap_invoices" );
 Settings::update( array(
 	'stripe_secret_key' => 'sk_test_nf', 'stripe_webhook_secret' => 'whsec_test',
 	'paypal_mode' => 'sandbox', 'paypal_client_id' => 'client', 'paypal_client_secret' => 'secret', 'paypal_webhook_id' => 'WH-ID-1',
 	'mollie_api_key' => 'test_' . str_repeat( 'Ab1', 10 ),
 	'enabled_providers' => array( 'manual', 'stripe', 'paypal', 'mollie' ),
 	'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Segelschule Muster',
-	'auto_invoice' => 1,
+	'auto_invoice' => 1, 'refund_approval_threshold' => 0, 'require_terms' => 0,
 ) );
 Registry::reset();
 wpcap_test_reset_transients();
@@ -262,8 +264,9 @@ check( 'no-show list: statuses, send/send again with due days and cancel as nonc
 $nf_core = (string) file_get_contents( WPCAP_PATH . 'src/Services/NoShowFees.php' );
 check( 'no automatic debit and no dunning: no refunds, saved payment methods, cron hooks or reminder mails in the fee code', 0 === preg_match( '/->refund\(|Refunder::|wpcap_process_jobs|Jobs::enqueue|off_session|setup_future_usage|mandate/', $nf_core ) );
 
-// Restore: invoices of the fee orders and the invoice counter (test isolation), settings.
-$nf_invoices = array_map( 'intval', (array) $wpdb->get_col( "SELECT i.invoice_id FROM {$p}wpcap_invoices i INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE o.price_snapshot LIKE '%\"noshow_fee\"%'" ) );
+// Restore: the invoices issued during this module (fee orders and the paid bookings) and the invoice
+// counter (test isolation), settings.
+$nf_invoices = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT invoice_id FROM {$p}wpcap_invoices WHERE invoice_id>%d", $nf_invoice_max ) ) );
 if ( $nf_invoices ) {
 	$wpdb->query( "DELETE FROM {$p}wpcap_invoice_lines WHERE invoice_id IN (" . implode( ',', $nf_invoices ) . ')' );
 	$wpdb->query( "DELETE FROM {$p}wpcap_invoices WHERE invoice_id IN (" . implode( ',', $nf_invoices ) . ')' );

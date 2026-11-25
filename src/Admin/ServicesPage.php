@@ -544,7 +544,7 @@ final class ServicesPage {
 				$state .= ' · ' . Forms::datetime( $row->paid_at, $tz, false );
 			}
 			$order_id = (int) ( $row->paid_order_id ? $row->paid_order_id : $row->fee_order_id );
-			echo '<tr><td>#' . (int) $row->booking_id . '</td><td>' . esc_html( (string) $row->resource_name ) . '</td><td>' . esc_html( Forms::datetime( $row->starts_at, $tz ) ) . '</td><td>' . esc_html( self::email( $row->customer_email ) ) . '</td><td>' . esc_html( Forms::money( (int) $row->fee_minor, (string) $row->currency ) ) . '</td><td>' . esc_html( $state ) . '</td><td>' . ( $order_id ? '#' . $order_id : '—' ) . '</td><td>';
+			echo '<tr><td>#' . (int) $row->booking_id . '</td><td>' . esc_html( (string) $row->resource_name ) . '</td><td>' . esc_html( Forms::datetime( $row->starts_at, $tz ) ) . '</td><td>' . esc_html( self::email( $row->customer_email ) ) . '</td><td>' . esc_html( null !== $row->fee_id ? Forms::money( (int) $row->fee_amount, (string) $row->fee_currency ) : Forms::money( (int) $row->fee_minor, (string) $row->currency ) ) . '</td><td>' . esc_html( $state ) . '</td><td>' . ( $order_id ? '#' . $order_id : '—' ) . '</td><td>';
 			if ( 'open' === $fee_status ) {
 				Forms::open_form( self::ACTION, null, 'style="display:inline-block"' );
 				Forms::hidden( 'do', 'noshow_fee_send' );
