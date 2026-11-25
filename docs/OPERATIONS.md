@@ -2060,6 +2060,16 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
 
 Tickets, die bereits zum Einlass genutzt wurden (Status „eingecheckt“, ein nicht zurückgenommener Check-in oder ein Eintritt im Einlassmodul), werden in der Bestellansicht nur erstattet, wenn eine Person mit `wpcap_approve_refunds` im Feld „Ausnahme für bereits eingelassene Tickets“ eine Begründung angibt. Die Erstattung landet dann immer in „Erstattungen zur Freigabe“ (Vier-Augen-Prinzip), Grund und Ausnahme stehen im Erstattungsgrund und im Audit-Log. Automatische Erstattungen bei Terminabsage sowie Kassen-Stornos (mit eigener Ausnahme an der Kasse) sind davon nicht betroffen; das Bestellportal bietet eingelassene Tickets gar nicht zur Stornierung an.
 
+Owner-Entscheidung E-11 (25.11.2026, umgesetzt als E11-1): Der Standard von `refund_after_checkin` bleibt „erlauben“, eingelassene Tickets erstatten aber nur Personen mit `wpcap_approve_refunds` (Rollen Administrator, Ticket-Administration und Finanzen), und immer mit Begründung. Das gilt auf dem Server in allen Wegen:
+
+- Bestellansicht (admin-post `wpcap_refund`, `Refunds::request()` mit `used_override`): wie oben.
+- Freigabe (`wpcap_approve_refund`, `Refunds::approve()`): Wurde ein Ticket erst nach der Anfrage eingelassen (oder stammt die Anfrage von der Käuferin bzw. dem Käufer), verlangt die Freigabe eine eigene Begründung (Feld „Ausnahme für bereits eingelassene Tickets“ neben „Freigeben“); mit der Einstellung „ablehnen“ wird sie verweigert.
+- WooCommerce: Eine Erstattung mit Mengen, die eingecheckte Tickets braucht, verlangt im Erstattungsdialog bzw. über die REST-API die Freigabeberechtigung und einen Erstattungsgrund; Erstattungen ohne angemeldete Person (Webhooks der Zahlungsanbieter, Cron) wurden beim Anbieter schon ausgezahlt und werden nicht abgelehnt.
+- Servicebuchungen: Das Stornieren mit Erstattung durch Admin oder Partner wird abgelehnt, wenn ein Ticket der Buchung schon eingelassen wurde (Storno ohne Erstattung oder Erstattung mit Begründung in der Bestellung).
+- Partner-API und Bestellportal lehnen eingelassene Tickets weiter ab; einen Sammel-Erstattungsweg gibt es nicht (Terminabsagen sind Systemabläufe).
+
+Jede Erstattung eingelassener Tickets schreibt den Audit-Eintrag `refund_checkin_override` (Grund, Erstattung, Tickets, Grundlage `exception`/`approval`/`allow_used`/`system`/`woocommerce`); der Verlauf der Bestellung zeigt ihn mit dem Grund an erster Stelle, WooCommerce zusätzlich als Bestellnotiz.
+
 ### Ticketart nach Verkaufsstart ändern (A334)
 
 Hat eine Ticketart bereits Bestellungen (bezahlt oder offen), zeigt ihr Formular „Bereits verkauft: N Tickets

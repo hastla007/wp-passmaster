@@ -306,7 +306,8 @@ try { Woo::guard_refund( new Wpcap_Test_Woo_Refund( 7699 ), array( 'order_id' =>
 try { Woo::guard_refund( new Wpcap_Test_Woo_Refund( 7699 ), array( 'order_id' => 7610, 'line_items' => array() ) ); } catch ( Exception $e ) { $ms_guard = $e; }
 check( 'quantities served by valid tickets and amount-only refunds pass the guard', null === $ms_guard );
 update_option( Woo::CHECKED_IN_OPTION, 'yes' );
-try { Woo::guard_refund( new Wpcap_Test_Woo_Refund( 7699 ), array( 'order_id' => 7610, 'line_items' => array( $ms_b_line => array( 'qty' => 3 ) ) ) ); } catch ( Exception $e ) { $ms_guard = $e; }
+// E11-1: a person refunding checked-in tickets gives a reason (and needs the approver capability).
+try { Woo::guard_refund( new Wpcap_Test_Woo_Refund( 7699 ), array( 'order_id' => 7610, 'reason' => 'Abbruch', 'line_items' => array( $ms_b_line => array( 'qty' => 3 ) ) ) ); } catch ( Exception $e ) { $ms_guard = $e; }
 check( 'admin override (option) allows refunding checked-in tickets', null === $ms_guard && Woo::checked_in_refund_allowed() );
 update_option( Woo::CHECKED_IN_OPTION, 'no' );
 $GLOBALS['wpcap_test_filters']['wpcap_woocommerce_refund_checked_in'] = true;
