@@ -1025,7 +1025,13 @@ final class Waitlists {
 			$voucher_minor = (int) ( $voucher['applied_minor'] ?? 0 );
 		}
 		$fresh_order = Orders::get( $order_id );
-		if ( ! $fresh_order ) { return Errors::busy(); }
+		if ( ! $fresh_order ) { $fresh_order = Orders::get( $order_id ); } // Once more after a transient error.
+		if ( ! $fresh_order ) {
+			// Without a voucher nothing was booked yet: open the offer again so the buyer's retry of the link
+			// completes it (A183). With a voucher the order may already be booked; the retry sees that state.
+			if ( 0 === $voucher_minor ) { self::undo_acceptance( $row, $order_id ); }
+			return Errors::busy();
+		}
 		if ( $gateway && 'pending' === $fresh_order->payment_status && (int) $fresh_order->total_minor > 0 && $voucher_minor > 0 && ! Payments\Rules::allows( $gateway->id(), Payments\Rules::order_context( $order_id ) ) ) {
 			// SET-PC-40 on the amount after the voucher, like the checkout.
 			self::undo_acceptance( $row, $order_id );
