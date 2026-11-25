@@ -13,6 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  */
 final class AdminPage {
 	const SLUG = 'wpcap-seating';
+	/** E09-1: id of the "experimentell" notice (target of the heading's aria-describedby). */
+	const EXPERIMENTAL_ID = 'wpcap-seating-experimental';
 
 	public static function url( array $args = array() ) {
 		return Forms::page_url( self::SLUG, $args );
@@ -105,8 +107,26 @@ final class AdminPage {
 		echo '</div>';
 	}
 
+	/**
+	 * E-09/E09-1: the seat map ships as "experimentell" in the first release. The badge is text with a
+	 * border (not colour alone) and sits inside the heading, so screen readers read it with the title.
+	 */
+	public static function experimental_badge() {
+		return '<span class="screen-reader-text"> – </span><span class="wpcap-experimental-badge" style="display:inline-block;margin-inline-start:.5em;padding:0 .5em;border:1px solid currentColor;border-radius:3px;font-size:.6em;font-weight:600;line-height:1.6;vertical-align:middle">' . esc_html__( 'experimentell', 'pass-captain' ) . '</span>';
+	}
+
+	/** E09-1: notice below the heading; the heading points to it with aria-describedby. */
+	public static function experimental_notice() {
+		echo '<div id="' . esc_attr( self::EXPERIMENTAL_ID ) . '" class="notice notice-warning inline wpcap-experimental-notice" role="note"><p><strong>' . esc_html__( 'Experimentelle Funktion:', 'pass-captain' ) . '</strong> ' . esc_html__( 'Der Saalplan ist im ersten Release als experimentell gekennzeichnet. Bedienung und Darstellung können sich in späteren Versionen ändern; die mobile Bedienung (Zoomen, Verschieben) ist noch nicht fertig. Prüfe einen Saalplan vor dem Verkauf im Checkout auf Computer und Smartphone.', 'pass-captain' ) . '</p></div>';
+	}
+
+	private static function heading_open() {
+		return '<h1 aria-describedby="' . esc_attr( self::EXPERIMENTAL_ID ) . '">';
+	}
+
 	private static function render_list() {
-		echo '<h1>' . esc_html__( 'Saalpläne', 'pass-captain' ) . '</h1>';
+		echo self::heading_open() . esc_html__( 'Saalpläne', 'pass-captain' ) . self::experimental_badge() . '</h1>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		self::experimental_notice();
 		$events = Queries::event_options( Queries::event_ids_for( Layouts::CAP ) );
 		if ( ! $events ) {
 			echo '<p>' . esc_html__( 'Keine Events verfügbar.', 'pass-captain' ) . '</p>';
@@ -140,7 +160,8 @@ final class AdminPage {
 		$event = Queries::event( $layout->event_id );
 		echo '<p><a href="' . esc_url( self::url() ) . '">' . esc_html__( '← Alle Saalpläne', 'pass-captain' ) . '</a></p>';
 		/* translators: 1: layout, 2: event */
-		echo '<h1>' . esc_html( sprintf( __( 'Saalplan „%1$s“ – %2$s', 'pass-captain' ), $layout->name, $event ? $event->name : '' ) ) . '</h1>';
+		echo self::heading_open() . esc_html( sprintf( __( 'Saalplan „%1$s“ – %2$s', 'pass-captain' ), $layout->name, $event ? $event->name : '' ) ) . self::experimental_badge() . '</h1>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		self::experimental_notice();
 		$locked = array();
 		foreach ( Layouts::locked_seats( $layout->layout_id ) as $key => $seat ) {
 			$locked[ $key ] = array( 'kind' => $seat->kind, 'row' => $seat->row_label, 'label' => $seat->seat_label, 'zone' => $seat->zone, 'category' => $seat->category, 'x' => (float) $seat->pos_x, 'y' => (float) $seat->pos_y, 'status' => $seat->status );

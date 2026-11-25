@@ -236,7 +236,7 @@ Diese Liste nennt jede Aufgabe, die in diesem Durchgang ohne Entscheidung der Pr
 - [x] Startländer festlegen (AT/DE/CH) und Rechts-/Steuerprüfungen je Land beauftragen. Braucht: E-08. *25.11.2026: E-08 entschieden: AT und DE zum Start, CH später. Die Prüfungen selbst laufen als X-09/X-10/X-11 (extern).*
 - [x] Erste Online-PSPs sind Stripe und PayPal, ergänzt um Mollie; weitere Anbieter/Länder-Zahlungsarten bleiben separat zu priorisieren.
 - [x] MVP-Entscheidung native Rechnungs-PDFs oder Buchhaltungsexport: beides ist umgesetzt (`Printing/InvoicePdf`, Buchhaltungsexport in `Invoices`).
-- [x] Sitzpläne sind umgesetzt (siehe oben); festlegen, ob die Seat Map im ersten marktfähigen Release freigegeben oder als experimentell gekennzeichnet wird. Braucht: E-09. *25.11.2026: E-09 entschieden: Kennzeichnung „experimentell“; Umsetzung der Kennzeichnung als eigene Aufgabe E09-1.*
+- [x] Sitzpläne sind umgesetzt (siehe oben); festlegen, ob die Seat Map im ersten marktfähigen Release freigegeben oder als experimentell gekennzeichnet wird. Braucht: E-09. *25.11.2026: E-09 entschieden: Kennzeichnung „experimentell“; Umsetzung der Kennzeichnung als eigene Aufgabe E09-1.* **Erledigt (25.11.2026, p29): E09-1** – Admin-Seite „Saalpläne“ (Liste und Editor mit Terminverknüpfung) zeigt im Titel die Textmarke „experimentell“ (mit Rahmen, nicht nur Farbe) und einen Hinweis, auf den der Titel per `aria-describedby` verweist; die Modulliste in den Einstellungen heißt „Saalpläne (experimentell)“; `readme.txt` (Funktionsliste und FAQ „Is the seat map stable?“) und `docs/RELEASE-MATRIX.md` (Zeile Sitzplätze, Begriff „experimentell“) sind ergänzt. Beleg: `tests/integration/modules/zz_p29_seating_experimental.php` (9 Prüfungen).
 
 ## Abnahmekriterien
 
