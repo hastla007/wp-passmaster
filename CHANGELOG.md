@@ -10,6 +10,7 @@
 - Kalenderdateien (.ics): Steuerzeichen in Eventname und Ort werden entfernt, Termine ohne Dauer erhalten kein ungültiges DTEND mehr, Kauf-Links mit Leerzeichen oder Umlauten werden korrekt kodiert. Im Kalender-Abo sinkt SEQUENCE nie unter die Terminrevision der Mail. Neuer RFC-5545-Prüftest für Download, Abo, Portal und Mails.
 - Mollie: Die Überweisungsfrist (`dueDate`) endet jetzt vor dem Ende der Reservierung; ein späteres `expiresAt` verlängert die Reservierung begrenzt. PayPal: Die Statusabfrage zieht eine genehmigte Zahlung nur noch bei aktiver Reservierung ein (Owner-Entscheidung E-20).
 - No-Show-Gebühr: Zahlungslink mit Fälligkeit über die vorhandenen Zahlungsarten (Ansicht „No-Show-Gebühren“ unter Services, neue Tabelle `wpcap_service_noshow_fees`, zwei neue Mailtypen); keine automatische Abbuchung, kein Mahnwesen (Owner-Entscheidung E-18). Die Late-Payment-Prüfung überspringt Zeilen mit Menge 0.
+- Erstattung bereits eingecheckter Tickets: Im Admin (Freigabe, WooCommerce-Erstattungsdialog/REST, Servicebuchungen) nur mit Freigaberecht und Begründung; Begründung im Audit (`refund_checkin_override`) und als Bestellnotiz. Standard bleibt „erlauben“ (Owner-Entscheidung E-11).
 - Teilnehmerverwaltung: Sortierung nach Event.
 - Lese-Schnittstelle (Vertrag 1.5.0): optional Ort und Inhaberwechsel-Hinweis, Ticket-IDs je Termin/Event/Tickettyp, Event- und Tickettyp-Katalog ohne personenbezogene Daten.
 - Betriebsdokumente: Vorschläge für Support, Sicherheit und Release-Ablauf (Freigabe durch die Produktverantwortung offen).

@@ -1873,12 +1873,16 @@ final class OrderAdapter {
 	 * reason (guard_checked_in_override()); once per refund, called by sync_refund().
 	 */
 	private static function note_checked_in_override( $wc_order, $refund, array $core_ids ) {
+		if ( ! is_object( $refund ) ) {
+			return;
+		}
 		$reason = is_callable( array( $refund, 'get_meta' ) ) ? (string) $refund->get_meta( self::CHECKIN_OVERRIDE_META, true ) : '';
 		if ( '' === $reason ) {
 			return;
 		}
+		$refund_id = is_callable( array( $refund, 'get_id' ) ) ? (int) $refund->get_id() : 0;
 		foreach ( $core_ids as $core_id ) {
-			\PassCaptain\Audit::record( \PassCaptain\Refunds::CHECKIN_OVERRIDE_ACTION, 'order', (int) $core_id, array( 'reason' => $reason, 'woocommerce_refund_id' => (int) $refund->get_id(), 'basis' => 'woocommerce' ) );
+			\PassCaptain\Audit::record( \PassCaptain\Refunds::CHECKIN_OVERRIDE_ACTION, 'order', (int) $core_id, array( 'reason' => $reason, 'woocommerce_refund_id' => $refund_id, 'basis' => 'woocommerce' ) );
 		}
 		if ( $wc_order ) {
 			/* translators: %s: reason given for the refund */
