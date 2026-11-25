@@ -138,7 +138,7 @@ Yes. The ticket page, order portal, waiting list and invoice links, payment retu
 = 1.7.0 =
 * Service fee: included in every price shown before purchase (event card, event page, REST, JSON-LD), own tax setting (like the ticket or own tax profile), refund rules (always refunded on cancellation, buyer's wish per setting) and shown separately in partner settlements and reports (optional pass-on to partners).
 * Vouchers: single-purpose vouchers only for the VAT of their sale, discount codes as price reduction; versioned read API for voucher reconciliation (extension contract 1.4.0).
-* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions.
+* Connector read service (`wpcap_get_ticket_details()`, `wpcap_get_order_ticket_details()`), connector audit entry and opt-in functions; extension contract 1.5.0 adds the occurrence location and a holder-changed flag on request, `wpcap_get_ticket_ids()` and `wpcap_get_event_catalog()`.
 * Public action functions `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()`, `wpcap_confirm_attendance()`; the unused workflow provider contract was removed (Pass Captain sends all mails itself). `wpcap_event_cancelled` now fires once per cancellation after the tickets are revoked.
 
 = 1.6.0 =

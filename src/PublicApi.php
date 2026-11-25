@@ -79,6 +79,8 @@ final class PublicApi {
 		'wpcap_get_event_state'          => '1.3.0',
 		'wpcap_get_ticket_details'       => '1.4.0', // PASS-E17-01: read service for connectors.
 		'wpcap_get_order_ticket_details' => '1.4.0',
+		'wpcap_get_ticket_ids'           => '1.5.0', // C9: ticket IDs per occurrence, event or ticket type.
+		'wpcap_get_event_catalog'        => '1.5.0', // C9: events and ticket types, also without future dates.
 		'wpcap_connector_audit'          => '1.4.0', // PASS-E17-01: audit entry of a connector.
 		'wpcap_set_connector_enabled'    => '1.4.0', // PASS-E17-01: opt-in instead of writing the option.
 		'wpcap_is_connector_enabled'     => '1.4.0',
