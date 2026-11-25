@@ -471,6 +471,37 @@ $p24_portal_ics = is_array( $p24_portal ) ? (string) $p24_portal['content'] : ''
 p24_check_lint( 'portal download of the order (two dates) is valid', $p24_portal_ics );
 check( 'portal download: both dates in start order with the UIDs of the single downloads, no buyer data', 2 === count( p24_ics_events( $p24_portal_ics ) ) && array( 'wpcap-occurrence-' . $p24_moved . '@example.test', 'wpcap-occurrence-' . $p24_multi . '@example.test' ) == array_column( p24_ics_events( $p24_portal_ics ), 'UID' ) && false === strpos( $p24_portal_ics, $p24_mail_to ) );
 
+/* ============================================================== SEQUENCE in mail vs. subscription */
+
+echo "PASS-FE-21: the subscription never shows a lower SEQUENCE than the mail .ics (same UID)\n";
+$p24_seq_occ = $p24_series_ids[0] ?? 0;
+$p24_seq_of = static function ( $ics, $uid ) {
+	foreach ( p24_ics_events( $ics ) as $e ) { if ( $uid === $e['UID'] ) { return (int) $e['SEQUENCE']; } }
+	return -1;
+};
+$p24_seq_uid = 'wpcap-occurrence-' . $p24_seq_occ . '@example.test';
+$p24_seq_mail = static function () use ( $p24_seq_occ ) {
+	$files = Notifications::ics_file( $p24_seq_occ );
+	$ics = $files && is_file( $files[0] ) ? (string) file_get_contents( $files[0] ) : '';
+	foreach ( $files as $f ) { @unlink( $f ); }
+	return $ics;
+};
+$p24_seq_ok = is_array( $p24_sub );
+$p24_seq_log = array();
+// Several changes between two feed renders (the feed's own counter rises once per render, the revision per change).
+foreach ( array( array( '2027-03-20 19:15', 'Stadtsaal A' ), array( '2027-03-20 19:30', 'Stadtsaal B' ), array( '2027-03-20 19:45', 'Stadtsaal C' ) ) as $p24_i => $p24_change ) {
+	EventsPage::save_occurrence( array( 'occurrence_id' => $p24_seq_occ, 'starts_at' => $p24_change[0], 'ends_at' => '2027-03-20 22:00', 'timezone' => 'Europe/Vienna', 'location' => $p24_change[1], 'capacity' => '0' ) );
+	if ( 1 === $p24_i ) { continue; } // No render after the second change.
+	$p24_m = $p24_seq_of( $p24_seq_mail(), $p24_seq_uid );
+	$p24_s = $p24_seq_ok ? $p24_seq_of( (string) CalendarFeeds::render( $p24_sub['token'] ), $p24_seq_uid ) : -1;
+	$p24_seq_log[] = "mail $p24_m / feed $p24_s";
+	$p24_seq_ok = $p24_seq_ok && $p24_m >= 1 && $p24_s >= $p24_m;
+}
+$p24_s2 = $p24_seq_ok ? $p24_seq_of( (string) CalendarFeeds::render( $p24_sub['token'] ), $p24_seq_uid ) : -1;
+if ( ! $p24_seq_ok ) { echo '       ' . implode( '; ', $p24_seq_log ) . "\n"; }
+check( 'after several reschedules the subscription SEQUENCE is >= the mail .ics SEQUENCE for the same UID', $p24_seq_ok && 2 === count( $p24_seq_log ) );
+check( 'an unchanged re-render keeps the subscription SEQUENCE (no drop, no growth)', $p24_seq_ok && $p24_s2 === $p24_seq_of( (string) CalendarFeeds::render( $p24_sub['token'] ), $p24_seq_uid ) && $p24_s2 >= $p24_seq_of( $p24_seq_mail(), $p24_seq_uid ) );
+
 /* ============================================================== Cleanup */
 
 if ( is_array( $p24_sub ) ) { $wpdb->delete( "{$p}wpcap_calendar_feeds", array( 'feed_id' => (int) $p24_sub['feed_id'] ) ); }
