@@ -377,7 +377,31 @@ function apply_filters_deprecated( $hook, $args, $version, $replacement = '', $m
 function do_action_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { if ( ! has_filter( $hook ) ) { return; } $GLOBALS['wpcap_test_deprecated_hooks'][] = $hook; $GLOBALS['wpcap_test_deprecated_hooks'][] = array( $hook, $version, $replacement ); do_action( $hook, ...$args ); }
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
-function has_filter( $hook, $callback = false ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $cbs ) { if ( $cbs ) { return true; } } return false; }
+/**
+ * Like WordPress (WP_Hook::has_filter()): without a callback, whether any callback is registered (bool);
+ * with a callback, the priority of its first registration (int, can be 0) or false. Callbacks are
+ * compared like _wp_filter_build_unique_id(): array( 'Class', 'm' ) equals 'Class::m', objects by identity.
+ */
+function has_filter( $hook, $callback = false ) {
+	$registered = $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array();
+	if ( false === $callback ) { foreach ( $registered as $cbs ) { if ( $cbs ) { return true; } } return false; }
+	$id = wpcap_test_callback_id( $callback );
+	ksort( $registered );
+	foreach ( $registered as $priority => $cbs ) {
+		foreach ( $cbs as $entry ) { if ( null !== $id && wpcap_test_callback_id( $entry[0] ) === $id ) { return $priority; } }
+	}
+	return false;
+}
+/** Comparable key of a callback, as _wp_filter_build_unique_id() builds it; null for an unusable value. */
+function wpcap_test_callback_id( $callback ) {
+	if ( is_string( $callback ) ) { return $callback; }
+	if ( is_object( $callback ) ) { return spl_object_hash( $callback ); }
+	if ( is_array( $callback ) && isset( $callback[0], $callback[1] ) && is_string( $callback[1] ) ) {
+		if ( is_object( $callback[0] ) ) { return spl_object_hash( $callback[0] ) . $callback[1]; }
+		if ( is_string( $callback[0] ) ) { return $callback[0] . '::' . $callback[1]; }
+	}
+	return null;
+}
 function has_action( $hook, $callback = false ) { return has_filter( $hook, $callback ); }
 function remove_filter( $hook, $callback, $priority = 10 ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ] ?? array() as $i => $entry ) { if ( $entry[0] === $callback ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][ $i ] ); return true; } } return false; }
 function remove_action( $hook, $callback, $priority = 10 ) { return remove_filter( $hook, $callback, $priority ); }

@@ -14,13 +14,8 @@ use PassCaptain\Settings;
 echo "A621: resend mail with PDF and .ics\n";
 $a621_saved_cal = Settings::get( 'calendar' );
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/tickets/', 'attach_ics' => 1 ) ) );
-// The test has_filter() stub ignores the callback (true for any filter on the hook, e.g. the wallet's):
-// look for exactly the calendar callback.
-$a621_has_ics = false;
-foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_ticket_resend_attachments'] ?? array() as $a621_cbs ) {
-	foreach ( $a621_cbs as $a621_cb ) { if ( array( Calendar::class, 'resend_ics' ) === $a621_cb[0] ) { $a621_has_ics = true; } }
-}
-if ( ! $a621_has_ics ) {
+// Look for exactly the calendar callback (other filters on the hook, e.g. the wallet's, do not count).
+if ( false === has_filter( 'wpcap_ticket_resend_attachments', array( Calendar::class, 'resend_ics' ) ) ) {
 	add_filter( 'wpcap_ticket_resend_attachments', array( Calendar::class, 'resend_ics' ), 20, 3 );
 	$a621_added = true;
 }

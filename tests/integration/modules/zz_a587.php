@@ -17,11 +17,7 @@ if ( ! function_exists( 'switch_to_locale' ) ) {
 echo "A587: reminders in the buyer's language with ticket links\n";
 global $wpdb;
 $p = $wpdb->prefix;
-$a587_registered = false;
-foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_email_template'] ?? array() as $a587_cbs ) {
-	foreach ( $a587_cbs as $a587_cb ) { $a587_registered = $a587_registered || array( Reminders::class, 'render_template' ) === $a587_cb[0]; }
-}
-if ( ! $a587_registered ) { Reminders::register(); }
+if ( false === has_filter( 'wpcap_email_template', array( Reminders::class, 'render_template' ) ) ) { Reminders::register(); }
 TicketCodes::register();
 $a587_saved = Reminders::save( array_merge( Reminders::settings_defaults()['reminders'], array( 'enabled' => '1', 'offsets' => '24', 'sms' => '', 'translations' => array( 'en_US' => array( 'subject' => 'Reminder: {event} on {date}', 'body' => "See you in {hours} hours!\n{ticket_links}" ) ) ) ) );
 $a587_conf = (array) Settings::get( 'reminders' );

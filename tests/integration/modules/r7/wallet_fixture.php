@@ -32,12 +32,8 @@ if ( ! function_exists( 'wpr7_wallet_enable' ) ) {
 		if ( null === $apns ) {
 			$apns = new Wpr7_Test_Apns();
 			add_filter( 'wpcap_wallet_apns_client', static function () use ( &$apns ) { return $apns; } );
-			$registered = false;
-			foreach ( $GLOBALS['wpcap_test_hooks']['wpcap_ticket_mail'] ?? array() as $callbacks ) {
-				foreach ( $callbacks as $entry ) { $registered = $registered || array( \PassCaptain\WalletPasses\Service::class, 'on_ticket_mail' ) === $entry[0]; }
-			}
 			// modules/wallet.php registers the module already; a second registration would run every hook twice.
-			if ( ! $registered ) { \PassCaptain\Modules\Wallet::register(); }
+			if ( false === has_action( 'wpcap_ticket_mail', array( \PassCaptain\WalletPasses\Service::class, 'on_ticket_mail' ) ) ) { \PassCaptain\Modules\Wallet::register(); }
 		}
 		$dir = sys_get_temp_dir() . '/wpr7-wallet-' . getmypid() . '-' . bin2hex( random_bytes( 3 ) );
 		@mkdir( $dir );
