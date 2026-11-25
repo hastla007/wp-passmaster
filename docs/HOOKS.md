@@ -41,6 +41,8 @@ Ebenso ohne Hook: der Lesedienst für Connectoren `wpcap_get_ticket_details()` u
 der Protokolleintrag eines Connectors `wpcap_connector_audit()` (seit 1.6.0 mit Vertrag 1.4.0,
 [EXTENSIONS.md](EXTENSIONS.md#protokolleintrag-eines-connectors)) und die Freigabe `wpcap_set_connector_enabled()` /
 `wpcap_is_connector_enabled()` (seit 1.6.0 mit Vertrag 1.4.0, [EXTENSIONS.md](EXTENSIONS.md#freigabe-eines-connectors-opt-in)).
+Seit 1.7.0 mit Vertrag 1.5.0 außerdem `wpcap_get_ticket_ids()` und `wpcap_get_event_catalog()`
+([EXTENSIONS.md](EXTENSIONS.md#erweiterungen-in-vertrag-150)), ebenfalls ohne Hook.
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 `grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der

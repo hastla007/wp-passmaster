@@ -139,6 +139,7 @@
 
 ### Schnittstellen für Connectoren und Workflow (Vertrag 1.4.0)
 - **PASS-E17-01:** Lesedienst `wpcap_get_ticket_details()` / `wpcap_get_order_ticket_details()` (Termin, Event, Inhaber, Check-ins; E-Mail des Inhabers nur mit Capability `wpcap_read_holder_email`), Protokolleintrag `wpcap_connector_audit()`, Freigabe `wpcap_set_connector_enabled()` / `wpcap_is_connector_enabled()` statt Optionsschreiben.
+- **C9 (Vertrag 1.5.0, additiv):** Lesedienst auf Anfrage mit Veranstaltungsort (`include_location`) und Kennzeichen „Inhaber gewechselt“ (`include_holder_changes`, nur Zahl), neu `wpcap_get_ticket_ids()` (Ticket-IDs je Termin, Event oder Ticketart, seitenweise) und `wpcap_get_event_catalog()` (Events und Ticketarten auch ohne künftige Termine, ohne personenbezogene Daten).
 - **PC-7:** Öffentliche Aktionsfunktionen `wpcap_resend_ticket_mail()`, `wpcap_revoke_ticket()`, `wpcap_cancel_event()`, `wpcap_reschedule_occurrence()` und `wpcap_confirm_attendance()` (Vertrag `actions` 1.0.0): Rechteprüfung für den aktuellen oder einen genannten Benutzer, regulärer Kerndienst, Audit-Eintrag, optionaler Idempotency-Key.
 - **PC-8:** docs/EXTENSIONS.md: eine Bedeutung je Vertragsversion (1.2.0 = Leistungsdatum der Rechnungs-API, 1.3.0 = Lesefassade).
 

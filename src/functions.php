@@ -162,6 +162,35 @@ if ( ! function_exists( 'wpcap_get_order_ticket_details' ) ) {
 	}
 }
 
+/*
+ * Contract 1.5.0 (C9): ticket IDs per occurrence, event or ticket type and the event catalogue for connectors,
+ * see PassCaptain\Api\TicketDetails. No personal data; null for invalid arguments.
+ */
+
+if ( ! function_exists( 'wpcap_get_ticket_ids' ) ) {
+	/**
+	 * Public IDs of the tickets of an occurrence, event or ticket type, see PassCaptain\Api\TicketDetails::ticket_ids().
+	 *
+	 * @param array $args occurrence_id|event_id|ticket_type_id, statuses, limit, after.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_ticket_ids( $args = array() ) {
+		return PassCaptain\Api\TicketDetails::ticket_ids( (array) $args );
+	}
+}
+
+if ( ! function_exists( 'wpcap_get_event_catalog' ) ) {
+	/**
+	 * Events with their ticket types, also without future occurrences, see PassCaptain\Api\TicketDetails::catalog().
+	 *
+	 * @param array $args statuses, limit, after.
+	 * @return array<string,mixed>|null
+	 */
+	function wpcap_get_event_catalog( $args = array() ) {
+		return PassCaptain\Api\TicketDetails::catalog( (array) $args );
+	}
+}
+
 if ( ! function_exists( 'wpcap_connector_audit' ) ) {
 	/**
 	 * Audit entry of a connector without personal data (contract 1.4.0, PASS-E17-01), see

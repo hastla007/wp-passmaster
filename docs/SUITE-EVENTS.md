@@ -1,6 +1,6 @@
 # Ereignisse des Kerns für andere Captain-Plugins (Ist-Stand)
 
-Stand: 24.11.2026, Plugin 1.7.0 (Erweiterungsvertrag `WPCAP_CONTRACT_VERSION` 1.4.0, siehe
+Stand: 25.11.2026, Plugin 1.7.0 (Erweiterungsvertrag `WPCAP_CONTRACT_VERSION` 1.5.0, siehe
 [CONTRACTS.md](CONTRACTS.md)). Dieses Dokument beschreibt, was Pass Captain **heute** aussendet. Die gemeinsame
 Spezifikation der Suite liegt in Workflow Captain (`wp-workflowmaster`, `docs/SPEC-suite-events.md`,
 1.0.0-draft.13); Pass Captain liefert dafür nach Entscheidung PC-7 keinen eigenen Workflow-Vertrag, sondern die
