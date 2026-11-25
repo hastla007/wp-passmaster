@@ -20,6 +20,9 @@ final class Refunds {
 	const APPROVE_CAP = 'wpcap_approve_refunds';
 	const REFUND_CAP = 'wpcap_refund';
 
+	/** Audit action of a refund that covers tickets already used for admission (E11-1). */
+	const CHECKIN_OVERRIDE_ACTION = 'refund_checkin_override';
+
 	/**
 	 * Requests a refund. Executes it immediately unless a second approval is required.
 	 *
@@ -136,6 +139,9 @@ final class Refunds {
 			/* translators: %s: reason for the exception */
 			$reason = trim( $reason . ' ' . sprintf( __( '[eingelassen, Ausnahme: %s]', 'pass-captain' ), $used_override ) );
 		}
+		// E11-1: who accepted the used tickets, recorded in the audit log after the commit.
+		// A buyer request (system without allow_used) is no exception: an approval then needs a reason.
+		$used_basis = ! $used ? '' : ( ! empty( $args['allow_used'] ) ? 'allow_used' : ( $system ? 'system' : 'exception' ) );
 
 		// The threshold applies to everything refunded or pending for this order, so splitting a
 		// large refund into small requests does not avoid the second approval.
@@ -185,6 +191,9 @@ final class Refunds {
 		$saved = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM {$p}wpcap_refunds WHERE refund_id=%d AND idempotency_key=%s", $refund_id, $key_hash ) );
 		if ( (int) $saved !== $refund_id ) { return self::busy(); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'deducted_minor' => $calc['deducted_minor'], 'service_fee_minor' => $calc['fee_minor'], 'service_fee_kept_minor' => $calc['fee_kept_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin', 'checked_in_tickets' => count( $used ), 'checkin_policy' => $checkin_policy, 'self_service' => $self_service ) );
+		if ( '' !== $used_basis ) {
+			self::record_checkin_override( $order_id, $refund_id, $used, 'exception' === $used_basis ? $used_override : $reason, $used_basis, $checkin_policy, $needs_approval );
+		}
 		if ( $needs_approval && 'portal' === $source ) {
 			\PassCaptain\Alerts::raise( 'refund_request_approval', __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
@@ -284,8 +293,18 @@ final class Refunds {
 		return self::execute( $refund_id );
 	}
 
-	/** Second approval by a different user with the approval capability. */
-	public static function approve( $refund_id ) {
+	/**
+	 * Second approval by a different user with the approval capability.
+	 *
+	 * E11-1: tickets of the refund that were used for admission after the request (no exception was
+	 * recorded for them) are only refunded with a reason of the approver (`used_override`); with the
+	 * setting refund_after_checkin = deny not at all.
+	 *
+	 * @param int   $refund_id Refund.
+	 * @param array $args      used_override (string): approver's reason for tickets used meanwhile.
+	 * @return array|\WP_Error
+	 */
+	public static function approve( $refund_id, array $args = array() ) {
 		$refund = self::get( $refund_id );
 		if ( ! $refund || 'pending_approval' !== $refund['status'] ) {
 			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -295,15 +314,79 @@ final class Refunds {
 		}
 		$check = self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
+		$uncovered = self::uncovered_used_tickets( $refund );
+		$used_override = trim( sanitize_text_field( (string) ( $args['used_override'] ?? '' ) ) );
+		$fields = array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => Clock::mysql() );
+		if ( $uncovered ) {
+			if ( 'deny' === self::checkin_policy() ) {
+				return new \WP_Error( 'wpcap_refund_checked_in', __( 'Bereits eingecheckte Tickets können nach den Erstattungsregeln nicht erstattet werden.', 'pass-captain' ), array( 'status' => 409, 'checked_in_ticket_ids' => $uncovered ) );
+			}
+			if ( '' === $used_override ) {
+				return new \WP_Error(
+					'wpcap_refund_used_tickets',
+					/* translators: %d: number of tickets */
+					sprintf( _n( '%d Ticket dieser Erstattung wurde inzwischen zum Einlass genutzt. Für die Freigabe bitte eine Begründung angeben.', '%d Tickets dieser Erstattung wurden inzwischen zum Einlass genutzt. Für die Freigabe bitte eine Begründung angeben.', count( $uncovered ), 'pass-captain' ), count( $uncovered ) ),
+					array( 'status' => 409, 'used_ticket_ids' => $uncovered, 'checked_in_ticket_ids' => $uncovered )
+				);
+			}
+			/* translators: %s: reason for the exception */
+			$fields['reason'] = \PassCaptain\Text::cut( sanitize_text_field( trim( (string) $refund['reason'] . ' ' . sprintf( __( '[eingelassen, Ausnahme: %s]', 'pass-captain' ), $used_override ) ) ), 255 );
+		}
 		global $wpdb;
-		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => Clock::mysql() ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
+		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', $fields, array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
 		if ( false === $approved ) { return self::db_error( absint( $refund_id ), (int) $refund['order_id'], 'approve' ); }
 		if ( 1 !== (int) $approved ) {
 			// Approved/rejected by someone else meanwhile: never execute twice.
 			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		Audit::record( 'refund_approved', 'order', (int) $refund['order_id'], array( 'refund_id' => absint( $refund_id ) ) );
+		if ( $uncovered ) {
+			self::record_checkin_override( (int) $refund['order_id'], absint( $refund_id ), $uncovered, $used_override, 'approval', self::checkin_policy(), false );
+		}
 		return self::execute( $refund_id );
+	}
+
+	/**
+	 * E11-1: audit entry for a refund that covers tickets already used for admission. The reason comes
+	 * first in the details, so the order history (Admin\OrderHistory) shows it.
+	 *
+	 * @param int[]  $ticket_ids Used tickets the refund covers.
+	 * @param string $reason     Exception reason (staff), or the refund reason (system flows).
+	 * @param string $basis      exception (staff with approver capability) | approval (approver for tickets used meanwhile) | allow_used (cancelled date, box office after its own check) | system (buyer or other system request without exception; does not count as an exception for the approval).
+	 */
+	private static function record_checkin_override( $order_id, $refund_id, array $ticket_ids, $reason, $basis, $policy, $needs_approval ) {
+		Audit::record( self::CHECKIN_OVERRIDE_ACTION, 'order', (int) $order_id, array(
+			'reason' => \PassCaptain\Text::cut( sanitize_text_field( (string) $reason ), 200 ),
+			'refund_id' => (int) $refund_id,
+			'ticket_ids' => array_values( array_map( 'intval', $ticket_ids ) ),
+			'basis' => sanitize_key( (string) $basis ),
+			'checkin_policy' => sanitize_key( (string) $policy ),
+			'needs_approval' => (bool) $needs_approval,
+		) );
+	}
+
+	/**
+	 * E11-1: tickets of a pending refund that are used for admission now and for which no exception
+	 * was recorded (request with reason, cancelled date, box office or an earlier approval). A failed read
+	 * of the audit log counts as "nothing recorded" (the approver then has to give a reason).
+	 *
+	 * @param array $refund Refund row.
+	 * @return int[]
+	 */
+	public static function uncovered_used_tickets( array $refund ) {
+		$ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) ) );
+		$used = $ids ? self::used_ticket_ids( $ids ) : array();
+		if ( ! $used ) { return array(); }
+		global $wpdb;
+		$covered = array();
+		$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT details FROM %i WHERE action=%s AND object_type=%s AND object_id=%d', $wpdb->prefix . 'wpcap_audit_logs', self::CHECKIN_OVERRIDE_ACTION, 'order', (int) $refund['order_id'] ) );
+		foreach ( (array) $rows as $json ) {
+			$details = json_decode( (string) $json, true );
+			if ( is_array( $details ) && (int) ( $details['refund_id'] ?? 0 ) === (int) $refund['refund_id'] && 'system' !== ( $details['basis'] ?? '' ) ) {
+				$covered = array_merge( $covered, array_map( 'intval', (array) ( $details['ticket_ids'] ?? array() ) ) );
+			}
+		}
+		return array_values( array_diff( array_map( 'intval', $used ), $covered ) );
 	}
 
 	/** Rejects a pending refund. */

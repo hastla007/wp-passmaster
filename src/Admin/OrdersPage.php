@@ -453,7 +453,8 @@ final class OrdersPage {
 		if ( (int) $refund['requested_by'] === get_current_user_id() ) {
 			return Forms::error( 'wpcap_refund_same_person', __( 'Die Freigabe muss durch eine andere berechtigte Person erfolgen.', 'pass-captain' ), 409 );
 		}
-		$result = Refunds::approve( $refund['refund_id'] );
+		// E11-1: reason for tickets used for admission after the request.
+		$result = Refunds::approve( $refund['refund_id'], array( 'used_override' => Forms::text( $in, 'used_override', 200 ) ) );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
 		return array( 'order_id' => (int) $refund['order_id'], 'refund' => $result );
 	}
@@ -1518,6 +1519,10 @@ final class OrdersPage {
 								<em><?php esc_html_e( 'Freigabe durch eine andere Person erforderlich', 'pass-captain' ); ?></em>
 							<?php else : ?>
 								<?php Forms::open_form( 'wpcap_approve_refund', 'wpcap_approve_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
+								<?php if ( Refunds::uncovered_used_tickets( $refund ) ) : $wpcap_override_id = 'wpcap-approve-override-' . (int) $refund['refund_id']; ?>
+									<label for="<?php echo esc_attr( $wpcap_override_id ); ?>"><?php esc_html_e( 'Ausnahme für bereits eingelassene Tickets (Begründung)', 'pass-captain' ); ?></label>
+									<input type="text" id="<?php echo esc_attr( $wpcap_override_id ); ?>" name="used_override" required maxlength="200">
+								<?php endif; ?>
 								<button class="button button-primary" type="submit" data-wpcap-confirm="<?php echo esc_attr( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
 								</form>
 								<?php Forms::open_form( 'wpcap_reject_refund', 'wpcap_reject_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
