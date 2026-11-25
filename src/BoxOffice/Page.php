@@ -357,7 +357,7 @@ final class Page {
 	public static function enqueue_offline_guard() {
 		wp_enqueue_script( 'wpcap-pos', plugins_url( 'assets/boxoffice/pos.js', WPCAP_FILE ), array(), WPCAP_VERSION, true );
 		\PassCaptain\Assets::inline_script( 'wpcap-pos', 'window.wpcapPosOffline=' . wp_json_encode( array(
-			'offline' => __( 'Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich.', 'pass-captain' ),
+			'offline' => __( 'Keine Netzverbindung: Verkäufe, Stornos, Auszahlungen und Schichtbuchungen (Einlage, Entnahme, Zählung, Abschluss) sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich.', 'pass-captain' ),
 			'online' => __( 'Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich.', 'pass-captain' ),
 			'blocked' => __( 'Ohne Netzverbindung gesperrt', 'pass-captain' ),
 		) ) . ';', 'before' );

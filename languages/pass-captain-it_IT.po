@@ -225,9 +225,9 @@ msgstr "Chiave API revocata."
 #: src/Admission/RulesPage.php:173
 #: src/Allocations/AdminPage.php:199
 #: src/BoxOffice/Page.php:63
-#: src/BoxOffice/Page.php:525
-#: src/BoxOffice/Page.php:548
-#: src/BoxOffice/Page.php:607
+#: src/BoxOffice/Page.php:526
+#: src/BoxOffice/Page.php:549
+#: src/BoxOffice/Page.php:608
 #: src/BoxOffice/Registers.php:76
 #: src/BoxOffice/Service.php:150
 #: src/BoxOffice/Service.php:394
@@ -6064,7 +6064,7 @@ msgid "Keine Buchungen."
 msgstr "Nessuna prenotazione."
 
 #: src/Admin/Notices.php:68
-#: src/BoxOffice/Page.php:388
+#: src/BoxOffice/Page.php:389
 #: src/LegacySlug.php:364
 msgid "Hinweis für mich ausblenden"
 msgstr "Nascondi l'avviso per me"
@@ -9604,7 +9604,7 @@ msgstr "Il consenso al checkout è attivo, ma per la lingua predefinita non è s
 #: src/Admin/SettingsPage.php:991
 #: src/Admission/RulesPage.php:125
 #: src/Allocations/AdminPage.php:191
-#: src/BoxOffice/Page.php:626
+#: src/BoxOffice/Page.php:627
 #: src/Modules/Calendar.php:519
 #: src/Modules/Mollie.php:201
 #: src/Modules/Reminders.php:545
@@ -12448,43 +12448,43 @@ msgstr "check-in effettuato"
 msgid "Ausnahme für eingecheckte Tickets, Grund:"
 msgstr "Eccezione per biglietti con check-in, motivo:"
 
-#: src/BoxOffice/Page.php:385
+#: src/BoxOffice/Page.php:386
 msgid "Wichtiger Hinweis:"
 msgstr "Avviso importante:"
 
-#: src/BoxOffice/Page.php:386
+#: src/BoxOffice/Page.php:387
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
 msgstr "La cassa non è un registratore di cassa ai sensi della RKSV (AT) o della KassenSichV/TSE (DE). Per i pagamenti in contanti e con carta in loco è necessaria un'unità di firma certificata."
 
-#: src/BoxOffice/Page.php:387
+#: src/BoxOffice/Page.php:388
 msgid "Mehr dazu in der Dokumentation"
 msgstr "Maggiori informazioni nella documentazione"
 
-#: src/BoxOffice/Page.php:387
+#: src/BoxOffice/Page.php:388
 msgid "(öffnet in neuem Tab)"
 msgstr "(si apre in una nuova scheda)"
 
-#: src/BoxOffice/Page.php:476
+#: src/BoxOffice/Page.php:477
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annullamento creato; è in attesa di approvazione."
 
-#: src/BoxOffice/Page.php:476
+#: src/BoxOffice/Page.php:477
 msgid "Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken."
 msgstr "Annullamento registrato. Restituisci l'importo o accreditalo sul terminale per carte e stampa la ricevuta di annullamento."
 
-#: src/BoxOffice/Page.php:492
+#: src/BoxOffice/Page.php:493
 msgid "Verkauf gebucht."
 msgstr "Vendita registrata."
 
-#: src/BoxOffice/Page.php:503
+#: src/BoxOffice/Page.php:504
 msgid "Zahlung am Terminal abgebrochen."
 msgstr "Pagamento al terminale annullato."
 
-#: src/BoxOffice/Page.php:543
+#: src/BoxOffice/Page.php:544
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Annullamento rifiutato; la vendita rimane valida."
 
-#: src/BoxOffice/Page.php:549
+#: src/BoxOffice/Page.php:550
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Per questa vendita non esiste una ricevuta perché non è stata registrata."
 
@@ -35174,11 +35174,11 @@ msgstr "Conteggio alla cieca predefinito per le nuove casse"
 msgid "Differenzen bis zum genannten Betrag brauchen beim Abschluss und bei der Übergabe keinen Grund (0 = jede Differenz). „Stückelung Pflicht“: Anfangsbestand, Zählung und Übergabe nach Scheinen und Münzen. Sprache leer = Sprache der Kassenoberfläche."
 msgstr "Le differenze fino all’importo indicato non richiedono motivo alla chiusura e al passaggio di consegne (0 = ogni differenza). «Tagli obbligatori»: fondo iniziale, conteggio e passaggio di consegne per banconote e monete. Lingua vuota = lingua dell’interfaccia di cassa."
 
-#: src/BoxOffice/Page.php:590
+#: src/BoxOffice/Page.php:591
 msgid "„Sprache der Kassenbons“: Bitte einen Sprachcode wie de_DE oder en_US angeben oder das Feld leer lassen."
 msgstr "«Lingua degli scontrini»: indica un codice lingua come de_DE o en_US oppure lascia il campo vuoto."
 
-#: src/BoxOffice/Page.php:601
+#: src/BoxOffice/Page.php:602
 msgid "„Kassendifferenz ohne Begründung bis“ darf nicht negativ sein."
 msgstr "«Differenza di cassa senza motivazione fino a» non può essere negativo."
 
@@ -36119,15 +36119,11 @@ msgstr "Comunicare la chiusura del turno al fornitore fiscale"
 msgid "Beim Kassenabschluss wird der Abschluss je Rechtsträger an den Fiskal-Anbieter übermittelt, sofern dessen Adapter das unterstützt. Ergebnis, Referenz und Signatur stehen im Z-Bericht und im Fiskal-Ereignisprotokoll. Nur mit aktivem Modul Fiskalisierung."
 msgstr "Alla chiusura di cassa, la chiusura viene inviata al fornitore fiscale per ogni soggetto giuridico se il suo adattatore lo supporta. Risultato, riferimento e firma compaiono nel rapporto Z e nel registro eventi fiscali. Solo con il modulo Fiscalizzazione attivo."
 
-#: src/BoxOffice/Page.php:359
-msgid "Keine Netzverbindung: Verkäufe, Stornos und Auszahlungen sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich."
-msgstr "Nessuna connessione di rete: vendite, storni e pagamenti sono bloccati finché la connessione non torna; nulla viene salvato temporaneamente. Senza rete sono possibili solo gli ingressi con l’app scanner."
-
-#: src/BoxOffice/Page.php:360
+#: src/BoxOffice/Page.php:361
 msgid "Wieder online: Verkäufe, Stornos und Auszahlungen sind wieder möglich."
 msgstr "Di nuovo online: vendite, storni e pagamenti sono di nuovo possibili."
 
-#: src/BoxOffice/Page.php:361
+#: src/BoxOffice/Page.php:362
 msgid "Ohne Netzverbindung gesperrt"
 msgstr "Bloccato senza connessione di rete"
 
@@ -36825,3 +36821,7 @@ msgstr "Un pacchetto lingua di WordPress ha la precedenza sul file incluso. I te
 #, php-format
 msgid "Rechnung nicht möglich – in den Rechnungsstellerdaten der Plattform fehlen: %s. Bitte in den Einstellungen unter „Rechnungssteller“ ergänzen."
 msgstr "Fattura non possibile – nei dati dell’emittente della piattaforma mancano: %s. Completali nelle impostazioni in «Emittente fatture»."
+
+#: src/BoxOffice/Page.php:360
+msgid "Keine Netzverbindung: Verkäufe, Stornos, Auszahlungen und Schichtbuchungen (Einlage, Entnahme, Zählung, Abschluss) sind gesperrt, bis die Verbindung wieder steht; nichts davon wird zwischengespeichert. Ohne Netz sind nur Einlässe mit der Scanner-App möglich."
+msgstr "Nessuna connessione di rete: vendite, storni, pagamenti e movimenti del turno (versamento, prelievo, conteggio, chiusura) sono bloccati finché la connessione non torna; nulla viene salvato temporaneamente. Senza rete sono possibili solo gli ingressi con l’app scanner."
