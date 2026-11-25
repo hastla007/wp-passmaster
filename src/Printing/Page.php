@@ -222,8 +222,13 @@ final class Page {
 		<?php self::render_ticket_pdf(); ?>
 
 		<?php if ( current_user_can( 'manage_options' ) ) : ?>
-		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<?php Forms::open_form( 'wpcap_print_settings' ); ?>
+		<h2 id="wpcap-print-margin"><?php esc_html_e( 'Druckrand', 'pass-captain' ); ?></h2>
+		<?php $margin_entry = \PassCaptain\SettingsSchema::get( 'print_margin_mm' ); ?>
+		<p><label for="wpcap-print-margin-mm"><?php esc_html_e( 'Druckrand (mm)', 'pass-captain' ); ?></label>
+		<input type="number" class="small-text" id="wpcap-print-margin-mm" name="print_margin_mm" min="<?php echo esc_attr( (string) Templates::MARGIN_MIN_MM ); ?>" max="<?php echo esc_attr( (string) Templates::MARGIN_MAX_MM ); ?>" step="1" required value="<?php echo esc_attr( (string) Templates::margin_mm() ); ?>" aria-describedby="wpcap-print-margin-help"></p>
+		<p class="description" id="wpcap-print-margin-help"><?php echo esc_html( $margin_entry ? (string) $margin_entry['help'] : '' ); ?></p>
+		<h2><?php esc_html_e( 'Rechnungs-PDF', 'pass-captain' ); ?></h2>
 		<p><label><input type="checkbox" name="print_attach_invoice_pdf" value="1" <?php checked( (bool) Settings::get( 'print_attach_invoice_pdf' ) ); ?>> <?php esc_html_e( 'Rechnung als PDF an die Ticket-E-Mail anhängen (wenn eine Rechnung existiert oder automatische Rechnungen aktiv sind)', 'pass-captain' ); ?></label></p>
 		<p class="description"><?php
 		/* translators: 1: placeholder for the order ID, e.g. <Bestell-ID>, 2: placeholder for the access token, e.g. <Token> */
@@ -572,7 +577,27 @@ final class Page {
 	public static function handle_settings() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_settings' );
-		Settings::update( array( 'print_attach_invoice_pdf' => Forms::flag( Forms::post(), 'print_attach_invoice_pdf' ) ? 1 : 0 ) );
-		Forms::finish( true, __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+		Forms::finish( self::save_settings( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
+	/**
+	 * Saves the print settings form: invoice PDF attachment and the print margin (owner decision
+	 * 25.11.2026). The margin is checked by the settings register (whole number 0–15 mm); an invalid value
+	 * is refused with a message and nothing is saved, never clamped to the nearest limit. An empty field
+	 * means the default (4 mm), as on the core settings screen.
+	 *
+	 * @param array $in Form input.
+	 * @return true|\WP_Error
+	 */
+	public static function save_settings( array $in ) {
+		$values = array( 'print_attach_invoice_pdf' => Forms::flag( $in, 'print_attach_invoice_pdf' ) ? 1 : 0 );
+		if ( array_key_exists( 'print_margin_mm', $in ) ) {
+			$raw = is_scalar( $in['print_margin_mm'] ) ? trim( (string) $in['print_margin_mm'] ) : $in['print_margin_mm'];
+			$values['print_margin_mm'] = '' === $raw ? Templates::MARGIN_DEFAULT_MM : $raw;
+		}
+		$checked = \PassCaptain\SettingsSchema::check_many( $values );
+		if ( is_wp_error( $checked ) ) { return new \WP_Error( $checked->get_error_code(), $checked->get_error_message(), array( 'status' => 400, 'field' => 'print_margin_mm' ) ); }
+		Settings::update( $checked );
+		return true;
 	}
 }

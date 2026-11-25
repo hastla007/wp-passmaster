@@ -97,9 +97,12 @@ final class InvoicePdf {
 		$seller = (array) ( $snapshot['seller'] ?? Invoices::seller() );
 		$cur = $invoice->currency;
 		$pdf = new PdfWriter();
-		$footer = static function ( PdfWriter $pdf, $page_label ) {
-			$pdf->line( 50, 50, 545, 50 );
-			$pdf->text( 545, 38, 8, $page_label, false, 'right' );
+		// Page label and rule above it keep the print margin (setting print_margin_mm); the text column
+		// starts 50 pt (17.6 mm) from the edge, more than the largest allowed margin.
+		$foot = max( 38.0, Templates::margin_mm() * PdfWriter::MM + 2 );
+		$footer = static function ( PdfWriter $pdf, $page_label ) use ( $foot ) {
+			$pdf->line( 50, $foot + 12, 545, $foot + 12 );
+			$pdf->text( 545, $foot, 8, $page_label, false, 'right' );
 		};
 
 		if ( ! $credit_note_id ) {
