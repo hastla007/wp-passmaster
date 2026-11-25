@@ -268,7 +268,7 @@ msgstr "Clave de API revocada."
 #: src/Modules/Mollie.php:205
 #: src/Modules/Reminders.php:580
 #: src/Modules/Sms.php:552
-#: src/Modules/Webhooks.php:445
+#: src/Modules/Webhooks.php:462
 #: src/OfflineScanner/AdminPage.php:125
 #: src/Ops/Network.php:244
 #: src/Ops/Network.php:260
@@ -366,6 +366,7 @@ msgstr "No hay eventos para los que puedas crear claves."
 #: src/Modules/GuestLists.php:96
 #: src/ParticipantFields.php:327
 #: src/Partners/AdminPage.php:273
+#: src/Partners/SalesModel.php:149
 #: src/Passes/AdminPage.php:172
 #: src/Printing/AttendeeList.php:44
 #: src/Printing/AttendeeList.php:45
@@ -414,7 +415,7 @@ msgstr "Nombre"
 #: src/Exchange/AdminPage.php:307
 #: src/GuestLists/Page.php:188
 #: src/Integrations/ConnectorsPage.php:250
-#: src/Integrations/WooCommerce/OrderAdapter.php:2357
+#: src/Integrations/WooCommerce/OrderAdapter.php:2358
 #: src/Mail/Types.php:100
 #: src/Mail/Types.php:201
 #: src/Mail/Types.php:573
@@ -554,9 +555,9 @@ msgstr "Válido hasta"
 #: src/Admin/ServicesPage.php:439
 #: src/Admin/ServicesPage.php:454
 #: src/Admin/ServicesPage.php:501
-#: src/Admin/StatusPage.php:305
-#: src/Admin/StatusPage.php:332
-#: src/Admin/StatusPage.php:451
+#: src/Admin/StatusPage.php:306
+#: src/Admin/StatusPage.php:333
+#: src/Admin/StatusPage.php:452
 #: src/Admin/SuiteStatus.php:129
 #: src/Admin/TaxPage.php:104
 #: src/Admin/TicketsPage.php:710
@@ -579,13 +580,13 @@ msgstr "Válido hasta"
 #: src/Integrations/ConnectorsPage.php:210
 #: src/Integrations/ConnectorsPage.php:230
 #: src/Integrations/FormCaptain/EventRequests.php:517
-#: src/Integrations/WooCommerce/OrderAdapter.php:2357
+#: src/Integrations/WooCommerce/OrderAdapter.php:2358
 #: src/Modules/Fiscalization.php:1368
 #: src/Modules/Fiscalization.php:1377
 #: src/Modules/Fiscalization.php:1433
 #: src/Modules/Fiscalization.php:1480
-#: src/Modules/Webhooks.php:459
-#: src/Modules/Webhooks.php:493
+#: src/Modules/Webhooks.php:476
+#: src/Modules/Webhooks.php:510
 #: src/OfflineScanner/AdminPage.php:173
 #: src/OfflineScanner/AdminPage.php:205
 #: src/OfflineScanner/AdminPage.php:222
@@ -628,7 +629,7 @@ msgstr "Estado"
 #: src/Admin/ServicesPage.php:454
 #: src/Admin/ServicesPage.php:501
 #: src/Admin/SettingsTools.php:267
-#: src/Admin/StatusPage.php:359
+#: src/Admin/StatusPage.php:360
 #: src/Admin/TaxPage.php:104
 #: src/Admin/WaitlistsPage.php:170
 #: src/Admission/RulesPage.php:205
@@ -639,7 +640,7 @@ msgstr "Estado"
 #: src/Integrations/ConnectorsPage.php:147
 #: src/Integrations/ConnectorsPage.php:210
 #: src/Integrations/ConnectorsPage.php:230
-#: src/Modules/Webhooks.php:459
+#: src/Modules/Webhooks.php:476
 #: src/OfflineScanner/AdminPage.php:173
 #: src/Partners/AdminPage.php:690
 #: src/Printing/Page.php:164
@@ -674,7 +675,7 @@ msgstr "Acciones"
 #: src/Modules/Mollie.php:229
 #: src/Modules/Reminders.php:603
 #: src/Modules/Sms.php:613
-#: src/Modules/Webhooks.php:485
+#: src/Modules/Webhooks.php:502
 #: src/OfflineScanner/AdminPage.php:168
 #: src/Partners/AdminPage.php:546
 #: src/Passes/AdminPage.php:258
@@ -936,7 +937,7 @@ msgstr "Fecha"
 #: src/Admin/OrdersPage.php:1486
 #: src/Admin/SecurityScreens.php:114
 #: src/Admin/SecurityScreens.php:215
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:407
 #: src/Admin/TicketsPage.php:711
 #: src/BulkRuns.php:720
 #: src/Consents.php:569
@@ -1040,7 +1041,7 @@ msgstr "Proveedores de servicios"
 #: src/Admin/AssignmentsPage.php:222
 #: src/Admin/MyServicesPage.php:105
 #: src/Integrations/ConnectorsPage.php:150
-#: src/Modules/Webhooks.php:461
+#: src/Modules/Webhooks.php:478
 msgid "deaktiviert"
 msgstr "desactivado"
 
@@ -1366,8 +1367,8 @@ msgstr "Error en la actualización de la base de datos"
 #: src/Admin/OrdersPage.php:1480
 #: src/Admin/ServiceSlotsPage.php:303
 #: src/Admin/ServicesPage.php:454
-#: src/Admin/StatusPage.php:381
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:382
+#: src/Admin/StatusPage.php:407
 #: src/Allocations/AdminPage.php:349
 #: src/Consents.php:706
 #: src/Modules/Fiscalization.php:1433
@@ -1391,7 +1392,7 @@ msgstr "Pedido"
 #: src/Consents.php:569
 #: src/Consents.php:706
 #: src/Exchange/AdminPage.php:224
-#: src/Integrations/WooCommerce/OrderAdapter.php:2357
+#: src/Integrations/WooCommerce/OrderAdapter.php:2358
 #: src/Printing/AttendeeList.php:45
 #: src/Printing/NoShowList.php:59
 #: src/TicketPage.php:106
@@ -1434,7 +1435,7 @@ msgstr "Factura"
 
 #: src/Admin/AuditLogPage.php:323
 #: src/Admin/OperationsPage.php:231
-#: src/Admin/StatusPage.php:381
+#: src/Admin/StatusPage.php:382
 #: src/BoxOffice/ZReport.php:423
 #: src/Modules/Fiscalization.php:1503
 #: src/Partners/Settlements.php:71
@@ -1570,8 +1571,8 @@ msgstr "%1$d entradas · horas en %2$s"
 #: src/Admin/AuditLogPage.php:393
 #: src/Admin/OperationsPage.php:206
 #: src/Admin/OrderHistory.php:144
-#: src/Admin/StatusPage.php:293
-#: src/Admin/StatusPage.php:359
+#: src/Admin/StatusPage.php:294
+#: src/Admin/StatusPage.php:360
 #: src/BoxOffice/ShiftPage.php:224
 #: src/Integrations/ConnectorsPage.php:210
 msgid "Zeit"
@@ -1898,14 +1899,14 @@ msgstr "inmediatamente"
 #: src/Admin/CampaignsPage.php:258
 #: src/Admin/EventsPage.php:2187
 #: src/Integrations/ConnectorsPage.php:153
-#: src/Modules/Webhooks.php:464
+#: src/Modules/Webhooks.php:481
 msgid "Deaktivieren"
 msgstr "Desactivar"
 
 #: src/Admin/CampaignsPage.php:260
 #: src/Admin/EventsPage.php:2187
 #: src/Integrations/ConnectorsPage.php:153
-#: src/Modules/Webhooks.php:464
+#: src/Modules/Webhooks.php:481
 #: src/Sales/TaxProfilesPage.php:91
 msgid "Aktivieren"
 msgstr "Activar"
@@ -2069,8 +2070,8 @@ msgstr "Genera códigos canjeables una sola vez con los ajustes de esta campaña
 #: src/Admin/OperationsPage.php:264
 #: src/Admin/OperationsPage.php:303
 #: src/Admin/ServicesPage.php:454
-#: src/Admin/StatusPage.php:332
-#: src/Admin/StatusPage.php:451
+#: src/Admin/StatusPage.php:333
+#: src/Admin/StatusPage.php:452
 #: src/Allocations/AdminPage.php:321
 #: src/BoxOffice/Page.php:125
 #: src/BoxOffice/ShiftPage.php:50
@@ -2932,9 +2933,9 @@ msgid "Wallet"
 msgstr "Wallet"
 
 #: src/Admin/Dashboard.php:147
-#: src/Modules/Webhooks.php:56
-#: src/Modules/Webhooks.php:112
-#: src/Modules/Webhooks.php:446
+#: src/Modules/Webhooks.php:58
+#: src/Modules/Webhooks.php:114
+#: src/Modules/Webhooks.php:463
 msgid "Webhooks"
 msgstr "Webhooks"
 
@@ -3321,7 +3322,7 @@ msgstr[1] "%d escaneos"
 #: src/Consents.php:578
 #: src/Consents.php:603
 #: src/Integrations/ConnectorsPage.php:235
-#: src/Integrations/WooCommerce/OrderAdapter.php:2355
+#: src/Integrations/WooCommerce/OrderAdapter.php:2356
 #: src/OfflineScanner/AdminPage.php:182
 #: src/Partners/AdminPage.php:625
 msgid "widerrufen"
@@ -4154,7 +4155,7 @@ msgstr "Nombre del evento"
 #: src/Admin/EventsPage.php:1821
 #: src/Admin/EventsPage.php:2097
 #: src/Mail/Admin.php:205
-#: src/Modules/Webhooks.php:475
+#: src/Modules/Webhooks.php:492
 msgid "Beschreibung"
 msgstr "Descripción"
 
@@ -4650,8 +4651,8 @@ msgstr "Clave técnica"
 #: src/Admin/EventsPage.php:2165
 #: src/Admin/EventsPage.php:2204
 #: src/Admin/OperationsPage.php:437
-#: src/Admin/StatusPage.php:332
-#: src/Admin/StatusPage.php:359
+#: src/Admin/StatusPage.php:333
+#: src/Admin/StatusPage.php:360
 msgid "Typ"
 msgstr "Tipo"
 
@@ -5371,7 +5372,7 @@ msgstr "solicitado"
 #: src/Admission/RulesPage.php:209
 #: src/Integrations/ConnectorsPage.php:150
 #: src/Integrations/ConnectorsPage.php:235
-#: src/Modules/Webhooks.php:461
+#: src/Modules/Webhooks.php:478
 #: src/OfflineScanner/AdminPage.php:182
 #: src/OfflineScanner/AdminPage.php:207
 #: src/OfflineScanner/AdminPage.php:224
@@ -6223,8 +6224,8 @@ msgstr "El proveedor de pagos no ha respondido de forma inequívoca a estos reem
 #: src/Admin/OperationsPage.php:231
 #: src/Admin/OrdersPage.php:1481
 #: src/Admin/ServicesPage.php:454
-#: src/Admin/StatusPage.php:381
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:382
+#: src/Admin/StatusPage.php:407
 #: src/BoxOffice/ShiftPage.php:224
 #: src/BoxOffice/ShiftPage.php:236
 #: src/BoxOffice/ShiftPage.php:243
@@ -6245,7 +6246,7 @@ msgid "Zahlungsanbieter"
 msgstr "Proveedor de pagos"
 
 #: src/Admin/OperationsPage.php:231
-#: src/Admin/StatusPage.php:381
+#: src/Admin/StatusPage.php:382
 msgid "Seit"
 msgstr "Desde"
 
@@ -6269,7 +6270,7 @@ msgid "Warnung"
 msgstr "Advertencia"
 
 #: src/Admin/OperationsPage.php:303
-#: src/Admin/StatusPage.php:451
+#: src/Admin/StatusPage.php:452
 #: src/Sales/TaxProfilesPage.php:82
 msgid "Prüfung"
 msgstr "Comprobación"
@@ -6380,7 +6381,7 @@ msgid "ältester fälliger Eintrag wartet seit %s"
 msgstr "el elemento vencido más antiguo lleva esperando %s"
 
 #: src/Admin/OperationsPage.php:431
-#: src/Admin/StatusPage.php:370
+#: src/Admin/StatusPage.php:371
 msgid "Keine fehlgeschlagenen Einträge."
 msgstr "No hay entradas fallidas."
 
@@ -6389,14 +6390,14 @@ msgid "ID"
 msgstr "ID"
 
 #: src/Admin/OperationsPage.php:437
-#: src/Admin/StatusPage.php:359
+#: src/Admin/StatusPage.php:360
 #: src/Integrations/ConnectorsPage.php:210
-#: src/Modules/Webhooks.php:493
+#: src/Modules/Webhooks.php:510
 msgid "Versuche"
 msgstr "Intentos"
 
 #: src/Admin/OperationsPage.php:437
-#: src/Admin/StatusPage.php:359
+#: src/Admin/StatusPage.php:360
 #: src/Admin/SuiteStatus.php:129
 msgid "Letzter Fehler"
 msgstr "Último error"
@@ -6417,7 +6418,7 @@ msgstr "Seleccionar el elemento %d"
 
 #: src/Admin/OperationsPage.php:447
 #: src/Admin/OperationsPage.php:457
-#: src/Admin/StatusPage.php:364
+#: src/Admin/StatusPage.php:365
 #: src/Modules/Fiscalization.php:1443
 msgid "Erneut versuchen"
 msgstr "Reintentar"
@@ -6428,7 +6429,7 @@ msgstr "¿Descartar definitivamente este elemento?"
 
 #: src/Admin/OperationsPage.php:448
 #: src/Admin/OperationsPage.php:457
-#: src/Admin/StatusPage.php:365
+#: src/Admin/StatusPage.php:366
 msgid "Verwerfen"
 msgstr "Descartar"
 
@@ -6512,7 +6513,7 @@ msgstr "Origen"
 #: src/Admin/OrderHistory.php:144
 #: src/Integrations/ConnectorsPage.php:210
 #: src/Modules/Fiscalization.php:1480
-#: src/Modules/Webhooks.php:493
+#: src/Modules/Webhooks.php:510
 msgid "Ereignis"
 msgstr "Evento"
 
@@ -8192,7 +8193,7 @@ msgstr "¿Eliminar el recurso con todas sus franjas horarias? Solo es posible mi
 #: src/Admin/ServiceSlotsPage.php:448
 #: src/Admin/ServicesPage.php:413
 #: src/Integrations/ConnectorsPage.php:154
-#: src/Modules/Webhooks.php:466
+#: src/Modules/Webhooks.php:483
 #: src/Partners/AdminPage.php:531
 #: src/Partners/AdminPage.php:698
 #: src/Seating/AdminPage.php:181
@@ -8284,7 +8285,7 @@ msgstr "Entrada de la lista de espera no encontrada."
 
 #: src/Admin/ServicesPage.php:211
 #: src/Integrations/ConnectorsPage.php:103
-#: src/Modules/Webhooks.php:421
+#: src/Modules/Webhooks.php:438
 #: src/Partners/AdminPage.php:196
 msgid "Gespeichert."
 msgstr "Guardado."
@@ -9412,6 +9413,7 @@ msgid "Name / Firma"
 msgstr "Nombre / Empresa"
 
 #: src/Admin/SettingsPage.php:487
+#: src/Partners/SalesModel.php:150
 msgid "Anschrift"
 msgstr "Dirección"
 
@@ -9723,6 +9725,7 @@ msgid "Fassung"
 msgstr "Versión"
 
 #: src/Admin/SettingsPage.php:1304
+#: src/Admin/TranslationStatus.php:144
 #: src/Consents.php:706
 #: src/Mail/Admin.php:237
 msgid "Sprache"
@@ -9841,7 +9844,7 @@ msgstr "OK"
 
 #: src/Admin/SettingsPage.php:459
 #: src/Admin/StatusPage.php:222
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 #: src/Log.php:398
 #: src/OfflineScanner/I18n.php:149
 msgid "Fehler"
@@ -9855,210 +9858,210 @@ msgstr "Operación"
 msgid "Bereiche des Systemstatus"
 msgstr "Secciones del estado del sistema"
 
-#: src/Admin/StatusPage.php:274
+#: src/Admin/StatusPage.php:275
 msgid "Keine Auffälligkeiten im Hintergrundbetrieb."
 msgstr "No hay incidencias en el procesamiento en segundo plano."
 
-#: src/Admin/StatusPage.php:285
+#: src/Admin/StatusPage.php:286
 msgid "Letzte Betriebsalarme"
 msgstr "Últimas alertas operativas"
 
 #. translators: %s: e-mail address(es)
-#: src/Admin/StatusPage.php:288
+#: src/Admin/StatusPage.php:289
 #, php-format
 msgid "Alarme gehen per E-Mail an: %s (Einstellungen → E-Mail-Versand)."
 msgstr "Las alertas se envían por correo a: %s (Ajustes → Envío de correo)."
 
 #. translators: %s: e-mail address(es)
-#: src/Admin/StatusPage.php:288
+#: src/Admin/StatusPage.php:289
 msgid "Keine gültige Empfängeradresse für Alarme eingestellt."
 msgstr "No hay ninguna dirección de destinatario válida para las alertas."
 
-#: src/Admin/StatusPage.php:290
+#: src/Admin/StatusPage.php:291
 msgid "Bisher keine Alarme."
 msgstr "Todavía no hay alertas."
 
-#: src/Admin/StatusPage.php:293
+#: src/Admin/StatusPage.php:294
 msgid "Alarm"
 msgstr "Alerta"
 
-#: src/Admin/StatusPage.php:301
+#: src/Admin/StatusPage.php:302
 msgid "WP-Cron und Worker"
 msgstr "WP-Cron y workers"
 
-#: src/Admin/StatusPage.php:303
+#: src/Admin/StatusPage.php:304
 msgid "WP-Cron ist deaktiviert (DISABLE_WP_CRON). Ein externer Cron-Job muss wp-cron.php regelmäßig (mindestens alle 5 Minuten) aufrufen."
 msgstr "WP-Cron está desactivado (DISABLE_WP_CRON). Una tarea cron externa debe llamar a wp-cron.php con regularidad (al menos cada 5 minutos)."
 
-#: src/Admin/StatusPage.php:305
+#: src/Admin/StatusPage.php:306
 msgid "Aufgabe"
 msgstr "Tarea"
 
-#: src/Admin/StatusPage.php:305
+#: src/Admin/StatusPage.php:306
 msgid "Cron-Hook"
 msgstr "Hook de cron"
 
-#: src/Admin/StatusPage.php:305
+#: src/Admin/StatusPage.php:306
 msgid "Nächster Lauf"
 msgstr "Próxima ejecución"
 
-#: src/Admin/StatusPage.php:305
+#: src/Admin/StatusPage.php:306
 msgid "Letzter erfolgreicher Lauf"
 msgstr "Última ejecución correcta"
 
-#: src/Admin/StatusPage.php:310
+#: src/Admin/StatusPage.php:311
 msgid "Weitere Worker:"
 msgstr "Otros workers:"
 
-#: src/Admin/StatusPage.php:314
+#: src/Admin/StatusPage.php:315
 msgid "noch kein Lauf"
 msgstr "aún sin ejecución"
 
-#: src/Admin/StatusPage.php:320
+#: src/Admin/StatusPage.php:321
 msgid "Warteschlangen"
 msgstr "Colas"
 
-#: src/Admin/StatusPage.php:321
+#: src/Admin/StatusPage.php:322
 msgid "Queue"
 msgstr "Cola"
 
-#: src/Admin/StatusPage.php:321
+#: src/Admin/StatusPage.php:322
 msgid "Offen nach Status"
 msgstr "Abiertos por estado"
 
-#: src/Admin/StatusPage.php:321
+#: src/Admin/StatusPage.php:322
 msgid "Überfällig (> 30 Min.)"
 msgstr "Vencidos (> 30 min)"
 
-#: src/Admin/StatusPage.php:321
+#: src/Admin/StatusPage.php:322
 msgid "Lange in Bearbeitung (> 5 Min.)"
 msgstr "En proceso desde hace tiempo (> 5 min)"
 
-#: src/Admin/StatusPage.php:332
+#: src/Admin/StatusPage.php:333
 msgid "Jobs nach Status und Typ"
 msgstr "Trabajos por estado y tipo"
 
-#: src/Admin/StatusPage.php:332
+#: src/Admin/StatusPage.php:333
 msgid "Ältester fälliger"
 msgstr "El más antiguo pendiente"
 
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 msgid "E-Mail-Versandfehler"
 msgstr "Errores de envío de correo electrónico"
 
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 msgid "Nachrichten"
 msgstr "Mensajes"
 
-#: src/Admin/StatusPage.php:340
+#: src/Admin/StatusPage.php:341
 #: src/Admission/ConflictsPage.php:91
 msgid "Zuletzt"
 msgstr "Último"
 
-#: src/Admin/StatusPage.php:344
+#: src/Admin/StatusPage.php:345
 msgid "Häufige Ursachen: SMTP-Plugin falsch konfiguriert, Absenderadresse nicht erlaubt, Versandlimit des Hosters."
 msgstr "Causas frecuentes: plugin SMTP mal configurado, dirección de remitente no permitida, límite de envío del proveedor de alojamiento."
 
-#: src/Admin/StatusPage.php:349
+#: src/Admin/StatusPage.php:350
 msgid "Fehlgeschlagene Einträge"
 msgstr "Entradas fallidas"
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:358
+#: src/Admin/StatusPage.php:359
 #, php-format
 msgid "Alle %1$d erneut versuchen (höchstens %2$d pro Klick)"
 msgstr "Reintentar las %1$d (como máximo %2$d por clic)"
 
 #. translators: 1: number of failed items, 2: maximum per click
-#: src/Admin/StatusPage.php:358
+#: src/Admin/StatusPage.php:359
 msgid "Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?"
 msgstr "¿Reintentar todas las entradas fallidas de esta cola?"
 
-#: src/Admin/StatusPage.php:365
+#: src/Admin/StatusPage.php:366
 msgid "Eintrag endgültig verwerfen?"
 msgstr "¿Descartar definitivamente esta entrada?"
 
-#: src/Admin/StatusPage.php:375
+#: src/Admin/StatusPage.php:376
 msgid "Erstattungen zur manuellen Prüfung"
 msgstr "Reembolsos para revisión manual"
 
-#: src/Admin/StatusPage.php:377
+#: src/Admin/StatusPage.php:378
 msgid "Keine Erstattung wartet auf eine manuelle Prüfung."
 msgstr "No hay ningún reembolso pendiente de revisión manual."
 
-#: src/Admin/StatusPage.php:380
+#: src/Admin/StatusPage.php:381
 msgid "Bei diesen Erstattungen brach der Ablauf während des Aufrufs beim Zahlungsanbieter ab. Bitte im Konto des Anbieters prüfen, ob ausgezahlt wurde: „Erledigt“ verbucht die Erstattung (Tickets werden widerrufen), „Fehlgeschlagen“ gibt sie für einen neuen Versuch frei."
 msgstr "En estos reembolsos, el proceso se interrumpió durante la llamada al proveedor de pagos. Comprueba en la cuenta del proveedor si se ha realizado el pago: «Hecho» contabiliza el reembolso (las entradas se revocan) y «Fallido» lo libera para un nuevo intento."
 
-#: src/Admin/StatusPage.php:381
+#: src/Admin/StatusPage.php:382
 msgid "Entscheidung"
 msgstr "Decisión"
 
-#: src/Admin/StatusPage.php:386
+#: src/Admin/StatusPage.php:387
 msgid "Anbieter-Referenz oder Notiz"
 msgstr "Referencia del proveedor o nota"
 
-#: src/Admin/StatusPage.php:386
+#: src/Admin/StatusPage.php:387
 msgid "Anbieter-Referenz / Notiz"
 msgstr "Referencia del proveedor / nota"
 
-#: src/Admin/StatusPage.php:387
+#: src/Admin/StatusPage.php:388
 msgid "Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht."
 msgstr "¿El proveedor de pagos ha abonado realmente el reembolso? Ahora se contabilizará."
 
-#: src/Admin/StatusPage.php:387
+#: src/Admin/StatusPage.php:388
 msgid "Manuell als erledigt markieren"
 msgstr "Marcar como hecho manualmente"
 
-#: src/Admin/StatusPage.php:388
+#: src/Admin/StatusPage.php:389
 msgid "Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?"
 msgstr "¿Seguro que el proveedor de pagos no ha abonado nada?"
 
-#: src/Admin/StatusPage.php:388
+#: src/Admin/StatusPage.php:389
 msgid "Als fehlgeschlagen markieren"
 msgstr "Marcar como fallido"
 
-#: src/Admin/StatusPage.php:396
+#: src/Admin/StatusPage.php:397
 msgid "Zahlungen zur Klärung"
 msgstr "Pagos por aclarar"
 
-#: src/Admin/StatusPage.php:398
+#: src/Admin/StatusPage.php:399
 msgid "Keine offenen Fälle."
 msgstr "No hay casos abiertos."
 
-#: src/Admin/StatusPage.php:402
+#: src/Admin/StatusPage.php:403
 msgid "Zahlung auf stornierte/abgelaufene Bestellung"
 msgstr "Pago de un pedido cancelado/caducado"
 
-#: src/Admin/StatusPage.php:403
+#: src/Admin/StatusPage.php:404
 msgid "Doppelzahlung"
 msgstr "Pago duplicado"
 
-#: src/Admin/StatusPage.php:404
+#: src/Admin/StatusPage.php:405
 msgid "Erstattung beim Anbieter fehlgeschlagen"
 msgstr "Reembolso fallido en el proveedor"
 
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:407
 msgid "Fall"
 msgstr "Caso"
 
-#: src/Admin/StatusPage.php:406
+#: src/Admin/StatusPage.php:407
 msgid "Anbieter / Referenz"
 msgstr "Proveedor / referencia"
 
-#: src/Admin/StatusPage.php:408
+#: src/Admin/StatusPage.php:409
 msgid "automatische Erstattung fehlgeschlagen"
 msgstr "reembolso automático fallido"
 
-#: src/Admin/StatusPage.php:412
+#: src/Admin/StatusPage.php:413
 msgid "Betrag jetzt beim Zahlungsanbieter erstatten?"
 msgstr "¿Reembolsar ahora el importe en el proveedor de pagos?"
 
-#: src/Admin/StatusPage.php:412
+#: src/Admin/StatusPage.php:413
 msgid "Beim Anbieter erstatten"
 msgstr "Reembolsar en el proveedor"
 
-#: src/Admin/StatusPage.php:414
+#: src/Admin/StatusPage.php:415
 #: src/Admission/ConflictsPage.php:116
 #: src/Allocations/AdminPage.php:328
 #: src/BoxOffice/ShiftPage.php:142
@@ -10069,79 +10072,79 @@ msgstr "Reembolsar en el proveedor"
 msgid "Notiz"
 msgstr "Nota"
 
-#: src/Admin/StatusPage.php:415
+#: src/Admin/StatusPage.php:416
 msgid "Als erledigt markieren"
 msgstr "Marcar como resuelto"
 
-#: src/Admin/StatusPage.php:421
+#: src/Admin/StatusPage.php:422
 #: src/Operations/SiteHealth.php:716
 msgid "Datenbankschema"
 msgstr "Esquema de la base de datos"
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:424
+#: src/Admin/StatusPage.php:425
 #, php-format
 msgid "Transaktions-Isolation des Servers: %s (Bestell- und Zahlungstransaktionen laufen immer mit REPEATABLE READ)."
 msgstr "Aislamiento de transacciones del servidor: %s (las transacciones de pedidos y pagos se ejecutan siempre con REPEATABLE READ)."
 
 #. translators: %s: transaction isolation level of the database server, e.g. REPEATABLE-READ
-#: src/Admin/StatusPage.php:424
+#: src/Admin/StatusPage.php:425
 #: src/Operations/SiteHealth.php:739
 msgid "unbekannt"
 msgstr "desconocido"
 
-#: src/Admin/StatusPage.php:428
+#: src/Admin/StatusPage.php:429
 msgid "Aktuell."
 msgstr "Actualizado."
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:434
+#: src/Admin/StatusPage.php:435
 #, php-format
 msgid "Die Aktualisierung ist %1$d-mal in Folge fehlgeschlagen. Nächster automatischer Versuch: %2$s."
 msgstr "La actualización ha fallado %1$d veces seguidas. Próximo intento automático: %2$s."
 
 #. translators: 1: number of failed attempts, 2: time of the next automatic attempt
-#: src/Admin/StatusPage.php:434
+#: src/Admin/StatusPage.php:435
 msgid "bei der nächsten Admin- oder Cron-Anfrage"
 msgstr "en la próxima solicitud de administración o cron"
 
 #. translators: 1: stored schema version, 2: expected schema version
-#: src/Admin/StatusPage.php:438
+#: src/Admin/StatusPage.php:439
 #, php-format
 msgid "Gespeicherte Version %1$s, erwartet %2$s."
 msgstr "Versión guardada %1$s, se esperaba %2$s."
 
-#: src/Admin/StatusPage.php:440
+#: src/Admin/StatusPage.php:441
 msgid "Jetzt erneut versuchen"
 msgstr "Reintentar ahora"
 
-#: src/Admin/StatusPage.php:444
+#: src/Admin/StatusPage.php:445
 msgid "Diagnose und Abgleich"
 msgstr "Diagnóstico y conciliación"
 
-#: src/Admin/StatusPage.php:445
+#: src/Admin/StatusPage.php:446
 msgid "Sucht nach inkonsistenten Daten. Die Prüfung ändert nichts; Reparaturen gibt es nur, wo sie gefahrlos wiederholbar sind, und sie werden im Audit-Log protokolliert. Auch per WP-CLI: wp pass-captain diagnose"
 msgstr "Busca datos incoherentes. La comprobación no modifica nada; solo se ofrecen reparaciones cuando pueden repetirse sin riesgo, y quedan registradas en el registro de auditoría. También mediante WP-CLI: wp pass-captain diagnose"
 
-#: src/Admin/StatusPage.php:446
+#: src/Admin/StatusPage.php:447
 msgid "Diagnose ausführen"
 msgstr "Ejecutar diagnóstico"
 
 #. translators: %s: date and time
-#: src/Admin/StatusPage.php:450
+#: src/Admin/StatusPage.php:451
 #, php-format
 msgid "Letzte Diagnose: %s"
 msgstr "Último diagnóstico: %s"
 
-#: src/Admin/StatusPage.php:451
+#: src/Admin/StatusPage.php:452
 msgid "Beispiele und empfohlene Maßnahme"
 msgstr "Ejemplos y medida recomendada"
 
-#: src/Admin/StatusPage.php:469
+#: src/Admin/StatusPage.php:470
 msgid "Reparieren"
 msgstr "Reparar"
 
-#: src/Admin/StatusPage.php:469
+#: src/Admin/StatusPage.php:470
 msgid "Reparatur jetzt ausführen?"
 msgstr "¿Ejecutar la reparación ahora?"
 
@@ -12437,7 +12440,7 @@ msgid "Nur einzelne Tickets stornieren"
 msgstr "Anular solo algunas entradas"
 
 #: src/BoxOffice/Page.php:334
-#: src/Integrations/WooCommerce/OrderAdapter.php:2354
+#: src/Integrations/WooCommerce/OrderAdapter.php:2355
 msgid "eingecheckt"
 msgstr "con check-in"
 
@@ -16133,7 +16136,7 @@ msgid "Ausstellen"
 msgstr "Emitir"
 
 #: src/GuestLists/Page.php:280
-#: src/Modules/Webhooks.php:496
+#: src/Modules/Webhooks.php:513
 msgid "Erneut senden"
 msgstr "Reenviar"
 
@@ -16627,8 +16630,8 @@ msgstr "URL de destino"
 #: src/Integrations/ConnectorsPage.php:147
 #: src/Integrations/ConnectorsPage.php:177
 #: src/Integrations/WorkflowCaptain/Status.php:105
-#: src/Modules/Webhooks.php:459
 #: src/Modules/Webhooks.php:476
+#: src/Modules/Webhooks.php:493
 msgid "Ereignisse"
 msgstr "Eventos"
 
@@ -16713,7 +16716,7 @@ msgid "JSON-Schlüssel, Zeile %d"
 msgstr "Clave JSON, fila %d"
 
 #: src/Integrations/ConnectorsPage.php:195
-#: src/Modules/Webhooks.php:478
+#: src/Modules/Webhooks.php:495
 msgid "Personenbezogene Daten"
 msgstr "Datos personales"
 
@@ -16730,7 +16733,7 @@ msgid "Zustellprotokoll"
 msgstr "Registro de entregas"
 
 #: src/Integrations/ConnectorsPage.php:207
-#: src/Modules/Webhooks.php:490
+#: src/Modules/Webhooks.php:507
 msgid "Noch keine Zustellungen."
 msgstr "Aún no hay entregas."
 
@@ -17359,237 +17362,237 @@ msgstr "Tramo de precio"
 msgid "statt %s"
 msgstr "en lugar de %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:180
+#: src/Integrations/WooCommerce/OrderAdapter.php:181
 msgid "— Kein Ticketprodukt —"
 msgstr "— Sin producto de entrada —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:188
+#: src/Integrations/WooCommerce/OrderAdapter.php:189
 msgid "nicht im Verkauf"
 msgstr "no está a la venta"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:196
+#: src/Integrations/WooCommerce/OrderAdapter.php:197
 msgid "keine Berechtigung für diese Veranstaltung – nicht änderbar"
 msgstr "sin permiso para este evento: no se puede modificar"
 
 #. translators: %d: ticket type ID
-#: src/Integrations/WooCommerce/OrderAdapter.php:199
+#: src/Integrations/WooCommerce/OrderAdapter.php:200
 #, php-format
 msgid "Unbekannte Ticketart #%d"
 msgstr "Tipo de entrada desconocido n.º %d"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:205
+#: src/Integrations/WooCommerce/OrderAdapter.php:206
 msgid "Pass Captain Ticketart"
 msgstr "Tipo de entrada de Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:207
+#: src/Integrations/WooCommerce/OrderAdapter.php:208
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Este producto vende entradas del tipo seleccionado. El cupo, la ventana de venta, la cantidad máxima y, según el ajuste de WooCommerce, el precio, incluidos los tramos de precio, proceden de Pass Captain. Deja desactivada la gestión de inventario de WooCommerce para este producto."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:208
+#: src/Integrations/WooCommerce/OrderAdapter.php:209
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "Este producto vende entradas del tipo seleccionado. El cupo, la ventana de venta y la cantidad máxima proceden de Pass Captain; el precio procede de WooCommerce. Deja desactivada la gestión de inventario de WooCommerce para este producto."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:216
+#: src/Integrations/WooCommerce/OrderAdapter.php:217
 msgid "— Verkäufer für normales Produkt wählen —"
 msgstr "— Elige el vendedor del producto normal —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:218
+#: src/Integrations/WooCommerce/OrderAdapter.php:219
 msgid "Fiskalischer Verkäufer (normales WooCommerce-Produkt)"
 msgstr "Vendedor fiscal (producto normal de WooCommerce)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:218
+#: src/Integrations/WooCommerce/OrderAdapter.php:219
 msgid "Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart."
 msgstr "Para carritos mixtos. Los productos de entrada siguen usando el vendedor asignado al tipo de entrada de Pass Captain."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:219
+#: src/Integrations/WooCommerce/OrderAdapter.php:220
 #: src/Modules/Fiscalization.php:1425
 msgid "Verkäuferrolle"
 msgstr "Rol del vendedor"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:219
+#: src/Integrations/WooCommerce/OrderAdapter.php:220
 #: src/Modules/Fiscalization.php:1425
 msgid "Betreibergesellschaft ist Verkäufer"
 msgstr "La empresa operadora es el vendedor"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:219
+#: src/Integrations/WooCommerce/OrderAdapter.php:220
 #: src/Modules/Fiscalization.php:1425
 msgid "Veranstalter ist Verkäufer"
 msgstr "El organizador es el vendedor"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:236
+#: src/Integrations/WooCommerce/OrderAdapter.php:237
 msgid "Die Ticketart wurde nicht geändert: Du darfst nur Ticketarten von Veranstaltungen verknüpfen, die du verwaltest."
 msgstr "El tipo de entrada no se ha modificado: solo puedes vincular tipos de entrada de eventos que gestiones."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:520
+#: src/Integrations/WooCommerce/OrderAdapter.php:521
 msgid "Diese Ticketart existiert nicht mehr."
 msgstr "Este tipo de entrada ya no existe."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:526
+#: src/Integrations/WooCommerce/OrderAdapter.php:527
 #, php-format
 msgid "„%s“ ist nicht mehr buchbar."
 msgstr "«%s» ya no se puede reservar."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:530
+#: src/Integrations/WooCommerce/OrderAdapter.php:531
 #, php-format
 msgid "Der Verkauf für „%s“ ist derzeit geschlossen."
 msgstr "La venta de «%s» está cerrada actualmente."
 
 #. translators: 1: max quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:534
+#: src/Integrations/WooCommerce/OrderAdapter.php:535
 #, php-format
 msgid "Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich."
 msgstr "Por pedido solo se permiten como máximo %1$d entradas para «%2$s»."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:540
+#: src/Integrations/WooCommerce/OrderAdapter.php:541
 #, php-format
 msgid "„%s“ ist ausverkauft."
 msgstr "«%s» está agotada."
 
 #. translators: 1: available quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:542
+#: src/Integrations/WooCommerce/OrderAdapter.php:543
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d Tickets verfügbar."
 msgstr "Para «%2$s» solo quedan %1$d entradas disponibles."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:548
+#: src/Integrations/WooCommerce/OrderAdapter.php:549
 #, php-format
 msgid "Für „%s“ sind keine passenden Sitzplätze mehr frei."
 msgstr "Para «%s» ya no quedan plazas adecuadas libres."
 
 #. translators: 1: free seats, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:550
+#: src/Integrations/WooCommerce/OrderAdapter.php:551
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei."
 msgstr "Para «%2$s» solo quedan %1$d plazas adecuadas libres."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:652
+#: src/Integrations/WooCommerce/OrderAdapter.php:653
 msgid "Für Tickets wird eine gültige E-Mail-Adresse benötigt."
 msgstr "Para las entradas se necesita una dirección de correo electrónico válida."
 
 #. translators: 1: hold minutes, 2: number of seller orders, 3: list of orders and sellers
-#: src/Integrations/WooCommerce/OrderAdapter.php:743
+#: src/Integrations/WooCommerce/OrderAdapter.php:744
 #, php-format
 msgid "Pass Captain: Tickets für %1$d Minuten reserviert, aufgeteilt auf %2$d Bestellungen je Rechnungssteller: %3$s."
 msgstr "Pass Captain: entradas reservadas durante %1$d minutos, repartidas en %2$d pedidos por emisor de facturas: %3$s."
 
 #. translators: %d: hold minutes
-#: src/Integrations/WooCommerce/OrderAdapter.php:746
+#: src/Integrations/WooCommerce/OrderAdapter.php:747
 #, php-format
 msgid "Pass Captain: Tickets für %d Minute reserviert."
 msgid_plural "Pass Captain: Tickets für %d Minuten reserviert."
 msgstr[0] "Pass Captain: entradas reservadas durante %d minuto."
 msgstr[1] "Pass Captain: entradas reservadas durante %d minutos."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1018
+#: src/Integrations/WooCommerce/OrderAdapter.php:1019
 msgid "Ein Rabatt als negative Gebühr kann in dieser Bestellung nicht auf dem Fiskalbeleg abgebildet werden, weil er auch auf andere Produkte als Tickets entfällt. Bitte einen Gutschein (Coupon) verwenden oder die Tickets getrennt bestellen."
 msgstr "Un descuento añadido como tarifa negativa no puede reflejarse en el recibo fiscal de este pedido porque también afecta a productos que no son entradas. Usa un cupón o pide las entradas por separado."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1054
+#: src/Integrations/WooCommerce/OrderAdapter.php:1055
 msgid "Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem rechtlichen Verkäufer zugeordnet sein."
 msgstr "Cada producto, tarifa y línea de envío adicional de un pedido con entradas fiscales debe asignarse a un vendedor jurídico."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1082
+#: src/Integrations/WooCommerce/OrderAdapter.php:1083
 msgid "Negative Beträge müssen als WooCommerce-Rabatt (Gutschein) statt als negative Position eingerichtet werden."
 msgstr "Los importes negativos deben configurarse como descuento de WooCommerce (cupón) en lugar de una línea negativa."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1086
+#: src/Integrations/WooCommerce/OrderAdapter.php:1087
 msgid "Eine zusätzliche Warenkorbposition enthält mehrere Steuersätze und kann nicht sicher einem Fiskalbeleg zugeordnet werden."
 msgstr "Una línea adicional del carrito contiene varios tipos impositivos y no puede asignarse con seguridad a un recibo fiscal."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1091
+#: src/Integrations/WooCommerce/OrderAdapter.php:1092
 msgid "Der WooCommerce-Steuersatz für eine zusätzliche Position konnte nicht eindeutig bestimmt werden."
 msgstr "No se pudo determinar con certeza el tipo impositivo de WooCommerce de una línea adicional."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1173
+#: src/Integrations/WooCommerce/OrderAdapter.php:1174
 #, php-format
 msgid "Pass Captain: Tickets konnten nicht reserviert werden: %s"
 msgstr "Pass Captain: no se han podido reservar las entradas: %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1181
+#: src/Integrations/WooCommerce/OrderAdapter.php:1182
 msgid "Pass Captain: Die Bestellung wurde nicht über den Checkout angelegt; Pflichtangaben zu Teilnehmenden fehlen. Die Tickets werden trotzdem ausgestellt – die Kundschaft ergänzt die Angaben über den Bestelllink aus der Ticket-E-Mail."
 msgstr "Pass Captain: el pedido no se creó a través del checkout; faltan datos obligatorios de los asistentes. Las entradas se emiten igualmente: el cliente completa los datos mediante el enlace del pedido en el correo de las entradas."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1206
+#: src/Integrations/WooCommerce/OrderAdapter.php:1207
 msgid "Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt."
 msgstr "Pass Captain: las entradas siguen reservadas y se emitirán tras revisar el pedido."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1217
+#: src/Integrations/WooCommerce/OrderAdapter.php:1218
 msgid "Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird."
 msgstr "Pass Captain: pago contra reembolso/recogida; las entradas permanecen reservadas y se emitirán en cuanto el pedido pase a «Completado»."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1236
+#: src/Integrations/WooCommerce/OrderAdapter.php:1237
 #, php-format
 msgid "Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s"
 msgstr "Pass Captain: pago recibido, pero no se han podido volver a reservar las entradas; resuélvelo manualmente. %s"
 
 #. translators: 1: seller order prefix (may be empty), 2: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1304
+#: src/Integrations/WooCommerce/OrderAdapter.php:1305
 #, php-format
 msgid "Pass Captain: %1$sKeine Tickets ausgestellt – %2$s"
 msgstr "Pass Captain: %1$sNo se han emitido entradas – %2$s"
 
 #. translators: %s: seller order prefix (may be empty)
-#: src/Integrations/WooCommerce/OrderAdapter.php:1311
+#: src/Integrations/WooCommerce/OrderAdapter.php:1312
 #, php-format
 msgid "Pass Captain: %sZahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus unter Pass Captain → Fiskalisierung prüfen oder den Fiskal-Retry auslösen."
 msgstr "Pass Captain: %sPago aceptado, las entradas siguen esperando la fiscalización. Revisa el estado fiscal en Pass Captain → Fiscalización o lanza el reintento fiscal."
 
 #. translators: 1: seller order prefix (may be empty), 2: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1315
+#: src/Integrations/WooCommerce/OrderAdapter.php:1316
 #, php-format
 msgid "Pass Captain: %1$s%2$d Ticket ausgestellt und per E-Mail versendet."
 msgid_plural "Pass Captain: %1$s%2$d Tickets ausgestellt und per E-Mail versendet."
 msgstr[0] "Pass Captain: %1$s%2$d entrada emitida y enviada por correo electrónico."
 msgstr[1] "Pass Captain: %1$s%2$d entradas emitidas y enviadas por correo electrónico."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1350
+#: src/Integrations/WooCommerce/OrderAdapter.php:1351
 msgid "Pass Captain: Die Erstattung konnte gerade nicht übernommen werden (Datenbank ausgelastet); sie wird automatisch erneut versucht."
 msgstr "Pass Captain: no se ha podido registrar el reembolso en este momento (base de datos saturada); se reintentará automáticamente."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1351
+#: src/Integrations/WooCommerce/OrderAdapter.php:1352
 msgid "Pass Captain: Die Zahlung konnte gerade nicht verbucht werden (Datenbank ausgelastet); die Tickets werden automatisch erneut ausgestellt."
 msgstr "Pass Captain: no se ha podido contabilizar el pago en este momento (base de datos saturada); las entradas se emitirán automáticamente más tarde."
 
 #. translators: %s: list of Pass Captain order IDs
-#: src/Integrations/WooCommerce/OrderAdapter.php:1513
+#: src/Integrations/WooCommerce/OrderAdapter.php:1514
 #, php-format
 msgid "Pass Captain: Bestellung in den Papierkorb verschoben. Die Tickets der bezahlten Bestellung(en) %s bleiben gültig – für einen Widerruf die Bestellung erstatten oder stornieren."
 msgstr "Pass Captain: pedido movido a la papelera. Las entradas de los pedidos pagados %s siguen siendo válidas; para revocarlas, reembolsa o cancela el pedido."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1536
+#: src/Integrations/WooCommerce/OrderAdapter.php:1537
 #, php-format
 msgid "Pass Captain: Bestellung wiederhergestellt, aber die Tickets konnten nicht erneut reserviert werden: %s"
 msgstr "Pass Captain: pedido restaurado, pero no se han podido volver a reservar las entradas: %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1557
+#: src/Integrations/WooCommerce/OrderAdapter.php:1558
 msgid "Pass Captain: Status „Fehlgeschlagen“ für eine bereits bezahlte Bestellung – die Tickets bleiben gültig. Zum Stornieren die Bestellung auf „Storniert“ setzen."
 msgstr "Pass Captain: estado «Fallido» para un pedido ya pagado; las entradas siguen siendo válidas. Para anularlo, pon el pedido en «Cancelado»."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1671
+#: src/Integrations/WooCommerce/OrderAdapter.php:1672
 #, php-format
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain: el reembolso aún no se ha podido aplicar (%s). Se reintentará automáticamente."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:1673
+#: src/Integrations/WooCommerce/OrderAdapter.php:1674
 #, php-format
 msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
 msgstr "Pass Captain: No se pudo aplicar el reembolso – %s. Se reintentará automáticamente; si sigue fallando, la tarea aparecerá en la página Pass Captain → Estado del sistema."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:1708
+#: src/Integrations/WooCommerce/OrderAdapter.php:1709
 msgid "Erstattung in WooCommerce"
 msgstr "Reembolso en WooCommerce"
 
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1730
+#: src/Integrations/WooCommerce/OrderAdapter.php:1731
 #, php-format
 msgid "Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket."
 msgid_plural "Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Tickets."
@@ -17597,7 +17600,7 @@ msgstr[0] "Pass Captain: reembolso del pedido #%1$d (%2$s): %3$s, %4$d entrada."
 msgstr[1] "Pass Captain: reembolso del pedido #%1$d (%2$s): %3$s, %4$d entradas."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:1746
+#: src/Integrations/WooCommerce/OrderAdapter.php:1747
 #, php-format
 msgid "Pass Captain: %d erstattetes Ticket war bereits eingecheckt und wurde laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht."
 msgid_plural "Pass Captain: %d erstattete Tickets waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht."
@@ -17605,13 +17608,13 @@ msgstr[0] "Pass Captain: %d entrada reembolsada ya había accedido y, según la 
 msgstr[1] "Pass Captain: %d entradas reembolsadas ya habían accedido y, según la configuración, no se marcaron como reembolsadas; el importe se ha contabilizado."
 
 #. translators: 1: event and ticket name, 2: number of tickets that can be refunded
-#: src/Integrations/WooCommerce/OrderAdapter.php:1818
+#: src/Integrations/WooCommerce/OrderAdapter.php:1819
 #, php-format
 msgid "Pass Captain: Für „%1$s“ können nur %2$d nicht eingecheckte Tickets erstattet werden. Eingecheckte Tickets werden laut Einstellung nicht erstattet. Erstatte nur einen Betrag ohne Menge oder erlaube die Erstattung eingecheckter Tickets unter WooCommerce → Einstellungen → Produkte → Pass Captain."
 msgstr "Pass Captain: para «%1$s» solo se pueden reembolsar %2$d entradas sin check-in. Según los ajustes, las entradas con check-in no se reembolsan. Reembolsa solo un importe sin cantidad o permite el reembolso de entradas con check-in en WooCommerce → Ajustes → Productos → Pass Captain."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:2110
+#: src/Integrations/WooCommerce/OrderAdapter.php:2111
 #, php-format
 msgid "Pass Captain: %d Ticket wegen Erstattung widerrufen."
 msgid_plural "Pass Captain: %d Tickets wegen Erstattung widerrufen."
@@ -17619,99 +17622,99 @@ msgstr[0] "Pass Captain: %d entrada revocada por reembolso."
 msgstr[1] "Pass Captain: %d entradas revocadas por reembolso."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:2113
+#: src/Integrations/WooCommerce/OrderAdapter.php:2114
 #, php-format
 msgid "%d erstattetes Ticket war bereits eingecheckt oder nicht mehr gültig und wurde nicht verändert."
 msgid_plural "%d erstattete Tickets waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert."
 msgstr[0] "%d entrada reembolsada ya tenía check-in o ya no era válida y no se ha modificado."
 msgstr[1] "%d entradas reembolsadas ya tenían check-in o ya no eran válidas y no se han modificado."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2147
+#: src/Integrations/WooCommerce/OrderAdapter.php:2148
 msgid "Pass Captain: Die Tickets konnten wegen eines Datenbankfehlers noch nicht widerrufen werden. Der Vorgang wird automatisch wiederholt."
 msgstr "Pass Captain: las entradas aún no se han podido revocar por un error de la base de datos. La operación se reintentará automáticamente."
 
 #. translators: 1: seller order ID, 2: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:2165
+#: src/Integrations/WooCommerce/OrderAdapter.php:2166
 #, php-format
 msgid "Pass Captain: Ein Termin der Bestellung #%1$d (%2$s) wurde abgesagt; die Tickets sind widerrufen. Bitte diese Positionen in WooCommerce mit Menge erstatten – die Erstattung wird dieser Bestellung zugeordnet."
 msgstr "Pass Captain: se ha cancelado una fecha del pedido n.º %1$d (%2$s); las entradas se han revocado. Reembolsa estas posiciones con cantidad en WooCommerce; el reembolso se asignará a este pedido."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2172
+#: src/Integrations/WooCommerce/OrderAdapter.php:2173
 msgid "Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten."
 msgstr "Pass Captain: se ha cancelado una fecha de este pedido; las entradas están revocadas. Reembolsa el pedido en WooCommerce."
 
 #. translators: 1: amount, 2: currency, 3: exchange id
-#: src/Integrations/WooCommerce/OrderAdapter.php:2181
+#: src/Integrations/WooCommerce/OrderAdapter.php:2182
 #, php-format
 msgid "Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl)."
 msgstr "Pass Captain: entrada cambiada (cambio n.º %3$d). Reembolsa aquí en WooCommerce la diferencia de %1$s %2$s (reembolso sin selección de entradas)."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2247
+#: src/Integrations/WooCommerce/OrderAdapter.php:2248
 msgid "Deine Tickets"
 msgstr "Tus entradas"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2249
+#: src/Integrations/WooCommerce/OrderAdapter.php:2250
 msgid "Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt."
 msgstr "Tus entradas se enviarán por correo electrónico una vez confirmado el pago."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2252
+#: src/Integrations/WooCommerce/OrderAdapter.php:2253
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "Te hemos enviado por correo electrónico los enlaces de las entradas con código QR."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2279
+#: src/Integrations/WooCommerce/OrderAdapter.php:2280
 #: src/Privacy.php:336
 #: src/Privacy.php:384
 msgid "Pass Captain Tickets"
 msgstr "Entradas de Pass Captain"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2288
+#: src/Integrations/WooCommerce/OrderAdapter.php:2289
 msgid "Keine Tickets in dieser Bestellung."
 msgstr "No hay entradas en este pedido."
 
 #. translators: 1: order ID, 2: status, 3: payment status
-#: src/Integrations/WooCommerce/OrderAdapter.php:2296
+#: src/Integrations/WooCommerce/OrderAdapter.php:2297
 #, php-format
 msgid "Pass Captain Bestellung #%1$d: %2$s / %3$s"
 msgstr "Pedido de Pass Captain n.º %1$d: %2$s / %3$s"
 
 #. translators: %s: seller name
-#: src/Integrations/WooCommerce/OrderAdapter.php:2299
+#: src/Integrations/WooCommerce/OrderAdapter.php:2300
 #, php-format
 msgid "Rechnungssteller: %s"
 msgstr "Emisor de facturas: %s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2303
+#: src/Integrations/WooCommerce/OrderAdapter.php:2304
 msgid "Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten."
 msgstr "Pago recibido, pero ya no queda cupo. Libera una plaza y elige «Volver a emitir entradas», o reembolsa."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2316
+#: src/Integrations/WooCommerce/OrderAdapter.php:2317
 msgid "Pass Captain: Tickets erneut senden (neue Codes, ohne übertragene Tickets)"
 msgstr "Pass Captain: reenviar entradas (códigos nuevos, sin las entradas transferidas)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2317
+#: src/Integrations/WooCommerce/OrderAdapter.php:2318
 msgid "Pass Captain: Tickets erneut ausstellen"
 msgstr "Pass Captain: volver a emitir entradas"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2333
+#: src/Integrations/WooCommerce/OrderAdapter.php:2334
 #, php-format
 msgid "Pass Captain: Erneuter Versand fehlgeschlagen – %s"
 msgstr "Pass Captain: error en el reenvío – %s"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:2333
+#: src/Integrations/WooCommerce/OrderAdapter.php:2334
 msgid "Pass Captain: Tickets mit neuen Codes erneut gesendet (übertragene Tickets behalten ihren Code)."
 msgstr "Pass Captain: entradas reenviadas con códigos nuevos (las entradas transferidas conservan su código)."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2342
+#: src/Integrations/WooCommerce/OrderAdapter.php:2343
 msgid "Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt."
 msgstr "Pass Captain: con este método de pago, las entradas solo se emiten cuando el estado es «Completado»."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2346
+#: src/Integrations/WooCommerce/OrderAdapter.php:2347
 msgid "Pass Captain: Die Bestellung ist noch nicht bezahlt."
 msgstr "Pass Captain: el pedido aún no está pagado."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:2353
+#: src/Integrations/WooCommerce/OrderAdapter.php:2354
 msgid "gültig"
 msgstr "válida"
 
@@ -21077,123 +21080,123 @@ msgstr "Prefijo de país"
 msgid "Anlass"
 msgstr "Motivo"
 
-#: src/Modules/Webhooks.php:61
+#: src/Modules/Webhooks.php:63
 msgid "Pass Captain Webhook-Protokoll"
 msgstr "Registro de webhooks de Pass Captain"
 
-#: src/Modules/Webhooks.php:411
+#: src/Modules/Webhooks.php:428
 msgid "Unbekannte Aktion oder Webhook nicht gefunden."
 msgstr "Acción desconocida o webhook no encontrado."
 
 #. translators: 1: api version, 2: signature header format (not translated)
-#: src/Modules/Webhooks.php:448
+#: src/Modules/Webhooks.php:465
 #, php-format
 msgid "Ereignisse werden als signierte JSON-POSTs (API-Version %1$s) an HTTPS-Endpunkte gesendet. Signatur: Header X-WPCAP-Signature = %2$s. Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; nach wiederholten Fehlern wird der Webhook deaktiviert."
 msgstr "Los eventos se envían como POST JSON firmados (versión de API %1$s) a endpoints HTTPS. Firma: encabezado X-WPCAP-Signature = %2$s. Las entregas fallidas se reintentan a intervalos crecientes; tras errores repetidos, el webhook se desactiva."
 
 #. translators: 1: api version, 2: signature header format (not translated)
-#: src/Modules/Webhooks.php:448
+#: src/Modules/Webhooks.php:465
 msgctxt "placeholder name for the Unix timestamp in the webhook signature format"
 msgid "Zeit"
 msgstr "hora"
 
 #. translators: 1: api version, 2: signature header format (not translated)
-#: src/Modules/Webhooks.php:448
+#: src/Modules/Webhooks.php:465
 msgctxt "placeholder name for the raw request body in the webhook signature format"
 msgid "Body"
 msgstr "cuerpo"
 
 #. translators: %d: webhook id
-#: src/Modules/Webhooks.php:453
+#: src/Modules/Webhooks.php:470
 #, php-format
 msgid "Signing-Secret für Webhook #%d – jetzt beim Empfänger hinterlegen, es wird nicht noch einmal angezeigt:"
 msgstr "Secreto de firma del webhook n.º %d: guárdalo ahora en el receptor, no se volverá a mostrar:"
 
-#: src/Modules/Webhooks.php:455
+#: src/Modules/Webhooks.php:472
 msgid "Abonnements"
 msgstr "Suscripciones"
 
-#: src/Modules/Webhooks.php:457
+#: src/Modules/Webhooks.php:474
 msgid "Noch keine Webhooks."
 msgstr "Aún no hay webhooks."
 
-#: src/Modules/Webhooks.php:459
+#: src/Modules/Webhooks.php:476
 msgid "URL"
 msgstr "URL"
 
-#: src/Modules/Webhooks.php:459
+#: src/Modules/Webhooks.php:476
 msgid "Secret"
 msgstr "Secret"
 
-#: src/Modules/Webhooks.php:461
+#: src/Modules/Webhooks.php:478
 msgid "deaktiviert (Fehler)"
 msgstr "desactivado (errores)"
 
-#: src/Modules/Webhooks.php:462
+#: src/Modules/Webhooks.php:479
 msgid "mit personenbezogenen Daten (E-Mail)"
 msgstr "con datos personales (correo electrónico)"
 
 #. translators: %d: count
-#: src/Modules/Webhooks.php:462
+#: src/Modules/Webhooks.php:479
 #, php-format
 msgid "%d Fehler in Folge"
 msgstr "%d errores seguidos"
 
 #. translators: %d: count
-#: src/Modules/Webhooks.php:463
+#: src/Modules/Webhooks.php:480
 msgid "nicht lesbar – bitte erneuern"
 msgstr "ilegible: renuévalo"
 
-#: src/Modules/Webhooks.php:465
+#: src/Modules/Webhooks.php:482
 msgid "Secret erneuern"
 msgstr "Renovar secret"
 
-#: src/Modules/Webhooks.php:465
+#: src/Modules/Webhooks.php:482
 msgid "Neues Secret erzeugen? Der Empfänger muss es übernehmen."
 msgstr "¿Generar un nuevo secret? El receptor deberá adoptarlo."
 
-#: src/Modules/Webhooks.php:466
+#: src/Modules/Webhooks.php:483
 msgid "Webhook und Zustellprotokoll löschen?"
 msgstr "¿Eliminar el webhook y su registro de entregas?"
 
-#: src/Modules/Webhooks.php:471
+#: src/Modules/Webhooks.php:488
 msgid "Neuer Webhook"
 msgstr "Nuevo webhook"
 
-#: src/Modules/Webhooks.php:474
+#: src/Modules/Webhooks.php:491
 msgid "Endpunkt-URL (HTTPS)"
 msgstr "URL del endpoint (HTTPS)"
 
-#: src/Modules/Webhooks.php:478
+#: src/Modules/Webhooks.php:495
 msgid "E-Mail-Adressen (Käufer:in, Teilnehmer:in) mitsenden – nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag"
 msgstr "Incluir las direcciones de correo electrónico (comprador, asistente); solo con base jurídica y contrato de encargado del tratamiento"
 
-#: src/Modules/Webhooks.php:479
+#: src/Modules/Webhooks.php:496
 msgid "Webhook anlegen"
 msgstr "Crear webhook"
 
-#: src/Modules/Webhooks.php:481
+#: src/Modules/Webhooks.php:498
 msgid "Aufbewahrung"
 msgstr "Conservación"
 
-#: src/Modules/Webhooks.php:56
-#: src/Modules/Webhooks.php:484
+#: src/Modules/Webhooks.php:58
+#: src/Modules/Webhooks.php:501
 msgid "Abgeschlossene Zustellungen löschen nach (Tagen)"
 msgstr "Eliminar las entregas completadas después de (días)"
 
-#: src/Modules/Webhooks.php:486
+#: src/Modules/Webhooks.php:503
 msgid "Personenbezogene Daten (opt-in) werden nach der letzten Zustellung aus dem Protokoll entfernt; „Erneut senden“ verwendet dann die aktuellen Daten."
 msgstr "Los datos personales (opt-in) se eliminan del registro tras la última entrega; «Reenviar» usará entonces los datos actuales."
 
-#: src/Modules/Webhooks.php:488
+#: src/Modules/Webhooks.php:505
 msgid "Zustellprotokoll (letzte 50)"
 msgstr "Registro de entregas (últimas 50)"
 
-#: src/Modules/Webhooks.php:493
+#: src/Modules/Webhooks.php:510
 msgid "HTTP-Code"
 msgstr "Código HTTP"
 
-#: src/Modules/Webhooks.php:493
+#: src/Modules/Webhooks.php:510
 msgid "Nächster Versuch / Zugestellt"
 msgstr "Próximo intento / Entregado"
 
@@ -24835,36 +24838,37 @@ msgid "Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge"
 msgstr "Inversión del sujeto pasivo: el destinatario del servicio es el deudor del impuesto"
 
 #: src/Partners/SalesModel.php:135
+#: src/Partners/SalesModel.php:151
 msgid "USt-IdNr. oder Steuernummer"
 msgstr "NIF-IVA o número fiscal"
 
 #. translators: %s: organizer names
-#: src/Partners/SalesModel.php:210
+#: src/Partners/SalesModel.php:226
 #, php-format
 msgid "Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen."
 msgstr "Este pedido contiene entradas de distintos emisores de factura (organizador intermediario: %s, además de otros organizadores o eventos de la plataforma). No se permite una factura conjunta; crea las facturas fuera del plugin por organizador o cancela el pedido y vuelve a crearlo por separado."
 
-#: src/Partners/SalesModel.php:281
+#: src/Partners/SalesModel.php:297
 msgid "Plattform"
 msgstr "Plataforma"
 
-#: src/Partners/SalesModel.php:296
+#: src/Partners/SalesModel.php:321
 msgid "Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen."
 msgstr "La plataforma está configurada como pequeña empresa, pero el pedido incluye IVA. Mostrar el IVA no estaría permitido (§ 14c UStG). Crea los tipos de entrada con el 0 % o revisa el ajuste «Pequeña empresa»."
 
 #. translators: 1: organizer, 2: missing fields
-#: src/Partners/SalesModel.php:306
+#: src/Partners/SalesModel.php:331
 #, php-format
 msgid "Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen."
 msgstr "Factura en nombre del organizador «%1$s» no posible – faltan: %2$s. Complétalo en Organizadores."
 
 #. translators: %s: organizer
-#: src/Partners/SalesModel.php:315
+#: src/Partners/SalesModel.php:340
 #, php-format
 msgid "Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen."
 msgstr "El organizador «%s» es un pequeño empresario, pero el pedido incluye IVA. Repercutir el impuesto no sería lícito (§ 14c UStG). Crea los tipos de entrada con 0 %%."
 
-#: src/Partners/SalesModel.php:518
+#: src/Partners/SalesModel.php:543
 msgid "Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen."
 msgstr "Las entradas de estos organizadores no se pueden comprar en un mismo pedido. Haz un pedido por separado para cada organizador."
 
@@ -33908,7 +33912,7 @@ msgstr "Color de las etiquetas"
 msgid "Farbe als Hex-Wert für die Feldbezeichnungen auf Pässen."
 msgstr "Color como valor Hex para las etiquetas de campo de los pases."
 
-#: src/Modules/Webhooks.php:56
+#: src/Modules/Webhooks.php:58
 msgid "Wie lange Zustellprotokolle der Webhooks aufbewahrt werden."
 msgstr "Tiempo durante el cual se conservan los registros de entrega de los Webhooks."
 
@@ -36011,23 +36015,23 @@ msgid "Diese Tickets können gerade nicht verkauft werden, weil die Steuerangabe
 msgstr "Estas entradas no se pueden vender en este momento porque los datos fiscales del tipo de entrada aún deben revisarse. Inténtalo más tarde o ponte en contacto con el organizador."
 
 #. translators: %s: organizer
-#: src/Partners/SalesModel.php:409
+#: src/Partners/SalesModel.php:434
 #, php-format
 msgid "Der Veranstalter „%s“ ist Kleinunternehmer und darf keine Umsatzsteuer ausweisen. Bitte trage 0 als Steuersatz ein."
 msgstr "El organizador «%s» es una pequeña empresa y no puede mostrar IVA. Introduce 0 como tipo impositivo."
 
-#: src/Partners/SalesModel.php:410
+#: src/Partners/SalesModel.php:435
 msgid "Die Plattform ist als Kleinunternehmer eingestellt und darf keine Umsatzsteuer ausweisen. Bitte trage 0 als Steuersatz ein oder prüfe die Einstellung „Kleinunternehmer“ (Einstellungen → Rechnungssteller)."
 msgstr "La plataforma está configurada como pequeña empresa y no puede mostrar IVA. Introduce 0 como tipo impositivo o revisa el ajuste «pequeña empresa» (Ajustes → Emisor de facturas)."
 
 #. translators: 1: tax rate in percent, 2: seller (organizer or platform)
-#: src/Partners/SalesModel.php:414
+#: src/Partners/SalesModel.php:439
 #, php-format
 msgid "Für diese Ticketart gilt ein aktives Steuerprofil mit %1$s %%, der Rechnungssteller „%2$s“ ist aber Kleinunternehmer und darf keine Umsatzsteuer ausweisen. Bitte passe die Steuerklasse an oder lass das Steuerprofil prüfen."
 msgstr "A este tipo de entrada se aplica un perfil fiscal activo del %1$s %%, pero el emisor de factura «%2$s» es una pequeña empresa y no puede mostrar IVA. Ajusta la clase fiscal o haz revisar el perfil fiscal."
 
 #. translators: %s: organizer name and address
-#: src/Partners/SalesModel.php:503
+#: src/Partners/SalesModel.php:528
 #, php-format
 msgid "Vertragspartner: %s"
 msgstr "Socio contractual: %s"
@@ -36755,3 +36759,69 @@ msgstr "Método de pago para el pago adicional"
 #: src/Frontend/ServiceBooking.php:158
 msgid "Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung; danach wird deine Buchung automatisch umgebucht."
 msgstr "La nueva franja horaria es más cara. Paga el importe adicional; después tu reserva se cambiará automáticamente."
+
+#: src/Admin/TranslationStatus.php:137
+msgid "Übersetzungen"
+msgstr "Traducciones"
+
+#. translators: %d: number of translatable texts
+#: src/Admin/TranslationStatus.php:139
+#, php-format
+msgid "Die Quelltexte sind Deutsch (du). Die Vorlage enthält %d übersetzbare Texte; Käufer:innen sehen fehlende Übersetzungen auf Deutsch."
+msgstr "Los textos fuente están en alemán (tuteo). La plantilla contiene %d textos traducibles; los compradores ven en alemán las traducciones que faltan."
+
+#: src/Admin/TranslationStatus.php:141
+msgid "Keine mitgelieferten Übersetzungen gefunden."
+msgstr "No se han encontrado traducciones incluidas."
+
+#: src/Admin/TranslationStatus.php:144
+msgid "Übersetzt"
+msgstr "Traducido"
+
+#: src/Admin/TranslationStatus.php:144
+msgid "Ungeprüft (fuzzy)"
+msgstr "Sin revisar (fuzzy)"
+
+#: src/Admin/TranslationStatus.php:144
+msgid "Fehlend"
+msgstr "Faltan"
+
+#: src/Admin/TranslationStatus.php:144
+msgid "Nicht mehr verwendet"
+msgstr "Ya no se usa"
+
+#: src/Admin/TranslationStatus.php:144
+msgid "Geladene Datei"
+msgstr "Archivo cargado"
+
+#: src/Admin/TranslationStatus.php:146
+msgid "Sprachpaket (WordPress)"
+msgstr "Paquete de idioma (WordPress)"
+
+#: src/Admin/TranslationStatus.php:147
+msgid "mitgeliefert"
+msgstr "incluido"
+
+#: src/Admin/TranslationStatus.php:148
+msgid "keine (.mo fehlt)"
+msgstr "ninguno (falta el .mo)"
+
+#: src/Admin/TranslationStatus.php:152
+msgid "(Website-Sprache)"
+msgstr "(idioma del sitio)"
+
+#. translators: 1: translated texts, 2: all texts, 3: percent
+#: src/Admin/TranslationStatus.php:155
+#, php-format
+msgid "%1$d von %2$d (%3$s %%)"
+msgstr "%1$d de %2$d (%3$s %%)"
+
+#: src/Admin/TranslationStatus.php:159
+msgid "Ein Sprachpaket von WordPress hat Vorrang vor der mitgelieferten Datei. Fehlende und ungeprüfte Texte ergänzt du in der .po-Datei der Sprache (z. B. mit Poedit) oder über ein Sprachpaket."
+msgstr "Un paquete de idioma de WordPress tiene prioridad sobre el archivo incluido. Los textos que faltan o sin revisar los completas en el archivo .po del idioma (p. ej. con Poedit) o mediante un paquete de idioma."
+
+#. translators: %s: missing fields
+#: src/Partners/SalesModel.php:313
+#, php-format
+msgid "Rechnung nicht möglich – in den Rechnungsstellerdaten der Plattform fehlen: %s. Bitte in den Einstellungen unter „Rechnungssteller“ ergänzen."
+msgstr "Factura no posible: en los datos del emisor de la plataforma faltan: %s. Complétalos en los ajustes en «Emisor de facturas»."
